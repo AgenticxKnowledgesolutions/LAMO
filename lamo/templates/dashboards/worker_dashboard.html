@@ -1,0 +1,2215 @@
+{% extends "workers/worker_sidebar.html" %}
+
+{% block title %}
+Worker Dashboard | LAMO
+{% endblock %}
+
+{% block worker_content %}
+
+<style>
+
+/* =========================================================
+   LAMO WORKER DASHBOARD
+   ========================================================= */
+
+:root {
+    --green: #087f5b;
+    --green-dark: #056247;
+    --green-light: #e9f8f2;
+    --green-pale: #f5fbf8;
+
+    --text: #17231f;
+    --muted: #71807b;
+    --border: #e1ece7;
+    --white: #ffffff;
+
+    --orange: #f59f00;
+    --red: #d64545;
+    --blue: #3478c7;
+
+    --shadow:
+        0 10px 30px rgba(0, 75, 55, .055);
+}
+
+
+/* =========================================================
+   PAGE
+   ========================================================= */
+
+.worker-page {
+    min-height: 100vh;
+
+    padding: 28px 32px 50px;
+
+    background:
+        radial-gradient(
+            circle at 90% 0%,
+            rgba(8,127,91,.055),
+            transparent 25%
+        ),
+        #f6faf8;
+}
+
+
+/* =========================================================
+   CONTAINER
+   ========================================================= */
+
+.dashboard-container {
+    max-width: 1250px;
+
+    margin: auto;
+}
+
+
+/* =========================================================
+   WELCOME HERO
+   ========================================================= */
+
+.dashboard-hero {
+
+    position: relative;
+
+    overflow: hidden;
+
+    padding: 30px 32px;
+
+    border-radius: 24px;
+
+    background:
+        radial-gradient(
+            circle at 90% 10%,
+            rgba(114,239,178,.22),
+            transparent 25%
+        ),
+        linear-gradient(
+            120deg,
+            #064634,
+            #087f5b 65%,
+            #0ca678
+        );
+
+    color: white;
+
+    box-shadow:
+        0 18px 45px rgba(0,75,55,.12);
+
+    margin-bottom: 22px;
+}
+
+
+.dashboard-hero::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 230px;
+    height: 230px;
+
+    right: -90px;
+    top: -130px;
+
+    border-radius: 50%;
+
+    border: 1px solid rgba(255,255,255,.12);
+}
+
+
+.dashboard-hero::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 140px;
+    height: 140px;
+
+    right: 170px;
+    bottom: -100px;
+
+    border-radius: 50%;
+
+    border: 1px solid rgba(255,255,255,.08);
+}
+
+
+.hero-content {
+
+    position: relative;
+
+    z-index: 2;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 30px;
+}
+
+
+.hero-text h1 {
+
+    margin: 0;
+
+    font-size: clamp(25px, 3vw, 36px);
+
+    font-weight: 850;
+
+    letter-spacing: -.8px;
+}
+
+
+.hero-text h1 span {
+
+    color: #75efb4;
+}
+
+
+.hero-text p {
+
+    max-width: 600px;
+
+    margin: 8px 0 0;
+
+    color: rgba(255,255,255,.72);
+
+    font-size: 12px;
+
+    line-height: 1.7;
+}
+
+
+.hero-badge {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    margin-bottom: 10px;
+
+    padding: 6px 11px;
+
+    border-radius: 30px;
+
+    background: rgba(255,255,255,.11);
+
+    border: 1px solid rgba(255,255,255,.18);
+
+    color: #c9ffe5;
+
+    font-size: 9px;
+
+    font-weight: 800;
+
+    text-transform: uppercase;
+
+    letter-spacing: .6px;
+}
+
+
+/* HERO STATUS */
+
+.hero-status {
+
+    min-width: 190px;
+
+    padding: 17px;
+
+    border-radius: 17px;
+
+    background: rgba(255,255,255,.11);
+
+    border: 1px solid rgba(255,255,255,.17);
+
+    backdrop-filter: blur(12px);
+}
+
+
+.hero-status-label {
+
+    color: rgba(255,255,255,.58);
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    letter-spacing: .6px;
+}
+
+
+.hero-status-value {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-top: 8px;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 800;
+}
+
+
+.hero-status-dot {
+
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #62e7a8;
+
+    box-shadow:
+        0 0 0 5px rgba(98,231,168,.12);
+}
+
+
+/* =========================================================
+   STATS
+   ========================================================= */
+
+.worker-stats {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 14px;
+
+    margin-bottom: 20px;
+}
+
+
+.stat-card {
+
+    position: relative;
+
+    overflow: hidden;
+
+    padding: 19px;
+
+    background: var(--white);
+
+    border: 1px solid var(--border);
+
+    border-radius: 18px;
+
+    box-shadow: var(--shadow);
+
+    transition: .25s ease;
+}
+
+
+.stat-card:hover {
+
+    transform: translateY(-4px);
+
+    box-shadow:
+        0 15px 35px rgba(0,75,55,.09);
+}
+
+
+.stat-card::after {
+
+    content: "";
+
+    position: absolute;
+
+    width: 75px;
+    height: 75px;
+
+    right: -30px;
+    top: -30px;
+
+    border-radius: 50%;
+
+    background: var(--green-light);
+}
+
+
+.stat-icon {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 14px;
+
+    border-radius: 11px;
+
+    background: var(--green-light);
+
+    color: var(--green);
+
+    font-size: 16px;
+}
+
+
+.stat-number {
+
+    position: relative;
+
+    z-index: 2;
+
+    color: var(--text);
+
+    font-size: 25px;
+
+    font-weight: 850;
+}
+
+
+.stat-label {
+
+    position: relative;
+
+    z-index: 2;
+
+    margin-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   MAIN GRID
+   ========================================================= */
+
+.dashboard-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1.35fr)
+        minmax(300px, .65fr);
+
+    gap: 20px;
+}
+
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.dashboard-card {
+
+    padding: 21px;
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 20px;
+
+    box-shadow: var(--shadow);
+}
+
+
+.dashboard-card + .dashboard-card {
+
+    margin-top: 20px;
+}
+
+
+/* =========================================================
+   CARD HEADER
+   ========================================================= */
+
+.card-heading {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    margin-bottom: 18px;
+}
+
+
+.card-heading h3 {
+
+    margin: 0;
+
+    color: var(--text);
+
+    font-size: 16px;
+
+    font-weight: 850;
+}
+
+
+.card-heading p {
+
+    margin: 4px 0 0;
+
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+
+.card-heading-icon {
+
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    border-radius: 11px;
+
+    background: var(--green-light);
+
+    color: var(--green);
+
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   JOB CARDS
+   ========================================================= */
+
+.booking-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+}
+
+
+.booking-card {
+
+    padding: 15px;
+
+    border: 1px solid #e3eee9;
+
+    border-radius: 15px;
+
+    background: #f8fcfa;
+
+    transition: .22s ease;
+}
+
+
+.booking-card:hover {
+
+    border-color: #c8e4d8;
+
+    background: #f4fbf8;
+}
+
+
+.booking-card h4 {
+
+    margin: 0 0 11px;
+
+    color: var(--text);
+
+    font-size: 14px;
+
+    font-weight: 800;
+}
+
+
+.booking-info {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 8px;
+}
+
+
+.booking-info p {
+
+    margin: 0;
+
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+
+.booking-info i {
+
+    margin-right: 4px;
+
+    color: var(--green);
+}
+
+
+.booking-actions {
+
+    display: flex;
+
+    gap: 8px;
+
+    margin-top: 14px;
+}
+
+
+.booking-actions form {
+
+    flex: 1;
+}
+
+
+.booking-actions button {
+
+    width: 100%;
+
+    padding: 9px;
+
+    border: 0;
+
+    border-radius: 9px;
+
+    cursor: pointer;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    transition: .2s ease;
+}
+
+
+.accept-btn {
+
+    background: var(--green);
+
+    color: white;
+}
+
+
+.accept-btn:hover {
+
+    background: var(--green-dark);
+}
+
+
+.reject-btn {
+
+    background: #fff0ef;
+
+    color: #c92a2a;
+}
+
+
+.reject-btn:hover {
+
+    background: #ffe2e0;
+}
+
+
+/* =========================================================
+   EMPTY
+   ========================================================= */
+
+.job-empty {
+
+    padding: 38px 18px;
+
+    text-align: center;
+
+    border: 1px dashed #cfe3db;
+
+    border-radius: 15px;
+
+    background: #fbfefd;
+}
+
+
+.job-empty-icon {
+
+    width: 52px;
+    height: 52px;
+
+    margin: 0 auto 12px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 15px;
+
+    background: var(--green-light);
+
+    color: var(--green);
+
+    font-size: 21px;
+}
+
+
+.job-empty h4 {
+
+    margin: 0 0 6px;
+
+    color: var(--text);
+
+    font-size: 15px;
+
+    font-weight: 800;
+}
+
+
+.job-empty p {
+
+    max-width: 400px;
+
+    margin: auto;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+.profile-details {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 9px;
+}
+
+
+.detail-box {
+
+    padding: 13px;
+
+    border: 1px solid #e3eee9;
+
+    border-radius: 13px;
+
+    background: #f8fcfa;
+}
+
+
+.detail-box.full {
+
+    grid-column: 1 / -1;
+}
+
+
+.detail-label {
+
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #8b9994;
+
+    font-size: 8px;
+
+    font-weight: 800;
+
+    text-transform: uppercase;
+
+    letter-spacing: .5px;
+}
+
+
+.detail-value {
+
+    display: block;
+
+    overflow: hidden;
+
+    color: var(--text);
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   WORK STATUS
+   ========================================================= */
+
+.status-card {
+
+    position: relative;
+
+    overflow: hidden;
+}
+
+
+.status-card.available {
+
+    border-color: #ccecdf;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #f2fbf7
+        );
+}
+
+
+.status-card.duty {
+
+    border-color: #f1dfb2;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #fffaf0
+        );
+}
+
+
+.status-card.leave {
+
+    border-color: #dce1e4;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #f7f8f9
+        );
+}
+
+
+.status-select {
+
+    width: 100%;
+
+    margin-top: 15px;
+
+    padding: 11px 13px;
+
+    border: 1px solid #dbe8e2;
+
+    border-radius: 11px;
+
+    outline: none;
+
+    background: white;
+
+    color: var(--text);
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+
+.status-select:focus {
+
+    border-color: var(--green);
+
+    box-shadow:
+        0 0 0 3px rgba(8,127,91,.08);
+}
+
+
+.current-status {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    margin-top: 13px;
+
+    padding: 7px 10px;
+
+    border-radius: 30px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+}
+
+
+.current-status.available {
+
+    color: #087f5b;
+
+    background: #dff8eb;
+}
+
+
+.current-status.on-duty {
+
+    color: #b77900;
+
+    background: #fff0c9;
+}
+
+
+.current-status.leave {
+
+    color: #6f7880;
+
+    background: #e9edef;
+}
+
+
+.status-dot {
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+}
+
+
+.available .status-dot {
+
+    background: #16a765;
+}
+
+
+.on-duty .status-dot {
+
+    background: #f59f00;
+}
+
+
+.leave .status-dot {
+
+    background: #94a3b8;
+}
+
+
+.status-description {
+
+    margin: 9px 0 0;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   QUICK ACTIONS
+   ========================================================= */
+
+.quick-actions {
+
+    display: grid;
+
+    grid-template-columns: 1fr;
+
+    gap: 8px;
+}
+
+
+.quick-action {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 11px;
+
+    border: 1px solid #e3eee9;
+
+    border-radius: 13px;
+
+    background: #fbfefd;
+
+    color: var(--text);
+
+    transition: .22s ease;
+}
+
+
+.quick-action:hover {
+
+    color: var(--green);
+
+    border-color: #c8e5d9;
+
+    background: var(--green-light);
+
+    transform: translateX(3px);
+}
+
+
+.quick-action-icon {
+
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    border-radius: 10px;
+
+    background: var(--green-light);
+
+    color: var(--green);
+}
+
+
+.quick-action strong {
+
+    display: block;
+
+    font-size: 11px;
+}
+
+
+.quick-action small {
+
+    display: block;
+
+    margin-top: 2px;
+
+    color: var(--muted);
+
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   VERIFICATION
+   ========================================================= */
+
+.verification-box {
+
+    padding: 14px;
+
+    border-radius: 14px;
+
+    border: 1px solid #ccecdf;
+
+    background: #effbf5;
+}
+
+
+.verification-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    color: var(--green);
+
+    font-size: 11px;
+
+    font-weight: 850;
+}
+
+
+.verification-text {
+
+    margin: 7px 0 0;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+    line-height: 1.6;
+}
+
+
+.verification-box.pending {
+
+    border-color: #f1dfb2;
+
+    background: #fffaf0;
+}
+
+
+.verification-box.pending .verification-title {
+
+    color: #b77900;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+    .worker-stats {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+
+    .dashboard-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+@media (max-width: 768px) {
+
+    .worker-page {
+
+        padding:
+            20px 14px 40px;
+    }
+
+
+    .dashboard-hero {
+
+        padding:
+            24px 21px;
+
+        border-radius: 20px;
+    }
+
+
+    .hero-content {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .hero-status {
+
+        width: 100%;
+    }
+
+
+    .hero-text h1 {
+
+        font-size: 27px;
+    }
+
+
+    .worker-stats {
+
+        gap: 10px;
+    }
+
+}
+
+
+@media (max-width: 550px) {
+
+    .worker-stats {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+
+    .stat-card {
+
+        padding: 15px;
+    }
+
+
+    .stat-icon {
+
+        width: 36px;
+        height: 36px;
+
+        margin-bottom: 10px;
+    }
+
+
+    .stat-number {
+
+        font-size: 21px;
+    }
+
+
+    .dashboard-card {
+
+        padding: 17px;
+
+        border-radius: 17px;
+    }
+
+
+    .profile-details {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .detail-box.full {
+
+        grid-column: auto;
+    }
+
+
+    .booking-info {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .booking-actions {
+
+        flex-direction: column;
+    }
+
+}
+
+
+@media (max-width: 380px) {
+
+    .worker-page {
+
+        padding-left: 9px;
+
+        padding-right: 9px;
+    }
+
+
+    .worker-stats {
+
+        gap: 7px;
+    }
+
+
+    .stat-card {
+
+        padding: 12px;
+    }
+
+
+    .stat-label {
+
+        font-size: 9px;
+    }
+
+}
+
+</style>
+
+
+<div class="worker-page">
+
+    <div class="dashboard-container">
+
+
+        <!-- =====================================================
+             WELCOME HERO
+        ===================================================== -->
+
+        <section class="dashboard-hero">
+
+            <div class="hero-content">
+
+
+                <div class="hero-text">
+
+                    <div class="hero-badge">
+
+                        <i class="bi bi-stars"></i>
+
+                        LAMO Worker Center
+
+                    </div>
+
+
+                    <h1>
+
+                        Welcome back,
+
+                        <span>
+                            {{ user.username }}
+                        </span>
+
+                        👋
+
+                    </h1>
+
+
+                    <p>
+
+                        Manage your bookings, check your work status,
+                        update your profile and stay ready for new
+                        customer requests.
+
+                    </p>
+
+                </div>
+
+
+                <!-- CURRENT STATUS -->
+
+                <div class="hero-status">
+
+                    <div class="hero-status-label">
+
+                        Current Status
+
+                    </div>
+
+
+                    {% if worker_profile.work_status == 'AVAILABLE' %}
+
+                        <div class="hero-status-value">
+
+                            <span class="hero-status-dot"></span>
+
+                            Available
+
+                        </div>
+
+
+                    {% elif worker_profile.work_status == 'ON_DUTY' %}
+
+                        <div class="hero-status-value">
+
+                            <span
+                                class="hero-status-dot"
+                                style="background:#ffd166;"
+                            ></span>
+
+                            On Duty
+
+                        </div>
+
+
+                    {% elif worker_profile.work_status == 'LEAVE' %}
+
+                        <div class="hero-status-value">
+
+                            <span
+                                class="hero-status-dot"
+                                style="background:#c4cbd0;"
+                            ></span>
+
+                            On Leave
+
+                        </div>
+
+
+                    {% endif %}
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             STATISTICS
+        ===================================================== -->
+
+        <section class="worker-stats">
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+
+                    <i class="bi bi-briefcase-fill"></i>
+
+                </div>
+
+                <div class="stat-number">
+
+                    {{ total_jobs|default:"0" }}
+
+                </div>
+
+                <div class="stat-label">
+
+                    Total Jobs
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+
+                    <i class="bi bi-hourglass-split"></i>
+
+                </div>
+
+                <div class="stat-number">
+
+                    {{ pending_jobs|default:"0" }}
+
+                </div>
+
+                <div class="stat-label">
+
+                    Pending Jobs
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+
+                    <i class="bi bi-check2-circle"></i>
+
+                </div>
+
+                <div class="stat-number">
+
+                    {{ completed_jobs|default:"0" }}
+
+                </div>
+
+                <div class="stat-label">
+
+                    Completed Jobs
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+
+                    <i class="bi bi-wallet2"></i>
+
+                </div>
+
+                <div class="stat-number">
+
+                    ₹{{ total_earnings|default:"0" }}
+
+                </div>
+
+                <div class="stat-label">
+
+                    Total Earnings
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =====================================================
+             MAIN CONTENT
+        ===================================================== -->
+
+        <section class="dashboard-grid">
+
+
+            <!-- =================================================
+                 LEFT COLUMN
+            ================================================= -->
+
+            <div>
+
+
+                <!-- =================================================
+                     PENDING JOBS
+                ================================================= -->
+
+                <div class="dashboard-card">
+
+
+                    <div class="card-heading">
+
+                        <div>
+
+                            <h3>
+                                Pending Jobs
+                            </h3>
+
+                            <p>
+                                Customer requests waiting for your response
+                            </p>
+
+                        </div>
+
+
+                        <span class="card-heading-icon">
+
+                            <i class="bi bi-briefcase"></i>
+
+                        </span>
+
+                    </div>
+
+
+                    {% if pending_bookings %}
+
+
+                        <div class="booking-list">
+
+
+                            {% for booking in pending_bookings %}
+
+
+                                <div class="booking-card">
+
+
+                                    <h4>
+
+                                        {{ booking.service.name }}
+
+                                    </h4>
+
+
+                                    <div class="booking-info">
+
+
+                                        <p>
+
+                                            <i class="bi bi-person"></i>
+
+                                            {{ booking.customer.get_full_name|default:booking.customer.username }}
+
+                                        </p>
+
+
+                                        <p>
+
+                                            <i class="bi bi-calendar"></i>
+
+                                            {{ booking.date }}
+
+                                        </p>
+
+
+                                        <p>
+
+                                            <i class="bi bi-clock"></i>
+
+                                            {{ booking.time }}
+
+                                        </p>
+
+
+                                        <p>
+
+                                            <i class="bi bi-geo-alt"></i>
+
+                                            {{ booking.location }}
+
+                                        </p>
+
+
+                                    </div>
+
+
+                                    <div class="booking-actions">
+
+
+                                        <form
+                                            method="POST"
+                                            action="{% url 'worker_accept_booking' booking.id %}"
+                                        >
+
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="accept-btn"
+                                            >
+
+                                                <i class="bi bi-check-circle"></i>
+
+                                                Accept
+
+                                            </button>
+
+                                        </form>
+
+
+                                        <form
+                                            method="POST"
+                                            action="{% url 'worker_reject_booking' booking.id %}"
+                                        >
+
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="reject-btn"
+                                            >
+
+                                                <i class="bi bi-x-circle"></i>
+
+                                                Reject
+
+                                            </button>
+
+                                        </form>
+
+
+                                    </div>
+
+
+                                </div>
+
+
+                            {% endfor %}
+
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div class="job-empty">
+
+                            <div class="job-empty-icon">
+
+                                <i class="bi bi-calendar2-check"></i>
+
+                            </div>
+
+
+                            <h4>
+                                No pending jobs
+                            </h4>
+
+
+                            <p>
+
+                                New customer bookings will appear here
+                                when someone requests your service.
+
+                            </p>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+                <!-- =================================================
+                     PROFESSIONAL PROFILE
+                ================================================= -->
+
+                <div class="dashboard-card">
+
+
+                    <div class="card-heading">
+
+                        <div>
+
+                            <h3>
+                                Professional Profile
+                            </h3>
+
+                            <p>
+                                Information associated with your worker account
+                            </p>
+
+                        </div>
+
+
+                        <span class="card-heading-icon">
+
+                            <i class="bi bi-person-badge"></i>
+
+                        </span>
+
+                    </div>
+
+
+                    {% if worker_profile %}
+
+
+                        <div class="profile-details">
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    Service
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.service }}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    Experience
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.experience_years }}
+                                    years
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    District
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.district }}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    Availability
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.availability }}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    Qualification
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.qualification|default:"Not added" }}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box">
+
+                                <span class="detail-label">
+                                    Phone
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.phone }}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-box full">
+
+                                <span class="detail-label">
+                                    Address
+                                </span>
+
+                                <span class="detail-value">
+
+                                    {{ worker_profile.address|default:"Not added" }}
+
+                                </span>
+
+                            </div>
+
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div class="job-empty">
+
+                            <h4>
+                                Profile not available
+                            </h4>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 RIGHT COLUMN
+            ================================================= -->
+
+            <div>
+
+
+                <!-- =================================================
+                     WORK STATUS
+                ================================================= -->
+
+                <div class="dashboard-card status-card
+                    {% if worker_profile.work_status == 'AVAILABLE' %}
+                        available
+                    {% elif worker_profile.work_status == 'ON_DUTY' %}
+                        duty
+                    {% elif worker_profile.work_status == 'LEAVE' %}
+                        leave
+                    {% endif %}
+                ">
+
+
+                    <div class="card-heading">
+
+                        <div>
+
+                            <h3>
+                                Work Status
+                            </h3>
+
+                            <p>
+                                Control your current availability
+                            </p>
+
+                        </div>
+
+
+                        <span class="card-heading-icon">
+
+                            <i class="bi bi-broadcast"></i>
+
+                        </span>
+
+                    </div>
+
+
+                    <form
+                        method="POST"
+                        action="{% url 'worker_update_status' %}"
+                    >
+
+                        {% csrf_token %}
+
+
+                        <select
+                            name="work_status"
+                            class="status-select"
+                            onchange="this.form.submit()"
+                        >
+
+
+                            <option
+                                value="AVAILABLE"
+
+                                {% if worker_profile.work_status == 'AVAILABLE' %}
+                                    selected
+                                {% endif %}
+                            >
+
+                                Available
+
+                            </option>
+
+
+                            <option
+                                value="ON_DUTY"
+
+                                {% if worker_profile.work_status == 'ON_DUTY' %}
+                                    selected
+                                {% endif %}
+                            >
+
+                                On Duty
+
+                            </option>
+
+
+                            <option
+                                value="LEAVE"
+
+                                {% if worker_profile.work_status == 'LEAVE' %}
+                                    selected
+                                {% endif %}
+                            >
+
+                                On Leave
+
+                            </option>
+
+
+                        </select>
+
+                    </form>
+
+
+                    {% if worker_profile.work_status == 'AVAILABLE' %}
+
+
+                        <div class="current-status available">
+
+                            <span class="status-dot"></span>
+
+                            Available
+
+                        </div>
+
+
+                        <p class="status-description">
+
+                            You are currently available to accept
+                            new customer bookings.
+
+                        </p>
+
+
+                    {% elif worker_profile.work_status == 'ON_DUTY' %}
+
+
+                        <div class="current-status on-duty">
+
+                            <span class="status-dot"></span>
+
+                            On Duty
+
+                        </div>
+
+
+                        <p class="status-description">
+
+                            Customers can see that you are currently
+                            working and unavailable for a new booking.
+
+                        </p>
+
+
+                    {% elif worker_profile.work_status == 'LEAVE' %}
+
+
+                        <div class="current-status leave">
+
+                            <span class="status-dot"></span>
+
+                            On Leave
+
+                        </div>
+
+
+                        <p class="status-description">
+
+                            You are currently unavailable for
+                            new customer bookings.
+
+                        </p>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+                <!-- =================================================
+                     QUICK ACTIONS
+                ================================================= -->
+
+                <div class="dashboard-card">
+
+
+                    <div class="card-heading">
+
+                        <div>
+
+                            <h3>
+                                Quick Actions
+                            </h3>
+
+                            <p>
+                                Frequently used worker pages
+                            </p>
+
+                        </div>
+
+
+                        <span class="card-heading-icon">
+
+                            <i class="bi bi-lightning-charge"></i>
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="quick-actions">
+
+
+                        <a
+                            href="{% url 'worker_jobs' %}"
+                            class="quick-action"
+                        >
+
+                            <span class="quick-action-icon">
+
+                                <i class="bi bi-briefcase"></i>
+
+                            </span>
+
+
+                            <span>
+
+                                <strong>
+                                    My Jobs
+                                </strong>
+
+                                <small>
+                                    View all bookings
+                                </small>
+
+                            </span>
+
+                        </a>
+
+
+                        <a
+                            href="{% url 'worker_profile' %}"
+                            class="quick-action"
+                        >
+
+                            <span class="quick-action-icon">
+
+                                <i class="bi bi-person"></i>
+
+                            </span>
+
+
+                            <span>
+
+                                <strong>
+                                    My Profile
+                                </strong>
+
+                                <small>
+                                    Update your information
+                                </small>
+
+                            </span>
+
+                        </a>
+
+
+                        <a
+                            href="{% url 'worker_notifications' %}"
+                            class="quick-action"
+                        >
+
+                            <span class="quick-action-icon">
+
+                                <i class="bi bi-bell"></i>
+
+                            </span>
+
+
+                            <span>
+
+                                <strong>
+                                    Notifications
+                                </strong>
+
+                                <small>
+                                    View latest updates
+                                </small>
+
+                            </span>
+
+                        </a>
+
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- =================================================
+                     VERIFICATION
+                ================================================= -->
+
+                <div class="dashboard-card">
+
+
+                    <div class="card-heading">
+
+                        <div>
+
+                            <h3>
+                                Account Verification
+                            </h3>
+
+                            <p>
+                                LAMO worker verification
+                            </p>
+
+                        </div>
+
+
+                        <span class="card-heading-icon">
+
+                            <i class="bi bi-shield-check"></i>
+
+                        </span>
+
+                    </div>
+
+
+                    {% if worker_profile and worker_profile.is_verified %}
+
+
+                        <div class="verification-box">
+
+                            <div class="verification-title">
+
+                                <i class="bi bi-patch-check-fill"></i>
+
+                                Profile Verified
+
+                            </div>
+
+
+                            <p class="verification-text">
+
+                                Your worker profile has been verified
+                                by the LAMO administration team.
+
+                            </p>
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div class="verification-box pending">
+
+                            <div class="verification-title">
+
+                                <i class="bi bi-clock-history"></i>
+
+                                Verification Pending
+
+                            </div>
+
+
+                            <p class="verification-text">
+
+                                Your profile is waiting for admin
+                                verification. You can continue updating
+                                your profile while waiting.
+
+                            </p>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+    </div>
+
+</div>
+
+{% endblock %}

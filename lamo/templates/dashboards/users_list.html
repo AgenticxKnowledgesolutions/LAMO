@@ -1,0 +1,550 @@
+{% extends "dashboards/admin_dashboard.html" %}
+
+
+{% block title %}
+Users | LAMO
+{% endblock %}
+
+
+{% block content %}
+
+<style>
+
+    .users-page {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 10px 24px 30px;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 768px) {
+        .users-page {
+            padding: 10px 12px 30px;
+        }
+    }
+
+
+    /* HEADER */
+
+    .users-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        margin-bottom: 22px;
+    }
+
+    .users-heading h2 {
+        margin: 0;
+
+        color: #17211d;
+
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .users-heading p {
+        margin: 5px 0 0;
+
+        color: #7b8781;
+
+        font-size: 13px;
+    }
+
+
+    /* COUNT */
+
+    .user-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-width: 32px;
+        height: 28px;
+
+        padding: 0 10px;
+
+        border-radius: 20px;
+
+        background: #edf6f0;
+        color: #216247;
+
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+
+    /* TABLE CARD */
+
+    .users-table-card {
+        width: 100%;
+
+        background: #ffffff;
+
+        border: 1px solid #e6ece8;
+
+        border-radius: 12px;
+
+        overflow: hidden;
+
+        box-shadow:
+            0 2px 8px rgba(18, 60, 45, 0.04);
+    }
+
+
+    .users-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+
+    /* TABLE */
+
+    .users-table {
+        width: 100%;
+
+        min-width: 700px;
+
+        border-collapse: collapse;
+    }
+
+
+    .users-table th {
+        padding: 14px 20px;
+
+        background: #f8faf9;
+
+        border-bottom: 1px solid #e6ece8;
+
+        color: #7b8781;
+
+        font-size: 10px;
+        font-weight: 700;
+
+        text-align: left;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.7px;
+    }
+
+
+    .users-table td {
+        padding: 15px 20px;
+
+        border-bottom: 1px solid #f0f3f1;
+
+        color: #4d5953;
+
+        font-size: 13px;
+
+        vertical-align: middle;
+    }
+
+
+    .users-table tbody tr:hover {
+        background: #fbfdfc;
+    }
+
+
+    .users-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+
+    /* USER */
+
+    .user-info {
+        display: flex;
+        align-items: center;
+
+        gap: 11px;
+    }
+
+
+    .user-avatar {
+        width: 38px;
+        height: 38px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+
+        border-radius: 50%;
+
+        background: #dff3e8;
+        color: #123c2d;
+
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+
+    .user-details strong {
+        display: block;
+
+        color: #17211d;
+
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+
+    .user-details span {
+        display: block;
+
+        margin-top: 3px;
+
+        color: #9aa39e;
+
+        font-size: 10px;
+    }
+
+
+    /* EMAIL */
+
+    .user-email {
+        color: #5f6b65;
+    }
+
+
+    /* STATUS */
+
+    .status {
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 6px;
+
+        padding: 5px 10px;
+
+        border-radius: 20px;
+
+        font-size: 10px;
+        font-weight: 650;
+    }
+
+
+    .status::before {
+        content: "";
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+    }
+
+
+    .status.active {
+        background: #eaf7ee;
+        color: #28754d;
+    }
+
+
+    .status.active::before {
+        background: #42a969;
+    }
+
+
+    .status.inactive {
+        background: #fff0f0;
+        color: #c75252;
+    }
+
+
+    .status.inactive::before {
+        background: #c75252;
+    }
+
+
+    /* ACTION */
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+
+        display: inline-flex;
+
+        align-items: center;
+        justify-content: center;
+
+        border: 1px solid #e7ece9;
+
+        border-radius: 7px;
+
+        background: #ffffff;
+
+        color: #3971b8;
+
+        text-decoration: none;
+
+        cursor: pointer;
+    }
+
+
+    .action-btn:hover {
+        background: #edf4ff;
+        border-color: #d9e8ff;
+        color: #3971b8;
+    }
+
+
+    /* EMPTY */
+
+    .empty-users {
+        padding: 65px 20px;
+
+        text-align: center;
+    }
+
+
+    .empty-icon {
+        width: 52px;
+        height: 52px;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        margin: 0 auto 14px;
+
+        border-radius: 50%;
+
+        background: #f2f6f3;
+        color: #8da097;
+
+        font-size: 20px;
+    }
+
+
+    .empty-users h5 {
+        margin: 0;
+
+        color: #37413b;
+
+        font-size: 15px;
+    }
+
+
+    .empty-users p {
+        margin: 5px 0 0;
+
+        color: #9aa39e;
+
+        font-size: 12px;
+    }
+
+
+    /* MOBILE */
+
+    @media (max-width: 768px) {
+
+        .users-page {
+            padding: 10px 15px 25px;
+        }
+
+        .users-table {
+            min-width: 700px;
+        }
+
+    }
+
+</style>
+
+
+<div class="users-page">
+
+
+    <!-- HEADER -->
+
+    <div class="users-header">
+
+        <div class="users-heading">
+
+            <h2>
+                Users
+            </h2>
+
+            <p>
+                Manage registered LAMO users.
+            </p>
+
+        </div>
+
+
+        <span class="user-count">
+            {{ users|length }}
+        </span>
+
+    </div>
+
+
+    <!-- TABLE -->
+
+    <div class="users-table-card">
+
+        <div class="users-table-wrapper">
+
+            <table class="users-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            User
+                        </th>
+
+                        <th>
+                            Email
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Joined
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for user in users %}
+
+                    <tr>
+
+
+                        <!-- USER -->
+
+                        <td>
+
+                            <div class="user-info">
+
+                                <div class="user-avatar">
+
+                                    {{ user.username|first|upper }}
+
+                                </div>
+
+
+                                <div class="user-details">
+
+                                    <strong>
+                                        {{ user.username }}
+                                    </strong>
+
+                                    <span>
+                                        User #{{ user.id }}
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </td>
+
+
+                        <!-- EMAIL -->
+
+                        <td>
+
+                            <span class="user-email">
+                                {{ user.email }}
+                            </span>
+
+                        </td>
+
+
+                        <!-- STATUS -->
+
+                        <td>
+
+                            {% if user.is_active %}
+
+                                <span class="status active">
+                                    Active
+                                </span>
+
+                            {% else %}
+
+                                <span class="status inactive">
+                                    Inactive
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- DATE -->
+
+                        <td>
+
+                            {% if user.date_joined %}
+
+                                {{ user.date_joined|date:"d M Y" }}
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+                        </td>
+
+
+                    </tr>
+
+
+                    {% empty %}
+
+                    <tr>
+
+                        <td colspan="4">
+
+                            <div class="empty-users">
+
+                                <div class="empty-icon">
+
+                                    <i class="bi bi-people"></i>
+
+                                </div>
+
+                                <h5>
+                                    No users found
+                                </h5>
+
+                                <p>
+                                    Registered users will appear here.
+                                </p>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{% endblock %}

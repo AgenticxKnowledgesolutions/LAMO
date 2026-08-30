@@ -1,0 +1,652 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}
+Booking #{{ booking.id }} | LAMO
+{% endblock %}
+
+{% block page_title %}
+Booking #{{ booking.id }}
+{% endblock %}
+
+{% block page_subtitle %}
+Booking details and information
+{% endblock %}
+
+{% block extra_css %}
+<style>
+
+.booking-detail-page {
+    min-height: calc(100vh - 70px);
+    padding: 30px;
+    background: #f5faf8;
+}
+
+.booking-detail-container {
+    max-width: 1050px;
+    margin: 0 auto;
+}
+
+
+/* HEADER */
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.detail-back {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background: #ffffff;
+    border: 1px solid #dfece7;
+
+    color: #087f5b;
+
+    text-decoration: none;
+
+    transition: .2s ease;
+}
+
+.detail-back:hover {
+    background: #e9f8f2;
+    transform: translateX(-2px);
+}
+
+.detail-header h1 {
+    margin: 0;
+
+    color: #17231f;
+
+    font-size: 27px;
+    font-weight: 800;
+}
+
+.detail-header p {
+    margin: 4px 0 0;
+
+    color: #71807b;
+
+    font-size: 12px;
+}
+
+
+/* GRID */
+
+.detail-grid {
+    display: grid;
+
+    grid-template-columns: repeat(2, 1fr);
+
+    gap: 18px;
+}
+
+
+/* CARD */
+
+.detail-card {
+    background: #ffffff;
+
+    border: 1px solid #dfece7;
+
+    border-radius: 18px;
+
+    padding: 22px;
+
+    box-shadow:
+        0 8px 25px rgba(0, 80, 60, .04);
+}
+
+.detail-card.full {
+    grid-column: 1 / -1;
+}
+
+.detail-card h3 {
+    margin: 0 0 18px;
+
+    color: #17231f;
+
+    font-size: 16px;
+
+    font-weight: 800;
+}
+
+
+/* INFO */
+
+.info-row {
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 12px 0;
+
+    border-bottom: 1px solid #edf3f0;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #87938e;
+
+    font-size: 11px;
+
+    font-weight: 600;
+}
+
+.info-value {
+    color: #27342f;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    text-align: right;
+}
+
+
+/* STATUS */
+
+.status {
+    display: inline-flex;
+
+    padding: 6px 12px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+}
+
+.status-pending {
+    background: #fff5dc;
+    color: #a86600;
+}
+
+.status-accepted {
+    background: #e9f8f2;
+    color: #087f5b;
+}
+
+.status-progress {
+    background: #f2eaff;
+    color: #7251a8;
+}
+
+.status-completion {
+    background: #fff0d6;
+    color: #b05b00;
+}
+
+.status-completed {
+    background: #e8f3ff;
+    color: #1769aa;
+}
+
+.status-rejected,
+.status-cancelled {
+    background: #fff0ef;
+    color: #b42318;
+}
+
+
+/* WORKER */
+
+.worker-box {
+    padding: 15px;
+
+    background: #f5faf8;
+
+    border-radius: 12px;
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width: 750px) {
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-card.full {
+        grid-column: auto;
+    }
+
+    .booking-detail-page {
+        padding: 20px 15px;
+    }
+
+    .info-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .info-value {
+        text-align: left;
+    }
+
+}
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="booking-detail-page">
+
+    <div class="booking-detail-container">
+
+
+        <!-- HEADER -->
+
+        <div class="detail-header">
+
+            <a
+                href="{% url 'admin_booking_details' %}"
+                class="detail-back"
+            >
+                <i class="bi bi-arrow-left"></i>
+            </a>
+
+            <div>
+
+                <h1>
+                    Booking #{{ booking.id }}
+                </h1>
+
+                <p>
+                    Booking details and information
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- DETAILS -->
+
+        <div class="detail-grid">
+
+
+            <!-- BOOKING -->
+
+            <div class="detail-card">
+
+                <h3>
+                    <i class="bi bi-calendar-check-fill me-2"></i>
+                    Booking Information
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Booking ID
+                    </span>
+
+                    <span class="info-value">
+                        #{{ booking.id }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Service
+                    </span>
+
+                    <span class="info-value">
+                        {{ booking.service.name }}
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Status
+                    </span>
+
+                    <span class="info-value">
+
+
+                        {% if booking.status == 'PENDING' %}
+
+                            <span class="status status-pending">
+                                Pending
+                            </span>
+
+
+                        {% elif booking.status == 'ACCEPTED' %}
+
+                            <span class="status status-accepted">
+                                Accepted
+                            </span>
+
+
+                        {% elif booking.status == 'IN_PROGRESS' %}
+
+                            <span class="status status-progress">
+                                In Progress
+                            </span>
+
+
+                        {% elif booking.status == 'COMPLETION_REQUESTED' %}
+
+                            <span class="status status-completion">
+                                Completion Requested
+                            </span>
+
+
+                        {% elif booking.status == 'COMPLETED' %}
+
+                            <span class="status status-completed">
+                                Completed
+                            </span>
+
+
+                        {% elif booking.status == 'REJECTED' %}
+
+                            <span class="status status-rejected">
+                                Rejected
+                            </span>
+
+
+                        {% elif booking.status == 'CANCELLED' %}
+
+                            <span class="status status-cancelled">
+                                Cancelled
+                            </span>
+
+
+                        {% else %}
+
+                            <span class="status status-pending">
+                                {{ booking.status }}
+                            </span>
+
+                        {% endif %}
+
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Created
+                    </span>
+
+                    <span class="info-value">
+                        {{ booking.created_at|date:"d M Y, h:i A" }}
+                    </span>
+
+                </div>
+
+
+                {% if booking.updated_at %}
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Last Updated
+                    </span>
+
+                    <span class="info-value">
+                        {{ booking.updated_at|date:"d M Y, h:i A" }}
+                    </span>
+
+                </div>
+
+                {% endif %}
+
+
+            </div>
+
+
+            <!-- CUSTOMER -->
+
+            <div class="detail-card">
+
+                <h3>
+                    <i class="bi bi-person-fill me-2"></i>
+                    Customer
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Name
+                    </span>
+
+                    <span class="info-value">
+
+                        {{ booking.customer.get_full_name }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Username
+                    </span>
+
+                    <span class="info-value">
+
+                        {{ booking.customer.username }}
+
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Email
+                    </span>
+
+                    <span class="info-value">
+
+                        {{ booking.customer.email }}
+
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- WORKER -->
+
+            <div class="detail-card">
+
+                <h3>
+                    <i class="bi bi-person-badge-fill me-2"></i>
+                    Assigned Worker
+                </h3>
+
+
+                {% if booking.worker %}
+
+                    <div class="worker-box">
+
+
+                        <div class="info-row">
+
+                            <span class="info-label">
+                                Name
+                            </span>
+
+                            <span class="info-value">
+
+                                {{ booking.worker.user.get_full_name }}
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="info-row">
+
+                            <span class="info-label">
+                                Username
+                            </span>
+
+                            <span class="info-value">
+
+                                {{ booking.worker.user.username }}
+
+                            </span>
+
+                        </div>
+
+
+                        {% if booking.worker.service %}
+
+                        <div class="info-row">
+
+                            <span class="info-label">
+                                Service
+                            </span>
+
+                            <span class="info-value">
+
+                                {{ booking.worker.service.name }}
+
+                            </span>
+
+                        </div>
+
+                        {% endif %}
+
+
+                    </div>
+
+                {% else %}
+
+                    <p style="
+                        margin:0;
+                        color:#87938e;
+                        font-size:12px;
+                    ">
+                        No worker has been assigned yet.
+                    </p>
+
+                {% endif %}
+
+
+            </div>
+
+
+            <!-- SERVICE -->
+
+            <div class="detail-card">
+
+                <h3>
+                    <i class="bi bi-tools me-2"></i>
+                    Service
+                </h3>
+
+
+                <div class="info-row">
+
+                    <span class="info-label">
+                        Service Name
+                    </span>
+
+                    <span class="info-value">
+
+                        {{ booking.service.name }}
+
+                    </span>
+
+                </div>
+
+
+                {% if booking.service.description %}
+
+                <div
+                    style="
+                        margin-top:15px;
+                        padding:14px;
+                        background:#f5faf8;
+                        border-radius:12px;
+                        color:#52615b;
+                        font-size:12px;
+                        line-height:1.6;
+                    "
+                >
+
+                    {{ booking.service.description }}
+
+                </div>
+
+                {% endif %}
+
+
+            </div>
+
+
+            <!-- BOOKING DESCRIPTION -->
+
+            {% if booking.description %}
+
+            <div class="detail-card full">
+
+                <h3>
+                    <i class="bi bi-file-text-fill me-2"></i>
+                    Description
+                </h3>
+
+                <div
+                    style="
+                        padding:15px;
+                        background:#f5faf8;
+                        border-radius:12px;
+                        color:#52615b;
+                        font-size:12px;
+                        line-height:1.7;
+                    "
+                >
+
+                    {{ booking.description }}
+
+                </div>
+
+            </div>
+
+            {% endif %}
+
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

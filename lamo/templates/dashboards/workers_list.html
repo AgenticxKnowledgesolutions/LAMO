@@ -1,0 +1,1097 @@
+{% extends "dashboards/admin_dashboard.html" %}
+
+{% block title %}
+Workers | LAMO
+{% endblock %}
+
+
+{% block content %}
+
+<style>
+
+/* =========================================================
+   WORKERS PAGE
+========================================================= */
+.workers-page {
+    width: 100%;
+    max-width: 100%;
+
+    margin: 0;
+
+    padding: 22px 35px 40px;
+
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.workers-header {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 26px;
+}
+
+
+.workers-heading h2 {
+    margin: 0;
+
+    color: #17211d;
+
+    font-size: 25px;
+    font-weight: 750;
+}
+
+
+.workers-heading p {
+    margin: 6px 0 0;
+
+    color: #7b8781;
+
+    font-size: 13px;
+}
+
+
+.worker-count {
+    min-width: 36px;
+    height: 36px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 12px;
+
+    border-radius: 50%;
+
+    background: #eaf6ef;
+
+    color: #216247;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   CARD GRID
+========================================================= */
+
+.workers-grid {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fill, minmax(280px, 1fr));
+
+    justify-content: center;
+
+    gap: 28px;
+
+    align-items: stretch;
+}
+
+
+/* =========================================================
+   WORKER CARD
+========================================================= */
+
+.worker-card {
+    width: 100%;
+
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #ffffff;
+
+    border: 1px solid #e3ebe6;
+
+    border-radius: 18px;
+
+    padding: 21px;
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 5px 18px rgba(25, 65, 48, 0.05);
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+
+.worker-card:hover {
+    transform: translateY(-4px);
+
+    box-shadow:
+        0 14px 32px rgba(25, 65, 48, 0.10);
+}
+
+
+/* =========================================================
+   TOP
+========================================================= */
+
+.worker-top {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+
+    min-width: 0;
+
+    margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   AVATAR
+========================================================= */
+
+.worker-avatar {
+    width: 60px;
+    height: 60px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border-radius: 50%;
+
+    background: #dff3e8;
+
+    color: #216247;
+
+    font-size: 21px;
+
+    font-weight: 750;
+}
+
+
+.worker-avatar img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+
+/* =========================================================
+   NAME
+========================================================= */
+
+.worker-name {
+    min-width: 0;
+
+    flex: 1;
+}
+
+
+.worker-name h4 {
+    margin: 0;
+
+    color: #17211d;
+
+    font-size: 16px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+.worker-name p {
+    margin: 4px 0 0;
+
+    color: #8a958f;
+
+    font-size: 11px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.status-badge {
+    flex-shrink: 0;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 5px 9px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+.status-badge::before {
+    content: "";
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+}
+
+
+/* VERIFIED */
+
+.status-verified {
+    background: #eaf7ee;
+
+    color: #28754d;
+}
+
+
+.status-verified::before {
+    background: #42a969;
+}
+
+
+/* PENDING */
+
+.status-pending {
+    background: #fff7e8;
+
+    color: #a06b1b;
+}
+
+
+.status-pending::before {
+    background: #e2a33a;
+}
+
+
+/* =========================================================
+   DETAILS
+========================================================= */
+
+.worker-details {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+
+    padding: 16px 0;
+
+    border-top: 1px solid #edf1ee;
+
+    border-bottom: 1px solid #edf1ee;
+}
+
+
+/* =========================================================
+   DETAIL ITEM
+========================================================= */
+
+.detail-item {
+    min-width: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+}
+
+
+.detail-icon {
+    width: 30px;
+    height: 30px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    background: #f0f7f3;
+
+    color: #28754d;
+
+    font-size: 13px;
+}
+
+
+.detail-content {
+    min-width: 0;
+}
+
+
+.detail-label {
+    display: block;
+
+    margin-bottom: 2px;
+
+    color: #9aa39e;
+
+    font-size: 9px;
+
+    font-weight: 600;
+
+    text-transform: uppercase;
+
+    letter-spacing: .4px;
+}
+
+
+.detail-value {
+    display: block;
+
+    max-width: 100%;
+
+    color: #46524c;
+
+    font-size: 11px;
+
+    font-weight: 650;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+
+.worker-actions {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-top: 17px;
+}
+
+
+/* =========================================================
+   PROOF BUTTON
+========================================================= */
+
+.proof-btn {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    padding: 9px 12px;
+
+    border-radius: 9px;
+
+    background: #f1f6f4;
+
+    color: #216247;
+
+    text-decoration: none;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    transition: .2s ease;
+}
+
+
+.proof-btn:hover {
+    background: #e3f1eb;
+
+    color: #123c2d;
+
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   VERIFY BUTTON
+========================================================= */
+
+.verify-btn {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    padding: 9px 13px;
+
+    border: none;
+
+    border-radius: 9px;
+
+    background: #087f5b;
+
+    color: #ffffff;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+
+.verify-btn:hover {
+    background: #066b4d;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   VERIFIED LABEL
+========================================================= */
+
+.verified-label {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    padding: 9px 13px;
+
+    border-radius: 9px;
+
+    background: #eaf7ee;
+
+    color: #28754d;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.empty-workers {
+    grid-column: 1 / -1;
+
+    background: #ffffff;
+
+    border: 1px solid #e5ebe7;
+
+    border-radius: 18px;
+
+    padding: 70px 20px;
+
+    text-align: center;
+}
+
+
+.empty-icon {
+    width: 58px;
+    height: 58px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 auto 15px;
+
+    border-radius: 50%;
+
+    background: #f0f6f2;
+
+    color: #7d9589;
+
+    font-size: 22px;
+}
+
+
+.empty-workers h4 {
+    margin: 0;
+
+    color: #37413b;
+
+    font-size: 16px;
+}
+
+
+.empty-workers p {
+    margin: 6px 0 0;
+
+    color: #9aa39e;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   LARGE SCREEN
+========================================================= */
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1100px) {
+
+    .workers-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+
+/* =========================================================
+   SMALL TABLET
+========================================================= */
+
+@media (max-width: 800px) {
+
+    .workers-page {
+        padding: 20px;
+    }
+
+    .workers-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .workers-page {
+        padding: 15px;
+    }
+
+    .workers-header {
+        align-items: flex-start;
+
+        gap: 15px;
+    }
+
+    .workers-heading h2 {
+        font-size: 21px;
+    }
+
+    .workers-heading p {
+        font-size: 12px;
+    }
+
+    .worker-card {
+        padding: 18px;
+    }
+
+    .worker-top {
+        align-items: flex-start;
+    }
+
+    .status-badge {
+        font-size: 9px;
+    }
+
+    .worker-details {
+        grid-template-columns: 1fr;
+    }
+
+    .worker-actions {
+        flex-wrap: wrap;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 400px) {
+
+    .worker-top {
+        flex-wrap: wrap;
+    }
+
+    .status-badge {
+        margin-left: 73px;
+        margin-top: -8px;
+    }
+
+    .worker-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .proof-btn,
+    .verify-btn,
+    .verified-label {
+        width: 100%;
+    }
+
+}
+
+</style>
+
+
+<div class="workers-page">
+
+
+    <!-- =====================================================
+         HEADER
+    ===================================================== -->
+
+    <div class="workers-header">
+
+        <!-- <div class="workers-heading">
+
+            <h2>
+                Workers
+            </h2>
+
+            <p>
+                Manage and verify registered workers.
+            </p>
+
+        </div> -->
+
+
+        <span class="worker-count">
+            {{ workers|length }}
+        </span>
+
+    </div>
+
+
+    <!-- =====================================================
+         WORKER CARDS
+    ===================================================== -->
+
+    <div class="workers-grid">
+
+
+        {% for worker in workers %}
+
+
+        <div class="worker-card">
+
+
+            <!-- =================================================
+                 TOP
+            ================================================= -->
+
+            <div class="worker-top">
+
+
+                <!-- PROFILE IMAGE -->
+
+                <div class="worker-avatar">
+
+                    {% if worker.profile_image %}
+
+                        <img
+                            src="{{ worker.profile_image.url }}"
+                            alt="{{ worker.user.username }}"
+                        >
+
+                    {% else %}
+
+                        {{ worker.user.username|first|upper }}
+
+                    {% endif %}
+
+                </div>
+
+
+                <!-- NAME -->
+
+                <div class="worker-name">
+
+                    <h4>
+                        {{ worker.user.username }}
+                    </h4>
+
+                    <p>
+                        {{ worker.user.email }}
+                    </p>
+
+                </div>
+
+
+                <!-- STATUS -->
+
+                {% if worker.is_verified %}
+
+                    <span class="status-badge status-verified">
+                        Verified
+                    </span>
+
+                {% else %}
+
+                    <span class="status-badge status-pending">
+                        Pending
+                    </span>
+
+                {% endif %}
+
+
+            </div>
+
+
+            <!-- =================================================
+                 DETAILS
+            ================================================= -->
+
+            <div class="worker-details">
+
+
+                <!-- SERVICE -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-tools"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Service
+                        </span>
+
+                        <span class="detail-value">
+
+                            {% if worker.service %}
+
+                                {{ worker.service.name|title }}
+
+                            {% else %}
+
+                                No service
+
+                            {% endif %}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- PHONE -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-telephone-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Phone
+                        </span>
+
+                        <span class="detail-value">
+                            {{ worker.phone }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- EXPERIENCE -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-briefcase-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Experience
+                        </span>
+
+                        <span class="detail-value">
+
+                            {{ worker.experience_years }}
+                            year{{ worker.experience_years|pluralize }}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DISTRICT -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            District
+                        </span>
+
+                        <span class="detail-value">
+                            {{ worker.district }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <!-- RATING -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Rating
+                        </span>
+
+                        <span class="detail-value">
+                            {% with avg=worker.reviews_received.all|length %}
+                                {% if avg > 0 %}
+                                    <i class="bi bi-star-fill" style="color:#f59e0b; font-size:11px;"></i>
+                                    {{ worker.reviews_received.all|length }} review{{ worker.reviews_received.all|length|pluralize }}
+                                {% else %}
+                                    No reviews yet
+                                {% endif %}
+                            {% endwith %}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- AVAILABILITY -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-clock-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Availability
+                        </span>
+
+                        <span class="detail-value">
+                            {{ worker.availability }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 ACTIONS
+            ================================================= -->
+
+            <div class="worker-actions">
+
+
+                <!-- PROOF -->
+
+                {% if worker.proof_document %}
+
+                    <a
+                        href="{{ worker.proof_document.url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="proof-btn"
+                    >
+
+                        <i class="bi bi-file-earmark-text"></i>
+
+                        View Proof
+
+                    </a>
+
+                {% else %}
+
+                    <span class="proof-btn">
+                        No Proof
+                    </span>
+
+                {% endif %}
+
+
+                <!-- VERIFICATION -->
+
+                {% if worker.is_verified %}
+
+                    <span class="verified-label">
+
+                        <i class="bi bi-patch-check-fill"></i>
+
+                        Verified
+
+                    </span>
+
+                {% else %}
+
+                    <form
+                        method="POST"
+                        action="{% url 'worker_verify' worker.id %}"
+                        onsubmit="return confirm('Are you sure you want to verify this worker?');"
+                    >
+
+                        {% csrf_token %}
+
+                        <button
+                            type="submit"
+                            class="verify-btn"
+                        >
+
+                            <i class="bi bi-check-lg"></i>
+
+                            Verify Worker
+
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+            </div>
+
+
+        </div>
+
+
+        {% empty %}
+
+
+        <!-- =================================================
+             EMPTY STATE
+        ================================================= -->
+
+        <div class="empty-workers">
+
+            <div class="empty-icon">
+
+                <i class="bi bi-person-workspace"></i>
+
+            </div>
+
+            <h4>
+                No workers found
+            </h4>
+
+            <p>
+                Registered workers will appear here.
+            </p>
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </div>
+
+    {% if workers.has_other_pages %}
+    <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:30px;">
+        {% if workers.has_previous %}
+            <a href="?page={{ workers.previous_page_number }}" style="padding:8px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; text-decoration:none; color:#374151; font-weight:600;">&laquo; Prev</a>
+        {% endif %}
+        <span style="padding:8px 16px; color:#64748b; font-size:14px;">Page {{ workers.number }} of {{ workers.paginator.num_pages }}</span>
+        {% if workers.has_next %}
+            <a href="?page={{ workers.next_page_number }}" style="padding:8px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; text-decoration:none; color:#374151; font-weight:600;">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+
+{% endblock %}

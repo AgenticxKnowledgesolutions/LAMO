@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+
+{% block title %}Submit Feedback | LAMO{% endblock %}
+
+{% block content %}
+<style>
+    .feedback-page {
+        min-height: calc(100vh - 80px);
+        background: #f5faf8;
+        padding: 40px 25px 70px;
+    }
+
+    .feedback-container {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .feedback-header {
+        margin-bottom: 30px;
+    }
+
+    .feedback-header h1 {
+        font-size: 28px;
+        font-weight: 800;
+        color: #17231f;
+        margin-bottom: 5px;
+    }
+
+    .feedback-header p {
+        color: #71807b;
+        font-size: 13px;
+    }
+
+    .booking-summary {
+        background: white;
+        border: 1px solid #dfece7;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .booking-summary h5 {
+        font-size: 14px;
+        font-weight: 700;
+        color: #17231f;
+        margin-bottom: 16px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #edf3f0;
+        font-size: 13px;
+    }
+
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+
+    .summary-row span:first-child {
+        color: #71807b;
+    }
+
+    .summary-row strong {
+        color: #17231f;
+        font-weight: 600;
+    }
+
+    .feedback-form {
+        background: white;
+        border: 1px solid #dfece7;
+        border-radius: 16px;
+        padding: 24px;
+    }
+
+    .feedback-section {
+        margin-bottom: 30px;
+    }
+
+    .feedback-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #17231f;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-title i {
+        color: #087f5b;
+    }
+
+    .section-divider {
+        height: 1px;
+        background: #edf3f0;
+        margin: 30px 0;
+    }
+
+    .rating-section {
+        text-align: center;
+        padding: 20px 0;
+    }
+
+    .star-rating {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .star-rating i {
+        font-size: 32px;
+        color: #dfece7;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.2s ease;
+    }
+
+    .star-rating i:hover,
+    .star-rating i.active {
+        color: #f0a500;
+        transform: scale(1.1);
+    }
+
+    .rating-text {
+        font-size: 13px;
+        color: #71807b;
+        margin-top: 8px;
+    }
+
+    .form-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #17231f;
+        margin-bottom: 6px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 13px;
+        border: 1px solid #dfece7;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #087f5b;
+        box-shadow: 0 0 0 3px rgba(8,127,91,.08);
+    }
+
+    .complaint-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .complaint-toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #087f5b;
+    }
+
+    .complaint-toggle label {
+        font-size: 13px;
+        color: #17231f;
+        cursor: pointer;
+    }
+
+    .complaint-fields {
+        display: none;
+    }
+
+    .complaint-fields.show {
+        display: block;
+    }
+
+    .btn-submit {
+        background: #087f5b;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 30px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease;
+        width: 100%;
+    }
+
+    .btn-submit:hover {
+        background: #075c43;
+        transform: translateY(-2px);
+    }
+
+    .existing-feedback {
+        background: #e9f8f2;
+        border: 1px solid #b8e0d2;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        color: #087f5b;
+    }
+
+    .existing-feedback i {
+        margin-right: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .feedback-page {
+            padding: 20px 15px 40px;
+        }
+
+        .feedback-header h1 {
+            font-size: 22px;
+        }
+
+        .star-rating i {
+            font-size: 28px;
+        }
+    }
+</style>
+
+<div class="feedback-page">
+    <div class="feedback-container">
+        <div class="feedback-header">
+            <h1>Submit Feedback</h1>
+            <p>Help us improve by sharing your experience</p>
+        </div>
+
+        <div class="booking-summary">
+            <h5>Booking Details</h5>
+            <div class="summary-row">
+                <span>Service</span>
+                <strong>{{ booking.service.name }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Worker</span>
+                <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Date</span>
+                <strong>{{ booking.date }}</strong>
+            </div>
+            <div class="summary-row">
+                <span>Booking ID</span>
+                <strong>#{{ booking.id }}</strong>
+            </div>
+        </div>
+
+        {% if existing_review %}
+        <div class="existing-feedback">
+            <i class="bi bi-check-circle-fill"></i>
+            You have already submitted a review for this booking.
+        </div>
+        {% endif %}
+
+        {% if existing_complaint %}
+        <div class="existing-feedback">
+            <i class="bi bi-exclamation-circle-fill"></i>
+            You have already submitted a complaint for this booking.
+        </div>
+        {% endif %}
+
+        <form method="POST" class="feedback-form">
+            {% csrf_token %}
+
+            <!-- REVIEW SECTION -->
+            <div class="feedback-section">
+                <div class="section-title">
+                    <i class="bi bi-star-fill"></i>
+                    How was your experience?
+                </div>
+
+                <div class="rating-section">
+                    <div class="star-rating" id="starRating">
+                        <i class="bi bi-star" data-value="1"></i>
+                        <i class="bi bi-star" data-value="2"></i>
+                        <i class="bi bi-star" data-value="3"></i>
+                        <i class="bi bi-star" data-value="4"></i>
+                        <i class="bi bi-star" data-value="5"></i>
+                    </div>
+                    <input type="hidden" name="rating" id="ratingInput" value="">
+                    <div class="rating-text" id="ratingText">Select a rating</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="comment" class="form-label">Your Review (Optional)</label>
+                    <textarea name="comment" id="comment" class="form-control" rows="4" placeholder="Tell us about your experience..."></textarea>
+                </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- COMPLAINT SECTION -->
+            <div class="feedback-section">
+                <div class="section-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Do you have any complaint?
+                </div>
+
+                <div class="complaint-toggle">
+                    <input type="checkbox" id="hasComplaint" name="has_complaint">
+                    <label for="hasComplaint">I want to raise a complaint</label>
+                </div>
+
+                <div class="complaint-fields" id="complaintFields">
+                    <div class="mb-3">
+                        <label for="complaint_category" class="form-label">Complaint Category</label>
+                        <select name="complaint_category" id="complaint_category" class="form-select">
+                            <option value="">Select a category</option>
+                            <option value="Service Quality">Service Quality</option>
+                            <option value="Worker Behavior">Worker Behavior</option>
+                            <option value="Delay">Delay</option>
+                            <option value="Pricing Issue">Pricing Issue</option>
+                            <option value="Damage">Damage</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="complaint_description" class="form-label">Complaint Details</label>
+                        <textarea name="complaint_description" id="complaint_description" class="form-control" rows="4" placeholder="Describe your complaint in detail..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="bi bi-send-fill me-2"></i>
+                Submit Feedback
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const stars = document.querySelectorAll("#starRating i");
+    const ratingInput = document.getElementById("ratingInput");
+    const ratingText = document.getElementById("ratingText");
+    const ratingLabels = ["Poor", "Fair", "Good", "Very Good", "Excellent"];
+
+    stars.forEach(function (star) {
+        star.addEventListener("click", function () {
+            const value = parseInt(this.dataset.value);
+            ratingInput.value = value;
+
+            stars.forEach(function (s, index) {
+                if (index < value) {
+                    s.classList.remove("bi-star");
+                    s.classList.add("bi-star-fill", "active");
+                } else {
+                    s.classList.remove("bi-star-fill", "active");
+                    s.classList.add("bi-star");
+                }
+            });
+
+            ratingText.textContent = ratingLabels[value - 1];
+        });
+
+        star.addEventListener("mouseenter", function () {
+            const value = parseInt(this.dataset.value);
+            stars.forEach(function (s, index) {
+                if (index < value) {
+                    s.style.color = "#f0a500";
+                } else {
+                    s.style.color = "#dfece7";
+                }
+            });
+        });
+    });
+
+    document.getElementById("starRating").addEventListener("mouseleave", function () {
+        const currentRating = parseInt(ratingInput.value) || 0;
+        stars.forEach(function (s, index) {
+            if (index < currentRating) {
+                s.style.color = "#f0a500";
+            } else {
+                s.style.color = "#dfece7";
+            }
+        });
+    });
+
+    const hasComplaint = document.getElementById("hasComplaint");
+    const complaintFields = document.getElementById("complaintFields");
+
+    hasComplaint.addEventListener("change", function () {
+        if (this.checked) {
+            complaintFields.classList.add("show");
+        } else {
+            complaintFields.classList.remove("show");
+        }
+    });
+});
+</script>
+{% endblock %}

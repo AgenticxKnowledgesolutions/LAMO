@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}My Complaints - LAMO{% endblock %}
+{% block content %}
+<style>
+.mc-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+}
+.mc-header {
+    margin-bottom: 30px;
+}
+.mc-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+.mc-header p { color: #64748b; font-size: 14px; }
+.mc-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    margin-bottom: 20px;
+}
+.mc-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.mc-subject {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.mc-meta {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+.mc-desc {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
+}
+.mc-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.mc-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.severity-high { background: #fee2e2; color: #dc2626; }
+.severity-medium { background: #fef3c7; color: #d97706; }
+.severity-low { background: #d1fae5; color: #059669; }
+.status-open { background: #dbeafe; color: #2563eb; }
+.status-review { background: #fef3c7; color: #d97706; }
+.status-resolved { background: #d1fae5; color: #059669; }
+.status-rejected { background: #fee2e2; color: #dc2626; }
+.mc-remark {
+    margin-top: 14px;
+    padding: 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #475569;
+    border-left: 3px solid #6366f1;
+}
+.mc-remark strong { color: #1e293b; }
+.mc-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+}
+.mc-empty i { font-size: 48px; display: block; margin-bottom: 16px; }
+@media (max-width: 600px) {
+    .mc-card { padding: 20px; }
+}
+</style>
+<div class="mc-container">
+    <div class="mc-header">
+        <h2>My Complaints</h2>
+        <p>Track status of your submitted complaints</p>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if complaints %}
+        {% for c in complaints %}
+        <div class="mc-card">
+            <div class="mc-card-header">
+                <div>
+                    <div class="mc-subject">{{ c.subject }}</div>
+                    <div class="mc-meta">
+                        Booking #{{ c.booking.id }} &middot; {{ c.booking.service.name }} &middot; {{ c.created_at|date:"M d, Y" }}
+                    </div>
+                </div>
+                <div class="mc-badges">
+                    <span class="mc-badge severity-{{ c.severity|lower }}">{{ c.get_severity_display }}</span>
+                    <span class="mc-badge status-{{ c.status|lower }}">{{ c.get_status_display }}</span>
+                </div>
+            </div>
+            <div class="mc-desc">{{ c.description }}</div>
+            {% if c.admin_remark %}
+            <div class="mc-remark">
+                <strong>Admin Response:</strong> {{ c.admin_remark }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="mc-empty">
+            <i class="bi bi-inbox"></i>
+            <p>You haven't submitted any complaints yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Edit Profile - LAMO{% endblock %}
+{% block content %}
+<style>
+.ep-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+}
+.ep-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+}
+.ep-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #1e293b;
+}
+.ep-form label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 6px;
+    display: block;
+}
+.ep-form input, .ep-form textarea, .ep-form select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 18px;
+    transition: border-color 0.2s;
+}
+.ep-form input:focus, .ep-form textarea:focus, .ep-form select:focus {
+    border-color: #6366f1;
+    outline: none;
+}
+.ep-btn {
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ep-btn:hover { opacity: 0.9; }
+.ep-cancel {
+    margin-left: 12px;
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 14px;
+}
+@media (max-width: 600px) {
+    .ep-card { padding: 24px 18px; }
+}
+</style>
+<div class="ep-container">
+    <div class="ep-card">
+        <h2>Edit Worker Profile</h2>
+        <form method="POST" enctype="multipart/form-data" class="ep-form">
+            {% csrf_token %}
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label>Phone</label>
+                    {{ form.phone }}
+                    {% if form.phone.errors %}
+                        <small style="color:red">{{ form.phone.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                <div>
+                    <label>Experience (Years)</label>
+                    {{ form.experience_years }}
+                    {% if form.experience_years.errors %}
+                        <small style="color:red">{{ form.experience_years.errors.0 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label>Service</label>
+                    {{ form.service }}
+                </div>
+                <div>
+                    <label>District</label>
+                    {{ form.district }}
+                </div>
+            </div>
+            <label>Availability</label>
+            {{ form.availability }}
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label>Pricing Type</label>
+                    {{ form.pricing_type }}
+                </div>
+                <div>
+                    <label>Pricing Amount (₹)</label>
+                    {{ form.pricing_amount }}
+                </div>
+            </div>
+            <label>Address</label>
+            {{ form.address }}
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label>Profile Image</label>
+                    {{ form.profile_image }}
+                </div>
+                <div>
+                    <label>Proof Document</label>
+                    {{ form.proof_document }}
+                    {% if form.proof_document.errors %}
+                        <small style="color:red">{{ form.proof_document.errors.0 }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <button type="submit" class="ep-btn">Save Changes</button>
+            <a href="{% url 'worker_profile' %}" class="ep-cancel">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

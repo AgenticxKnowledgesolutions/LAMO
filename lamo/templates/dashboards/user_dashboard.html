@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - LAMO{% endblock %}
+{% block content %}
+<style>
+.ud-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+}
+.ud-header {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 20px;
+    padding: 36px 40px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+.ud-avatar {
+    width: 70px;
+    height: 70px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    flex-shrink: 0;
+}
+.ud-avatar img {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.ud-welcome h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.ud-welcome p {
+    font-size: 14px;
+    opacity: 0.85;
+}
+.ud-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
+}
+.ud-stat-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    text-align: center;
+}
+.ud-stat-card .stat-num {
+    font-size: 32px;
+    font-weight: 800;
+    color: #6366f1;
+    margin-bottom: 4px;
+}
+.ud-stat-card .stat-label {
+    font-size: 13px;
+    color: #64748b;
+}
+.ud-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+.ud-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+.ud-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #1e293b;
+}
+.ud-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 16px;
+}
+.ud-btn-outline {
+    background: transparent;
+    border: 2px solid #6366f1;
+    color: #6366f1;
+}
+.ud-booking-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.ud-booking-item:last-child { border-bottom: none; }
+.ud-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-pending { background: #fef3c7; color: #d97706; }
+.badge-completed { background: #d1fae5; color: #059669; }
+.badge-progress { background: #dbeafe; color: #2563eb; }
+.ud-empty { color: #94a3b8; font-size: 14px; text-align: center; padding: 20px 0; }
+.ud-profile-info { font-size: 14px; color: #475569; line-height: 2; }
+.ud-profile-info i { color: #6366f1; width: 20px; }
+@media (max-width: 768px) {
+    .ud-header { padding: 24px; flex-direction: column; text-align: center; }
+    .ud-stats { grid-template-columns: 1fr; }
+    .ud-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="ud-container">
+    <div class="ud-header">
+        <div class="ud-avatar">
+            {% if profile.profile_image %}
+                <img src="{{ profile.profile_image.url }}" alt="{{ user.username }}">
+            {% else %}
+                <i class="bi bi-person"></i>
+            {% endif %}
+        </div>
+        <div class="ud-welcome">
+            <h2>Welcome, {{ user.username }}!</h2>
+            <p>{{ user.email }}</p>
+        </div>
+    </div>
+
+    <div class="ud-stats">
+        <div class="ud-stat-card">
+            <div class="stat-num">{{ total_bookings }}</div>
+            <div class="stat-label">Total Bookings</div>
+        </div>
+        <div class="ud-stat-card">
+            <div class="stat-num">{{ pending_bookings }}</div>
+            <div class="stat-label">Active Bookings</div>
+        </div>
+        <div class="ud-stat-card">
+            <div class="stat-num">{{ completed_bookings }}</div>
+            <div class="stat-label">Completed</div>
+        </div>
+    </div>
+
+    <div class="ud-grid">
+        <div class="ud-card">
+            <h3>Recent Bookings</h3>
+            {% if bookings %}
+                {% for b in bookings %}
+                <div class="ud-booking-item">
+                    <div>
+                        <strong>{{ b.service.name }}</strong>
+                        <br><small style="color:#94a3b8">{{ b.date }}</small>
+                    </div>
+                    <span class="ud-badge 
+                        {% if b.status == 'COMPLETED' %}badge-completed
+                        {% elif b.status in 'PENDING,ACCEPTED,IN_PROGRESS' %}badge-progress
+                        {% else %}badge-pending{% endif %}">
+                        {{ b.get_status_display }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="ud-empty">No bookings yet. Book a service to get started!</div>
+            {% endif %}
+            <a href="{% url 'my_bookings' %}" class="ud-btn">View All Bookings</a>
+        </div>
+
+        <div class="ud-card">
+            <h3>My Profile</h3>
+            <div class="ud-profile-info">
+                <p><i class="bi bi-person"></i> {{ user.get_full_name|default:user.username }}</p>
+                <p><i class="bi bi-envelope"></i> {{ user.email }}</p>
+                <p><i class="bi bi-telephone"></i> {{ profile.phone|default:"Not set" }}</p>
+                <p><i class="bi bi-geo-alt"></i> {{ profile.district|default:"Not set" }}</p>
+            </div>
+            <a href="{% url 'edit_profile' %}" class="ud-btn ud-btn-outline">Edit Profile</a>
+        </div>
+    </div>
+
+    <div class="ud-grid" style="margin-top: 24px;">
+        <div class="ud-card">
+            <h3>Notifications</h3>
+            {% if notifications %}
+                {% for n in notifications|slice:":5" %}
+                <div class="ud-booking-item">
+                    <div>{{ n.message|truncatechars:50 }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="ud-empty">No new notifications</div>
+            {% endif %}
+        </div>
+        <div class="ud-card">
+            <h3>Quick Actions</h3>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <a href="{% url 'service_page' %}" class="ud-btn" style="text-align:center;">Book a Service</a>
+                <a href="{% url 'my_complaints' %}" class="ud-btn ud-btn-outline" style="text-align:center;">My Complaints</a>
+                <a href="{% url 'my_bookings' %}" class="ud-btn ud-btn-outline" style="text-align:center;">Booking History</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

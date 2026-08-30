@@ -1,0 +1,953 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+Contact Us | LAMO
+{% endblock %}
+
+
+{% block extra_css %}
+
+<style>
+
+/* =========================================================
+   CONTACT HERO
+========================================================= */
+
+.contact-hero {
+    width: 100%;
+    min-height: 560px;
+
+    background-image: url("{% static 'img/image.png' %}");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    display: flex;
+    align-items: center;
+
+    position: relative;
+}
+
+
+/* =========================================================
+   HERO CONTENT
+========================================================= */
+
+.contact-hero-content {
+    width: 100%;
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding: 70px 6%;
+}
+
+
+/* =========================================================
+   HERO TEXT
+========================================================= */
+
+.contact-hero-text {
+    max-width: 520px;
+}
+
+
+.contact-hero-badge {
+    display: inline-flex;
+
+    align-items: center;
+    gap: 8px;
+
+    padding: 9px 17px;
+
+    background: rgba(255, 255, 255, 0.9);
+
+    border-radius: 50px;
+
+    color: #087f5b;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    margin-bottom: 22px;
+}
+
+
+.contact-hero-text h1 {
+    font-size: clamp(42px, 5vw, 64px);
+
+    line-height: 1.05;
+
+    font-weight: 800;
+
+    color: #173b32;
+
+    margin: 0 0 22px;
+}
+
+
+.contact-hero-text h1 span {
+    color: #087f5b;
+}
+
+
+.contact-hero-text p {
+    max-width: 500px;
+
+    font-size: 18px;
+
+    line-height: 1.7;
+
+    color: #40554e;
+
+    margin-bottom: 30px;
+}
+
+
+/* =========================================================
+   HERO BUTTON
+========================================================= */
+
+.contact-hero-btn {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 14px 25px;
+
+    background: #087f5b;
+
+    color: white;
+
+    border-radius: 50px;
+
+    text-decoration: none;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    transition: 0.3s ease;
+}
+
+
+.contact-hero-btn:hover {
+    color: white;
+
+    transform: translateY(-3px);
+
+    background: #066b4d;
+
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+
+/* =========================================================
+   CONTACT SECTION
+========================================================= */
+
+.contact-section {
+    padding: 90px 6%;
+
+    background: #f7faf9;
+}
+
+
+.contact-wrapper {
+    max-width: 1180px;
+
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   CONTACT INFORMATION
+========================================================= */
+
+.contact-info {
+    height: 100%;
+
+    background: #087f5b;
+
+    color: white;
+
+    padding: 45px;
+
+    border-radius: 22px;
+
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+}
+
+
+.contact-info h2 {
+    font-size: 32px;
+
+    font-weight: 800;
+
+    margin-bottom: 15px;
+}
+
+
+.contact-info > p {
+    color: rgba(255,255,255,0.85);
+
+    line-height: 1.7;
+
+    margin-bottom: 35px;
+}
+
+
+/* =========================================================
+   CONTACT INFO ITEMS
+========================================================= */
+
+.info-item {
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 17px;
+
+    margin-bottom: 27px;
+}
+
+
+.info-icon {
+    min-width: 48px;
+
+    width: 48px;
+    height: 48px;
+
+    border-radius: 13px;
+
+    background: rgba(255,255,255,0.14);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+}
+
+
+.info-icon i {
+    font-size: 18px;
+}
+
+
+.info-item h6 {
+    margin: 2px 0 5px;
+
+    font-size: 15px;
+
+    font-weight: 700;
+}
+
+
+.info-item p {
+    margin: 0;
+
+    color: rgba(255,255,255,0.78);
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   SOCIAL LINKS
+========================================================= */
+
+.social-links {
+    display: flex;
+
+    gap: 12px;
+
+    margin-top: 35px;
+}
+
+
+.social-links a {
+    width: 42px;
+    height: 42px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,0.13);
+
+    color: white;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-decoration: none;
+
+    transition: 0.3s ease;
+}
+
+
+.social-links a:hover {
+    background: white;
+
+    color: #087f5b;
+
+    transform: translateY(-3px);
+}
+
+
+/* =========================================================
+   CONTACT FORM
+========================================================= */
+
+.contact-form {
+    height: 100%;
+
+    background: white;
+
+    padding: 45px;
+
+    border-radius: 22px;
+
+    box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+}
+
+
+.contact-form h2 {
+    font-size: 32px;
+
+    font-weight: 800;
+
+    color: #173b32;
+
+    margin-bottom: 8px;
+}
+
+
+.form-subtitle {
+    color: #71807b;
+
+    margin-bottom: 30px;
+}
+
+
+/* =========================================================
+   FORM LABEL
+========================================================= */
+
+.form-label {
+    font-size: 14px;
+
+    font-weight: 600;
+
+    color: #263f37;
+
+    margin-bottom: 7px;
+}
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+.contact-form .form-control {
+    width: 100%;
+
+    min-height: 50px;
+
+    padding: 12px 15px;
+
+    border: 1px solid #dce7e3;
+
+    border-radius: 10px;
+
+    font-size: 14px;
+
+    color: #263f37;
+
+    background: white;
+
+    transition: 0.25s ease;
+}
+
+
+.contact-form .form-control::placeholder {
+    color: #a2afaa;
+}
+
+
+.contact-form .form-control:focus {
+    border-color: #087f5b;
+
+    box-shadow: 0 0 0 3px rgba(8,127,91,0.10);
+
+    outline: none;
+}
+
+
+/* =========================================================
+   TEXTAREA
+========================================================= */
+
+.contact-form textarea.form-control {
+    min-height: 145px;
+
+    resize: vertical;
+}
+
+
+/* =========================================================
+   SUBMIT BUTTON
+========================================================= */
+
+.submit-btn {
+    width: 100%;
+
+    min-height: 52px;
+
+    border: none;
+
+    border-radius: 11px;
+
+    background: #087f5b;
+
+    color: white;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: 0.3s ease;
+}
+
+
+.submit-btn:hover {
+    background: #066b4d;
+
+    transform: translateY(-2px);
+
+    box-shadow: 0 8px 20px rgba(8,127,91,0.20);
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 992px) {
+
+    .contact-hero {
+        min-height: 500px;
+
+        background-position: center;
+    }
+
+    .contact-hero-content {
+        padding: 60px 7%;
+    }
+
+}
+
+
+@media (max-width: 576px) {
+
+    .contact-hero {
+        min-height: 520px;
+
+        background-position: center;
+    }
+
+    .contact-hero-content {
+        padding: 50px 25px;
+    }
+
+    .contact-hero-text {
+        max-width: 100%;
+    }
+
+    .contact-hero-text h1 {
+        font-size: 42px;
+    }
+
+    .contact-hero-text p {
+        font-size: 16px;
+    }
+
+    .contact-section {
+        padding: 50px 18px;
+    }
+
+    .contact-info,
+    .contact-form {
+        padding: 30px 23px;
+    }
+
+    .contact-info h2,
+    .contact-form h2 {
+        font-size: 27px;
+    }
+
+}
+
+</style>
+
+{% endblock %}
+
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     CONTACT HERO
+========================================================= -->
+
+<section class="contact-hero">
+
+    <div class="contact-hero-content">
+
+        <div class="contact-hero-text">
+
+            <div class="contact-hero-badge">
+
+                <i class="bi bi-chat-dots-fill"></i>
+
+                We're Here to Help
+
+            </div>
+
+
+            <h1>
+
+                Let's
+
+                <span>Connect.</span>
+
+            </h1>
+
+
+            <p>
+
+                Have a question, need help with a service,
+                or want to know more about LAMO?
+                Our team is ready to help you.
+
+            </p>
+
+
+            <a
+                href="#contact-form"
+                class="contact-hero-btn"
+            >
+
+                Contact Us
+
+                <i class="bi bi-arrow-right"></i>
+
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     CONTACT DETAILS + FORM
+========================================================= -->
+
+<section
+    class="contact-section"
+    id="contact-form"
+>
+
+    <div class="contact-wrapper">
+
+        <div class="row g-4">
+
+
+            <!-- =================================================
+                 CONTACT INFORMATION
+            ================================================== -->
+
+            <div class="col-lg-5">
+
+                <div class="contact-info">
+
+                    <h2>
+                        Let's Talk
+                    </h2>
+
+
+                    <p>
+
+                        Whether you need a service,
+                        have a question, or want to
+                        share feedback, feel free to
+                        contact us.
+
+                    </p>
+
+
+                    <!-- LOCATION -->
+
+                    <div class="info-item">
+
+                        <div class="info-icon">
+
+                            <i class="bi bi-geo-alt-fill"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h6>
+                                Our Location
+                            </h6>
+
+                            <p>
+                                Kollam, Kerala, India
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- PHONE -->
+
+                    <div class="info-item">
+
+                        <div class="info-icon">
+
+                            <i class="bi bi-telephone-fill"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h6>
+                                Phone
+                            </h6>
+
+                            <p>
+                                +91 98765 43210
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- EMAIL -->
+
+                    <div class="info-item">
+
+                        <div class="info-icon">
+
+                            <i class="bi bi-envelope-fill"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h6>
+                                Email
+                            </h6>
+
+                            <p>
+                                support@lamo.com
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- WORKING HOURS -->
+
+                    <div class="info-item">
+
+                        <div class="info-icon">
+
+                            <i class="bi bi-clock-fill"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h6>
+                                Working Hours
+                            </h6>
+
+                            <p>
+                                Monday – Saturday
+                                <br>
+                                9:00 AM – 6:00 PM
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- SOCIAL -->
+
+                    <div class="social-links">
+
+                        <a href="#">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+
+                        <a href="#">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+
+                        <a href="#">
+                            <i class="bi bi-twitter-x"></i>
+                        </a>
+
+                        <a href="#">
+                            <i class="bi bi-linkedin"></i>
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 CONTACT FORM
+            ================================================== -->
+
+            <div class="col-lg-7">
+
+                <div class="contact-form">
+
+                    <h2>
+                        Send Us a Message
+                    </h2>
+
+
+                    <p class="form-subtitle">
+
+                        Fill out the form and we'll
+                        get back to you soon.
+
+                    </p>
+
+
+                    <!-- DJANGO MESSAGES -->
+
+                    {% if messages %}
+
+                        {% for message in messages %}
+
+                            <div
+                                class="alert alert-success"
+                                role="alert"
+                            >
+
+                                {{ message }}
+
+                            </div>
+
+                        {% endfor %}
+
+                    {% endif %}
+
+
+
+                    <!-- FORM -->
+
+                    <form
+                        method="POST"
+                        action="{% url 'contact' %}"
+                    >
+
+                        {% csrf_token %}
+
+
+                        <div class="row g-3">
+
+
+                            <!-- NAME -->
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="name"
+                                    class="form-label"
+                                >
+                                    Your Name
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    id="name"
+                                    name="name"
+                                    class="form-control"
+                                    placeholder="Enter your name"
+                                    autocomplete="name"
+                                    required
+                                >
+
+                            </div>
+
+
+
+                            <!-- EMAIL -->
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="email"
+                                    class="form-label"
+                                >
+                                    Email Address
+                                </label>
+
+
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    class="form-control"
+                                    placeholder="Enter your email"
+                                    autocomplete="email"
+                                    required
+                                >
+
+                            </div>
+
+
+
+                            <!-- PHONE -->
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="phone"
+                                    class="form-label"
+                                >
+                                    Phone Number
+                                </label>
+
+
+                                <input
+                                    type="tel"
+                                    id="phone"
+                                    name="phone"
+                                    class="form-control"
+                                    placeholder="Enter your phone number"
+                                    autocomplete="tel"
+                                >
+
+                            </div>
+
+
+
+                            <!-- SUBJECT -->
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="subject"
+                                    class="form-label"
+                                >
+                                    Subject
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    id="subject"
+                                    name="subject"
+                                    class="form-control"
+                                    placeholder="What is this about?"
+                                    required
+                                >
+
+                            </div>
+
+
+
+                            <!-- MESSAGE -->
+
+                            <div class="col-12">
+
+                                <label
+                                    for="message"
+                                    class="form-label"
+                                >
+                                    Message
+                                </label>
+
+
+                                <textarea
+                                    id="message"
+                                    name="message"
+                                    class="form-control"
+                                    placeholder="Write your message here..."
+                                    required
+                                ></textarea>
+
+                            </div>
+
+
+
+                            <!-- SUBMIT -->
+
+                            <div class="col-12">
+
+                                <button
+                                    type="submit"
+                                    class="submit-btn"
+                                >
+
+                                    <i class="bi bi-send-fill me-2"></i>
+
+                                    Send Message
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+{% endblock %}

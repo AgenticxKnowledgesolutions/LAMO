@@ -1,0 +1,1233 @@
+{% extends 'base.html' %}
+
+{% block title %}My Bookings | LAMO{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================================
+   MODERN MY BOOKINGS UI
+   UI ONLY — Django logic/routes/forms are unchanged
+   ========================================================= */
+
+:root {
+    --booking-green: #087f5b;
+    --booking-green-dark: #056b4d;
+    --booking-green-soft: #e9f8f2;
+    --booking-bg: #f3f8f6;
+    --booking-text: #17231f;
+    --booking-muted: #71807b;
+    --booking-border: #dcebe5;
+    --booking-white: #ffffff;
+}
+
+/* PAGE */
+.bookings-page {
+    min-height: 100vh;
+    padding: 0 20px 80px;
+    background:
+        radial-gradient(circle at 5% 20%, rgba(8,127,91,.07), transparent 25%),
+        radial-gradient(circle at 95% 70%, rgba(37,99,235,.05), transparent 25%),
+        var(--booking-bg);
+    overflow: hidden;
+}
+
+.bookings-container {
+    max-width: 1180px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+/* =========================================================
+   HERO — FULL WIDTH / APPROX 20% VIEWPORT HEIGHT
+   ========================================================= */
+
+.bookings-hero {
+    width: 100%;
+    height: 20vh;
+    min-height: 190px;
+    max-height: 280px;
+    position: relative;
+    overflow: hidden;
+    margin: 0 -20px 42px;
+    width: calc(100% + 40px);
+    display: flex;
+    align-items: center;
+    background:
+        linear-gradient(90deg, rgba(3,49,37,.90), rgba(8,127,91,.58), rgba(3,49,37,.28)),
+        url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=85")
+        center / cover no-repeat;
+    box-shadow: 0 18px 45px rgba(0, 70, 52, .15);
+}
+
+.bookings-hero::before {
+    content: "";
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    right: 8%;
+    top: -120px;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 50%;
+    animation: heroFloat 7s ease-in-out infinite;
+}
+
+.bookings-hero::after {
+    content: "";
+    position: absolute;
+    width: 130px;
+    height: 130px;
+    right: 20%;
+    bottom: -80px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 50%;
+    animation: heroFloat 5s ease-in-out infinite reverse;
+}
+
+.hero-content {
+    width: min(1180px, calc(100% - 40px));
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+    color: #fff;
+    animation: heroReveal .8s ease both;
+}
+
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 9px;
+    padding: 6px 11px;
+    border: 1px solid rgba(255,255,255,.24);
+    border-radius: 999px;
+    background: rgba(255,255,255,.10);
+    backdrop-filter: blur(8px);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.hero-eyebrow i {
+    font-size: 12px;
+}
+
+.hero-content h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1;
+    font-weight: 850;
+    letter-spacing: -.03em;
+}
+
+.hero-content p {
+    margin: 10px 0 0;
+    max-width: 580px;
+    color: rgba(255,255,255,.84);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.hero-orb {
+    position: absolute;
+    right: 9%;
+    width: 110px;
+    height: 110px;
+    border-radius: 28px;
+    background: rgba(255,255,255,.09);
+    border: 1px solid rgba(255,255,255,.18);
+    backdrop-filter: blur(7px);
+    transform: rotate(12deg);
+    animation: orbFloat 6s ease-in-out infinite;
+}
+
+.hero-orb i {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255,255,255,.75);
+    font-size: 40px;
+    transform: rotate(-12deg);
+}
+
+/* HEADER */
+.bookings-header {
+    margin-bottom: 26px;
+    animation: fadeUp .65s .08s ease both;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 17px;
+    color: var(--booking-green);
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    transition: .25s ease;
+}
+
+.back-link i {
+    transition: transform .25s ease;
+}
+
+.back-link:hover {
+    color: var(--booking-green-dark);
+}
+
+.back-link:hover i {
+    transform: translateX(-4px);
+}
+
+.bookings-header h1 {
+    margin: 0;
+    color: var(--booking-text);
+    font-size: 32px;
+    font-weight: 850;
+    letter-spacing: -.03em;
+}
+
+.bookings-header p {
+    margin: 7px 0 0;
+    color: var(--booking-muted);
+    font-size: 13px;
+}
+
+/* BOOKING GRID */
+.booking-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+}
+
+/* CARD */
+.booking-card {
+    position: relative;
+    overflow: hidden;
+    padding: 21px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid var(--booking-border);
+    border-radius: 24px;
+    box-shadow: 0 12px 35px rgba(0, 80, 60, .06);
+    transition:
+        transform .35s cubic-bezier(.2,.8,.2,1),
+        box-shadow .35s ease,
+        border-color .35s ease;
+    animation: cardReveal .65s ease both;
+}
+
+.booking-card:nth-child(2) { animation-delay: .08s; }
+.booking-card:nth-child(3) { animation-delay: .16s; }
+.booking-card:nth-child(4) { animation-delay: .24s; }
+.booking-card:nth-child(5) { animation-delay: .32s; }
+.booking-card:nth-child(6) { animation-delay: .40s; }
+
+.booking-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--booking-green), #41b993, #8bd8be);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .4s ease;
+}
+
+.booking-card::after {
+    content: "";
+    position: absolute;
+    width: 95px;
+    height: 95px;
+    right: -45px;
+    top: -45px;
+    border-radius: 50%;
+    background: rgba(8,127,91,.045);
+    transition: transform .45s ease;
+}
+
+.booking-card:hover {
+    transform: translateY(-8px);
+    border-color: #c6e3d9;
+    box-shadow: 0 22px 50px rgba(0, 80, 60, .13);
+}
+
+.booking-card:hover::before {
+    transform: scaleX(1);
+}
+
+.booking-card:hover::after {
+    transform: scale(1.45);
+}
+
+/* TOP */
+.booking-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.booking-service {
+    margin: 0;
+    color: var(--booking-text);
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: -.015em;
+}
+
+.booking-worker {
+    margin: 5px 0 0;
+    color: var(--booking-muted);
+    font-size: 11px;
+}
+
+/* STATUS */
+.status {
+    position: relative;
+    padding: 7px 11px 7px 12px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 850;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.status::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    vertical-align: 1px;
+    animation: statusPulse 2s ease-in-out infinite;
+}
+
+.pending {
+    color: #a86600;
+    background: #fff5dc;
+    border-color: #f4e0af;
+}
+
+.accepted {
+    color: #087f5b;
+    background: #e9f8f2;
+    border-color: #cbeee0;
+}
+
+.in-progress {
+    color: #7251a8;
+    background: #f2eaff;
+    border-color: #e0d1fa;
+}
+
+.completion-requested {
+    color: #b05b00;
+    background: #fff0d6;
+    border-color: #f5d7a5;
+}
+
+.completed {
+    color: #1769aa;
+    background: #e8f3ff;
+    border-color: #cce5fa;
+}
+
+.rejected,
+.cancelled {
+    color: #b42318;
+    background: #fff0ef;
+    border-color: #f2cfcc;
+}
+
+/* DETAILS */
+.booking-details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    margin-top: 19px;
+    position: relative;
+    z-index: 1;
+}
+
+.detail {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e8f1ed;
+    border-radius: 14px;
+    background: #f8fcfa;
+    transition: .25s ease;
+}
+
+.detail:hover {
+    transform: translateY(-2px);
+    background: #f1faf6;
+    border-color: #d4e9e0;
+}
+
+.detail small {
+    display: block;
+    margin-bottom: 5px;
+    color: #8a9893;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.detail span {
+    display: block;
+    overflow: hidden;
+    color: var(--booking-text);
+    font-size: 12px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* COMPLETION REQUEST */
+.completion-request-box {
+    margin-top: 18px;
+    padding: 17px;
+    border: 1px solid #f1d39a;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #fffaf0, #fff7e7);
+    animation: attentionPulse 2.8s ease-in-out infinite;
+}
+
+.completion-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 11px;
+    border-radius: 14px;
+    background: #fff0cf;
+    color: #b66b00;
+    font-size: 20px;
+}
+
+.completion-content h4 {
+    margin: 0;
+    color: #7a4b00;
+    font-size: 15px;
+    font-weight: 850;
+}
+
+.completion-content p {
+    margin: 7px 0 14px;
+    color: #856f4d;
+    font-size: 11px;
+    line-height: 1.65;
+}
+
+.completion-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* BUTTONS */
+.confirm-completion-btn,
+.complaint-btn,
+.review-btn {
+    width: 100%;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 13px;
+    border-radius: 11px;
+    font-size: 11px;
+    font-weight: 850;
+    cursor: pointer;
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease,
+        background .25s ease;
+}
+
+.confirm-completion-btn {
+    border: none;
+    background: var(--booking-green);
+    color: #fff;
+}
+
+.confirm-completion-btn:hover {
+    background: var(--booking-green-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 9px 20px rgba(8,127,91,.22);
+}
+
+.complaint-btn {
+    border: 1px solid #f0b7b2;
+    background: #fff;
+    color: #b42318;
+    text-decoration: none;
+}
+
+.complaint-btn:hover {
+    background: #fff0ef;
+    color: #a51d13;
+    transform: translateY(-2px);
+}
+
+.review-btn {
+    border: none;
+    background: #1769aa;
+    color: #fff;
+    text-decoration: none;
+}
+
+.review-btn:hover {
+    background: #125889;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 9px 20px rgba(23,105,170,.18);
+}
+
+/* COMPLETED */
+.completed-box {
+    margin-top: 18px;
+    padding: 17px;
+    border: 1px solid #cfe6f8;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #f0f8ff, #f7fbff);
+}
+
+.completed-box h4 {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    color: #1769aa;
+    font-size: 15px;
+    font-weight: 850;
+}
+
+.completed-box p {
+    margin: 7px 0 13px;
+    color: #58738a;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.review-submitted {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 11px 15px;
+    border: 1px solid #ccebdc;
+    border-radius: 11px;
+    background: #e8f8f1;
+    color: #087f5b;
+    font-size: 11px;
+    font-weight: 850;
+}
+
+/* EMPTY */
+.empty {
+    padding: 75px 25px;
+    text-align: center;
+    background: rgba(255,255,255,.94);
+    border: 1px solid var(--booking-border);
+    border-radius: 26px;
+    box-shadow: 0 14px 40px rgba(0,80,60,.06);
+    animation: fadeUp .7s ease both;
+}
+
+.empty-icon {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+    border: 1px solid #cdece0;
+    border-radius: 22px;
+    background: #e9f8f2;
+    color: var(--booking-green);
+    font-size: 28px;
+    animation: iconFloat 3s ease-in-out infinite;
+}
+
+.empty h3 {
+    margin: 17px 0 7px;
+    color: var(--booking-text);
+    font-size: 19px;
+    font-weight: 850;
+}
+
+.empty p {
+    margin: 0;
+    color: var(--booking-muted);
+    font-size: 12px;
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes heroReveal {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes cardReveal {
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .45; transform: scale(.72); }
+}
+
+@keyframes attentionPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(182,107,0,.03);
+    }
+    50% {
+        box-shadow: 0 0 0 5px rgba(182,107,0,.06);
+    }
+}
+
+@keyframes heroFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(12px) scale(1.04); }
+}
+
+@keyframes orbFloat {
+    0%, 100% { transform: translateY(0) rotate(12deg); }
+    50% { transform: translateY(-12px) rotate(17deg); }
+}
+
+@keyframes iconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+/* MOBILE */
+@media (max-width: 1050px) {
+    .booking-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .bookings-page {
+        padding: 0 14px 50px;
+    }
+
+    .bookings-hero {
+        margin: 0 -14px 32px;
+        width: calc(100% + 28px);
+        min-height: 180px;
+        height: 20vh;
+    }
+
+    .hero-content {
+        width: calc(100% - 28px);
+    }
+
+    .hero-content h1 {
+        font-size: 31px;
+    }
+
+    .hero-content p {
+        max-width: 90%;
+        font-size: 12px;
+    }
+
+    .hero-orb {
+        right: -25px;
+        opacity: .55;
+        transform: scale(.75) rotate(12deg);
+    }
+
+    .bookings-header h1 {
+        font-size: 27px;
+    }
+
+    .booking-list {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-top {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .booking-details {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 430px) {
+    .booking-details {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-content p {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
+</style>
+
+
+<div class="bookings-page">
+
+
+    <!-- =====================================================
+         VISUAL HERO — UI ONLY
+         ===================================================== -->
+    <section class="bookings-hero" aria-label="My bookings hero">
+        <div class="hero-content">
+            <div class="hero-eyebrow">
+                <i class="bi bi-calendar2-check"></i>
+                Service Management
+            </div>
+
+            <h1>My Bookings</h1>
+
+            <p>
+                Stay updated with your service requests, worker progress,
+                completion requests and reviews.
+            </p>
+        </div>
+
+        <div class="hero-orb" aria-hidden="true">
+            <i class="bi bi-clipboard2-check"></i>
+        </div>
+    </section>
+
+    <div class="bookings-container">
+
+
+        <!-- =====================================================
+             HEADER
+             ===================================================== -->
+
+        <div class="bookings-header">
+
+            <a
+                href="{% url 'home' %}"
+                class="back-link"
+            >
+
+                <i class="bi bi-arrow-left"></i>
+
+                Back to Home
+
+            </a>
+
+
+            <h1>
+                My Bookings
+            </h1>
+
+
+            <p>
+                Track your service requests and booking status.
+            </p>
+
+        </div>
+
+
+
+        <!-- =====================================================
+             BOOKINGS
+             ===================================================== -->
+
+        {% if bookings %}
+
+            <div class="booking-list">
+
+
+                {% for booking in bookings %}
+
+                    <article class="booking-card">
+
+
+                        <!-- =====================================
+                             TOP
+                             ===================================== -->
+
+                        <div class="booking-top">
+
+                            <div>
+
+                                <h3 class="booking-service">
+
+                                    {{ booking.service.name }}
+
+                                </h3>
+
+
+                                <p class="booking-worker">
+
+                                    Worker:
+
+                                    {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+
+                                </p>
+
+                            </div>
+
+
+
+                            <!-- STATUS -->
+
+                            {% if booking.status == 'PENDING' %}
+
+                                <span class="status pending">
+
+                                    Pending
+
+                                </span>
+
+
+                            {% elif booking.status == 'ACCEPTED' %}
+
+                                <span class="status accepted">
+
+                                    Accepted
+
+                                </span>
+
+
+                            {% elif booking.status == 'IN_PROGRESS' %}
+
+                                <span class="status in-progress">
+
+                                    In Progress
+
+                                </span>
+
+
+                            {% elif booking.status == 'COMPLETION_REQUESTED' %}
+
+                                <span class="status completion-requested">
+
+                                    Completion Requested
+
+                                </span>
+
+
+                            {% elif booking.status == 'COMPLETED' %}
+
+                                <span class="status completed">
+
+                                    Completed
+
+                                </span>
+
+
+                            {% elif booking.status == 'REJECTED' %}
+
+                                <span class="status rejected">
+
+                                    Rejected
+
+                                </span>
+
+
+                            {% elif booking.status == 'CANCELLED' %}
+
+                                <span class="status cancelled">
+
+                                    Cancelled
+
+                                </span>
+
+
+                            {% else %}
+
+                                <span class="status">
+
+                                    {{ booking.status }}
+
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+
+                        <!-- =====================================
+                             BOOKING DETAILS
+                             ===================================== -->
+
+                        <div class="booking-details">
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Date
+                                </small>
+
+                                <span>
+                                    {{ booking.date }}
+                                </span>
+
+                            </div>
+
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Time
+                                </small>
+
+                                <span>
+                                    {{ booking.time }}
+                                </span>
+
+                            </div>
+
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Booking Type
+                                </small>
+
+                                <span>
+                                    {{ booking.booking_type }}
+                                </span>
+
+                            </div>
+
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Location
+                                </small>
+
+                                <span>
+                                    {{ booking.location }}
+                                </span>
+
+                            </div>
+
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Phone
+                                </small>
+
+                                <span>
+                                    {{ booking.phone }}
+                                </span>
+
+                            </div>
+
+
+
+                            <div class="detail">
+
+                                <small>
+                                    Booked On
+                                </small>
+
+                                <span>
+                                    {{ booking.created_at|date:"d M Y" }}
+                                </span>
+
+                            </div>
+
+                            {% if booking.estimated_cost %}
+                            <div class="detail">
+
+                                <small>
+                                    Estimated Cost
+                                </small>
+
+                                <span style="color:#087f5b; font-weight:800;">
+                                    ₹{{ booking.estimated_cost }}
+                                </span>
+
+                            </div>
+                            {% endif %}
+
+                        </div>
+
+                        {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' %}
+                            <div style="margin-top: 12px; text-align: right;">
+                                <form method="POST" action="{% url 'cancel_booking' booking.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" style="background:#fff0ef; color:#b42318; border:1px solid #f0b7b2; padding:7px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
+                                        <i class="bi bi-x-circle-fill"></i> Cancel Booking
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+
+                        <!-- =================================================
+                             WORKER REQUESTED COMPLETION
+                             ================================================= -->
+
+                        {% if booking.status == 'COMPLETION_REQUESTED' %}
+
+                            <div class="completion-request-box">
+
+
+                                <div class="completion-icon">
+
+                                    <i class="bi bi-check2-circle"></i>
+
+                                </div>
+
+
+                                <div class="completion-content">
+
+                                    <h4>
+
+                                        Work Completion Request
+
+                                    </h4>
+
+
+                                    <p>
+
+                                        The worker has marked this service
+                                        as completed.
+
+                                        Please verify the work before
+                                        confirming.
+
+                                    </p>
+
+
+
+                                    <div class="completion-actions">
+
+
+                                        <!-- WORK IS COMPLETE -->
+
+                                        <form
+                                            method="POST"
+                                            action="{% url 'confirm_completion' booking.id %}"
+                                        >
+
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="confirm-completion-btn"
+                                            >
+
+                                                <i class="bi bi-check-circle-fill"></i>
+
+                                                Work is Complete
+
+                                            </button>
+
+                                        </form>
+
+
+
+                                        <!-- RAISE COMPLAINT -->
+
+                                        <a
+                                            href="{% url 'raise_complaint' booking.id %}"
+                                            class="complaint-btn"
+                                        >
+
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+
+                                            Raise a Complaint
+
+                                        </a>
+
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        {% endif %}
+
+
+
+                        <!-- =================================================
+                             COMPLETED
+                             ================================================= -->
+
+                        {% if booking.status == 'COMPLETED' %}
+
+                            <div class="completed-box">
+
+
+                                <h4>
+
+                                    <i class="bi bi-check-circle-fill"></i>
+
+                                    Work Completed
+
+                                </h4>
+
+
+                                <p>
+
+                                    You have confirmed that the work
+                                    is complete.
+
+                                </p>
+
+
+
+                                <!-- =========================================
+                                     REVIEW & COMPLAINT
+                                     ========================================= -->
+
+                                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                    {% if booking.review %}
+
+                                        <div class="review-submitted">
+
+                                            <i class="bi bi-check-circle-fill"></i>
+
+                                            Review Submitted
+
+                                        </div>
+
+                                    {% else %}
+
+                                        <a
+                                            href="{% url 'submit_feedback' booking.id %}"
+                                            class="review-btn"
+                                        >
+
+                                            <i class="bi bi-star-fill"></i>
+
+                                            Give Feedback
+
+                                        </a>
+
+                                    {% endif %}
+
+                                    <a
+                                        href="{% url 'submit_feedback' booking.id %}"
+                                        class="complaint-btn"
+                                        style="padding:10px 14px; border-radius:11px; font-size:11px; font-weight:850;"
+                                    >
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+
+                                        Raise Complaint
+                                    </a>
+                                </div>
+
+
+                            </div>
+
+                        {% endif %}
+
+
+                    </article>
+
+                {% endfor %}
+
+
+            </div>
+
+
+        {% else %}
+
+
+            <!-- =================================================
+                 EMPTY STATE
+                 ================================================= -->
+
+            <div class="empty">
+
+
+                <div class="empty-icon">
+
+                    <i class="bi bi-calendar2-check"></i>
+
+                </div>
+
+
+                <h3>
+
+                    No bookings yet
+
+                </h3>
+
+
+                <p>
+
+                    Your service bookings will appear here
+                    after you book a worker.
+
+                </p>
+
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+</div>
+
+{% endblock %}

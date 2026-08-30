@@ -1,0 +1,1393 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}
+Reviews & Complaints | LAMO
+{% endblock %}
+
+{% block page_title %}
+Reviews & Complaints
+{% endblock %}
+
+{% block page_subtitle %}
+Monitor customer feedback and complaints.
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =========================================================
+   LAMO — REVIEWS & COMPLAINTS
+   Modern Admin UI
+   ========================================================= */
+
+:root {
+    --rc-green: #087f5b;
+    --rc-green-dark: #075c43;
+    --rc-green-light: #e9f8f2;
+
+    --rc-bg: #f4f8f6;
+    --rc-white: #ffffff;
+
+    --rc-text: #17231f;
+    --rc-text-soft: #52615b;
+    --rc-muted: #87938e;
+
+    --rc-border: #dfeae5;
+
+    --rc-yellow: #f0a500;
+    --rc-red: #c24141;
+    --rc-blue: #2878b9;
+}
+
+/* =========================================================
+   PAGE
+   ========================================================= */
+
+.rc-page {
+    min-height: calc(100vh - 75px);
+    padding: 30px 34px 50px;
+    background:
+        radial-gradient(
+            circle at 5% 5%,
+            rgba(8,127,91,.06),
+            transparent 25%
+        ),
+        #f4f8f6;
+}
+
+.rc-container {
+    width: 50%;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.rc-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 26px;
+}
+
+.rc-back {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+    border: 1px solid var(--rc-border);
+
+    background: white;
+    color: var(--rc-green);
+
+    text-decoration: none;
+
+    box-shadow: 0 4px 15px rgba(0,60,45,.05);
+
+    transition: .25s ease;
+}
+
+.rc-back:hover {
+    background: var(--rc-green);
+    color: white;
+    transform: translateX(-3px);
+}
+
+.rc-header-text h1 {
+    margin: 0;
+
+    color: var(--rc-text);
+
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -.7px;
+}
+
+.rc-header-text p {
+    margin: 5px 0 0;
+
+    color: var(--rc-muted);
+
+    font-size: 12px;
+}
+
+/* =========================================================
+   STAT CARDS
+   ========================================================= */
+
+.rc-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+
+    margin-bottom: 20px;
+}
+
+.rc-stat {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    min-height: 115px;
+    padding: 20px;
+
+    background: var(--rc-white);
+
+    border: 1px solid var(--rc-border);
+    border-radius: 17px;
+
+    box-shadow: 0 7px 25px rgba(20,70,55,.045);
+
+    overflow: hidden;
+
+    transition: .25s ease;
+}
+
+.rc-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 13px 30px rgba(20,70,55,.08);
+}
+
+.rc-stat::after {
+    content: "";
+
+    position: absolute;
+
+    width: 90px;
+    height: 90px;
+
+    right: -40px;
+    bottom: -45px;
+
+    border-radius: 50%;
+
+    background: var(--rc-green-light);
+}
+
+.rc-stat-info {
+    position: relative;
+    z-index: 2;
+}
+
+.rc-stat-info small {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: var(--rc-muted);
+
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.rc-stat-info strong {
+    color: var(--rc-text);
+
+    font-size: 28px;
+    font-weight: 850;
+}
+
+.rc-stat-icon {
+    position: relative;
+    z-index: 2;
+
+    width: 46px;
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 14px;
+
+    background: var(--rc-green-light);
+    color: var(--rc-green);
+
+    font-size: 17px;
+}
+
+/* =========================================================
+   TOOLBAR
+   ========================================================= */
+
+.rc-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 18px;
+
+    margin-bottom: 28px;
+    padding: 13px;
+
+    background: white;
+
+    border: 1px solid var(--rc-border);
+    border-radius: 16px;
+
+    box-shadow: 0 5px 18px rgba(20,70,55,.035);
+}
+
+.rc-tabs {
+    display: flex;
+    gap: 6px;
+}
+
+.rc-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 9px 15px;
+
+    border-radius: 10px;
+
+    color: var(--rc-text-soft);
+    background: #f5f9f7;
+
+    text-decoration: none;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    transition: .2s ease;
+}
+
+.rc-tab:hover {
+    background: var(--rc-green-light);
+    color: var(--rc-green);
+}
+
+.rc-tab.active {
+    background: var(--rc-green);
+    color: white;
+}
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+.rc-search {
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+}
+
+.rc-search input {
+    width: 245px;
+    height: 40px;
+
+    padding: 0 13px;
+
+    border: 1px solid var(--rc-border);
+    border-radius: 10px;
+
+    outline: none;
+
+    background: #fbfdfc;
+    color: var(--rc-text);
+
+    font-size: 11px;
+
+    transition: .2s ease;
+}
+
+.rc-search input:focus {
+    background: white;
+    border-color: var(--rc-green);
+
+    box-shadow: 0 0 0 4px rgba(8,127,91,.07);
+}
+
+.rc-search button {
+    width: 40px;
+    height: 40px;
+
+    border: none;
+    border-radius: 10px;
+
+    background: var(--rc-green);
+    color: white;
+
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+.rc-search button:hover {
+    background: var(--rc-green-dark);
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   SECTION
+   ========================================================= */
+
+.rc-section {
+    margin-bottom: 30px;
+}
+
+.rc-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 12px;
+}
+
+.rc-section-title h2 {
+    display: flex;
+    align-items: center;
+
+    margin: 0;
+
+    color: var(--rc-text);
+
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.rc-section-title h2 i {
+    color: var(--rc-green);
+}
+
+.rc-section-title span {
+    color: var(--rc-muted);
+
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.rc-card {
+    margin-bottom: 12px;
+    padding: 20px;
+
+    background: white;
+
+    border: 1px solid var(--rc-border);
+    border-radius: 17px;
+
+    box-shadow: 0 5px 20px rgba(20,70,55,.035);
+
+    transition: .25s ease;
+}
+
+.rc-card:hover {
+    border-color: #c9e1d7;
+
+    box-shadow: 0 10px 28px rgba(20,70,55,.07);
+
+    transform: translateY(-2px);
+}
+
+/* =========================================================
+   CARD TOP
+   ========================================================= */
+
+.rc-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 20px;
+}
+
+.rc-person {
+    display: flex;
+    align-items: center;
+
+    gap: 12px;
+}
+
+.rc-avatar {
+    width: 43px;
+    height: 43px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 13px;
+
+    background: var(--rc-green-light);
+    color: var(--rc-green);
+
+    font-size: 14px;
+    font-weight: 850;
+}
+
+.rc-person h4 {
+    margin: 0;
+
+    color: var(--rc-text);
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.rc-person small {
+    display: block;
+
+    margin-top: 4px;
+
+    color: var(--rc-muted);
+
+    font-size: 10px;
+}
+
+/* =========================================================
+   STARS
+   ========================================================= */
+
+.rc-stars {
+    color: var(--rc-yellow);
+
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.rc-stars-empty {
+    color: #dce5e1;
+}
+
+/* =========================================================
+   REVIEW COMMENT
+   ========================================================= */
+
+.rc-comment {
+    margin: 17px 0;
+
+    padding: 15px 17px;
+
+    background: #f5faf8;
+
+    border: 1px solid #edf4f1;
+
+    border-radius: 12px;
+
+    color: var(--rc-text-soft);
+
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* =========================================================
+   META
+   ========================================================= */
+
+.rc-meta {
+    display: flex;
+    align-items: center;
+
+    gap: 18px;
+    flex-wrap: wrap;
+
+    color: var(--rc-muted);
+
+    font-size: 10px;
+}
+
+.rc-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rc-meta i {
+    color: var(--rc-green);
+}
+
+/* =========================================================
+   COMPLAINT CARD
+   ========================================================= */
+
+.complaint-card {
+    border-left: 4px solid #e0a100;
+}
+
+.complaint-card:hover {
+    border-left-color: #e0a100;
+}
+
+.complaint-subject {
+    color: var(--rc-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.complaint-description {
+    margin-top: 17px;
+    padding: 15px 17px;
+
+    background: #f8faf9;
+
+    border: 1px solid #edf2ef;
+    border-radius: 12px;
+
+    color: var(--rc-text-soft);
+
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.rc-badges {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.rc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    padding: 6px 10px;
+
+    border-radius: 30px;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.badge-high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-low {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.status-open {
+    background: #fff5dc;
+    color: #a86600;
+}
+
+.status-review {
+    background: #e8f3ff;
+    color: #1769aa;
+}
+
+.status-resolved {
+    background: #e9f8f2;
+    color: #087f5b;
+}
+
+.status-rejected {
+    background: #fff0ef;
+    color: #b42318;
+}
+
+/* =========================================================
+   COMPLAINT ACTION
+   ========================================================= */
+
+.rc-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    margin-top: 17px;
+    padding-top: 15px;
+
+    border-top: 1px solid #edf3f0;
+}
+
+.rc-action-label {
+    color: var(--rc-text-soft);
+
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.rc-action select,
+.rc-action input {
+    height: 38px;
+
+    padding: 0 11px;
+
+    border: 1px solid var(--rc-border);
+    border-radius: 9px;
+
+    background: #fbfdfc;
+
+    color: var(--rc-text);
+
+    outline: none;
+
+    font-size: 11px;
+}
+
+.rc-action select:focus,
+.rc-action input:focus {
+    border-color: var(--rc-green);
+
+    box-shadow: 0 0 0 3px rgba(8,127,91,.06);
+}
+
+.rc-action input {
+    flex: 1;
+    min-width: 220px;
+}
+
+.rc-update {
+    height: 38px;
+
+    padding: 0 16px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: var(--rc-green);
+    color: white;
+
+    font-size: 11px;
+    font-weight: 750;
+
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+.rc-update:hover {
+    background: var(--rc-green-dark);
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.rc-empty {
+    padding: 55px 20px;
+
+    text-align: center;
+
+    background: white;
+
+    border: 1px solid var(--rc-border);
+    border-radius: 17px;
+}
+
+.rc-empty-icon {
+    width: 55px;
+    height: 55px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 auto 14px;
+
+    border-radius: 16px;
+
+    background: var(--rc-green-light);
+    color: var(--rc-green);
+
+    font-size: 22px;
+}
+
+.rc-empty h3 {
+    margin: 0 0 5px;
+
+    color: var(--rc-text);
+
+    font-size: 15px;
+}
+
+.rc-empty p {
+    margin: 0;
+
+    color: var(--rc-muted);
+
+    font-size: 11px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1000px) {
+
+    .rc-page {
+        padding: 25px 22px 40px;
+    }
+
+    .rc-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 750px) {
+
+    .rc-page {
+        padding: 20px 15px 35px;
+    }
+
+    .rc-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rc-tabs {
+        width: 100%;
+    }
+
+    .rc-tab {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .rc-search {
+        width: 100%;
+    }
+
+    .rc-search input {
+        width: 100%;
+        flex: 1;
+    }
+
+    .rc-card-top {
+        flex-direction: column;
+    }
+
+    .rc-stars {
+        margin-left: 55px;
+    }
+}
+
+@media (max-width: 500px) {
+
+    .rc-header-text h1 {
+        font-size: 22px;
+    }
+
+    .rc-header-text p {
+        font-size: 11px;
+    }
+
+    .rc-card {
+        padding: 15px;
+    }
+
+    .rc-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 7px;
+    }
+
+    .rc-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .rc-action select,
+    .rc-action input,
+    .rc-update {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="rc-page">
+
+    <div class="rc-container">
+
+        <!-- =====================================================
+             HEADER
+        ====================================================== -->
+
+        <div class="rc-header">
+
+            <a
+                href="{% url 'admin_dashboard' %}"
+                class="rc-back"
+                title="Back to Dashboard"
+            >
+                <i class="bi bi-arrow-left"></i>
+            </a>
+
+            <div class="rc-header-text">
+
+                <h1>
+                    Reviews & Complaints
+                </h1>
+
+                <p>
+                    Monitor customer feedback and complaints.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             STATISTICS
+        ====================================================== -->
+
+        <div class="rc-stats">
+
+            <div class="rc-stat">
+
+                <div class="rc-stat-info">
+
+                    <small>
+                        Total Reviews
+                    </small>
+
+                    <strong>
+                        {{ review_count }}
+                    </strong>
+
+                </div>
+
+                <div class="rc-stat-icon">
+                    <i class="bi bi-star-fill"></i>
+                </div>
+
+            </div>
+
+
+            <div class="rc-stat">
+
+                <div class="rc-stat-info">
+
+                    <small>
+                        Total Complaints
+                    </small>
+
+                    <strong>
+                        {{ complaint_count }}
+                    </strong>
+
+                </div>
+
+                <div class="rc-stat-icon">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+
+            </div>
+
+
+            <div class="rc-stat">
+
+                <div class="rc-stat-info">
+
+                    <small>
+                        Open Complaints
+                    </small>
+
+                    <strong>
+                        {{ open_complaint_count }}
+                    </strong>
+
+                </div>
+
+                <div class="rc-stat-icon">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             TOOLBAR
+        ====================================================== -->
+
+        <div class="rc-toolbar">
+
+            <div class="rc-tabs">
+
+                <a
+                    href="{% url 'admin_reviews_complaints' %}"
+                    class="rc-tab {% if selected_type == 'all' %}active{% endif %}"
+                >
+                    <i class="bi bi-grid"></i>
+                    All
+                </a>
+
+                <a
+                    href="?type=reviews"
+                    class="rc-tab {% if selected_type == 'reviews' %}active{% endif %}"
+                >
+                    <i class="bi bi-star"></i>
+                    Reviews
+                </a>
+
+                <a
+                    href="?type=complaints"
+                    class="rc-tab {% if selected_type == 'complaints' %}active{% endif %}"
+                >
+                    <i class="bi bi-exclamation-circle"></i>
+                    Complaints
+                </a>
+
+            </div>
+
+
+            <form
+                method="GET"
+                class="rc-search"
+            >
+
+                <input
+                    type="hidden"
+                    name="type"
+                    value="{{ selected_type }}"
+                >
+
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search }}"
+                    placeholder="Search customer or worker..."
+                >
+
+                <button type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- =====================================================
+             REVIEWS
+        ====================================================== -->
+
+        {% if selected_type == 'all' or selected_type == 'reviews' %}
+
+        <div class="rc-section">
+
+            <div class="rc-section-title">
+
+                <h2>
+                    <i class="bi bi-star-fill me-2"></i>
+                    Customer Reviews
+                </h2>
+
+                <span>
+                    {{ reviews|length }}
+                    review{{ reviews|length|pluralize }}
+                </span>
+
+            </div>
+
+
+            {% if reviews %}
+
+                {% for review in reviews %}
+
+                <div class="rc-card">
+
+                    <div class="rc-card-top">
+
+                        <div class="rc-person">
+
+                            <div class="rc-avatar">
+                                {{ review.customer.username|first|upper }}
+                            </div>
+
+                            <div>
+
+                                <h4>
+
+                                    {% if review.customer.get_full_name %}
+                                        {{ review.customer.get_full_name }}
+                                    {% else %}
+                                        {{ review.customer.username }}
+                                    {% endif %}
+
+                                </h4>
+
+                                <small>
+                                    Worker:
+                                    {{ review.worker.user.get_full_name|default:review.worker.user.username }}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="rc-stars">
+
+                            {% for i in "12345" %}
+
+                                {% if forloop.counter <= review.rating %}
+
+                                    <i class="bi bi-star-fill"></i>
+
+                                {% else %}
+
+                                    <i class="bi bi-star rc-stars-empty"></i>
+
+                                {% endif %}
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="rc-comment">
+
+                        {% if review.comment %}
+
+                            "{{ review.comment }}"
+
+                        {% else %}
+
+                            <span style="color:#87938e;">
+                                No written comment.
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="rc-meta">
+
+                        <span>
+                            <i class="bi bi-tools"></i>
+                            {{ review.booking.service.name }}
+                        </span>
+
+                        <span>
+                            <i class="bi bi-receipt"></i>
+                            Booking #{{ review.booking.id }}
+                        </span>
+
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            {{ review.created_at|date:"d M Y, h:i A" }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+
+            {% else %}
+
+                <div class="rc-empty">
+
+                    <div class="rc-empty-icon">
+                        <i class="bi bi-star"></i>
+                    </div>
+
+                    <h3>
+                        No reviews yet
+                    </h3>
+
+                    <p>
+                        Customer reviews will appear here.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- =====================================================
+             COMPLAINTS
+        ====================================================== -->
+
+        {% if selected_type == 'all' or selected_type == 'complaints' %}
+
+        <div class="rc-section">
+
+            <div class="rc-section-title">
+
+                <h2>
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Customer Complaints
+                </h2>
+
+                <span>
+                    {{ complaints|length }}
+                    complaint{{ complaints|length|pluralize }}
+                </span>
+
+            </div>
+
+
+            {% if complaints %}
+
+                {% for complaint in complaints %}
+
+                <div class="rc-card complaint-card">
+
+                    <!-- TOP -->
+
+                    <div class="rc-card-top">
+
+                        <div class="rc-person">
+
+                            <div class="rc-avatar">
+                                <i class="bi bi-exclamation-lg"></i>
+                            </div>
+
+                            <div>
+
+                                <h4>
+                                    {{ complaint.subject }}
+                                </h4>
+
+                                <small>
+                                    Customer:
+                                    {{ complaint.customer.get_full_name|default:complaint.customer.username }}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- BADGES -->
+
+                        <div class="rc-badges">
+
+                            {% if complaint.severity == 'HIGH' %}
+
+                                <span class="rc-badge badge-high">
+                                    <i class="bi bi-fire"></i>
+                                    HIGH URGENCY
+                                </span>
+
+                            {% elif complaint.severity == 'LOW' %}
+
+                                <span class="rc-badge badge-low">
+                                    LOW URGENCY
+                                </span>
+
+                            {% else %}
+
+                                <span class="rc-badge badge-medium">
+                                    MEDIUM URGENCY
+                                </span>
+
+                            {% endif %}
+
+
+                            {% if complaint.status == 'OPEN' %}
+
+                                <span class="rc-badge status-open">
+                                    Open
+                                </span>
+
+                            {% elif complaint.status == 'UNDER_REVIEW' %}
+
+                                <span class="rc-badge status-review">
+                                    Under Review
+                                </span>
+
+                            {% elif complaint.status == 'RESOLVED' %}
+
+                                <span class="rc-badge status-resolved">
+                                    Resolved
+                                </span>
+
+                            {% elif complaint.status == 'REJECTED' %}
+
+                                <span class="rc-badge status-rejected">
+                                    Rejected
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- DESCRIPTION -->
+
+                    <div class="complaint-description">
+
+                        {{ complaint.description }}
+
+                    </div>
+
+
+                    <!-- META -->
+
+                    <div
+                        class="rc-meta"
+                        style="margin-top:14px;"
+                    >
+
+                        <span>
+                            <i class="bi bi-tools"></i>
+                            {{ complaint.booking.service.name }}
+                        </span>
+
+                        <span>
+                            <i class="bi bi-person"></i>
+                            Worker:
+                            {{ complaint.booking.worker.user.get_full_name|default:complaint.booking.worker.user.username }}
+                        </span>
+
+                        <span>
+                            <i class="bi bi-receipt"></i>
+                            Booking #{{ complaint.booking.id }}
+                        </span>
+
+                        <span>
+                            <i class="bi bi-calendar3"></i>
+                            {{ complaint.created_at|date:"d M Y, h:i A" }}
+                        </span>
+
+                    </div>
+
+
+                    <!-- ADMIN ACTION -->
+
+                    <form
+                        method="POST"
+                        action="{% url 'update_complaint_status' complaint.id %}"
+                        class="rc-action"
+                    >
+
+                        {% csrf_token %}
+
+                        <span class="rc-action-label">
+                            Action
+                        </span>
+
+                        <select name="status">
+
+                            <option
+                                value="OPEN"
+                                {% if complaint.status == 'OPEN' %}
+                                    selected
+                                {% endif %}
+                            >
+                                Open
+                            </option>
+
+                            <option
+                                value="UNDER_REVIEW"
+                                {% if complaint.status == 'UNDER_REVIEW' %}
+                                    selected
+                                {% endif %}
+                            >
+                                Under Review
+                            </option>
+
+                            <option
+                                value="RESOLVED"
+                                {% if complaint.status == 'RESOLVED' %}
+                                    selected
+                                {% endif %}
+                            >
+                                Resolved
+                            </option>
+
+                            <option
+                                value="REJECTED"
+                                {% if complaint.status == 'REJECTED' %}
+                                    selected
+                                {% endif %}
+                            >
+                                Rejected
+                            </option>
+
+                        </select>
+
+
+                        <input
+                            type="text"
+                            name="admin_remark"
+                            value="{{ complaint.admin_remark|default:'' }}"
+                            placeholder="Admin remark / resolution..."
+                        >
+
+
+                        <button
+                            type="submit"
+                            class="rc-update"
+                        >
+                            <i class="bi bi-check2-circle me-1"></i>
+                            Update Status
+                        </button>
+
+                    </form>
+
+                </div>
+
+                {% endfor %}
+
+
+            {% else %}
+
+                <div class="rc-empty">
+
+                    <div class="rc-empty-icon">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+
+                    <h3>
+                        No complaints
+                    </h3>
+
+                    <p>
+                        There are no customer complaints to display.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

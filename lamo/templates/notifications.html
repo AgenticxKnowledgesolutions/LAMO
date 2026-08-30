@@ -1,0 +1,969 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Notifications | LAMO
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =========================================================
+   LAMO NOTIFICATIONS
+   UI ONLY — Django logic unchanged
+   ========================================================= */
+
+/* ---------- REMOVE HEADER / FOOTER ---------- */
+
+body {
+    background:
+        radial-gradient(circle at 8% 15%, rgba(8,127,91,.07), transparent 23%),
+        radial-gradient(circle at 92% 80%, rgba(67,189,145,.06), transparent 24%),
+        #f5faf7;
+    overflow-x: hidden;
+}
+
+body > nav,
+body > footer,
+.navbar,
+.site-footer,
+.main-navbar,
+.footer {
+    display: none !important;
+}
+
+
+/* =========================================================
+   MAIN PAGE
+   ========================================================= */
+
+.notifications-page {
+    min-height: 100vh;
+    padding: 35px 20px 70px;
+    color: #17352c;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+   ========================================================= */
+
+.notifications-container {
+    width: min(900px, 100%);
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   BACK BUTTON
+   ========================================================= */
+
+.notifications-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 9px 15px;
+    margin-bottom: 25px;
+
+    border-radius: 50px;
+    border: 1px solid #dcebe4;
+
+    background: rgba(255,255,255,.85);
+
+    color: #087f5b;
+    text-decoration: none;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    box-shadow: 0 5px 18px rgba(10,70,50,.04);
+
+    transition:
+        transform .3s ease,
+        background .3s ease,
+        color .3s ease,
+        box-shadow .3s ease;
+}
+
+.notifications-back i {
+    transition: transform .3s ease;
+}
+
+.notifications-back:hover {
+    background: #087f5b;
+    color: #fff;
+
+    transform: translateX(-5px);
+
+    box-shadow:
+        0 9px 22px rgba(8,127,91,.16);
+}
+
+.notifications-back:hover i {
+    transform: translateX(-4px);
+}
+
+
+/* =========================================================
+   HEADER AREA
+   ========================================================= */
+
+.notifications-header {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    gap: 18px;
+
+    margin-bottom: 30px;
+
+    padding: 25px 28px;
+
+    border-radius: 24px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #063f30,
+            #087f5b
+        );
+
+    color: #fff;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 16px 35px rgba(0,65,45,.13);
+
+    animation: headerReveal .7s ease both;
+}
+
+
+/* Decorative circle */
+
+.notifications-header::before {
+    content: "";
+
+    position: absolute;
+
+    width: 220px;
+    height: 220px;
+
+    right: -90px;
+    top: -110px;
+
+    border-radius: 50%;
+
+    border: 1px solid rgba(255,255,255,.12);
+
+    animation: floatingRing 7s ease-in-out infinite;
+}
+
+
+/* Decorative small circle */
+
+.notifications-header::after {
+    content: "";
+
+    position: absolute;
+
+    width: 90px;
+    height: 90px;
+
+    right: 100px;
+    bottom: -60px;
+
+    border-radius: 50%;
+
+    background: rgba(255,255,255,.06);
+
+    animation: floatingSmall 5s ease-in-out infinite;
+}
+
+
+/* Header icon */
+
+.notifications-main-icon {
+    position: relative;
+    z-index: 2;
+
+    width: 58px;
+    height: 58px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 18px;
+
+    background: rgba(255,255,255,.12);
+
+    border: 1px solid rgba(255,255,255,.14);
+
+    color: #8be3c1;
+
+    font-size: 25px;
+
+    animation: bellFloat 3s ease-in-out infinite;
+}
+
+
+/* Header text */
+
+.notifications-heading {
+    position: relative;
+    z-index: 2;
+}
+
+.notifications-heading h1 {
+    margin: 0 0 5px;
+
+    font-size: 30px;
+    line-height: 1;
+
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.notifications-heading p {
+    margin: 0;
+
+    color: rgba(255,255,255,.68);
+
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   NOTIFICATION LIST
+   ========================================================= */
+
+.notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+
+/* =========================================================
+   NOTIFICATION CARD
+   ========================================================= */
+
+.notification-card {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    gap: 17px;
+
+    padding: 18px 20px;
+
+    min-height: 86px;
+
+    background: rgba(255,255,255,.96);
+
+    border: 1px solid #e0ece6;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 7px 23px rgba(10,70,50,.045);
+
+    overflow: hidden;
+
+    transition:
+        transform .35s cubic-bezier(.2,.8,.2,1),
+        box-shadow .35s ease,
+        border-color .35s ease;
+}
+
+
+/* Green side accent */
+
+.notification-card::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+
+    width: 3px;
+
+    border-radius: 0 5px 5px 0;
+
+    background: #087f5b;
+
+    transform: scaleY(.4);
+
+    transition: transform .3s ease;
+}
+
+
+/* Background decorative circle */
+
+.notification-card::after {
+    content: "";
+
+    position: absolute;
+
+    width: 100px;
+    height: 100px;
+
+    right: -55px;
+    top: -55px;
+
+    border-radius: 50%;
+
+    background: #edf8f3;
+
+    transition: transform .4s ease;
+}
+
+
+/* Hover */
+
+.notification-card:hover {
+    transform: translateY(-6px);
+
+    border-color: #c9e3d7;
+
+    box-shadow:
+        0 16px 32px rgba(10,70,50,.10);
+}
+
+.notification-card:hover::before {
+    transform: scaleY(1);
+}
+
+.notification-card:hover::after {
+    transform: scale(1.7);
+}
+
+
+/* =========================================================
+   ALTERNATING SLIDE ANIMATION
+   ========================================================= */
+
+/* Odd cards come from LEFT */
+
+.notification-card:nth-child(odd) {
+    animation:
+        notificationFromLeft
+        .75s
+        cubic-bezier(.2,.8,.2,1)
+        both;
+}
+
+
+/* Even cards come from RIGHT */
+
+.notification-card:nth-child(even) {
+    animation:
+        notificationFromRight
+        .75s
+        cubic-bezier(.2,.8,.2,1)
+        both;
+}
+
+
+/* Stagger */
+
+.notification-card:nth-child(1) {
+    animation-delay: .10s;
+}
+
+.notification-card:nth-child(2) {
+    animation-delay: .22s;
+}
+
+.notification-card:nth-child(3) {
+    animation-delay: .34s;
+}
+
+.notification-card:nth-child(4) {
+    animation-delay: .46s;
+}
+
+.notification-card:nth-child(5) {
+    animation-delay: .58s;
+}
+
+.notification-card:nth-child(6) {
+    animation-delay: .70s;
+}
+
+.notification-card:nth-child(7) {
+    animation-delay: .82s;
+}
+
+.notification-card:nth-child(8) {
+    animation-delay: .94s;
+}
+
+.notification-card:nth-child(9) {
+    animation-delay: 1.06s;
+}
+
+.notification-card:nth-child(10) {
+    animation-delay: 1.18s;
+}
+
+
+/* =========================================================
+   ICON BOX
+   ========================================================= */
+
+.notification-icon {
+    position: relative;
+    z-index: 3;
+
+    width: 48px;
+    height: 48px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 14px;
+
+    background: #e5f6ef;
+
+    color: #087f5b;
+
+    font-size: 20px;
+
+    transition:
+        transform .35s ease,
+        background .35s ease,
+        color .35s ease;
+}
+
+
+.notification-card:hover .notification-icon {
+    background: #087f5b;
+    color: #fff;
+
+    transform:
+        scale(1.1)
+        rotate(-6deg);
+}
+
+
+/* =========================================================
+   NOTIFICATION CONTENT
+   ========================================================= */
+
+.notification-content {
+    position: relative;
+    z-index: 3;
+
+    flex: 1;
+
+    min-width: 0;
+}
+
+.notification-message {
+    margin: 0 0 6px;
+
+    color: #193a30;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    line-height: 1.55;
+}
+
+.notification-time {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    color: #87938e;
+
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.notification-time i {
+    color: #087f5b;
+}
+
+
+/* =========================================================
+   TYPE BADGE
+   ========================================================= */
+
+.notification-type {
+    position: relative;
+    z-index: 3;
+
+    flex-shrink: 0;
+
+    padding: 6px 10px;
+
+    border-radius: 50px;
+
+    background: #edf8f3;
+
+    color: #087f5b;
+
+    font-size: 8px;
+    font-weight: 850;
+
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.notifications-empty {
+    padding: 65px 25px;
+
+    text-align: center;
+
+    background: rgba(255,255,255,.85);
+
+    border: 1px solid #e0ece6;
+
+    border-radius: 24px;
+
+    box-shadow:
+        0 10px 30px rgba(10,70,50,.05);
+
+    animation: emptyReveal .7s ease both;
+}
+
+
+.empty-icon {
+    width: 76px;
+    height: 76px;
+
+    margin: 0 auto 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 24px;
+
+    background: #e8f7f0;
+
+    color: #087f5b;
+
+    font-size: 32px;
+
+    animation: bellFloat 3s ease-in-out infinite;
+}
+
+
+.notifications-empty h4 {
+    margin: 0 0 7px;
+
+    color: #17352c;
+
+    font-size: 20px;
+    font-weight: 900;
+}
+
+
+.notifications-empty p {
+    margin: 0;
+
+    color: #7a8882;
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes headerReveal {
+
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+@keyframes notificationFromLeft {
+
+    from {
+        opacity: 0;
+        transform: translateX(-110px) scale(.96);
+    }
+
+    70% {
+        opacity: 1;
+        transform: translateX(8px) scale(1.01);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+
+@keyframes notificationFromRight {
+
+    from {
+        opacity: 0;
+        transform: translateX(110px) scale(.96);
+    }
+
+    70% {
+        opacity: 1;
+        transform: translateX(-8px) scale(1.01);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+
+@keyframes floatingRing {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(12px) rotate(8deg);
+    }
+}
+
+
+@keyframes floatingSmall {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-12px);
+    }
+}
+
+
+@keyframes bellFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+
+@keyframes emptyReveal {
+
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+    .notifications-page {
+        padding: 25px 14px 50px;
+    }
+
+    .notifications-header {
+        padding: 21px;
+        border-radius: 20px;
+    }
+
+    .notifications-main-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 15px;
+        font-size: 21px;
+    }
+
+    .notifications-heading h1 {
+        font-size: 25px;
+    }
+
+    .notification-card {
+        padding: 16px;
+        gap: 13px;
+    }
+
+    .notification-icon {
+        width: 43px;
+        height: 43px;
+        border-radius: 12px;
+        font-size: 18px;
+    }
+
+    .notification-message {
+        font-size: 12px;
+    }
+
+    .notification-type {
+        display: none;
+    }
+}
+
+
+@media (max-width: 430px) {
+
+    .notifications-header {
+        align-items: flex-start;
+    }
+
+    .notifications-main-icon {
+        width: 45px;
+        height: 45px;
+    }
+
+    .notifications-heading h1 {
+        font-size: 22px;
+    }
+
+    .notifications-heading p {
+        font-size: 10px;
+    }
+
+    .notification-card {
+        align-items: flex-start;
+        border-radius: 16px;
+    }
+
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .notification-message {
+        font-size: 11px;
+    }
+
+    .notification-time {
+        font-size: 8px;
+    }
+
+    .notifications-empty {
+        padding: 50px 20px;
+    }
+}
+
+
+/* Accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
+
+</style>
+
+
+<!-- =========================================================
+     NOTIFICATIONS PAGE
+     ========================================================= -->
+
+<div class="notifications-page">
+
+    <div class="notifications-container">
+
+
+        <!-- BACK -->
+
+        {% if request.user.is_authenticated %}
+            {% if request.user.role == 'WORKER' %}
+                <a href="{% url 'worker_dashboard' %}" class="notifications-back">
+            {% elif request.user.role == 'ADMIN' %}
+                <a href="{% url 'admin_dashboard' %}" class="notifications-back">
+            {% else %}
+                <a href="{% url 'home' %}" class="notifications-back">
+            {% endif %}
+        {% else %}
+            <a href="{% url 'home' %}" class="notifications-back">
+        {% endif %}
+                <i class="bi bi-arrow-left"></i>
+                Back
+            </a>
+
+
+        <!-- =================================================
+             HEADER
+             ================================================= -->
+
+        <div class="notifications-header">
+
+            <div class="notifications-main-icon">
+
+                <i class="bi bi-bell-fill"></i>
+
+            </div>
+
+
+            <div class="notifications-heading">
+
+                <h1>
+                    Notifications
+                </h1>
+
+                <p>
+                    Stay updated with your latest activities and bookings.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             NOTIFICATIONS
+             ================================================= -->
+
+        <div class="notifications-list">
+
+
+            {% for notification in notifications %}
+
+
+                <div class="notification-card">
+
+
+                    <!-- ICON -->
+
+                    <div class="notification-icon">
+
+                        {% if notification.notification_type == 'BOOKING' %}
+
+                            <i class="bi bi-calendar-check"></i>
+
+                        {% else %}
+
+                            <i class="bi bi-bell"></i>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- CONTENT -->
+
+                    <div class="notification-content">
+
+                        <p class="notification-message">
+
+                            {{ notification.message }}
+
+                        </p>
+
+
+                        <div class="notification-time">
+
+                            <i class="bi bi-clock"></i>
+
+                            {{ notification.created_at|date:"d M Y, h:i A" }}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- TYPE -->
+
+                    <div class="notification-type">
+
+                        {% if notification.notification_type == 'BOOKING' %}
+
+                            Booking
+
+                        {% else %}
+
+                            Update
+
+                        {% endif %}
+
+                    </div>
+
+
+                </div>
+
+
+            {% empty %}
+
+
+                <!-- EMPTY STATE -->
+
+                <div class="notifications-empty">
+
+                    <div class="empty-icon">
+
+                        <i class="bi bi-bell-slash"></i>
+
+                    </div>
+
+
+                    <h4>
+                        No notifications
+                    </h4>
+
+
+                    <p>
+                        You're all caught up.
+                    </p>
+
+                </div>
+
+
+            {% endfor %}
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+{% endblock %}
