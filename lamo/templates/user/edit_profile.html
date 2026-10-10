@@ -1,73 +1,18 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
+{% load static %}
+
+
 {% block title %}Edit Profile - LAMO{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/user-edit_profile.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/user-edit_profile.js' %}" defer></script>
+{% endblock %}
 {% block content %}
-<style>
-.ep-container {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 40px 20px 60px;
-}
-.ep-card {
-    background: #fff;
-    border-radius: 20px;
-    padding: 40px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-}
-.ep-card h2 {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 24px;
-    color: #1e293b;
-}
-.ep-form label {
-    font-weight: 600;
-    font-size: 13px;
-    color: #374151;
-    margin-bottom: 6px;
-    display: block;
-}
-.ep-form input, .ep-form textarea, .ep-form select {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 10px;
-    font-size: 14px;
-    margin-bottom: 18px;
-    transition: border-color 0.2s;
-}
-.ep-form input:focus, .ep-form textarea:focus {
-    border-color: #6366f1;
-    outline: none;
-}
-.ep-btn {
-    padding: 12px 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.ep-btn:hover { opacity: 0.9; }
-.ep-cancel {
-    margin-left: 12px;
-    color: #6b7280;
-    text-decoration: none;
-    font-size: 14px;
-}
-.ep-avatar-preview {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 12px;
-    border: 3px solid #e5e7eb;
-}
-@media (max-width: 600px) {
-    .ep-card { padding: 24px 18px; }
-}
-</style>
+
 <div class="ep-container">
     <div class="ep-card">
         <h2>Edit Profile</h2>
@@ -98,11 +43,35 @@
             {{ form.district }}
             <label>Address</label>
             {{ form.address }}
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end;">
+                <div>
+                    <label>Latitude</label>
+                    {{ form.latitude }}
+                </div>
+                <div>
+                    <label>Longitude</label>
+                    {{ form.longitude }}
+                </div>
+                <div>
+                    <label style="visibility: hidden;">Set Location</label>
+                    <button type="button" id="setUserLocationBtn" style="width: 100%; padding: 10px; border: 1.5px solid #16a34a; border-radius: 8px; background: #ffffff; cursor: pointer; font-weight: 600; color: #16a34a; font-family: inherit;">
+                        📍 Use My Current Location
+                    </button>
+                    <small id="userLocationStatus" style="font-size: 11px; color: #6b7280; display: block; margin-top: 6px;"></small>
+                </div>
+            </div>
             <label>Bio</label>
             {{ form.bio }}
             <button type="submit" class="ep-btn">Save Changes</button>
             <a href="{% url 'user_dashboard' %}" class="ep-cancel">Cancel</a>
         </form>
+    </div>
+
+    <!-- Security -->
+    <div style="margin-top: 30px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff;">
+        <h4 style="color: #0f172a; font-size: 16px; font-weight: 700; margin-bottom: 8px;">Security</h4>
+        <p style="color: #6b7280; font-size: 13px; margin-bottom: 16px;">Update the password you use to sign in to LAMO.</p>
+        <a href="{% url 'change_password' %}" style="display: inline-block; padding: 10px 24px; background: #0f172a; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">Change Password</a>
     </div>
 
     <!-- Danger Zone -->
@@ -111,9 +80,17 @@
         <p style="color: #6b7280; font-size: 13px; margin-bottom: 16px;">Once you delete your account, there is no going back.</p>
         <form method="POST" action="{% url 'delete_account' %}" onsubmit="return confirm('Are you sure you want to permanently delete your account? This cannot be undone.');">
             {% csrf_token %}
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Enter your password to confirm</label>
+                <input type="password" name="password" required style="width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+            </div>
             <button type="submit" style="padding: 10px 24px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Delete My Account</button>
         </form>
     </div>
 </div>
-</div>
+
+
 {% endblock %}
+
+
+

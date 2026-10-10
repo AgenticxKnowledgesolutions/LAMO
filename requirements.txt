@@ -1,0 +1,45 @@
+# ============================================================
+# LAMO – Python dependencies
+# Install with:  pip install -r requirements.txt
+# Versions are pinned to the ones the project is verified against.
+# ============================================================
+
+# --- Core framework ---
+Django==4.2.27
+asgiref==3.12.1
+sqlparse==0.5.5
+
+# --- Database driver (MySQL / MariaDB) ---
+mysqlclient==2.2.8
+
+# --- Image handling (Service.image, WorkerProfile.profile_image, ...) ---
+pillow==12.3.0
+
+# --- Shared cache (rate limits) ---
+# django.core.cache.backends.redis.RedisCache is built into Django 4.2 and
+# speaks to a real Redis server through the redis-py client. It is REQUIRED
+# in production: the login / password-reset / OTP / AI rate limits are stored
+# in the cache, and a per-process cache gives every gunicorn worker its own
+# counters, which silently defeats the lockouts. settings.py refuses to start
+# a production process without DJANGO_CACHE_URL.
+redis==5.2.1
+
+# Only needed if DJANGO_CACHE_URL uses memcached:// instead of redis://
+# pymemcache==4.0.0
+
+# --- Environment variables loaded from .env ---
+python-dotenv==1.2.2
+
+# --- Timezone data (needed on Windows / slim containers) ---
+tzdata==2026.3
+
+# --- Production static file serving (WhiteNoise) ---
+# Serves STATIC_ROOT from the WSGI process, so no nginx is required.
+# The middleware is registered in settings.py right after SecurityMiddleware.
+whitenoise==6.7.0
+
+# --- Production WSGI/ASGI server ---
+# Render start command: gunicorn lamo.wsgi (see render.yaml).
+# gunicorn is POSIX-only; it is a deployment dependency and is not imported
+# by the application or the test suite.
+gunicorn==22.0.0

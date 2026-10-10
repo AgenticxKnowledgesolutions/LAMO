@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Booking Messages | LAMO{% endblock %}
+
+{% block extra_css %}
+
+<style>
+  body { background: #f5f9f7; }
+  .chat-page { max-width: 980px; margin: 30px auto; padding: 0 16px 40px; }
+  .chat-shell {
+    background: #fff; border: 1px solid #e6efe9; border-radius: 22px;
+    box-shadow: 0 12px 36px rgba(8, 127, 91, 0.08); overflow: hidden;
+  }
+  .chat-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 22px 26px; border-bottom: 1px solid #edf3f0; background: linear-gradient(135deg, #f6fffb, #eefaf6);
+  }
+  .chat-header h1 { margin:0; font-size:28px; color:#17231f; }
+  .chat-header a { text-decoration:none; color:#087f5b; font-weight:700; }
+  .chat-body { display:flex; flex-direction:column; gap:18px; padding:22px 20px 18px; min-height:420px; background:#fbfefc; }
+  .msg-row { display:flex; }
+  .msg-row.me { justify-content:flex-end; }
+  .msg-bubble {
+    max-width:75%; padding:12px 14px; border-radius:16px; line-height:1.5;
+    border:1px solid #e6efe9; background:#fff; color:#17231f;
+  }
+  .msg-row.me .msg-bubble { background:#e8f8f2; border-color:#d4f1e5; }
+  .msg-meta { font-size:11px; color:#6f7d78; margin-top:6px; }
+  .chat-form { padding: 0 20px 24px; }
+  .chat-form form { display:flex; gap:10px; }
+  .chat-form textarea {
+    width:100%; min-height:70px; resize:vertical; border:1px solid #dfeae6; border-radius:12px; padding:12px 14px; font:inherit;
+  }
+  .chat-form button {
+    border:none; background:#087f5b; color:#fff; border-radius:12px; padding:0 18px; font-weight:800; cursor:pointer;
+  }
+  .empty-state { padding:24px; color:#71807b; text-align:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+  <div class="chat-shell">
+    <div class="chat-header">
+      <div>
+        <h1>Booking Chat</h1>
+        <div style="margin-top:6px; color:#6f7d78; font-size:13px; font-weight:600;">
+          Booking #{{ booking.id }} · {{ booking.service.name }} ·
+          {% if request.user == booking.customer %}
+            {% if booking.worker and booking.worker.user %}
+              {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+            {% else %}
+              Service provider pending
+            {% endif %}
+          {% else %}
+            {{ booking.customer.get_full_name|default:booking.customer.username }}
+          {% endif %}
+        </div>
+      </div>
+      {% if request.user.role == 'WORKER' %}
+        <a href="{% url 'worker_jobs' %}">Back to jobs</a>
+      {% else %}
+        <a href="{% url 'my_bookings' %}">Back to bookings</a>
+      {% endif %}
+    </div>
+
+    <div class="chat-body">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="msg-row {% if message.sender == request.user %}me{% endif %}">
+            <div class="msg-bubble">
+              {{ message.message }}
+              <div class="msg-meta">
+                {{ message.sender.get_full_name|default:message.sender.username }} · {{ message.created_at|date:'d M Y, h:i A' }}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">No messages yet. Start the conversation with the service provider.</div>
+      {% endif %}
+    </div>
+
+    <div class="chat-form">
+      <form method="post">
+        {% csrf_token %}
+        <textarea name="message" placeholder="Type your message here..." required></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

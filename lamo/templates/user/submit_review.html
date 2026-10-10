@@ -1,297 +1,15 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
+{% load static %}
+
+
 
 {% block title %}Give Review | LAMO{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/user-submit_review.css' %}">
+{% endblock %}
+
 {% block content %}
-
-<style>
-
-.review-page {
-    min-height: calc(100vh - 70px);
-
-    background: #f5faf8;
-
-    padding: 45px 20px 70px;
-}
-
-.review-container {
-    max-width: 600px;
-
-    margin: 0 auto;
-}
-
-.review-card {
-    background: #ffffff;
-
-    border: 1px solid #dfebe7;
-
-    border-radius: 22px;
-
-    padding: 30px;
-
-    box-shadow:
-        0 10px 30px rgba(0, 80, 60, 0.07);
-}
-
-
-/* =========================================================
-   HEADER
-   ========================================================= */
-
-.review-header {
-    text-align: center;
-
-    margin-bottom: 25px;
-}
-
-.review-icon {
-    width: 65px;
-    height: 65px;
-
-    margin: 0 auto 15px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 18px;
-
-    background: #fff4d6;
-
-    color: #e49b00;
-
-    font-size: 27px;
-}
-
-.review-header h1 {
-    margin: 0;
-
-    color: #17231f;
-
-    font-size: 25px;
-
-    font-weight: 800;
-}
-
-.review-header p {
-    margin: 7px 0 0;
-
-    color: #71807b;
-
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   BOOKING INFO
-   ========================================================= */
-
-.booking-info {
-    padding: 15px;
-
-    margin-bottom: 25px;
-
-    border-radius: 14px;
-
-    background: #f8fcfa;
-}
-
-.booking-info strong {
-    display: block;
-
-    color: #17231f;
-
-    font-size: 15px;
-}
-
-.booking-info span {
-    display: block;
-
-    margin-top: 4px;
-
-    color: #71807b;
-
-    font-size: 11px;
-}
-
-
-/* =========================================================
-   RATING
-   ========================================================= */
-
-.rating-title {
-    margin-bottom: 10px;
-
-    color: #17231f;
-
-    font-size: 13px;
-
-    font-weight: 800;
-}
-
-.rating-box {
-    display: flex;
-
-    flex-direction: row-reverse;
-
-    justify-content: center;
-
-    gap: 8px;
-
-    margin-bottom: 25px;
-}
-
-.rating-box input {
-    display: none;
-}
-
-.rating-box label {
-    color: #d7dfdc;
-
-    font-size: 35px;
-
-    cursor: pointer;
-
-    transition: 0.2s ease;
-}
-
-.rating-box label:hover,
-.rating-box label:hover ~ label {
-    color: #f5b400;
-}
-
-.rating-box input:checked ~ label {
-    color: #f5b400;
-}
-
-
-/* =========================================================
-   COMMENT
-   ========================================================= */
-
-.form-label {
-    display: block;
-
-    margin-bottom: 7px;
-
-    color: #17231f;
-
-    font-size: 13px;
-
-    font-weight: 800;
-}
-
-.review-textarea {
-    width: 100%;
-
-    min-height: 130px;
-
-    padding: 13px;
-
-    resize: vertical;
-
-    border: 1px solid #dfe9e5;
-
-    border-radius: 12px;
-
-    outline: none;
-
-    font-family: inherit;
-
-    font-size: 12px;
-
-    color: #26352f;
-
-    background: #fbfdfc;
-}
-
-.review-textarea:focus {
-    border-color: #087f5b;
-
-    box-shadow:
-        0 0 0 3px rgba(8, 127, 91, 0.08);
-}
-
-
-/* =========================================================
-   SUBMIT
-   ========================================================= */
-
-.submit-review-btn {
-    width: 100%;
-
-    margin-top: 20px;
-
-    padding: 13px;
-
-    border: 0;
-
-    border-radius: 12px;
-
-    background: #087f5b;
-
-    color: #ffffff;
-
-    font-size: 13px;
-
-    font-weight: 800;
-
-    cursor: pointer;
-
-    transition: 0.2s ease;
-}
-
-.submit-review-btn:hover {
-    background: #066d4e;
-}
-
-
-/* =========================================================
-   BACK
-   ========================================================= */
-
-.back-bookings {
-    display: block;
-
-    margin-top: 15px;
-
-    text-align: center;
-
-    color: #087f5b;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    text-decoration: none;
-}
-
-.back-bookings:hover {
-    text-decoration: underline;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-    .review-page {
-        padding: 30px 14px 50px;
-    }
-
-    .review-card {
-        padding: 22px;
-    }
-
-    .rating-box label {
-        font-size: 30px;
-    }
-
-}
-
-</style>
 
 
 <div class="review-page">
@@ -370,7 +88,7 @@
                     >
 
                     <label for="star5">
-                        ★
+                        â˜…
                     </label>
 
 
@@ -382,7 +100,7 @@
                     >
 
                     <label for="star4">
-                        ★
+                        â˜…
                     </label>
 
 
@@ -394,7 +112,7 @@
                     >
 
                     <label for="star3">
-                        ★
+                        â˜…
                     </label>
 
 
@@ -406,7 +124,7 @@
                     >
 
                     <label for="star2">
-                        ★
+                        â˜…
                     </label>
 
 
@@ -418,7 +136,7 @@
                     >
 
                     <label for="star1">
-                        ★
+                        â˜…
                     </label>
 
                 </div>
@@ -465,7 +183,7 @@
                 class="back-bookings"
             >
 
-                ← Back to My Bookings
+                â† Back to My Bookings
 
             </a>
 
@@ -477,3 +195,5 @@
 </div>
 
 {% endblock %}
+
+

@@ -1,0 +1,76 @@
+# ============================================================
+# LAMO - Render blueprint
+# ------------------------------------------------------------
+# Created during the pre-deployment audit. NOTHING in this file contains a
+# credential, database URL, Redis URL or API key. Values marked `sync: false`
+# are entered once in the Render dashboard and are stored encrypted there.
+#
+# IMPORTANT - this blueprint has NOT been deployed or verified. Applying it is
+# a manual step (see "Remaining manual Render setup" in the audit report).
+#
+# Project layout: manage.py lives in ./lamo, so every command cd's into it.
+# WSGI module (inspected, lamo/lamo/wsgi.py): lamo.wsgi:application
+# ============================================================
+services:
+  - type: web
+    name: lamo
+    runtime: python3
+    plan: starter          # change/remove to match your Render plan
+
+    # Build: install deps, then collectstatic so WhiteNoise has files to serve.
+    # collectstatic runs with DJANGO_ENV unset (development), so it never trips
+    # the production SECRET_KEY/CACHE/DEBUG gates during build.
+    buildCommand: >-
+      pip install -r requirements.txt &&
+      cd lamo &&
+      python manage.py collectstatic --noinput
+    startCommand: cd lamo && gunicorn lamo.wsgi --log-file -
+
+    # Render's default health check. `/` is the public home page.
+    # HTTPS redirection is safe here: Render terminates TLS and sets
+    # X-Forwarded-Proto, which settings.py already trusts.
+    healthCheckPath: /
+
+    autoDeploy: false       # set to true if you want deploys on git push
+
+    envVars:
+      # ---- Not secret: safe to keep in this file ----
+      - key: DJANGO_ENV
+        value: production
+      # Must list BOTH the custom domain and the onrender.com hostname.
+      # Add the generated <service>.onrender.com host in the dashboard if it
+      # differs, e.g. DJANGO_ALLOWED_HOSTS=lamo.agenticx.in,lamo.onrender.com
+      - key: DJANGO_ALLOWED_HOSTS
+        value: lamo.agenticx.in
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://lamo.agenticx.in
+      # Off by default; DEBUG is hard-forbidden in production by settings.py.
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_LOG_LEVEL
+        value: INFO
+
+      # ---- Secrets: enter the real values in the Render dashboard ----
+      # Generate with: python -c "import secrets; print(secrets.token_urlsafe(50))"
+      # Render refuses to start the service until these are provided, and
+      # settings.py raises ImproperlyConfigured if they are missing/weak.
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      # External MySQL/MariaDB connection string. Render does NOT create a
+      # MySQL instance for you - attach/provision one and paste its URL here.
+      # Must be URL-encoded if the password contains @ : /
+      - key: DATABASE_URL
+        sync: false
+      # Shared cache backing the login/OTP/password-reset/AI rate limits.
+      # settings.py refuses to start production without it (per-process
+      # LocMemCache would silently defeat the lockouts).
+      - key: DJANGO_CACHE_URL
+        sync: false
+      # SMTP (signup OTP, booking mails). Use an app password, not a login.
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      # Optional: leave blank to disable AI and fall back to local matching.
+      - key: GOOGLE_API_KEY
+        sync: false

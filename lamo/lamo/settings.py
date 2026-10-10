@@ -11,22 +11,168 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 import os
+import warnings
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-u5*ufwk_+%xa#tie91gp)^dxjv=1uq-ghifm(%p-l6w-wc+qoy'
+
+# ============================================================
+# MAP TILES
+# ============================================================
+# Default to Esri World Street Map, which serves Leaflet raster tiles without
+# requiring an API key. A different provider can be configured with MAP_TILE_URL.
+MAP_TILE_URL = os.getenv(
+    'MAP_TILE_URL',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+)
+
+# Optional provider-specific API key for custom tile URLs that use subdomains.
+MAP_TILE_API_KEY = os.getenv('MAP_TILE_API_KEY', '')
+
+# Attribution is displayed on the map and must stay accurate for the provider.
+MAP_TILE_ATTRIBUTION = os.getenv(
+    'MAP_TILE_ATTRIBUTION',
+    'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, Intermap, '
+    'increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, '
+    'Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), '
+    '&copy; OpenStreetMap contributors, and the GIS User Community',
+)
+
+# Comma separated subdomains used to replace {s} in MAP_TILE_URL.
+MAP_TILE_SUBDOMAINS = os.getenv('MAP_TILE_SUBDOMAINS', '')
+
+MAP_TILE_MAX_ZOOM = int(os.getenv('MAP_TILE_MAX_ZOOM', '19'))
+
+if MAP_TILE_API_KEY and '{s}' in MAP_TILE_URL:
+    separator = '&' if '?' in MAP_TILE_URL else '?'
+    MAP_TILE_URL = f'{MAP_TILE_URL}{separator}key={MAP_TILE_API_KEY}'
+
+# Reverse/forward geocoding (district checks, "current location" place names).
+# Nominatim asks every client to identify itself.
+GEOCODING_USER_AGENT = os.getenv('GEOCODING_USER_AGENT', 'LAMO/1.0')
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+
+# ============================================================
+# DEPLOYMENT ENVIRONMENT
+# ============================================================
+# Read once, up front, because the SECRET_KEY and CACHES validations below
+# both need to know whether this process is a production deployment. The
+# value is reused by the production-security block further down.
+#
+#   DJANGO_ENV=production  -> HTTPS/HSTS/secure cookies AND the hard
+#                            configuration gates for SECRET_KEY and CACHES.
+#   anything else          -> development / test behaviour (unchanged).
+ENVIRONMENT = os.getenv('DJANGO_ENV', 'development').strip().lower()
+IS_PRODUCTION = ENVIRONMENT == 'production'
+
+# ============================================================
+# SECRET KEY  (P0-C)
+# ============================================================
+# Django's signing machinery uses SECRET_KEY for session cookies, CSRF
+# tokens and any password-reset token. A key that is committed to the
+# repository is therefore not a "development convenience" - it is a public
+# credential that anybody can read and use to forge those values.
+#
+# The rules implemented here:
+#
+#   * development / test  -> a clearly-labelled insecure key is allowed so a
+#                            fresh checkout still boots with no configuration.
+#   * production          -> the key MUST come from the environment, MUST NOT
+#                            be the committed development key, and MUST be
+#                            long enough to be unguessable. Anything else is
+#                            an ImproperlyConfigured, i.e. the process refuses
+#                            to start rather than running insecurely.
+#
+# Error messages deliberately never echo the key or any part of it.
+_DEV_SECRET_KEY = 'django-insecure-u5*ufwk_+%xa#tie91gp)^dxjv=1uq-ghifm(%p-l6w-wc+qoy'
+
+# Matches `secrets.token_urlsafe(50)`, which is what .env.example tells
+# operators to generate. Anything shorter is treated as a placeholder.
+MIN_SECRET_KEY_LENGTH = 50
+
+
+def resolve_secret_key(raw_value, environment):
+    """Return the SECRET_KEY to use, or refuse to start a production process.
+
+    ``raw_value`` is the raw ``DJANGO_SECRET_KEY`` environment value (it may
+    be ``None`` or whitespace). ``environment`` is the normalised
+    ``DJANGO_ENV`` value.
+
+    Raising :class:`~django.core.exceptions.ImproperlyConfigured` here is the
+    whole point: it happens while Django is still importing settings, so the
+    application never serves a request with an attacker-known secret.
+    """
+    provided = (raw_value or '').strip()
+    secret = provided or _DEV_SECRET_KEY
+
+    if environment == 'production':
+        if not provided:
+            raise ImproperlyConfigured(
+                'DJANGO_SECRET_KEY must be set when DJANGO_ENV=production. '
+                'Generate one with: '
+                'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+            )
+        if provided == _DEV_SECRET_KEY:
+            raise ImproperlyConfigured(
+                'DJANGO_SECRET_KEY is still the committed development key, '
+                'which is public and must never be used in production. '
+                'Generate a unique secret with: '
+                'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+            )
+        if len(provided) < MIN_SECRET_KEY_LENGTH:
+            raise ImproperlyConfigured(
+                'DJANGO_SECRET_KEY is too short to be secure when '
+                'DJANGO_ENV=production; it must be at least '
+                '{0} characters. Generate one with: '
+                'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+                .format(MIN_SECRET_KEY_LENGTH)
+            )
+
+    return secret
+
+
+SECRET_KEY = resolve_secret_key(os.getenv('DJANGO_SECRET_KEY'), ENVIRONMENT)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ['*']
+# Fail safe if a production process is ever told to run with DEBUG on.
+# DEBUG=True serves stack traces, settings and local variables to any visitor
+# and disables the static-file pipeline's strictness, so a misconfigured deploy
+# must refuse to start rather than leak. This can only trigger when
+# DJANGO_ENV=production AND DJANGO_DEBUG=true - development and the test suite
+# (DJANGO_ENV=development) are unaffected.
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured(
+        'DJANGO_DEBUG must not be enabled when DJANGO_ENV=production. '
+        'Unset DJANGO_DEBUG (or set it to False) before starting a '
+        'production process.'
+    )
+
+# Outside production this stays a warning so local development is not
+# interrupted. A production deployment cannot reach this branch at all:
+# resolve_secret_key() has already raised.
+if SECRET_KEY == _DEV_SECRET_KEY and not DEBUG:
+    warnings.warn(
+        'DJANGO_SECRET_KEY is not set - using the insecure development key. '
+        'This is only acceptable while developing locally.',
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -41,8 +187,113 @@ INSTALLED_APPS = [
     'lamoapp'
 ]
 AUTH_USER_MODEL = 'lamoapp.CustomUser'
+
+# Django's default LOGIN_URL is '/accounts/login/' and the default
+# LOGIN_REDIRECT_URL is '/accounts/profile/'. Neither path exists in this
+# project - the real routes are '/login/' and '/dashboard/' - so every
+# @login_required view redirected anonymous visitors to a URL that 404s
+# instead of showing the sign-in page. Point them at the actual routes.
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'home'
+
+# Cache
+# -----
+# Used for the server-side rate limits that protect login, forgot-password,
+# OTP verify/resend and the AI endpoints (see lamoapp/rate_limit.py). These
+# counters MUST live on the server: storing them in the session would let an
+# attacker reset them simply by deleting the session cookie.
+#
+# The subtlety that matters in production is PROCESS COUNT. Django's default
+# LocMemCache keeps every entry in the memory of the single process that wrote
+# it. Under gunicorn/uwsgi with N workers there are N independent caches, so a
+# "5 attempts then lockout" rule really allows 5 x N attempts, and an attacker
+# who is load-balanced to a different worker gets a fresh set of counters every
+# time. The lockout is silently defeated while every log line still looks fine.
+#
+# Therefore:
+#
+#   * production  -> DJANGO_CACHE_URL MUST be set to a SHARED backend (Redis
+#                    preferred). A missing value is an ImproperlyConfigured,
+#                    not a fallback, so a misconfigured deploy fails loudly at
+#                    startup instead of running with useless rate limits.
+#   * development -> LocMemCache, so a fresh checkout runs with no services.
+#
+#   DJANGO_CACHE_URL   redis://[:password@]host:6379/0      (preferred)
+#                      rediss://...                        (TLS)
+#                      memcached://host:11211              (needs pymemcache)
+#
+# Credentials belong in the URL supplied by the environment, never in this
+# file. Note that python-dotenv does not override variables that are already
+# set in the real environment, so exporting DJANGO_CACHE_URL wins over .env.
+DJANGO_CACHE_URL = os.getenv('DJANGO_CACHE_URL', '').strip()
+
+# Backends that are safe to use with more than one worker process.
+SHARED_CACHE_URL_PREFIXES = ('redis://', 'rediss://', 'memcached://')
+
+
+def resolve_cache_config(raw_url, environment):
+    """Return the ``CACHES`` dict for this process.
+
+    Raises :class:`~django.core.exceptions.ImproperlyConfigured` when a
+    production deployment has no shared cache configured. The message names
+    the setting and the schemes that are accepted, but never echoes the URL
+    itself, which may embed a password.
+    """
+    url = (raw_url or '').strip()
+
+    if not url:
+        if environment == 'production':
+            raise ImproperlyConfigured(
+                'DJANGO_CACHE_URL must be set when DJANGO_ENV=production. '
+                'The login, password-reset and AI rate limits are stored in '
+                'the cache, and a per-process cache gives every worker its '
+                'own counters, which defeats the lockouts. Set a shared '
+                'backend, e.g. DJANGO_CACHE_URL=redis://127.0.0.1:6379/0 '
+                '(needs the "redis" package from requirements.txt).'
+            )
+        # Local development / tests: no external service required.
+        return {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'lamo-rate-limit-cache',
+            }
+        }
+
+    if url.startswith(('redis://', 'rediss://')):
+        return {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': url,
+            }
+        }
+
+    if url.startswith('memcached://'):
+        return {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
+                'LOCATION': url,
+            }
+        }
+
+    # An unrecognised scheme must not fall through to LocMemCache: that would
+    # be the exact silent downgrade this configuration exists to prevent.
+    raise ImproperlyConfigured(
+        'DJANGO_CACHE_URL has an unsupported scheme. Supported schemes are: '
+        '{0}.'.format(', '.join(SHARED_CACHE_URL_PREFIXES))
+    )
+
+
+CACHES = resolve_cache_config(DJANGO_CACHE_URL, ENVIRONMENT)
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise must follow SecurityMiddleware and precede every other
+    # middleware that could short-circuit a static file response. It serves
+    # STATIC_ROOT (populated by `manage.py collectstatic`) straight from the
+    # WSGI process, which is what makes static files work behind Render's
+    # single web service without a separate nginx.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,6 +314,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'lamoapp.context_processors.map_config',
+                'lamoapp.context_processors.global_notifications',
             ],
         },
     },
@@ -73,29 +326,125 @@ WSGI_APPLICATION = 'lamo.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+#
+# The connection is configured from the environment so a deployment never has
+# to edit (or commit) credentials:
+#
+#   DATABASE_URL            one connection string, e.g.
+#                           mysql://user:password@host:3306/lamo_project
+#                           (mysql, mariadb, postgresql and sqlite are accepted)
+#   DJANGO_DB_ENGINE        default django.db.backends.mysql
+#   DJANGO_DB_NAME          default lamo_project
+#   DJANGO_DB_USER          default root
+#   DJANGO_DB_PASSWORD      default '' (local development only)
+#   DJANGO_DB_HOST          default 127.0.0.1
+#   DJANGO_DB_PORT          default 3306
+#   DJANGO_DB_CONN_MAX_AGE  default 0 (persistent connections disabled)
+#
+# MySQL remains the default to preserve existing local account data. SQLite
+# can still be selected explicitly with DJANGO_DB_ENGINE.
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'lamo_project',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-    }
+_DB_SCHEME_ENGINES = {
+    'mysql': 'django.db.backends.mysql',
+    'mysql2': 'django.db.backends.mysql',
+    'mariadb': 'django.db.backends.mysql',
+    'postgres': 'django.db.backends.postgresql',
+    'postgresql': 'django.db.backends.postgresql',
+    'sqlite': 'django.db.backends.sqlite3',
+    'sqlite3': 'django.db.backends.sqlite3',
 }
+
+_MYSQL_OPTIONS = {
+    'charset': 'utf8mb4',
+    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+}
+
+
+def _database_from_url(url):
+    """Translate a DATABASE_URL into a Django DATABASES['default'] entry."""
+    parsed = urlparse(url)
+    engine = _DB_SCHEME_ENGINES.get((parsed.scheme or '').lower())
+
+    if not engine:
+        raise ImproperlyConfigured(
+            'DATABASE_URL has an unsupported scheme {0!r}. Supported schemes: '
+            '{1}.'.format(parsed.scheme, ', '.join(sorted(_DB_SCHEME_ENGINES)))
+        )
+
+    if engine == 'django.db.backends.sqlite3':
+        name = unquote(parsed.path.lstrip('/')) or ':memory:'
+        return {'ENGINE': engine, 'NAME': name}
+
+    name = unquote(parsed.path.lstrip('/'))
+    if not name:
+        raise ImproperlyConfigured(
+            'DATABASE_URL is missing the database name, e.g. '
+            'mysql://user:password@host:3306/lamo_project'
+        )
+
+    config = {
+        'ENGINE': engine,
+        'NAME': name,
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': str(parsed.port or ''),
+        'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+        'OPTIONS': {},
+    }
+
+    if engine == 'django.db.backends.mysql':
+        config['OPTIONS'] = dict(_MYSQL_OPTIONS)
+
+    return config
+
+
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+
+if DATABASE_URL:
+    DATABASES = {'default': _database_from_url(DATABASE_URL)}
+else:
+    _DB_ENGINE = os.getenv('DJANGO_DB_ENGINE', 'django.db.backends.mysql')
+
+    if _DB_ENGINE == 'django.db.backends.sqlite3':
+        DATABASES = {
+            'default': {
+                'ENGINE': _DB_ENGINE,
+                'NAME': os.getenv('DJANGO_DB_NAME', str(BASE_DIR / 'db.sqlite3')),
+                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+            }
+        }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': _DB_ENGINE,
+                'NAME': os.getenv('DJANGO_DB_NAME', 'lamo_project'),
+                'USER': os.getenv('DJANGO_DB_USER', 'root'),
+                'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', ''),
+                'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1'),
+                'PORT': os.getenv('DJANGO_DB_PORT', '3306'),
+                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+                'OPTIONS': dict(_MYSQL_OPTIONS) if _DB_ENGINE == 'django.db.backends.mysql' else {},
+            }
+        }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# The backend/host/port can be overridden from the environment, which makes
+# it easy to use the console backend while developing or the locmem backend
+# while testing. Defaults are unchanged (Gmail SMTP over TLS).
+EMAIL_BACKEND = os.getenv(
+    'DJANGO_EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend',
+)
 
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = os.getenv('DJANGO_EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('DJANGO_EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('DJANGO_EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+
+# Never let a slow SMTP server hang a web request forever.
+EMAIL_TIMEOUT = int(os.getenv('DJANGO_EMAIL_TIMEOUT', '10'))
 
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')
@@ -127,7 +476,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Existing data is stored in UTC. Leaving the default as UTC keeps today's
+# behaviour identical; set DJANGO_TIME_ZONE=Asia/Kolkata for local time.
+TIME_ZONE = os.getenv('DJANGO_TIME_ZONE', 'UTC')
 
 USE_I18N = True
 
@@ -137,10 +488,152 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+# Where `collectstatic` puts files for the web server / WhiteNoise to serve.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Extra project-level static folders (currently unused, but harmless to declare).
+STATICFILES_DIRS = [
+    path for path in [BASE_DIR / 'static'] if path.exists()
+]
+
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Overridable so a Render persistent disk (or any mount point) can back the
+# uploads without editing code. Default is unchanged: <project>/media.
+MEDIA_ROOT = Path(
+    os.getenv('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media'))
+)
+
+# ============================================================
+# STORAGE (WhiteNoise static files)
+# ============================================================
+# Django 4.2 consolidated the storage settings into STORAGES. Only the
+# `staticfiles` backend is changed here; `default` stays Django's
+# FileSystemStorage so uploaded images keep landing in MEDIA_ROOT exactly as
+# before (media routing in urls.py is untouched).
+#
+# CompressedStaticFilesStorage (NOT the Manifest variant) is deliberate:
+# ManifestStaticFilesStorage refuses to render `{% static %}` until
+# `collectstatic` has produced a manifest, which would break `manage.py check`
+# and the test suite on a clean checkout. WhiteNoise still gzips/brotli-
+# compresses and caches these files when serving them.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
 
 # Google Gemini API
 
 
+# ============================================================
+# PRODUCTION SECURITY SETTINGS
+# ============================================================
+# These settings are controlled via environment variables.
+# Set DJANGO_ENV=production in production to enable all security features.
+
+# ENVIRONMENT is resolved once near the top of this file so that the
+# SECRET_KEY and CACHES gates above can consult it. It is deliberately not
+# re-read here: a second definition could disagree with the first, and the
+# early value is the one that already gated SECRET_KEY and CACHES.
+assert ENVIRONMENT == os.getenv('DJANGO_ENV', 'development').strip().lower()
+
+if IS_PRODUCTION:
+    # HTTPS Settings
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Secure Cookies
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Additional Security
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # NOTE: SECURE_BROWSER_XSS_FILTER was removed in Django 5.0 - the browser
+    # XSS filter is obsolete and X-Content-Type-Options covers it.
+    X_FRAME_OPTIONS = 'DENY'
+
+    # Session Security
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+
+
+# ============================================================
+# CSRF TRUSTED ORIGINS
+# ============================================================
+# Needed for cross-origin POSTs (e.g. https://your-domain.com) when running
+# behind a proxy. Comma separated full origins including the scheme.
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+
+# ============================================================
+# LOGGING
+# ============================================================
+# Optional work in the views (mail, AI, geocoding) is wrapped in
+# `except Exception: pass`, so failures used to disappear without a trace.
+# Errors are now written to logs/lamo.log (rotated) as well as the console.
+
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {name} {process:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(LOG_DIR / 'lamo.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'lamoapp': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+    },
+}

@@ -9,6 +9,11 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- CSRF token for JavaScript. Rendered by Django, NOT read from the
+       csrftoken cookie, so AJAX keeps working when CSRF_COOKIE_HTTPONLY=True
+       (which is the case in production). -->
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
   <title>
     {% block title %}
     LAMO | Labour Management System
@@ -49,2330 +54,19 @@
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
 
-  <style>
-/* =====================================================
-           ROOT VARIABLES
-        ====================================================== */
+  <!-- =====================================================
+         LAMO SHARED DESIGN SYSTEM
+    ====================================================== -->
 
-    :root {
+  <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
 
-      --primary: #16a34a;
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
 
-      --primary-hover: #15803d;
-
-      --dark-green: #042f1f;
-
-      --text-dark: #1f2937;
-
-      --text-muted: #6b7280;
-
-      --bg-light: #f9fafb;
-
-    }
-
-
-    /* =====================================================
-           BODY
-        ====================================================== */
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-
-    body {
-
-      font-family: "Poppins", sans-serif;
-
-      color: var(--text-dark);
-
-      background-color: #ffffff;
-
-      overflow-x: hidden;
-
-      margin: 0;
-
-    }
-
-
-    a {
-      text-decoration: none;
-    }
-
-
-    /* =====================================================
-           GLOBAL TYPOGRAPHY
-        ====================================================== */
-
-    .section-subtitle {
-
-      color: var(--primary);
-
-      font-weight: 600;
-
-      font-size: 0.85rem;
-
-      letter-spacing: 1.5px;
-
-      text-transform: uppercase;
-
-      margin-bottom: 0.5rem;
-
-      display: block;
-
-    }
-
-
-    .section-title {
-
-      font-weight: 700;
-
-      font-size: 2.25rem;
-
-      color: var(--text-dark);
-
-      margin-bottom: 1rem;
-
-    }
-
-
-    /* =====================================================
-           SITE HEADER
-        ====================================================== */
-
-    .site-header {
-
-      position: relative;
-
-      background-color: var(--dark-green);
-
-      border-bottom-left-radius: 40% 40px;
-
-      border-bottom-right-radius: 40% 40px;
-
-      overflow: visible;
-
-    }
-    /* =====================================================
-           MAIN NAVBAR
-
-           LEFT   = LAMO
-           CENTER = Navigation
-           RIGHT  = User / Login / Register
-
-           On scroll the navbar becomes a full-width
-           dark-green transparent glass bar.
-        ====================================================== */
-
-    .navbar {
-
-      position: fixed;
-
-      top: 0;
-
-      left: 0;
-
-      width: 100%;
-
-      min-height: 72px;
-
-      padding: 0.45rem 34px;
-
-      z-index: 1050;
-
-      background: transparent;
-
-      border: none;
-
-      box-shadow: none;
-
-      transition:
-        background 0.35s ease,
-        box-shadow 0.35s ease,
-        backdrop-filter 0.35s ease;
-
-    }
-
-
-    /* =====================================================
-           NAVBAR INNER
-        ====================================================== */
-
-    .navbar > .container {
-
-      position: relative;
-
-      width: 100%;
-
-      max-width: 1750px;
-
-      min-height: 58px;
-
-      padding-left: 0;
-
-      padding-right: 0;
-
-      display: grid;
-
-      grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
-
-      align-items: center;
-
-      column-gap: 24px;
-
-    }
-
-
-    /* =====================================================
-           LOGO
-        ====================================================== */
-
-        ====================================================== */
-
-    .brand-logo {
-
-      grid-column: 1;
-
-      justify-self: start;
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 0.55rem;
-
-      color: #ffffff;
-
-      text-decoration: none;
-
-      flex-shrink: 0;
-
-      transition: all 0.3s ease;
-
-    }
-
-
-    .brand-logo:hover {
-
-      color: #ffffff;
-
-    }
-
-
-    .brand-icon-wrap {
-
-      width: 44px;
-
-      height: 44px;
-
-      background: var(--primary);
-
-      border-radius: 9px;
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      position: relative;
-
-      font-size: 1.35rem;
-
-      flex-shrink: 0;
-
-    }
-
-
-    .brand-icon-wrap .bi-people-fill {
-
-      position: absolute;
-
-      font-size: 0.7rem;
-
-      color: white;
-
-      bottom: 7px;
-
-      right: 7px;
-
-    }
-
-
-    .brand-text-wrap {
-
-      display: flex;
-
-      flex-direction: column;
-
-      line-height: 1.1;
-
-    }
-
-
-    .brand-name {
-
-      font-weight: 800;
-
-      font-size: 1.3rem;
-
-      letter-spacing: 1px;
-
-      color: #ffffff;
-
-      transition: color 0.3s ease;
-
-    }
-
-
-    .brand-sub {
-
-      font-size: 0.55rem;
-
-      color: #a7f3d0;
-
-      text-transform: uppercase;
-
-      letter-spacing: 0.5px;
-
-      transition: color 0.3s ease;
-
-    }
-    /* =====================================================
-           NAVBAR COLLAPSE
-        ====================================================== */
-
-    .navbar-collapse.show {
-      display: block;
-    }
-
-
-    /* =====================================================
-           MAIN OVAL NAVIGATION
-           CENTERED ON THE SCREEN.
-        ====================================================== */
-
-    .nav-pill {
-
-      grid-column: 2;
-
-      justify-self: center;
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      padding: 0.28rem 0.42rem;
-
-      border-radius: 60px;
-
-      background:
-        rgba(255, 255, 255, 0.10);
-
-      border:
-        1px solid rgba(255, 255, 255, 0.45);
-
-      backdrop-filter: blur(16px);
-
-      -webkit-backdrop-filter: blur(16px);
-
-      box-shadow:
-        0 8px 30px rgba(0, 0, 0, 0.10);
-
-      transition:
-        background 0.35s ease,
-        border-color 0.35s ease,
-        box-shadow 0.35s ease;
-
-      z-index: 2;
-
-    }
-
-
-           THIS IS THE OVAL FROM YOUR DRAWING.
-        ====================================================== */
-
-    .nav-pill {
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      padding: 0.28rem 0.42rem;
-
-      border-radius: 60px;
-
-      background:
-        rgba(255, 255, 255, 0.10);
-
-      border:
-        1px solid rgba(255, 255, 255, 0.45);
-
-      backdrop-filter: blur(16px);
-
-      -webkit-backdrop-filter: blur(16px);
-
-      box-shadow:
-        0 8px 30px rgba(0, 0, 0, 0.10);
-
-      transition:
-        background 0.35s ease,
-        border-color 0.35s ease,
-        box-shadow 0.35s ease;
-
-      transform: translateX(-10px);
-
-    }
-
-
-    /* =====================================================
-           NAV LIST
-        ====================================================== */
-
-    .nav-pill .navbar-nav {
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      gap: 0.6rem;
-
-      margin: 0;
-
-    }
-
-
-    /* =====================================================
-           NAV LINKS
-        ====================================================== */
-
-    .nav-pill .nav-link {
-
-      position: relative;
-
-      color:
-        rgba(255, 255, 255, 0.95) !important;
-
-      font-weight: 500;
-
-      font-size: 0.91rem;
-
-      padding:
-        0.55rem 0.85rem !important;
-
-      border-radius: 30px;
-
-      white-space: nowrap;
-
-      transition:
-        color 0.3s ease,
-        background 0.3s ease,
-        transform 0.3s ease;
-
-    }
-
-
-    /* =====================================================
-           NAV HOVER
-        ====================================================== */
-
-    .nav-pill .nav-link:hover {
-
-      color: #ffffff !important;
-
-      background:
-        rgba(255, 255, 255, 0.12);
-
-      transform: translateY(-1px);
-
-    }
-
-
-    /* =====================================================
-           ACTIVE NAVIGATION
-
-           ONLY THE SELECTED ITEM GETS THIS SMALL PILL.
-        ====================================================== */
-
-    .nav-pill .nav-link.active {
-
-      color: #ffffff !important;
-
-      background:
-        rgba(255, 255, 255, 0.20);
-
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.25),
-
-        0 3px 12px rgba(0, 0, 0, 0.08);
-
-    }
-
-
-    /* =====================================================
-           ACTIVE GREEN DOT
-        ====================================================== */
-
-    .nav-pill .nav-link.active::after {
-
-      content: "";
-
-      position: absolute;
-
-      left: 50%;
-
-      bottom: 4px;
-
-      transform:
-        translateX(-50%);
-
-      width: 5px;
-
-      height: 5px;
-
-      border-radius: 50%;
-
-      background: #4ade80;
-
-      box-shadow:
-        0 0 8px rgba(74, 222, 128, 0.8);
-
-    }
-
-
-    /* =====================================================
-           USER NOTIFICATION ICON
-       ====================================================== */
-
-    .notification-nav-link {
-
-      width: 42px;
-
-      height: 38px;
-
-      display: inline-flex !important;
-
-      align-items: center;
-
-      justify-content: center;
-
-      padding: 0.45rem !important;
-
-    }
-
-
-    .notification-nav-link i {
-
-      font-size: 1.05rem;
-
-      transition: transform 0.25s ease;
-
-    }
-
-
-    .notification-nav-link:hover i {
-
-      transform: scale(1.12);
-
-    }
-
-
-    .navbar.scrolled .notification-nav-link.active {
-
-      color: var(--primary) !important;
-
-    }
-    /* =====================================================
-           NAV ACTIONS
-           Public: Login / Register
-           Authenticated: User dropdown
-        ====================================================== */
-
-    /* =====================================================
-   NAV ACTIONS
-   Public: Login / Register
-   Authenticated: User dropdown
-   ===================================================== */
-
-.nav-actions {
-    grid-column: 3;
-    justify-self: end;
-
-    display: flex;
-    align-items: center;
-
-    /* Space between Contact and Login */
-    margin-left: 55px;
-
-    /* Space between Login and Register */
-    gap: 14px;
-
-    flex-shrink: 0;
-    z-index: 3;
-}
-
-    /* =====================================================
-           USER MENU
-        ====================================================== */
-
-    .user-menu {
-
-      position: relative;
-
-    }
-
-
-    .user-menu-trigger {
-
-      display: inline-flex;
-
-      align-items: center;
-
-      gap: 8px;
-
-      min-height: 42px;
-
-      padding: 7px 13px;
-
-      border-radius: 30px;
-
-      border: 1px solid rgba(255, 255, 255, 0.35);
-
-      background: rgba(255, 255, 255, 0.08);
-
-      color: #ffffff;
-
-      font-family: "Poppins", sans-serif;
-
-      font-size: 13px;
-
-      font-weight: 600;
-
-      white-space: nowrap;
-
-      cursor: pointer;
-
-      transition:
-        background 0.3s ease,
-        border-color 0.3s ease,
-        color 0.3s ease,
-        transform 0.3s ease;
-
-    }
-
-
-    .user-menu-trigger:hover {
-
-      background: rgba(255, 255, 255, 0.15);
-
-      border-color: rgba(255, 255, 255, 0.55);
-
-      transform: translateY(-1px);
-
-    }
-
-
-    .user-menu-trigger .bi-person-circle {
-
-      font-size: 1.05rem;
-
-    }
-
-    /* First letter avatar for the logged-in user */
-    .user-initial {
-
-      width: 34px;
-
-      height: 34px;
-
-      border-radius: 50%;
-
-      display: inline-flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      background: #16a34a;
-
-      color: #ffffff;
-
-      font-size: 0.9rem;
-
-      font-weight: 700;
-
-      line-height: 1;
-
-      text-transform: uppercase;
-
-      flex-shrink: 0;
-
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-    }
-
-
-    .user-menu-trigger .bi-chevron-down {
-
-      font-size: 0.7rem;
-
-      transition: transform 0.25s ease;
-
-    }
-
-
-    .user-menu.show .user-menu-trigger .bi-chevron-down {
-
-      transform: rotate(180deg);
-
-    }
-
-
-    .user-dropdown {
-
-      position: absolute;
-
-      top: calc(100% + 10px);
-
-      right: 0;
-
-      min-width: 190px;
-
-      padding: 8px;
-
-      border-radius: 16px;
-
-      background: rgba(255, 255, 255, 0.97);
-
-      border: 1px solid rgba(255, 255, 255, 0.8);
-
-      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
-
-      backdrop-filter: blur(18px);
-
-      -webkit-backdrop-filter: blur(18px);
-
-      opacity: 0;
-
-      visibility: hidden;
-
-      transform: translateY(-8px);
-
-      transition:
-        opacity 0.2s ease,
-        visibility 0.2s ease,
-        transform 0.2s ease;
-
-      z-index: 1100;
-
-    }
-
-
-    .user-menu.show .user-dropdown {
-
-      opacity: 1;
-
-      visibility: visible;
-
-      transform: translateY(0);
-
-    }
-
-
-    .user-dropdown a {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 10px;
-
-      width: 100%;
-
-      padding: 10px 12px;
-
-      border-radius: 10px;
-
-      color: #1f2937;
-
-      font-size: 13px;
-
-      font-weight: 600;
-
-      transition:
-        color 0.2s ease,
-        background 0.2s ease;
-
-    }
-
-
-    .user-dropdown a i {
-
-      width: 18px;
-
-      text-align: center;
-
-      font-size: 15px;
-
-    }
-
-
-    .user-dropdown a:hover {
-
-      color: var(--primary);
-
-      background: rgba(22, 163, 74, 0.09);
-
-    }
-
-
-    .user-dropdown a.logout-item:hover {
-
-      color: #dc3545;
-
-      background: rgba(220, 53, 69, 0.08);
-
-    }
-
-
-    /* =====================================================
-           USER GREETING
-           Kept for compatibility with existing styles.
-        ====================================================== */
-
-    .user-greeting-nav {
-
-      color: #ffffff;
-
-      font-size: 13px;
-
-      font-weight: 600;
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 6px;
-
-      white-space: nowrap;
-
-    }
-
-
-    /* =====================================================
-           LOGIN
-        ====================================================== */
-
-        ====================================================== */
-
-    /* =====================================================
-   LOGIN BUTTON
-   Transparent glass style
-   ===================================================== */
-
-.btn-login {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-
-    min-height: 44px;
-    padding: 0.48rem 1.15rem;
-
-    border-radius: 30px;
-
-    /* Transparent glass */
-    background: rgba(255, 255, 255, 0.08) !important;
-
-    /* Visible glass border */
-    border: 1px solid rgba(255, 255, 255, 0.55) !important;
-
-    /* Glass blur */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-
-    color: #ffffff !important;
-
-    font-family: "Poppins", sans-serif;
-    font-size: 0.91rem;
-    font-weight: 500;
-
-    white-space: nowrap;
-    text-decoration: none !important;
-
-    box-shadow:
-        0 4px 15px rgba(0, 0, 0, 0.08);
-
-    transition:
-        background 0.3s ease,
-        border-color 0.3s ease,
-        transform 0.3s ease,
-        box-shadow 0.3s ease;
-}
-
-
-/* LOGIN HOVER */
-
-.btn-login:hover {
-    background: rgba(255, 255, 255, 0.16) !important;
-
-    border-color: rgba(255, 255, 255, 0.75) !important;
-
-    color: #ffffff !important;
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 6px 18px rgba(0, 0, 0, 0.12);
-}
-
-
-    /* =====================================================
-           REGISTER
-        ====================================================== */
-
-    .btn-register {
-
-      background: var(--primary);
-
-      border: 1px solid var(--primary);
-
-      color: #ffffff;
-
-      padding:
-        0.48rem 1.15rem;
-
-      border-radius: 30px;
-
-      font-weight: 600;
-
-      font-size: 0.91rem;
-
-      display: inline-flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      white-space: nowrap;
-
-      text-decoration: none;
-
-      transition: all 0.3s ease;
-
-    }
-
-
-    .btn-register:hover {
-
-      background: var(--primary-hover);
-
-      border-color: var(--primary-hover);
-
-      color: #ffffff;
-
-      transform: translateY(-1px);
-
-    }
-    /* =====================================================
-           SCROLLED NAVBAR
-           FULL-WIDTH DARK GREEN GLASS
-        ====================================================== */
-
-    .navbar.scrolled {
-
-      background:
-        rgba(4, 47, 31, 0.82);
-
-      border-bottom:
-        1px solid rgba(255, 255, 255, 0.12);
-
-      box-shadow:
-        0 8px 30px rgba(0, 0, 0, 0.18);
-
-      backdrop-filter: blur(18px);
-
-      -webkit-backdrop-filter: blur(18px);
-
-    }
-
-
-    .navbar.scrolled .nav-pill {
-
-      background:
-        rgba(255, 255, 255, 0.08);
-
-      border-color:
-        rgba(255, 255, 255, 0.25);
-
-      box-shadow:
-        0 8px 30px rgba(0, 0, 0, 0.16);
-
-    }
-
-
-    .navbar.scrolled .nav-pill .nav-link {
-
-      color:
-        rgba(255, 255, 255, 0.95) !important;
-
-    }
-
-
-    .navbar.scrolled .nav-pill .nav-link:hover {
-
-      color: #ffffff !important;
-
-      background:
-        rgba(255, 255, 255, 0.12);
-
-    }
-
-
-    .navbar.scrolled .nav-pill .nav-link.active {
-
-      color: #ffffff !important;
-
-      background:
-        rgba(255, 255, 255, 0.18);
-
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.20);
-
-    }
-
-
-    .navbar.scrolled .nav-pill .nav-link.active::after {
-
-      background: #4ade80;
-
-      box-shadow:
-        0 0 8px rgba(74, 222, 128, 0.8);
-
-    }
-
-
-    /* =====================================================
-           SCROLLED LOGO
-        ====================================================== */
-
-    .navbar.scrolled .brand-name,
-    .navbar.scrolled .brand-logo {
-
-      color: #ffffff;
-
-    }
-
-
-    .navbar.scrolled .brand-sub {
-
-      color: #a7f3d0;
-
-    }
-
-
-    /* =====================================================
-           SCROLLED USER MENU
-        ====================================================== */
-
-    .navbar.scrolled .user-menu-trigger {
-
-      color: #ffffff;
-
-      background:
-        rgba(255, 255, 255, 0.08);
-
-      border-color:
-        rgba(255, 255, 255, 0.28);
-
-    }
-
-
-    .navbar.scrolled .user-menu-trigger:hover {
-
-      background:
-        rgba(255, 255, 255, 0.15);
-
-      border-color:
-        rgba(255, 255, 255, 0.50);
-
-    }
-
-
-    /* =====================================================
-           SCROLLED LOGIN
-        ====================================================== */
-
-    .navbar.scrolled .btn-login {
-
-      color: #ffffff;
-
-      border-color:
-        rgba(255, 255, 255, 0.35);
-
-      background:
-        rgba(255, 255, 255, 0.06);
-
-    }
-
-
-    .navbar.scrolled .btn-login:hover {
-
-      color: #ffffff;
-
-      border-color:
-        rgba(255, 255, 255, 0.60);
-
-      background:
-        rgba(255, 255, 255, 0.13);
-
-    }
-
-
-    /* =====================================================
-           MOBILE TOGGLE
-        ====================================================== */
-
-        ====================================================== */
-
-    .navbar-toggler {
-
-      color: #ffffff !important;
-
-    }
-
-
-    .navbar.scrolled .navbar-toggler {
-
-      color: #1f2937 !important;
-
-    }
-
-
-    /* =====================================================
-       FINAL DESKTOP NAVBAR
-       LEFT   : ICON + LAMO in one line
-       CENTER : NAVIGATION
-       RIGHT  : USER INITIAL + ARROW at the far right
-       ===================================================== */
-
-    @media (min-width: 992px) {
-
-      .navbar > .container {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        align-items: center;
-        width: 100%;
-      }
-
-      .navbar .brand-logo {
-        grid-column: 1;
-        justify-self: start;
-        display: inline-flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 14px;
-        white-space: nowrap;
-        margin-left: 0;
-      }
-
-      .navbar .brand-text-wrap {
-        display: block;
-        line-height: 1;
-      }
-
-      .navbar .brand-name {
-        display: inline;
-        font-size: 1.35rem;
-      }
-
-      .navbar .brand-sub {
-        display: none;
-      }
-
-      .navbar .nav-pill {
-        grid-column: 2;
-        justify-self: center;
-        position: static;
-        transform: none;
-        white-space: nowrap;
-      }
-.navbar .nav-actions {
-    grid-column: 3;
-
-    justify-self: end;
-
-    position: static;
-    transform: none;
-
-    /* IMPORTANT:
-       Creates space between Contact and Login */
-    margin-left: 55px;
-
-    margin-right: 0;
-
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-      .navbar .user-menu-trigger {
-        min-width: 48px;
-        height: 44px;
-        padding: 4px 5px 4px 7px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        margin-right: 0;
-      }
-
-      .navbar .user-initial {
-        width: 34px;
-        height: 34px;
-        flex: 0 0 34px;
-      }
-
-      .navbar .user-menu-trigger .bi-chevron-down {
-        font-size: 0.65rem;
-      }
-
-    }
-
-
-    @media (min-width: 992px) {
-      .navbar .brand-logo .brand-icon-wrap {
-        margin-right: 2px;
-      }
-
-      .navbar .nav-actions {
-        justify-self: end !important;
-      }
-    }
-    /* =====================================================
-           MOBILE
-        ====================================================== */
-
-    @media (max-width: 991px) {
-
-      .navbar {
-
-        padding: 0.45rem 14px;
-
-      }
-
-
-      .navbar > .container {
-
-        min-height: 58px;
-
-        padding-left: 0.35rem;
-
-        padding-right: 0.35rem;
-
-        display: flex;
-
-        flex-wrap: wrap;
-
-      }
-
-
-      .brand-logo {
-
-        position: static;
-
-        transform: none;
-
-      }
-
-
-      .navbar-toggler {
-
-        margin-left: auto;
-
-        padding: 0.25rem 0.45rem;
-
-      }
-
-
-      .navbar-collapse {
-
-        width: 100%;
-
-        height: auto;
-
-        margin-top: 10px;
-
-        padding: 12px;
-
-        flex-direction: column;
-
-        align-items: stretch;
-
-        gap: 12px;
-
-        border-radius: 18px;
-
-        background:
-          rgba(4, 47, 31, 0.88);
-
-        border:
-          1px solid rgba(255, 255, 255, 0.16);
-
-        backdrop-filter: blur(18px);
-
-        -webkit-backdrop-filter: blur(18px);
-
-      }
-
-
-      .navbar.scrolled .navbar-collapse {
-
-        background:
-          rgba(4, 47, 31, 0.92);
-
-      }
-
-
-      .nav-pill {
-
-        grid-column: auto;
-
-        position: static;
-
-        transform: none;
-
-        width: 100%;
-
-        border-radius: 20px;
-
-        padding: 6px;
-
-      }
-
-
-      .nav-pill .navbar-nav {
-
-        width: 100%;
-
-        flex-direction: column;
-
-        align-items: stretch;
-
-      }
-
-
-      .nav-pill .nav-item {
-
-        width: 100%;
-
-      }
-
-
-      .nav-pill .nav-link {
-
-        width: 100%;
-
-        text-align: center;
-
-        padding:
-          0.7rem 1rem !important;
-
-      }
-
-
-      .nav-actions {
-
-        grid-column: auto;
-
-        position: static;
-
-        transform: none;
-
-        width: 100%;
-
-        justify-content: center;
-
-      }
-
-
-      .user-menu {
-
-        width: 100%;
-
-      }
-
-
-      .user-menu-trigger {
-
-        width: 100%;
-
-        justify-content: center;
-
-      }
-
-
-      .user-dropdown {
-
-        position: static;
-
-        width: 100%;
-
-        margin-top: 8px;
-
-        display: none;
-
-        opacity: 1;
-
-        visibility: visible;
-
-        transform: none;
-
-        background: rgba(255, 255, 255, 0.97);
-
-      }
-
-
-      .user-menu.show .user-dropdown {
-
-        display: block;
-
-      }
-
-
-      .btn-login,
-      .btn-register {
-
-        flex: 1;
-
-        max-width: 180px;
-
-      }
-
-    }
-
-
-    /* =====================================================
-           VERY SMALL MOBILE
-        ====================================================== */
-
-    @media (max-width: 480px) {
-
-      .brand-sub {
-
-        display: none;
-
-      }
-
-
-      .brand-name {
-
-        font-size: 1.15rem;
-
-      }
-
-
-      .brand-icon-wrap {
-
-        width: 40px;
-
-        height: 40px;
-
-      }
-
-
-      .nav-actions {
-
-        flex-direction: column;
-
-      }
-
-
-      .btn-login,
-      .btn-register {
-
-        width: 100%;
-
-        max-width: none;
-
-      }
-
-
-      .user-menu {
-
-        width: 100%;
-
-      }
-
-    }
-
-
-
-
-
-    /* =====================================================
-           WORKER NAVBAR
-
-           Transparent at top, white after scrolling.
-        ====================================================== */
-
-    .worker-navbar {
-
-      position: fixed;
-
-      top: 0;
-      left: 0;
-
-      width: 100%;
-
-      height: 106px;
-
-      padding: 0 36px;
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: space-between;
-
-      z-index: 1100;
-
-      background: transparent;
-
-      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-
-      transition:
-        background 0.35s ease,
-        box-shadow 0.35s ease,
-        border-color 0.35s ease;
-
-    }
-
-
-    .worker-navbar.scrolled {
-
-      background: rgba(255, 255, 255, 0.97);
-
-      border-bottom-color: #e5e9e7;
-
-      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
-
-    }
-
-
-    /* WORKER BRAND */
-
-    .worker-brand {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 10px;
-
-      color: #ffffff;
-
-      text-decoration: none;
-
-      flex-shrink: 0;
-
-      transition: color 0.35s ease;
-
-    }
-
-
-    .worker-brand:hover {
-      color: #ffffff;
-    }
-
-
-    .worker-brand-icon {
-
-      position: relative;
-
-      width: 56px;
-      height: 56px;
-
-      border-radius: 12px;
-
-      background: #16a34a;
-
-      display: flex;
-
-      align-items: center;
-      justify-content: center;
-
-      color: #ffffff;
-
-      font-size: 25px;
-
-    }
-
-
-    .worker-brand-icon .bi-people-fill {
-
-      position: absolute;
-
-      right: 9px;
-      bottom: 9px;
-
-      font-size: 13px;
-
-    }
-
-
-    .worker-brand-text {
-
-      display: flex;
-      flex-direction: column;
-
-      line-height: 1;
-
-    }
-
-
-    .worker-brand-text strong {
-
-      font-size: 28px;
-
-      font-weight: 800;
-
-      letter-spacing: 0.5px;
-
-    }
-
-
-    .worker-brand-text small {
-
-      margin-top: 5px;
-
-      font-size: 9px;
-
-      font-weight: 600;
-
-      letter-spacing: 0.3px;
-
-      color: rgba(255, 255, 255, 0.75);
-
-      transition: color 0.35s ease;
-
-    }
-
-
-    .worker-navbar.scrolled .worker-brand {
-      color: #111827;
-    }
-
-
-    .worker-navbar.scrolled .worker-brand:hover {
-      color: #087f5b;
-    }
-
-
-    .worker-navbar.scrolled .worker-brand-text small {
-      color: #6b7280;
-    }
-
-
-    /* WORKER CENTER LABEL */
-
-    .worker-center-label {
-
-      position: absolute;
-
-      left: 200px;
-      top: 50%;
-
-      transform: translateY(-50%);
-
-      padding: 12px 20px;
-
-      border-radius: 30px;
-
-      color: #ffffff;
-
-      background: rgba(255, 255, 255, 0.10);
-
-      border: 1px solid rgba(255, 255, 255, 0.30);
-
-      font-size: 16px;
-
-      font-weight: 700;
-
-      white-space: nowrap;
-
-      transition:
-        color 0.35s ease,
-        background 0.35s ease,
-        border-color 0.35s ease;
-
-    }
-
-
-    .worker-center-label i {
-      margin-right: 7px;
-    }
-
-
-    .worker-navbar.scrolled .worker-center-label {
-
-      color: #123c2d;
-
-      background: #eef8f3;
-
-      border-color: #d7e9df;
-
-    }
-
-
-    /* WORKER LINKS */
-
-    .worker-nav-links {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 4px;
-
-      padding: 4px;
-
-      border-radius: 35px;
-
-      border: 1px solid rgba(255, 255, 255, 0.35);
-
-      background: rgba(255, 255, 255, 0.08);
-
-      transition:
-        background 0.35s ease,
-        border-color 0.35s ease;
-
-    }
-
-
-    .worker-nav-links a {
-
-      padding: 10px 24px;
-
-      border-radius: 28px;
-
-      color: #ffffff;
-
-      text-decoration: none;
-
-      font-size: 17px;
-
-      font-weight: 600;
-
-      transition:
-        color 0.25s ease,
-        background 0.25s ease;
-
-    }
-
-
-    .worker-nav-links a:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-
-    .worker-nav-links a.active {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-
-    .worker-navbar.scrolled .worker-nav-links {
-
-      background: #f7faf8;
-
-      border-color: #dfe7e3;
-
-    }
-
-
-    .worker-navbar.scrolled .worker-nav-links a {
-      color: #111827;
-    }
-
-
-    .worker-navbar.scrolled .worker-nav-links a:hover {
-
-      color: #087f5b;
-
-      background: #eaf6ef;
-
-    }
-
-
-    .worker-navbar.scrolled .worker-nav-links a.active {
-
-      color: #087f5b;
-
-      background: #e2f4ea;
-
-    }
-
-
-    /* WORKER LOGOUT */
-
-    .worker-logout-form {
-      margin: 0;
-    }
-
-
-    .worker-logout {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 9px;
-
-      padding: 11px 24px;
-
-      border-radius: 28px;
-
-      border: 1px solid rgba(255, 255, 255, 0.35);
-
-      background: transparent;
-
-      color: #ffffff;
-
-      font-size: 17px;
-
-      font-weight: 600;
-
-      cursor: pointer;
-
-      transition:
-        color 0.35s ease,
-        background 0.35s ease,
-        border-color 0.35s ease;
-
-    }
-
-
-    .worker-logout:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-
-    .worker-navbar.scrolled .worker-logout {
-
-      color: #111827;
-
-      border-color: #dfe5e1;
-
-      background: #ffffff;
-
-    }
-
-
-    .worker-navbar.scrolled .worker-logout:hover {
-
-      color: #dc3545;
-
-      background: #fff1f1;
-
-      border-color: #f0caca;
-
-    }
-
-
-    /* WORKER MOBILE */
-
-    @media (max-width: 1100px) {
-
-      .worker-navbar {
-        padding: 0 22px;
-      }
-
-      .worker-center-label {
-        display: none;
-      }
-
-      .worker-nav-links a {
-        padding: 9px 15px;
-        font-size: 14px;
-      }
-
-      .worker-logout {
-        padding: 9px 15px;
-        font-size: 14px;
-      }
-
-    }
-
-
-    @media (max-width: 768px) {
-
-      .worker-navbar {
-        height: 78px;
-        padding: 0 15px;
-      }
-
-      .worker-brand-text small {
-        display: none;
-      }
-
-      .worker-brand-text strong {
-        font-size: 22px;
-      }
-
-      .worker-brand-icon {
-        width: 45px;
-        height: 45px;
-        font-size: 20px;
-      }
-
-      .worker-nav-links {
-        display: none;
-      }
-
-      .worker-logout {
-        padding: 9px 13px;
-      }
-
-    }
-
-    /* =====================================================
-           FOOTER
-        ====================================================== */
-
-    .site-footer {
-
-      background-color:
-        var(--dark-green);
-
-      color: #d1d5db;
-
-      padding:
-        4rem 0 2rem;
-
-    }
-
-
-    .footer-heading {
-
-      color: white;
-
-      font-weight: 600;
-
-      font-size: 1.1rem;
-
-      margin-bottom: 1.5rem;
-
-    }
-
-
-    .footer-links {
-
-      list-style: none;
-
-      padding: 0;
-
-      margin: 0;
-
-    }
-
-
-    .footer-links li {
-
-      margin-bottom: 0.75rem;
-
-    }
-
-
-    .footer-links a {
-
-      color: #d1d5db;
-
-      text-decoration: none;
-
-      transition: color 0.3s;
-
-      font-size: 0.9rem;
-
-    }
-
-
-    .footer-links a:hover {
-
-      color: var(--primary);
-
-    }
-
-
-    .social-links a {
-
-      display: inline-flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      width: 36px;
-
-      height: 36px;
-
-      border-radius: 50%;
-
-      background:
-        rgba(255, 255, 255, 0.1);
-
-      color: white;
-
-      margin-right: 0.5rem;
-
-      transition: all 0.3s;
-
-    }
-
-
-    .social-links a:hover {
-
-      background: var(--primary);
-
-      color: #ffffff;
-
-    }
-
-
-    .footer-bottom {
-
-      border-top:
-        1px solid rgba(255, 255, 255, 0.1);
-
-      margin-top: 3rem;
-
-      padding-top: 1.5rem;
-
-      font-size: 0.85rem;
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      gap: 20px;
-
-    }
-
-
-    .footer-bottom-links a {
-
-      color: #d1d5db;
-
-      margin-left: 1.5rem;
-
-    }
-
-
-    .footer-bottom-links a:hover {
-
-      color: var(--primary);
-
-    }
-
-
-    @media (max-width: 767px) {
-
-      .footer-bottom {
-
-        flex-direction: column;
-
-        text-align: center;
-
-      }
-
-
-      .footer-bottom-links a {
-
-        margin:
-          0 0.5rem;
-
-      }
-
-    }
-
-
-
-    /* =====================================================
-           SPLASH SCREEN
-        ====================================================== */
-
-    #lamo-splash {
-
-      position: fixed;
-
-      top: 0;
-
-      left: 0;
-
-      width: 100%;
-
-      height: 100%;
-
-      background:
-        var(--dark-green);
-
-      display: flex;
-
-      flex-direction: column;
-
-      align-items: center;
-
-      justify-content: center;
-
-      z-index: 9999;
-
-      color: white;
-
-      transition:
-        opacity 0.5s ease;
-
-    }
-
-
-    .splash-logo {
-
-      font-size: 4rem;
-
-      color: var(--primary);
-
-      margin-bottom: 1rem;
-
-      animation:
-        pulse 1.5s infinite alternate;
-
-    }
-
-
-    @keyframes pulse {
-
-      0% {
-
-        transform: scale(1);
-
-      }
-
-      100% {
-
-        transform: scale(1.1);
-
-      }
-
-    }
-
-
-    .splash-loader {
-
-      width: 40px;
-
-      height: 4px;
-
-      background:
-        rgba(255, 255, 255, 0.2);
-
-      border-radius: 2px;
-
-      margin-top: 2rem;
-
-      overflow: hidden;
-
-      position: relative;
-
-    }
-
-
-    .splash-loader::after {
-
-      content: '';
-
-      position: absolute;
-
-      left: -20px;
-
-      top: 0;
-
-      height: 100%;
-
-      width: 20px;
-
-      background:
-        var(--primary);
-
-      animation:
-        load 1s infinite linear;
-
-    }
-
-
-    @keyframes load {
-
-      0% {
-
-        left: -20px;
-
-      }
-
-      100% {
-
-        left: 100%;
-
-      }
-
-    }
-
-
-    .fade-out {
-
-      opacity: 0;
-
-      pointer-events: none;
-
-    }
-
-/* =====================================================
-   FINAL LOGIN + NAV ACTION FIX
-   ===================================================== */
-
-/* Login/Register container */
-.nav-actions {
-    display: flex !important;
-    align-items: center !important;
-    gap: 20px !important;
-    flex-shrink: 0 !important;
-    z-index: 3 !important;
-}
-
-/* Desktop: extra space between Contact and Login */
-@media (min-width: 992px) {
-    .navbar .nav-actions {
-        grid-column: 3 !important;
-        justify-self: end !important;
-        position: static !important;
-        transform: none !important;
-        margin-left: 70% !important;
-        margin-right: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 16px !important;
-    }
-}
-
-/* Login: white transparent glass oval */
-.btn-login,
-.navbar .btn-login,
-.navbar.scrolled .btn-login {
-    min-height: 44px !important;
-    padding: 8px 18px !important;
-    border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.10) !important;
-    border: 1px solid rgba(255, 255, 255, 0.55) !important;
-    color: #ffffff !important;
-    backdrop-filter: blur(14px) !important;
-    -webkit-backdrop-filter: blur(14px) !important;
-    font-family: "Poppins", sans-serif !important;
-    font-size: 0.91rem !important;
-    font-weight: 500 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    white-space: nowrap !important;
-    text-decoration: none !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
-    transition: background 0.3s ease,
-                border-color 0.3s ease,
-                transform 0.3s ease,
-                box-shadow 0.3s ease !important;
-}
-
-/* Login hover */
-.btn-login:hover,
-.navbar .btn-login:hover,
-.navbar.scrolled .btn-login:hover {
-    background: rgba(255, 255, 255, 0.18) !important;
-    border-color: rgba(255, 255, 255, 0.80) !important;
-    color: #ffffff !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14) !important;
-}
-
-/* Register: matching oval shape */
-.btn-register,
-.navbar .btn-register {
-    min-height: 44px !important;
-    padding: 8px 18px !important;
-    border-radius: 999px !important;
-    background: var(--primary) !important;
-    border: 1px solid var(--primary) !important;
-    color: #ffffff !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 0.91rem !important;
-    font-weight: 600 !important;
-    white-space: nowrap !important;
-    text-decoration: none !important;
-    transition: background 0.3s ease,
-                border-color 0.3s ease,
-                transform 0.3s ease !important;
-}
-
-.btn-register:hover,
-.navbar .btn-register:hover {
-    background: var(--primary-hover) !important;
-    border-color: var(--primary-hover) !important;
-    color: #ffffff !important;
-    transform: translateY(-1px) !important;
-}
-/* =====================================================
-   FINAL NAVBAR SPACING
-   ===================================================== */
-
-/* LAMO ↔ Home */
-@media (min-width: 992px) {
-
-    .navbar .nav-pill {
-        margin-left: 100px;
-    }
-
-
-    /* Home ↔ About Us ↔ Services ↔ Contact */
-    .navbar .nav-pill .navbar-nav {
-        gap: 1.5rem !important;
-    }
-
-
-    /* Contact ↔ Login */
-    .navbar .nav-actions {
-        margin-left: 40% !important;
-        gap: 16px !important;
-    }
-}
-/* Mobile: remove the large desktop-only Contact/Login gap */
-@media (max-width: 991px) {
-    .nav-actions {
-        margin-left: 220px !important;
-        gap: 12px !important;
-    }
-
-    .btn-login,
-    .btn-register {
-        border-radius: 999px !important;
-    }
-}
-
-</style>
+  <script src="{% static 'js/base.js' %}" defer></script>
 
   {% block extra_css %}{% endblock %}
+
+  {% block page_css %}{% endblock %}
 
 </head>
 
@@ -2380,32 +74,6 @@
 
 <body>
 
-
-  <!-- =====================================================
-         SPLASH SCREEN
-    ====================================================== -->
-
-  <div id="lamo-splash">
-
-    <div class="splash-logo">
-
-      <i class="bi bi-gear-fill"></i>
-
-    </div>
-
-    <h2 class="fw-bold mb-0">
-      LAMO
-    </h2>
-
-    <p class="text-uppercase small text-success tracking-wider">
-
-      Labour Management System
-
-    </p>
-
-    <div class="splash-loader"></div>
-
-  </div>
 
 
 
@@ -2431,13 +99,13 @@
 
         <a href="{% url 'worker_dashboard' %}" class="worker-brand">
 
-          <div class="worker-brand-icon">
-            <i class="bi bi-gear-fill"></i>
-            <i class="bi bi-people-fill"></i>
-          </div>
+          <img
+            src="{% static 'img/logoo.png' %}"
+            alt="LAMO Logo"
+            style="height: 46px; width: auto; object-fit: contain; display: block;">
+
 
           <div class="worker-brand-text">
-            <strong>LAMO</strong>
             <small>LABOUR MANAGEMENT SYSTEM</small>
           </div>
 
@@ -2501,28 +169,11 @@
 
         <a class="brand-logo" href="{% url 'home' %}" data-aos="fade-down">
 
-
-          <div class="brand-icon-wrap">
-
-            <i class="bi bi-gear-fill"></i>
-
-            <i class="bi bi-people-fill"></i>
-
-          </div>
-
-
-          <div class="brand-text-wrap">
-
-            <span class="brand-name">
-              LAMO
-            </span>
-
-            <span class="brand-sub">
-              Labour Management System
-            </span>
-
-          </div>
-
+<img
+        src="{% static 'img/logoo.png' %}"
+        alt="LAMO"
+        class="lamo-navbar-logo"
+    >
         </a>
 
 
@@ -2573,6 +224,22 @@
               </li>
 
 
+
+
+
+
+              <!-- SERVICES -->
+
+              <li class="nav-item">
+
+                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' %}active{% endif %}" href="{% url 'service_page' %}">
+
+                  Services
+
+                </a>
+
+              </li>
+
               <!-- MY BOOKINGS -->
 
               <li class="nav-item">
@@ -2585,34 +252,21 @@
                 </a>
 
               </li>
-
-
-
-
-              <!-- SERVICES -->
+              <!-- NOTIFICATIONS (slide-over drawer trigger) -->
 
               <li class="nav-item">
 
-                <a class="nav-link" href="{% url 'service_page' %}">
-
-                  Services
-
-                </a>
-
-              </li>
-
-              <!-- NOTIFICATIONS -->
-
-              <li class="nav-item">
-
-                <a class="nav-link notification-nav-link {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"
-                  href="{% url 'notifications' %}"
-                  title="Notifications"
-                  aria-label="Notifications">
-
+                <button type="button"
+                   class="nav-link notification-nav-link position-relative"
+                   id="lamoNotifBell"
+                   aria-expanded="false"
+                   aria-controls="lamoNotifDrawer"
+                   aria-haspopup="dialog"
+                   title="Notifications"
+                   aria-label="Notifications">
                   <i class="bi bi-bell"></i>
-
-                </a>
+                  <span id="nav-unread-badge" class="badge bg-danger rounded-circle position-absolute" style="top: 2px; right: 2px; font-size: 0.65rem; padding: 3px 6px; {% if global_unread_count == 0 %}display: none;{% endif %}">{{ global_unread_count }}</span>
+                </button>
 
               </li>
 
@@ -2649,14 +303,21 @@
 
               <div class="user-dropdown" id="userDropdown">
 
-                <a href="{% url 'logout' %}" class="logout-item">
+                
+                <a href="{% url 'user_dashboard' %}">
 
-                  <i class="bi bi-box-arrow-right"></i>
+                 <i class="bi bi-house"></i>
 
-                  Logout
+                  dashboard
 
                 </a>
-
+                <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="logout-item" style="width: 100%; background: none; border: none; cursor: pointer; font: inherit; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Logout
+                  </button>
+                </form>
               </div>
 
             </div>
@@ -2862,20 +523,13 @@
           <a class="brand-logo mb-3 d-inline-flex" href="{% url 'home' %}">
 
 
-            <div class="brand-icon-wrap">
-
-              <i class="bi bi-gear-fill"></i>
-
-              <i class="bi bi-people-fill"></i>
-
-            </div>
+            <img
+              src="{% static 'img/logoo.png' %}"
+              alt="LAMO Logo"
+              style="height: 50px; width: auto; object-fit: contain; display: block;">
 
 
             <div class="brand-text-wrap">
-
-              <span class="brand-name">
-                LAMO
-              </span>
 
               <span class="brand-sub">
                 Labour Management System
@@ -2883,15 +537,14 @@
 
             </div>
 
-
           </a>
 
 
           <p class="text-muted pe-lg-4 mt-3" style="font-size: 0.9rem;">
 
-            Connecting employers with skilled workers
-            and making work simple, secure and efficient
-            for everyone.
+          Connecting customers with verified service
+          workers and making booking services simple,
+          secure and efficient for everyone.
 
           </p>
 
@@ -2989,14 +642,14 @@
 
 
         <!-- =========================================
-                     EMPLOYERS
+                     CUSTOMERS
                 ========================================== -->
 
         <div class="col-lg-2 col-md-6" data-aos="fade-up" data-aos-delay="200">
 
 
           <h5 class="footer-heading">
-            For Employers
+            For Customers
           </h5>
 
 
@@ -3006,7 +659,7 @@
             <li>
 
               <a href="{% url 'register' %}">
-                Post a Job
+                Book a Service
               </a>
 
             </li>
@@ -3064,7 +717,7 @@
             <li>
 
               <a href="{% url 'register' %}">
-                Find Jobs
+                Find Bookings
               </a>
 
             </li>
@@ -3167,7 +820,7 @@
       <div class="footer-bottom" data-aos="fade-in" data-aos-delay="500">
 
 
-        <p class="mb-0">
+        <p class="mb-1">
 
           &copy; 2026 LAMO Labour Management System.
           All Rights Reserved.
@@ -3215,710 +868,348 @@
 
 
 
-  <script>
-
-    /* =====================================================
-       AOS
-    ====================================================== */
-
-    AOS.init({
-
-      duration: 800,
-
-      easing: 'ease-in-out',
-
-      once: true,
-
-      offset: 50
-
-    });
-
-
-
-    /* =====================================================
-       SPLASH SCREEN
-    ====================================================== */
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-
-        const splash =
-          document.getElementById(
-            "lamo-splash"
-          );
-
-
-        if (
-          !sessionStorage.getItem(
-            "lamo_splash_shown"
-          )
-        ) {
-
-          setTimeout(
-            () => {
-
-              splash.classList.add(
-                "fade-out"
-              );
-
-
-              sessionStorage.setItem(
-                "lamo_splash_shown",
-                "true"
-              );
-
-
-              setTimeout(
-                () => {
-
-                  splash.style.display =
-                    "none";
-
-                },
-                500
-              );
-
-            },
-            1500
-          );
-
-        }
-
-        else {
-
-          splash.style.display =
-            "none";
-
-        }
-
-      }
-    );
-
-
-
-
-
-    /* =====================================================
-       WORKER NAVBAR SCROLL EFFECT
-       Transparent at top -> white on scroll.
-    ====================================================== */
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-
-        const workerNavbar =
-          document.getElementById("workerNavbar");
-
-        if (!workerNavbar) return;
-
-
-        function updateWorkerNavbar() {
-
-          if (window.scrollY > 50) {
-
-            workerNavbar.classList.add("scrolled");
-
-          } else {
-
-            workerNavbar.classList.remove("scrolled");
-
-          }
-
-        }
-
-
-        window.addEventListener(
-          "scroll",
-          updateWorkerNavbar
-        );
-
-
-        updateWorkerNavbar();
-
-      }
-    );
-
-    /* =====================================================
-         AUTHENTICATED USER DROPDOWN
-         Dashboard + Logout stay inside the user menu.
-      ====================================================== */
-
-      document.addEventListener(
-        "DOMContentLoaded",
-        function () {
-
-          const userMenu =
-            document.getElementById("userMenu");
-
-          const userMenuTrigger =
-            document.getElementById("userMenuTrigger");
-
-          if (!userMenu || !userMenuTrigger) return;
-
-
-          function closeUserMenu() {
-
-            userMenu.classList.remove("show");
-
-            userMenuTrigger.setAttribute(
-              "aria-expanded",
-              "false"
-            );
-
-          }
-
-
-          userMenuTrigger.addEventListener(
-            "click",
-            function (event) {
-
-              event.stopPropagation();
-
-              const isOpen =
-                userMenu.classList.toggle("show");
-
-              userMenuTrigger.setAttribute(
-                "aria-expanded",
-                isOpen ? "true" : "false"
-              );
-
-            }
-          );
-
-
-          document.addEventListener(
-            "click",
-            function (event) {
-
-              if (!userMenu.contains(event.target)) {
-
-                closeUserMenu();
-
-              }
-
-            }
-          );
-
-
-          document.addEventListener(
-            "keydown",
-            function (event) {
-
-              if (event.key === "Escape") {
-
-                closeUserMenu();
-
-              }
-
-            }
-          );
-
-        }
-      );
-
-
-
-      /* =====================================================
-       NAVBAR SCROLL EFFECT
-    ====================================================== */
-
-    window.addEventListener(
-      "scroll",
-      function () {
-
-        const navbar =
-          document.querySelector(
-            ".navbar"
-          );
-
-
-        if (!navbar) return;
-
-
-        if (window.scrollY > 40) {
-
-          navbar.classList.add(
-            "scrolled"
-          );
-
-        }
-
-        else {
-
-          navbar.classList.remove(
-            "scrolled"
-          );
-
-        }
-
-      }
-    );
-
-
-
-    /* =====================================================
-       NAVBAR ACTIVE SECTION
-
-       This handles:
-
-       Home
-       Services
-       Workers
-       Employers
-       Contact
-    ====================================================== */
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-
-
-        const sectionLinks =
-          document.querySelectorAll(
-            ".nav-link[data-section]"
-          );
-
-
-        const sections =
-          document.querySelectorAll(
-            "[id]"
-          );
-
-
-        function updateActiveSection() {
-
-
-          /*
-           * Do not run this logic on About page
-           * or other pages unless a section exists.
-           */
-
-          const homeSections =
-            document.querySelectorAll(
-              "#services, #workers, #employers, #contact"
-            );
-
-
-          if (
-            homeSections.length === 0
-          ) {
-
-            return;
-
-          }
-
-
-          let currentSection = "";
-
-
-          const scrollPosition =
-            window.scrollY + 180;
-
-
-          homeSections.forEach(
-            function (section) {
-
-              const sectionTop =
-                section.offsetTop;
-
-              const sectionBottom =
-                sectionTop +
-                section.offsetHeight;
-
-
-              if (
-                scrollPosition >= sectionTop &&
-                scrollPosition < sectionBottom
-              ) {
-
-                currentSection =
-                  section.id;
-
-              }
-
-            }
-          );
-
-
-          /*
-           * Remove active from
-           * section navigation.
-           */
-
-          sectionLinks.forEach(
-            function (link) {
-
-              link.classList.remove(
-                "active"
-              );
-
-            }
-          );
-
-
-          /*
-           * Add active to
-           * current section.
-           */
-
-          if (currentSection) {
-
-            sectionLinks.forEach(
-              function (link) {
-
-                if (
-                  link.dataset.section ===
-                  currentSection
-                ) {
-
-                  link.classList.add(
-                    "active"
-                  );
-
-                }
-
-              }
-            );
-
-          }
-
-        }
-
-
-        window.addEventListener(
-          "scroll",
-          updateActiveSection
-        );
-
-
-        updateActiveSection();
-
-
-        /* =========================================
-           CLICK EFFECT
-        ========================================== */
-
-        sectionLinks.forEach(
-          function (link) {
-
-            link.addEventListener(
-              "click",
-              function () {
-
-
-                sectionLinks.forEach(
-                  function (item) {
-
-                    item.classList.remove(
-                      "active"
-                    );
-
-                  }
-                );
-
-
-                this.classList.add(
-                  "active"
-                );
-
-              }
-            );
-
-          }
-        );
-
-
-      }
-    );
-
-
-
-    /* =====================================================
-       NAVBAR PAGE ACTIVE STATE
-
-       This makes sure when we click:
-
-       Home     -> Home active
-       About    -> About active
-       My Bookings -> My Bookings active
-
-       Django handles this using the
-       request.resolver_match.url_name
-       in the HTML above.
-    ====================================================== */
-
-
-    /* =====================================================
-       SMOOTH SECTION NAVIGATION
-    ====================================================== */
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-
-
-        const hashLinks =
-          document.querySelectorAll(
-            'a[href*="#"]'
-          );
-
-
-        hashLinks.forEach(
-          function (link) {
-
-            link.addEventListener(
-              "click",
-              function (event) {
-
-
-                const href =
-                  this.getAttribute(
-                    "href"
-                  );
-
-
-                if (!href) return;
-
-
-                const hashIndex =
-                  href.indexOf("#");
-
-
-                if (
-                  hashIndex === -1
-                ) {
-
-                  return;
-
-                }
-
-
-                const hash =
-                  href.substring(
-                    hashIndex
-                  );
-
-
-                const target =
-                  document.querySelector(
-                    hash
-                  );
-
-
-                /*
-                 * Only smooth-scroll if
-                 * target exists on current page.
-                 */
-
-                if (target) {
-
-                  event.preventDefault();
-
-
-                  const navbarHeight =
-                    document.querySelector(
-                      ".navbar"
-                    )?.offsetHeight || 80;
-
-
-                  const targetPosition =
-                    target.getBoundingClientRect()
-                      .top
-                    +
-                    window.scrollY
-                    -
-                    navbarHeight
-                    -
-                    25;
-
-
-                  window.scrollTo({
-
-                    top:
-                      targetPosition,
-
-                    behavior:
-                      "smooth"
-
-                  });
-
-                }
-
-              }
-            );
-
-          }
-        );
-
-      }
-    );
-
-  </script>
+  
 
 
   {% block extra_js %}
 
   {% endblock %}
 
-  <!-- =========================================================
-       AI SERVICE ASSISTANT WIDGET
-  ========================================================= -->
-  <div id="ai-assistant-widget" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999;">
-    <button id="ai-assistant-toggle" title="AI Service Matcher" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #087f5b); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">
-      <i class="bi bi-robot"></i>
-    </button>
+  {% include 'includes/ai_assistant.html' %}
 
-    <div id="ai-chat-box" style="display: none; position: absolute; bottom: 70px; right: 0; width: 350px; max-width: 90vw; background: white; border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); border: 1px solid #e5e7eb; overflow: hidden; flex-direction: column;">
-      <div style="background: linear-gradient(135deg, #042f1f, #16a34a); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <i class="bi bi-magic" style="font-size: 18px; color: #4ade80;"></i>
-          <strong style="font-size: 14px;">AI Service Matcher</strong>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+function showToast(type, title, message, duration = 4000) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+
+    const icons = {
+        success: 'bi-check-lg',
+        error: 'bi-x-lg',
+        warning: 'bi-exclamation-triangle',
+        info: 'bi-info-lg'
+    };
+
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="bi ${icons[type] || icons.info}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
         </div>
-        <button id="ai-chat-close" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;"><i class="bi bi-x-lg"></i></button>
+        <button class="toast-close" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
+    `;
+
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+    });
+
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 400);
+        }, duration);
+    }
+}
+
+// Convert Django messages to toasts
+(function() {
+    const djangoMessages = [];
+    {% for message in messages %}
+    djangoMessages.push({
+        type: '{{ message.tags }}',
+        message: '{{ message|escapejs }}'
+    });
+    {% endfor %}
+
+    djangoMessages.forEach(function(msg) {
+        let type = 'info';
+        if (msg.type === 'success') type = 'success';
+        else if (msg.type === 'error') type = 'error';
+        else if (msg.type === 'warning') type = 'warning';
+        showToast(type, type.charAt(0).toUpperCase() + type.slice(1), msg.message);
+    });
+})();
+
+// Real-time Notification Polling
+{% if user.is_authenticated %}
+(function() {
+    function checkNotifications() {
+        fetch("{% url 'notifications' %}?format=json", {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('nav-unread-badge');
+            if (badge) {
+                if (data.unread_count && data.unread_count > 0) {
+                    badge.innerText = data.unread_count > 99 ? '99+' : data.unread_count;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        })
+        .catch(() => {});
+    }
+    checkNotifications();
+    setInterval(checkNotifications, 15000);
+})();
+{% endif %}
+</script>
+
+  {% if user.is_authenticated %}
+  <!-- =====================================================
+       NOTIFICATION SLIDE-OVER DRAWER
+       Renders the same server-side data as the old dropdown
+       (global_notifications, global_unread_count). All text is
+       Django-escaped output; no unsafe innerHTML is used.
+       ====================================================== -->
+  <div class="lamo-notif-backdrop" id="lamoNotifBackdrop" aria-hidden="true"></div>
+
+  <section class="lamo-notif-drawer"
+      id="lamoNotifDrawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lamoNotifTitle"
+      aria-hidden="true">
+
+    <div class="lamo-notif-head">
+      <div class="lamo-notif-head-row">
+        <div>
+          <h2 class="lamo-notif-title" id="lamoNotifTitle">Notifications</h2>
+          <p class="lamo-notif-subtitle">Stay updated with your jobs and messages</p>
+        </div>
+        <button type="button"
+            class="lamo-notif-close"
+            id="lamoNotifClose"
+            aria-label="Close notifications">
+          <i class="bi bi-x-lg"></i>
+        </button>
       </div>
 
-      <div id="ai-messages" style="padding: 15px; height: 260px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb;">
-        <div style="background: white; padding: 10px 14px; border-radius: 12px; border: 1px solid #e5e7eb; color: #374151;">
-          👋 Hi! Tell me what work you need done (e.g., <em>"I need an electrician for wiring repair in Kochi"</em>).
-        </div>
-      </div>
-
-      <div style="padding: 10px; border-top: 1px solid #e5e7eb; background: white; display: flex; gap: 6px;">
-        <input type="text" id="ai-input" placeholder="Type your need..." style="flex: 1; border-radius: 20px; border: 1px solid #d1d5db; padding: 7px 14px; font-size: 13px; outline: none;">
-        <button id="ai-send" style="background: #16a34a; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
-          <i class="bi bi-send-fill" style="font-size: 13px;"></i>
+      <div class="lamo-notif-tabs" role="tablist" aria-label="Filter notifications">
+        <button type="button" class="lamo-notif-tab active" data-lamo-notif-filter="all" role="tab" aria-selected="true">
+          All <span class="lamo-notif-tab-count" data-lamo-notif-count="all"></span>
+        </button>
+        <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="unread" role="tab" aria-selected="false">
+          Unread <span class="lamo-notif-tab-count" data-lamo-notif-count="unread"></span>
+        </button>
+        <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="messages" role="tab" aria-selected="false">
+          Messages <span class="lamo-notif-tab-count" data-lamo-notif-count="messages"></span>
+        </button>
+        <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="bookings" role="tab" aria-selected="false">
+          Bookings <span class="lamo-notif-tab-count" data-lamo-notif-count="bookings"></span>
         </button>
       </div>
     </div>
-  </div>
 
-  <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const toggle = document.getElementById('ai-assistant-toggle');
-    const chatBox = document.getElementById('ai-chat-box');
-    const closeBtn = document.getElementById('ai-chat-close');
-    const sendBtn = document.getElementById('ai-send');
-    const input = document.getElementById('ai-input');
-    const messages = document.getElementById('ai-messages');
+    <ul class="lamo-notif-list" id="lamoNotifList">
+      {% for notif in global_notifications %}
+      <li>
+        <a class="lamo-notif-row {% if not notif.is_read %}is-unread{% endif %}"
+            href="{{ notif.get_target_url }}"
+            data-lamo-notif-kind="{% if notif.notification_type == 'BOOKING' or notif.notification_type == 'BOOKING_UPDATE' or notif.notification_type == 'EMERGENCY' %}booking{% elif notif.notification_type == 'SYSTEM' %}general{% else %}general{% endif %}"
+            data-lamo-notif-read="{% if notif.is_read %}true{% else %}false{% endif %}">
+          <span class="lamo-notif-icon {% if notif.notification_type == 'EMERGENCY' %}lamo-notif-icon--cancel{% elif notif.notification_type == 'BOOKING' %}lamo-notif-icon--booking{% elif notif.notification_type == 'BOOKING_UPDATE' %}lamo-notif-icon--success{% elif notif.notification_type == 'SYSTEM' %}lamo-notif-icon--general{% else %}lamo-notif-icon--general{% endif %}">
+            {% if notif.notification_type == 'EMERGENCY' %}
+            <i class="bi bi-exclamation-triangle"></i>
+            {% elif notif.notification_type == 'BOOKING' %}
+            <i class="bi bi-calendar-check"></i>
+            {% elif notif.notification_type == 'BOOKING_UPDATE' %}
+            <i class="bi bi-arrow-repeat"></i>
+            {% else %}
+            <i class="bi bi-bell"></i>
+            {% endif %}
+          </span>
+          <span class="lamo-notif-body">
+            <span class="lamo-notif-text">{{ notif.message }}</span>
+            <span class="lamo-notif-time">{{ notif.created_at|timesince }} ago</span>
+          </span>
+          <span class="lamo-notif-side">
+            {% if not notif.is_read %}
+            <span class="lamo-notif-dot" aria-label="Unread"></span>
+            {% endif %}
+            <i class="bi bi-chevron-right"></i>
+          </span>
+        </a>
+      </li>
+      {% empty %}
+      <li class="lamo-notif-empty">
+        <i class="bi bi-bell-slash"></i>
+        <strong>No notifications</strong>
+        <p>You're all caught up.</p>
+      </li>
+      {% endfor %}
+    </ul>
 
-    if(toggle && chatBox && closeBtn) {
-      toggle.addEventListener('click', () => {
-        chatBox.style.display = chatBox.style.display === 'none' ? 'flex' : 'none';
-      });
-      closeBtn.addEventListener('click', () => {
-        chatBox.style.display = 'none';
-      });
+    <div class="lamo-notif-foot">
+      <a class="lamo-notif-viewall" href="{% url 'notifications' %}">
+        View all notifications <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+  </section>
+
+<script>
+// Notification slide-over drawer controller. Runs AFTER the drawer
+// markup above so every element exists when it binds (this was the
+// bug: it previously ran earlier in the page, found nothing, and the
+// bell did nothing). Bell toggles, X/backdrop/Escape close. Filters
+// are client-side over the same server-rendered rows (no new backend,
+// no invented counts). Row clicks follow existing hrefs untouched.
+(function() {
+    var bell = document.getElementById('lamoNotifBell');
+    var drawer = document.getElementById('lamoNotifDrawer');
+    var backdrop = document.getElementById('lamoNotifBackdrop');
+    if (!bell || !drawer || !backdrop) { return; }
+    var closeBtn = document.getElementById('lamoNotifClose');
+
+    var MESSAGE_HINTS = ['new booking message', 'message from'];
+
+    function rowText(row) {
+        var el = row.querySelector('.lamo-notif-text');
+        return el ? (el.textContent || '').toLowerCase() : '';
     }
 
-    function appendMessage(text, isUser = false) {
-      const msgDiv = document.createElement('div');
-      msgDiv.style.padding = '10px 14px';
-      msgDiv.style.borderRadius = '12px';
-      msgDiv.style.maxWidth = '85%';
-      if(isUser) {
-        msgDiv.style.background = '#16a34a';
-        msgDiv.style.color = 'white';
-        msgDiv.style.alignSelf = 'flex-end';
-      } else {
-        msgDiv.style.background = 'white';
-        msgDiv.style.color = '#374151';
-        msgDiv.style.border = '1px solid #e5e7eb';
-        msgDiv.style.alignSelf = 'flex-start';
-      }
-      msgDiv.innerHTML = text;
-      messages.appendChild(msgDiv);
-      messages.scrollTop = messages.scrollHeight;
+    function isMessageRow(row) {
+        var text = rowText(row);
+        for (var i = 0; i < MESSAGE_HINTS.length; i++) {
+            if (text.indexOf(MESSAGE_HINTS[i]) !== -1) { return true; }
+        }
+        return false;
     }
 
-    async function handleSend() {
-      const text = input.value.trim();
-      if (!text) return;
+    function rowMatches(row, filter) {
+        if (filter === 'all') { return true; }
+        if (filter === 'unread') {
+            return row.getAttribute('data-lamo-notif-read') === 'false';
+        }
+        if (filter === 'messages') { return isMessageRow(row); }
+        if (filter === 'bookings') {
+            return row.getAttribute('data-lamo-notif-kind') === 'booking';
+        }
+        return true;
+    }
 
-      input.value = '';
-      appendMessage(text, true);
+    function updateCounts() {
+        var rows = drawer.querySelectorAll('.lamo-notif-row');
+        var totals = { all: 0, unread: 0, messages: 0, bookings: 0 };
+        for (var i = 0; i < rows.length; i++) {
+            totals.all += 1;
+            if (rows[i].getAttribute('data-lamo-notif-read') === 'false') {
+                totals.unread += 1;
+            }
+            if (isMessageRow(rows[i])) { totals.messages += 1; }
+            if (rows[i].getAttribute('data-lamo-notif-kind') === 'booking') {
+                totals.bookings += 1;
+            }
+        }
+        var spans = drawer.querySelectorAll('[data-lamo-notif-count]');
+        for (var j = 0; j < spans.length; j++) {
+            var key = spans[j].getAttribute('data-lamo-notif-count');
+            spans[j].textContent = '(' + (totals[key] || 0) + ')';
+        }
+    }
 
-      const loadingMessage = document.createElement('div');
-      loadingMessage.dataset.loading = 'true';
-      loadingMessage.style.padding = '10px 14px';
-      loadingMessage.style.borderRadius = '12px';
-      loadingMessage.style.maxWidth = '85%';
-      loadingMessage.style.background = 'white';
-      loadingMessage.style.color = '#374151';
-      loadingMessage.style.border = '1px solid #e5e7eb';
-      loadingMessage.style.alignSelf = 'flex-start';
-      loadingMessage.innerHTML = '<i class="bi bi-hourglass-split"></i> Matching service...';
-      messages.appendChild(loadingMessage);
-      messages.scrollTop = messages.scrollHeight;
+    function applyFilter(filter) {
+        var tabs = drawer.querySelectorAll('.lamo-notif-tab');
+        for (var i = 0; i < tabs.length; i++) {
+            var active = tabs[i].getAttribute('data-lamo-notif-filter') === filter;
+            tabs[i].classList.toggle('active', active);
+            tabs[i].setAttribute('aria-selected', active ? 'true' : 'false');
+        }
+        var items = drawer.querySelectorAll('.lamo-notif-list > li');
+        var visible = 0;
+        for (var j = 0; j < items.length; j++) {
+            var row = items[j].querySelector('.lamo-notif-row');
+            if (!row) { items[j].style.display = ''; continue; }
+            var show = rowMatches(row, filter);
+            items[j].style.display = show ? '' : 'none';
+            if (show) { visible += 1; }
+        }
+        var emptyMsg = document.getElementById('lamoNotifFilterEmpty');
+        if (visible === 0) {
+            if (!emptyMsg) {
+                var list = document.getElementById('lamoNotifList');
+                emptyMsg = document.createElement('li');
+                emptyMsg.id = 'lamoNotifFilterEmpty';
+                emptyMsg.className = 'lamo-notif-empty';
+                var icon = document.createElement('i');
+                icon.className = 'bi bi-inbox';
+                var strong = document.createElement('strong');
+                strong.textContent = 'Nothing here';
+                var p = document.createElement('p');
+                p.textContent = 'No notifications match this filter.';
+                emptyMsg.appendChild(icon);
+                emptyMsg.appendChild(strong);
+                emptyMsg.appendChild(p);
+                if (list) { list.appendChild(emptyMsg); }
+            }
+            emptyMsg.style.display = '';
+        } else if (emptyMsg) {
+            emptyMsg.style.display = 'none';
+        }
+    }
 
-      try {
-        const response = await fetch('/ai/assistant/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Accept': 'application/json'
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ message: text })
+    function openDrawer() {
+        updateCounts();
+        applyFilter('all');
+        drawer.classList.add('open');
+        backdrop.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        backdrop.setAttribute('aria-hidden', 'false');
+        bell.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+        if (closeBtn) { closeBtn.focus(); }
+    }
+
+    function closeDrawer(returnFocus) {
+        drawer.classList.remove('open');
+        backdrop.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        backdrop.setAttribute('aria-hidden', 'true');
+        bell.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+        if (returnFocus) { bell.focus(); }
+    }
+
+    function isOpen() {
+        return drawer.classList.contains('open');
+    }
+
+    bell.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isOpen()) { closeDrawer(false); } else { openDrawer(); }
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() { closeDrawer(true); });
+    }
+    backdrop.addEventListener('click', function() { closeDrawer(false); });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && isOpen()) { closeDrawer(true); }
+    });
+
+    var tabs = drawer.querySelectorAll('.lamo-notif-tab');
+    for (var k = 0; k < tabs.length; k++) {
+        tabs[k].addEventListener('click', function() {
+            applyFilter(this.getAttribute('data-lamo-notif-filter'));
         });
-
-        const data = await response.json().catch(() => ({}));
-        const loadingNode = messages.querySelector('[data-loading="true"]');
-        if (loadingNode) loadingNode.remove();
-
-        if (!response.ok) {
-          appendMessage('The AI service request could not be completed right now. Please try again.', false);
-          return;
-        }
-
-        if (!data || !data.success) {
-          appendMessage(data && data.message ? data.message : 'Could not find matching service.', false);
-          return;
-        }
-
-        if (data.type === 'chat' || data.type === 'login_required') {
-          appendMessage(data.message || 'I can help you find the right service.', false);
-          return;
-        }
-
-        const service = data.service;
-        if (!service) {
-          appendMessage('I could not find a matching service for your request.', false);
-          return;
-        }
-
-        let reply = `<strong>Matched Service: ${service.name}</strong><br>${service.description || ''}`;
-        if (service.price) {
-          reply += `<br><em>Estimated Price: ₹${service.price}</em>`;
-        }
-
-        if (data.workers && data.workers.length > 0) {
-          reply += `<br><br><strong>Available Workers:</strong><ul style="margin: 4px 0; padding-left: 18px;">`;
-          data.workers.forEach(w => {
-            reply += `<li>${w.name} (${w.district || 'Local'}) - Rating: ${w.rating || 'New'}</li>`;
-          });
-          reply += `</ul>`;
-        }
-
-        reply += `<br><a href="/services/${service.id}/" style="color: #16a34a; font-weight: 600; text-decoration: underline;">View & Book Service &rarr;</a>`;
-        appendMessage(reply, false);
-      } catch (e) {
-        const loadingNode = messages.querySelector('[data-loading="true"]');
-        if (loadingNode) loadingNode.remove();
-        appendMessage('An error occurred. Please try again.', false);
-      }
     }
 
-    if(sendBtn && input) {
-      sendBtn.addEventListener('click', handleSend);
-      input.addEventListener('keypress', function(e) {
-        if(e.key === 'Enter') handleSend();
-      });
-    }
-  });
-  </script>
+    updateCounts();
+})();
+</script>
+  {% endif %}
 
 </body>
 

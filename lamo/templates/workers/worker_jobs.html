@@ -1169,6 +1169,149 @@
 
 
         <!-- =====================================================
+             EMERGENCY REQUESTS
+             This view already queries emergency bookings, so they are surfaced
+             here rather than forcing a trip to the dashboard. Same accept /
+             decline actions, same endpoint, same eligibility rules - only the
+             location of the list changes.
+        ====================================================== -->
+
+        {% if emergency_bookings %}
+
+            <div class="jobs-list" style="margin-bottom: 22px;">
+
+
+                {% for booking in emergency_bookings %}
+
+                    <div class="job-card" style="border-left: 4px solid #c0392b;">
+
+                        <div class="job-top">
+
+                            <div class="job-service">
+                                <i class="bi bi-exclamation-triangle-fill"
+                                   style="color: #c0392b;"></i>
+                                {{ booking.service.name }} &mdash; Emergency
+                            </div>
+
+                            <div class="job-id">
+                                #{{ booking.id }}
+                            </div>
+
+                        </div>
+
+
+                        <div class="job-table-wrapper">
+
+                            <table class="job-table">
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-person"></i>
+                                            {{ booking.customer.get_full_name|default:booking.customer.username }}
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-geo-alt"></i>
+                                            {{ booking.location }}
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-telephone"></i>
+                                            {{ booking.phone }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                        </div>
+
+
+                        <div class="job-actions">
+
+                            <form
+                                method="POST"
+                                action="{% url 'worker_accept_emergency' booking.id %}"
+                                style="flex: 1;"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="job-button accept-button"
+                                    style="flex: 1;"
+                                >
+
+                                    <i class="bi bi-check-circle"></i>
+
+                                    <span>
+                                        Accept Now
+                                    </span>
+
+                                </button>
+
+                            </form>
+
+
+                            <form
+                                method="POST"
+                                action="{% url 'worker_reject_booking' booking.id %}"
+                                style="flex: 1;"
+                            >
+
+                                {% csrf_token %}
+
+                                <button
+                                    type="submit"
+                                    class="job-button"
+                                    style="flex: 1;"
+                                >
+
+                                    <i class="bi bi-x-circle"></i>
+
+                                    <span>
+                                        Not Me
+                                    </span>
+
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% elif emergency_reason %}
+
+            <div class="jobs-list" style="margin-bottom: 22px;">
+
+                <div class="job-card">
+
+                    <div class="job-top">
+
+                        <div class="job-service">
+                            <i class="bi bi-exclamation-triangle-fill"
+                               style="color: #c0392b;"></i>
+                            Emergency Requests
+                        </div>
+
+                    </div>
+
+
+                    <p style="color: #5c6b66; margin: 0;">
+                        {{ emergency_reason }}
+                    </p>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+
+        <!-- =====================================================
              JOBS
         ====================================================== -->
 
@@ -1439,6 +1582,11 @@
 
                             <div class="job-actions">
 
+                                <a href="{% url 'booking_messages' booking.id %}" class="job-button accept-button" style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                                    <i class="bi bi-chat-dots-fill"></i>
+                                    <span>Open Chat</span>
+                                </a>
+
 
                                 <!-- ACCEPT -->
 
@@ -1499,6 +1647,11 @@
 
                             <div class="job-actions">
 
+                                <a href="{% url 'booking_messages' booking.id %}" class="job-button accept-button" style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                                    <i class="bi bi-chat-dots-fill"></i>
+                                    <span>Open Chat</span>
+                                </a>
+
                                 <form
                                     method="POST"
                                     action="{% url 'worker_start_job' booking.id %}"
@@ -1529,6 +1682,11 @@
                         {% elif booking.status == 'IN_PROGRESS' %}
 
                             <div class="job-actions">
+
+                                <a href="{% url 'booking_messages' booking.id %}" class="job-button accept-button" style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                                    <i class="bi bi-chat-dots-fill"></i>
+                                    <span>Open Chat</span>
+                                </a>
 
                                 <form
                                     method="POST"

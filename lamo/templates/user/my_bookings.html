@@ -1,732 +1,22 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
+{% load static %}
+
+
 
 {% block title %}My Bookings | LAMO{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/user-my_bookings.css' %}">
+{% endblock %}
+
 {% block content %}
-
-<style>
-/* =========================================================
-   MODERN MY BOOKINGS UI
-   UI ONLY — Django logic/routes/forms are unchanged
-   ========================================================= */
-
-:root {
-    --booking-green: #087f5b;
-    --booking-green-dark: #056b4d;
-    --booking-green-soft: #e9f8f2;
-    --booking-bg: #f3f8f6;
-    --booking-text: #17231f;
-    --booking-muted: #71807b;
-    --booking-border: #dcebe5;
-    --booking-white: #ffffff;
-}
-
-/* PAGE */
-.bookings-page {
-    min-height: 100vh;
-    padding: 0 20px 80px;
-    background:
-        radial-gradient(circle at 5% 20%, rgba(8,127,91,.07), transparent 25%),
-        radial-gradient(circle at 95% 70%, rgba(37,99,235,.05), transparent 25%),
-        var(--booking-bg);
-    overflow: hidden;
-}
-
-.bookings-container {
-    max-width: 1180px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 2;
-}
-
-/* =========================================================
-   HERO — FULL WIDTH / APPROX 20% VIEWPORT HEIGHT
-   ========================================================= */
-
-.bookings-hero {
-    width: 100%;
-    height: 20vh;
-    min-height: 190px;
-    max-height: 280px;
-    position: relative;
-    overflow: hidden;
-    margin: 0 -20px 42px;
-    width: calc(100% + 40px);
-    display: flex;
-    align-items: center;
-    background:
-        linear-gradient(90deg, rgba(3,49,37,.90), rgba(8,127,91,.58), rgba(3,49,37,.28)),
-        url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=85")
-        center / cover no-repeat;
-    box-shadow: 0 18px 45px rgba(0, 70, 52, .15);
-}
-
-.bookings-hero::before {
-    content: "";
-    position: absolute;
-    width: 240px;
-    height: 240px;
-    right: 8%;
-    top: -120px;
-    border: 1px solid rgba(255,255,255,.22);
-    border-radius: 50%;
-    animation: heroFloat 7s ease-in-out infinite;
-}
-
-.bookings-hero::after {
-    content: "";
-    position: absolute;
-    width: 130px;
-    height: 130px;
-    right: 20%;
-    bottom: -80px;
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 50%;
-    animation: heroFloat 5s ease-in-out infinite reverse;
-}
-
-.hero-content {
-    width: min(1180px, calc(100% - 40px));
-    margin: 0 auto;
-    position: relative;
-    z-index: 2;
-    color: #fff;
-    animation: heroReveal .8s ease both;
-}
-
-.hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 9px;
-    padding: 6px 11px;
-    border: 1px solid rgba(255,255,255,.24);
-    border-radius: 999px;
-    background: rgba(255,255,255,.10);
-    backdrop-filter: blur(8px);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-}
-
-.hero-eyebrow i {
-    font-size: 12px;
-}
-
-.hero-content h1 {
-    margin: 0;
-    color: #fff;
-    font-size: clamp(28px, 4vw, 44px);
-    line-height: 1;
-    font-weight: 850;
-    letter-spacing: -.03em;
-}
-
-.hero-content p {
-    margin: 10px 0 0;
-    max-width: 580px;
-    color: rgba(255,255,255,.84);
-    font-size: 13px;
-    line-height: 1.6;
-}
-
-.hero-orb {
-    position: absolute;
-    right: 9%;
-    width: 110px;
-    height: 110px;
-    border-radius: 28px;
-    background: rgba(255,255,255,.09);
-    border: 1px solid rgba(255,255,255,.18);
-    backdrop-filter: blur(7px);
-    transform: rotate(12deg);
-    animation: orbFloat 6s ease-in-out infinite;
-}
-
-.hero-orb i {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: rgba(255,255,255,.75);
-    font-size: 40px;
-    transform: rotate(-12deg);
-}
-
-/* HEADER */
-.bookings-header {
-    margin-bottom: 26px;
-    animation: fadeUp .65s .08s ease both;
-}
-
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 17px;
-    color: var(--booking-green);
-    font-size: 12px;
-    font-weight: 800;
-    text-decoration: none;
-    transition: .25s ease;
-}
-
-.back-link i {
-    transition: transform .25s ease;
-}
-
-.back-link:hover {
-    color: var(--booking-green-dark);
-}
-
-.back-link:hover i {
-    transform: translateX(-4px);
-}
-
-.bookings-header h1 {
-    margin: 0;
-    color: var(--booking-text);
-    font-size: 32px;
-    font-weight: 850;
-    letter-spacing: -.03em;
-}
-
-.bookings-header p {
-    margin: 7px 0 0;
-    color: var(--booking-muted);
-    font-size: 13px;
-}
-
-/* BOOKING GRID */
-.booking-list {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 22px;
-}
-
-/* CARD */
-.booking-card {
-    position: relative;
-    overflow: hidden;
-    padding: 21px;
-    background: rgba(255,255,255,.94);
-    border: 1px solid var(--booking-border);
-    border-radius: 24px;
-    box-shadow: 0 12px 35px rgba(0, 80, 60, .06);
-    transition:
-        transform .35s cubic-bezier(.2,.8,.2,1),
-        box-shadow .35s ease,
-        border-color .35s ease;
-    animation: cardReveal .65s ease both;
-}
-
-.booking-card:nth-child(2) { animation-delay: .08s; }
-.booking-card:nth-child(3) { animation-delay: .16s; }
-.booking-card:nth-child(4) { animation-delay: .24s; }
-.booking-card:nth-child(5) { animation-delay: .32s; }
-.booking-card:nth-child(6) { animation-delay: .40s; }
-
-.booking-card::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, var(--booking-green), #41b993, #8bd8be);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform .4s ease;
-}
-
-.booking-card::after {
-    content: "";
-    position: absolute;
-    width: 95px;
-    height: 95px;
-    right: -45px;
-    top: -45px;
-    border-radius: 50%;
-    background: rgba(8,127,91,.045);
-    transition: transform .45s ease;
-}
-
-.booking-card:hover {
-    transform: translateY(-8px);
-    border-color: #c6e3d9;
-    box-shadow: 0 22px 50px rgba(0, 80, 60, .13);
-}
-
-.booking-card:hover::before {
-    transform: scaleX(1);
-}
-
-.booking-card:hover::after {
-    transform: scale(1.45);
-}
-
-/* TOP */
-.booking-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-    position: relative;
-    z-index: 1;
-}
-
-.booking-service {
-    margin: 0;
-    color: var(--booking-text);
-    font-size: 17px;
-    font-weight: 850;
-    letter-spacing: -.015em;
-}
-
-.booking-worker {
-    margin: 5px 0 0;
-    color: var(--booking-muted);
-    font-size: 11px;
-}
-
-/* STATUS */
-.status {
-    position: relative;
-    padding: 7px 11px 7px 12px;
-    border-radius: 999px;
-    font-size: 10px;
-    font-weight: 850;
-    white-space: nowrap;
-    border: 1px solid transparent;
-}
-
-.status::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-right: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    vertical-align: 1px;
-    animation: statusPulse 2s ease-in-out infinite;
-}
-
-.pending {
-    color: #a86600;
-    background: #fff5dc;
-    border-color: #f4e0af;
-}
-
-.accepted {
-    color: #087f5b;
-    background: #e9f8f2;
-    border-color: #cbeee0;
-}
-
-.in-progress {
-    color: #7251a8;
-    background: #f2eaff;
-    border-color: #e0d1fa;
-}
-
-.completion-requested {
-    color: #b05b00;
-    background: #fff0d6;
-    border-color: #f5d7a5;
-}
-
-.completed {
-    color: #1769aa;
-    background: #e8f3ff;
-    border-color: #cce5fa;
-}
-
-.rejected,
-.cancelled {
-    color: #b42318;
-    background: #fff0ef;
-    border-color: #f2cfcc;
-}
-
-/* DETAILS */
-.booking-details {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 9px;
-    margin-top: 19px;
-    position: relative;
-    z-index: 1;
-}
-
-.detail {
-    min-width: 0;
-    padding: 12px;
-    border: 1px solid #e8f1ed;
-    border-radius: 14px;
-    background: #f8fcfa;
-    transition: .25s ease;
-}
-
-.detail:hover {
-    transform: translateY(-2px);
-    background: #f1faf6;
-    border-color: #d4e9e0;
-}
-
-.detail small {
-    display: block;
-    margin-bottom: 5px;
-    color: #8a9893;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-}
-
-.detail span {
-    display: block;
-    overflow: hidden;
-    color: var(--booking-text);
-    font-size: 12px;
-    font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* COMPLETION REQUEST */
-.completion-request-box {
-    margin-top: 18px;
-    padding: 17px;
-    border: 1px solid #f1d39a;
-    border-radius: 18px;
-    background: linear-gradient(145deg, #fffaf0, #fff7e7);
-    animation: attentionPulse 2.8s ease-in-out infinite;
-}
-
-.completion-icon {
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 11px;
-    border-radius: 14px;
-    background: #fff0cf;
-    color: #b66b00;
-    font-size: 20px;
-}
-
-.completion-content h4 {
-    margin: 0;
-    color: #7a4b00;
-    font-size: 15px;
-    font-weight: 850;
-}
-
-.completion-content p {
-    margin: 7px 0 14px;
-    color: #856f4d;
-    font-size: 11px;
-    line-height: 1.65;
-}
-
-.completion-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* BUTTONS */
-.confirm-completion-btn,
-.complaint-btn,
-.review-btn {
-    width: 100%;
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    padding: 10px 13px;
-    border-radius: 11px;
-    font-size: 11px;
-    font-weight: 850;
-    cursor: pointer;
-    transition:
-        transform .25s ease,
-        box-shadow .25s ease,
-        background .25s ease;
-}
-
-.confirm-completion-btn {
-    border: none;
-    background: var(--booking-green);
-    color: #fff;
-}
-
-.confirm-completion-btn:hover {
-    background: var(--booking-green-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 9px 20px rgba(8,127,91,.22);
-}
-
-.complaint-btn {
-    border: 1px solid #f0b7b2;
-    background: #fff;
-    color: #b42318;
-    text-decoration: none;
-}
-
-.complaint-btn:hover {
-    background: #fff0ef;
-    color: #a51d13;
-    transform: translateY(-2px);
-}
-
-.review-btn {
-    border: none;
-    background: #1769aa;
-    color: #fff;
-    text-decoration: none;
-}
-
-.review-btn:hover {
-    background: #125889;
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 9px 20px rgba(23,105,170,.18);
-}
-
-/* COMPLETED */
-.completed-box {
-    margin-top: 18px;
-    padding: 17px;
-    border: 1px solid #cfe6f8;
-    border-radius: 18px;
-    background: linear-gradient(145deg, #f0f8ff, #f7fbff);
-}
-
-.completed-box h4 {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin: 0;
-    color: #1769aa;
-    font-size: 15px;
-    font-weight: 850;
-}
-
-.completed-box p {
-    margin: 7px 0 13px;
-    color: #58738a;
-    font-size: 11px;
-    line-height: 1.6;
-}
-
-.review-submitted {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    padding: 11px 15px;
-    border: 1px solid #ccebdc;
-    border-radius: 11px;
-    background: #e8f8f1;
-    color: #087f5b;
-    font-size: 11px;
-    font-weight: 850;
-}
-
-/* EMPTY */
-.empty {
-    padding: 75px 25px;
-    text-align: center;
-    background: rgba(255,255,255,.94);
-    border: 1px solid var(--booking-border);
-    border-radius: 26px;
-    box-shadow: 0 14px 40px rgba(0,80,60,.06);
-    animation: fadeUp .7s ease both;
-}
-
-.empty-icon {
-    width: 72px;
-    height: 72px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: auto;
-    border: 1px solid #cdece0;
-    border-radius: 22px;
-    background: #e9f8f2;
-    color: var(--booking-green);
-    font-size: 28px;
-    animation: iconFloat 3s ease-in-out infinite;
-}
-
-.empty h3 {
-    margin: 17px 0 7px;
-    color: var(--booking-text);
-    font-size: 19px;
-    font-weight: 850;
-}
-
-.empty p {
-    margin: 0;
-    color: var(--booking-muted);
-    font-size: 12px;
-}
-
-/* =========================================================
-   ANIMATIONS
-   ========================================================= */
-
-@keyframes heroReveal {
-    from {
-        opacity: 0;
-        transform: translateY(18px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes cardReveal {
-    from {
-        opacity: 0;
-        transform: translateY(22px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes statusPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: .45; transform: scale(.72); }
-}
-
-@keyframes attentionPulse {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(182,107,0,.03);
-    }
-    50% {
-        box-shadow: 0 0 0 5px rgba(182,107,0,.06);
-    }
-}
-
-@keyframes heroFloat {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(12px) scale(1.04); }
-}
-
-@keyframes orbFloat {
-    0%, 100% { transform: translateY(0) rotate(12deg); }
-    50% { transform: translateY(-12px) rotate(17deg); }
-}
-
-@keyframes iconFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-}
-
-/* MOBILE */
-@media (max-width: 1050px) {
-    .booking-list {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 700px) {
-    .bookings-page {
-        padding: 0 14px 50px;
-    }
-
-    .bookings-hero {
-        margin: 0 -14px 32px;
-        width: calc(100% + 28px);
-        min-height: 180px;
-        height: 20vh;
-    }
-
-    .hero-content {
-        width: calc(100% - 28px);
-    }
-
-    .hero-content h1 {
-        font-size: 31px;
-    }
-
-    .hero-content p {
-        max-width: 90%;
-        font-size: 12px;
-    }
-
-    .hero-orb {
-        right: -25px;
-        opacity: .55;
-        transform: scale(.75) rotate(12deg);
-    }
-
-    .bookings-header h1 {
-        font-size: 27px;
-    }
-
-    .booking-list {
-        grid-template-columns: 1fr;
-    }
-
-    .booking-top {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .booking-details {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-@media (max-width: 430px) {
-    .booking-details {
-        grid-template-columns: 1fr;
-    }
-
-    .hero-content p {
-        display: none;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: .01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .01ms !important;
-    }
-}
-</style>
 
 
 <div class="bookings-page">
 
 
     <!-- =====================================================
-         VISUAL HERO — UI ONLY
+         VISUAL HERO â€” UI ONLY
          ===================================================== -->
     <section class="bookings-hero" aria-label="My bookings hero">
         <div class="hero-content">
@@ -781,7 +71,6 @@
         </div>
 
 
-
         <!-- =====================================================
              BOOKINGS
              ===================================================== -->
@@ -793,7 +82,7 @@
 
                 {% for booking in bookings %}
 
-                    <article class="booking-card">
+                    <article class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}">
 
 
                         <!-- =====================================
@@ -815,17 +104,36 @@
 
                                     Worker:
 
-                                    {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+                                    {% if booking.worker %}
+                                        {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+                                    {% else %}
+                                        <span style="color: #dc2626; font-weight: 600;">Unassigned (Finding Worker...)</span>
+                                    {% endif %}
 
                                 </p>
 
                             </div>
 
 
-
                             <!-- STATUS -->
 
-                            {% if booking.status == 'PENDING' %}
+                            {% if booking.status == 'EMERGENCY_PENDING' and booking.booking_type == 'Emergency' %}
+
+                                <span class="status emergency-status">
+                                    <i class="bi bi-lightning-charge-fill"></i>
+                                    Finding Worker...
+                                </span>
+
+
+                            {% elif booking.status == 'ACCEPTED' and booking.booking_type == 'Emergency' %}
+
+                                <span class="status emergency-accepted">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    Worker Assigned
+                                </span>
+
+
+                            {% elif booking.status == 'PENDING' %}
 
                                 <span class="status pending">
 
@@ -901,13 +209,63 @@
                         </div>
 
 
-
                         <!-- =====================================
                              BOOKING DETAILS
                              ===================================== -->
 
                         <div class="booking-details">
 
+                            <!-- {# Emergency requests have several implicit states,
+                               so explain what is happening rather than leaving
+                               the customer to guess. Reuses the existing
+                               .booking-details / .detail layout and adds no
+                               new component. #} -->
+                            {% if booking.status == 'EMERGENCY_PENDING' and booking.booking_type == 'Emergency' %}
+
+                                <div class="detail">
+                                    <small>
+                                        What happens now
+                                    </small>
+                                    <span>
+                                        Your request has been sent and verified
+                                        workers for this trade are being notified.
+                                        The first worker to accept takes the job.
+                                        If nobody accepts, the request expires
+                                        automatically - you can raise a new one
+                                        from your bookings at any time.
+                                    </span>
+                                </div>
+
+                            {% elif booking.status == 'ACCEPTED' and booking.booking_type == 'Emergency' %}
+
+                                <div class="detail">
+                                    <small>
+                                        What happens now
+                                    </small>
+                                    <span>
+                                        A worker has accepted your emergency request.
+                                        They will contact you on the number provided,
+                                        and you can message them from here.
+                                    </span>
+                                </div>
+
+                            {% endif %}
+
+                            <div class="detail">
+
+                                <small>
+                                    Payment
+                                </small>
+
+                                <span>
+                                    {% if booking.is_paid %}
+                                        <span style="color:#087f5b; font-weight:700;">Paid</span>
+                                    {% else %}
+                                        <span style="color:#b42318; font-weight:700;">Pending</span>
+                                    {% endif %}
+                                </span>
+
+                            </div>
 
                             <div class="detail">
 
@@ -920,7 +278,6 @@
                                 </span>
 
                             </div>
-
 
 
                             <div class="detail">
@@ -936,7 +293,6 @@
                             </div>
 
 
-
                             <div class="detail">
 
                                 <small>
@@ -944,11 +300,20 @@
                                 </small>
 
                                 <span>
-                                    {{ booking.booking_type }}
+                                    {% if booking.booking_type == 'Recurring' and booking.series %}
+                                        <span style="background:#e9f8f2; color:#087f5b; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">
+                                            Recurring ({{ booking.series.frequency }})
+                                        </span>
+                                        <br>
+                                        <small style="color:#71807b; font-size:10px;">
+                                            Series #{{ booking.series.id }} | {{ booking.series.start_date|date:"d M" }} - {{ booking.series.end_date|date:"d M Y" }}
+                                        </small>
+                                    {% else %}
+                                        {{ booking.booking_type }}
+                                    {% endif %}
                                 </span>
 
                             </div>
-
 
 
                             <div class="detail">
@@ -964,7 +329,6 @@
                             </div>
 
 
-
                             <div class="detail">
 
                                 <small>
@@ -976,7 +340,6 @@
                                 </span>
 
                             </div>
-
 
 
                             <div class="detail">
@@ -991,30 +354,109 @@
 
                             </div>
 
-                            {% if booking.estimated_cost %}
+                            {% if booking.worker %}
+                                <div class="detail">
+                                    <small>Worker Pricing</small>
+                                    <span style="color:#087f5b; font-weight:800;">
+                                        &#8377;{{ booking.worker.pricing_amount|floatformat:2 }} / {% if booking.worker.pricing_type == 'day' %}day{% else %}hour{% endif %}
+                                    </span>
+                                </div>
+                            {% endif %}
+
                             <div class="detail">
-
-                                <small>
-                                    Estimated Cost
-                                </small>
-
+                                <small>Service Cost (estimate)</small>
                                 <span style="color:#087f5b; font-weight:800;">
-                                    ₹{{ booking.estimated_cost }}
+                                    {% if booking.estimated_cost != None %}
+                                        &#8377;{{ booking.estimated_cost|floatformat:2 }}
+                                    {% elif booking.service.price != None %}
+                                        &#8377;{{ booking.service.price|floatformat:2 }}
+                                    {% else %}
+                                        Price not set
+                                    {% endif %}
                                 </span>
-
                             </div>
+
+                            <div class="detail">
+                                <small>Payment Status</small>
+                                <span>
+                                    {% if booking.payment %}
+                                        {% if booking.payment.status == 'PENDING' %}
+                                            Pending Verification
+                                        {% else %}
+                                            {{ booking.payment.get_status_display }}
+                                        {% endif %}
+                                    {% elif booking.is_paid %}
+                                        Paid
+                                    {% else %}
+                                        Not submitted
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            {% if booking.is_paid and booking.payment %}
+                                <div class="detail">
+                                    <small>Amount Paid</small>
+                                    <span style="color:#087f5b; font-weight:800;">
+                                        &#8377;{{ booking.payment.amount|floatformat:2 }}
+                                    </span>
+                                </div>
                             {% endif %}
 
                         </div>
 
-                        {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' %}
-                            <div style="margin-top: 12px; text-align: right;">
-                                <form method="POST" action="{% url 'cancel_booking' booking.id %}">
-                                    {% csrf_token %}
-                                    <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" style="background:#fff0ef; color:#b42318; border:1px solid #f0b7b2; padding:7px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
-                                        <i class="bi bi-x-circle-fill"></i> Cancel Booking
-                                    </button>
-                                </form>
+                        {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                            <div class="booking-actions">
+                                {% if booking.status in payment_allowed_statuses and not booking.is_paid %}
+                                    {% if booking.payment and booking.payment.status == 'PENDING' %}
+                                        <small class="payment-manual-note">Manual payment reported; awaiting admin verification.</small>
+                                    {% elif booking.estimated_cost or booking.service.price %}
+                                        <form method="POST" action="{% url 'confirm_payment' booking.id %}" style="margin:0;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="payment_method" value="UPI">
+                                            <input type="hidden" name="payment_reference" value="UPI-{{ booking.id }}-{{ booking.created_at|date:'YmdHis' }}">
+                                            <button type="submit" class="booking-pay-action" style="background:#087f5b; color:#fff; border:none; padding:8px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
+                                                <i class="bi bi-credit-card-fill"></i> Record Manual Payment
+                                            </button>
+                                        </form>
+                                        <small class="payment-manual-note">Online payment processing is not enabled; reports are marked paid only after admin verification.</small>
+                                    {% else %}
+                                        <small class="payment-manual-note">Payment is unavailable because no amount is configured for this booking.</small>
+                                    {% endif %}
+                                {% endif %}
+                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                                    <a
+                                        href="{% url 'booking_messages' booking.id %}"
+                                        class="booking-chat-btn"
+                                        data-partner-name="{% if booking.worker %}{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}{% else %}Service Team{% endif %}"
+                                        data-service-name="{{ booking.service.name }}"
+                                        data-booking-number="#{{ booking.id }}"
+                                    >
+                                        <i class="bi bi-chat-dots-fill" aria-hidden="true"></i> Open Chat
+                                    </a>
+                                {% endif %}
+                                {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' %}
+                                    <form method="POST" action="{% url 'cancel_booking' booking.id %}" class="booking-cancel-action" style="margin:0;">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" style="background:#fff0ef; color:#b42318; border:1px solid #f0b7b2; padding:7px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
+                                            <i class="bi bi-x-circle-fill"></i> Cancel Booking
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if booking.is_paid %}
+                            <div style="margin-top: 12px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+                                <a href="{% url 'booking_invoice' booking.id %}" style="display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; background:#f8fafc; color:#0f172a; font-size:11px; font-weight:800; text-decoration:none; border:1px solid #cbd5e1;">
+                                    <i class="bi bi-receipt-fill"></i>
+                                    Receipt
+                                </a>
+                            </div>
+                        {% endif %}
+
+                        {% if booking.start_time and booking.end_time %}
+                            <div style="margin-top: 12px; padding:8px 10px; background:#eef4ff; border:1px solid #cfe0ff; border-radius:10px; color:#1d4ed8; font-size:11px; font-weight:700;">
+                                <i class="bi bi-clock-history"></i> Schedule protected: {{ booking.start_time|time:"g:i A" }} - {{ booking.end_time|time:"g:i A" }}
                             </div>
                         {% endif %}
 
@@ -1054,7 +496,6 @@
                                     </p>
 
 
-
                                     <div class="completion-actions">
 
 
@@ -1081,10 +522,9 @@
                                         </form>
 
 
-
                                         <!-- RAISE COMPLAINT -->
 
-                                        <a
+                                        <!-- <a
                                             href="{% url 'raise_complaint' booking.id %}"
                                             class="complaint-btn"
                                         >
@@ -1093,7 +533,7 @@
 
                                             Raise a Complaint
 
-                                        </a>
+                                        </a> -->
 
 
                                     </div>
@@ -1103,7 +543,6 @@
                             </div>
 
                         {% endif %}
-
 
 
                         <!-- =================================================
@@ -1130,7 +569,6 @@
                                     is complete.
 
                                 </p>
-
 
 
                                 <!-- =========================================
@@ -1163,7 +601,7 @@
 
                                     {% endif %}
 
-                                    <a
+                                    <!-- <a
                                         href="{% url 'submit_feedback' booking.id %}"
                                         class="complaint-btn"
                                         style="padding:10px 14px; border-radius:11px; font-size:11px; font-weight:850;"
@@ -1171,7 +609,7 @@
                                         <i class="bi bi-exclamation-triangle-fill"></i>
 
                                         Raise Complaint
-                                    </a>
+                                    </a> -->
                                 </div>
 
 
@@ -1229,5 +667,191 @@
     </div>
 
 </div>
+
+<div id="bookingChatModal" class="booking-chat-modal" aria-hidden="true">
+    <div class="booking-chat-backdrop" data-close-chat="true"></div>
+    <div class="booking-chat-surface" role="dialog" aria-modal="true" aria-labelledby="bookingChatTitle">
+        <div id="bookingChatLoading" class="booking-chat-loading">
+            <i class="bi bi-chat-dots-fill"></i>
+            Loading conversation...
+        </div>
+        <div id="bookingChatContent" class="booking-chat-content"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('bookingChatModal');
+        const content = document.getElementById('bookingChatContent');
+        const loader = document.getElementById('bookingChatLoading');
+        const chatButtons = document.querySelectorAll('.booking-chat-btn');
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, function (char) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[char];
+            });
+        }
+
+        function getInitials(name) {
+            if (!name) return 'L';
+            const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+            if (!parts.length) return 'L';
+            return parts.map(part => part.charAt(0).toUpperCase()).join('').slice(0, 2);
+        }
+
+        function closeChatModal() {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('booking-chat-open');
+        }
+
+        function openChatModal() {
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('booking-chat-open');
+        }
+
+        function renderConversation(html, options) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const messageBody = doc.querySelector('.chat-body');
+            const form = doc.querySelector('.chat-form form');
+            if (!messageBody || !form) {
+                throw new Error('The conversation response was incomplete.');
+            }
+            if (form && options.chatUrl) {
+                form.setAttribute('action', options.chatUrl);
+            }
+            const partnerName = options.partnerName || 'Conversation';
+            const serviceName = options.serviceName || 'Service';
+            const bookingNumber = options.bookingNumber || 'Booking';
+
+            content.innerHTML = `
+                <div class="booking-chat-shell">
+                    <div class="booking-chat-header">
+                        <button type="button" class="chat-nav-button" data-close-chat="true" aria-label="Back to My Bookings">
+                            <i class="bi bi-arrow-left"></i>
+                        </button>
+
+                        <div class="booking-chat-user" aria-label="Chat participant">
+                            <div class="booking-chat-avatar">${escapeHtml(getInitials(partnerName))}</div>
+                            <div class="booking-chat-user-copy">
+                                <div class="booking-chat-name" id="bookingChatTitle">${escapeHtml(partnerName)}</div>
+                                <div class="booking-chat-meta">${escapeHtml(serviceName)} • ${escapeHtml(bookingNumber)}</div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="chat-close-button" data-close-chat="true" aria-label="Close chat">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="booking-chat-thread">
+                        ${messageBody ? messageBody.innerHTML : '<div class="empty-state">No messages yet.</div>'}
+                    </div>
+
+                    ${form ? '<div class="booking-chat-composer">' + form.outerHTML + '</div>' : ''}
+                </div>
+            `;
+
+            const chatForm = content.querySelector('.booking-chat-composer form');
+            if (chatForm) {
+                chatForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+
+                    const submitButton = chatForm.querySelector('button[type="submit"]');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+
+                    fetch(chatForm.action, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: new FormData(chatForm)
+                    })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Unable to send chat message.');
+                        }
+                        return response.text();
+                    })
+                    .then(function (nextHtml) {
+                        renderConversation(nextHtml, options);
+                    })
+                    .catch(function () {
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                        }
+                        const thread = content.querySelector('.booking-chat-thread');
+                        if (thread) {
+                            thread.insertAdjacentHTML('beforeend', '<div class="empty-state">Unable to send your message. Please try again.</div>');
+                        }
+                    });
+                });
+            }
+        }
+
+        function loadChat(url, options) {
+            openChatModal();
+            loader.style.display = 'flex';
+            content.innerHTML = '';
+
+            fetch(url, {
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Unable to load this conversation.');
+                }
+                return response.text();
+            })
+            .then(function (html) {
+                loader.style.display = 'none';
+                renderConversation(html, options);
+            })
+            .catch(function () {
+                loader.style.display = 'none';
+                content.innerHTML = '<div class="empty-state">Unable to load the conversation right now.</div>';
+            });
+        }
+
+        chatButtons.forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                const options = {
+                    partnerName: button.dataset.partnerName || 'Conversation',
+                    serviceName: button.dataset.serviceName || 'Service',
+                    bookingNumber: button.dataset.bookingNumber || 'Booking',
+                    chatUrl: button.getAttribute('href')
+                };
+                loadChat(button.getAttribute('href'), options);
+            });
+        });
+
+        modal.addEventListener('click', function (event) {
+            if (event.target.closest('[data-close-chat]')) {
+                closeChatModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal.classList.contains('open')) {
+                closeChatModal();
+            }
+        });
+    });
+</script>
 
 {% endblock %}

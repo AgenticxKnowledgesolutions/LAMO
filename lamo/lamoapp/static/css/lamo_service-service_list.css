@@ -1,0 +1,449 @@
+/* =========================================
+       SERVICE PAGE
+    ========================================= */
+
+    .service-page {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 10px 24px 30px;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 768px) {
+        .service-page {
+            padding: 10px 12px 30px;
+        }
+    }
+
+
+    /* =========================================
+       PAGE HEADER
+    ========================================= */
+
+    .service-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+
+        margin-bottom: 22px;
+    }
+
+    .service-heading h2 {
+        margin: 0;
+
+        color: #17211d;
+
+        font-size: 24px;
+        font-weight: 700;
+
+        letter-spacing: -0.3px;
+    }
+
+    .service-heading p {
+        margin: 5px 0 0;
+
+        color: #7b8781;
+
+        font-size: 13px;
+    }
+
+
+    /* =========================================
+       ADD SERVICE BUTTON
+    ========================================= */
+
+    .add-service-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+
+        padding: 10px 16px;
+
+        border: none;
+        border-radius: 8px;
+
+        background: #123c2d;
+        color: #ffffff;
+
+        text-decoration: none;
+
+        font-size: 13px;
+        font-weight: 600;
+
+        white-space: nowrap;
+
+        transition: all 0.2s ease;
+    }
+
+    .add-service-btn:hover {
+        background: #1b5a42;
+        color: #ffffff;
+
+        transform: translateY(-1px);
+    }
+
+    .add-service-btn i {
+        font-size: 13px;
+    }
+
+
+    /* =========================================
+       TABLE CARD
+    ========================================= */
+
+    .service-table-card {
+        width: 100%;
+
+        background: #ffffff;
+
+        border: 1px solid #e6ece8;
+
+        border-radius: 12px;
+
+        overflow: hidden;
+
+        box-shadow:
+            0 2px 8px rgba(18, 60, 45, 0.04);
+    }
+
+
+    /* =========================================
+       TABLE WRAPPER
+    ========================================= */
+
+    .service-table-wrapper {
+        width: 100%;
+
+        overflow-x: auto;
+    }
+
+
+    /* =========================================
+       TABLE
+    ========================================= */
+
+    .service-table {
+        width: 100%;
+
+        border-collapse: collapse;
+
+        min-width: 700px;
+    }
+
+
+    /* TABLE HEADER */
+
+    .service-table thead th {
+        padding: 14px 20px;
+
+        background: #f8faf9;
+
+        border-bottom: 1px solid #e6ece8;
+
+        color: #7b8781;
+
+        font-size: 10px;
+        font-weight: 700;
+
+        text-align: left;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.7px;
+
+        white-space: nowrap;
+    }
+
+
+    /* TABLE BODY */
+
+    .service-table tbody td {
+        padding: 16px 20px;
+
+        border-bottom: 1px solid #f0f3f1;
+
+        color: #4d5953;
+
+        font-size: 13px;
+
+        vertical-align: middle;
+    }
+
+    .service-table tbody tr {
+        transition: background 0.15s ease;
+    }
+
+    .service-table tbody tr:hover {
+        background: #fbfdfc;
+    }
+
+    .service-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+
+    /* =========================================
+       SERVICE NAME
+    ========================================= */
+
+    .service-name {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .service-icon {
+        width: 36px;
+        height: 36px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+
+        border-radius: 8px;
+
+        background: #edf6f0;
+        color: #216247;
+
+        font-size: 15px;
+    }
+
+    .service-info {
+        min-width: 120px;
+    }
+
+    .service-info strong {
+        display: block;
+
+        color: #17211d;
+
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .service-info span {
+        display: block;
+
+        margin-top: 3px;
+
+        color: #9aa39e;
+
+        font-size: 10px;
+    }
+
+
+    /* =========================================
+       DESCRIPTION
+    ========================================= */
+
+    .service-description {
+        max-width: 420px;
+
+        color: #6f7b75;
+
+        line-height: 1.5;
+    }
+
+    .no-description {
+        color: #a3aca7;
+
+        font-style: italic;
+    }
+
+
+    /* =========================================
+       STATUS
+    ========================================= */
+
+    .status {
+        display: inline-flex;
+
+        align-items: center;
+        gap: 6px;
+
+        padding: 5px 10px;
+
+        border-radius: 20px;
+
+        font-size: 10px;
+        font-weight: 650;
+
+        white-space: nowrap;
+    }
+
+    .status::before {
+        content: "";
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+    }
+
+
+    /* ACTIVE */
+
+    .status.active {
+        background: #eaf7ee;
+        color: #28754d;
+    }
+
+    .status.active::before {
+        background: #42a969;
+    }
+
+
+    /* INACTIVE */
+
+    .status.inactive {
+        background: #fff0f0;
+        color: #c75252;
+    }
+
+    .status.inactive::before {
+        background: #c75252;
+    }
+
+
+    /* =========================================
+       ACTION BUTTONS
+    ========================================= */
+
+    .service-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 0;
+
+        border: 1px solid #e7ece9;
+        border-radius: 7px;
+
+        background: #ffffff;
+
+        font-size: 12px;
+
+        text-decoration: none;
+
+        cursor: pointer;
+
+        transition: all 0.15s ease;
+    }
+
+
+    /* EDIT */
+
+    .edit-btn {
+        color: #3971b8;
+    }
+
+    .edit-btn:hover {
+        background: #edf4ff;
+        border-color: #d9e8ff;
+        color: #3971b8;
+    }
+
+
+    /* DELETE */
+
+    .delete-btn {
+        color: #c75252;
+    }
+
+    .delete-btn:hover {
+        background: #fff0f0;
+        border-color: #ffe0e0;
+        color: #c75252;
+    }
+
+
+    /* =========================================
+       EMPTY STATE
+    ========================================= */
+
+    .empty-services {
+        padding: 65px 20px;
+
+        text-align: center;
+    }
+
+    .empty-icon {
+        width: 52px;
+        height: 52px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        margin: 0 auto 14px;
+
+        border-radius: 50%;
+
+        background: #f2f6f3;
+        color: #8da097;
+
+        font-size: 20px;
+    }
+
+    .empty-services h5 {
+        margin: 0;
+
+        color: #37413b;
+
+        font-size: 15px;
+        font-weight: 650;
+    }
+
+    .empty-services p {
+        margin: 5px 0 0;
+
+        color: #9aa39e;
+
+        font-size: 12px;
+    }
+
+
+    /* =========================================
+       MOBILE
+    ========================================= */
+
+    @media (max-width: 768px) {
+
+        .service-page {
+            padding: 10px 15px 25px;
+        }
+
+        .service-header {
+            align-items: flex-start;
+            flex-direction: column;
+
+            gap: 14px;
+        }
+
+        .service-heading h2 {
+            font-size: 21px;
+        }
+
+        .add-service-btn {
+            width: 100%;
+        }
+
+        .service-table {
+            min-width: 500px;
+        }
+
+    }

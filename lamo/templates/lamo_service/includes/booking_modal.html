@@ -1,0 +1,974 @@
+<!-- =========================================================
+     BOOKING MODAL
+     Same POST action and field names as book_service.html
+========================================================= -->
+<div id="bookingModal" class="booking-modal-overlay" aria-hidden="true">
+
+    <div class="booking-modal" role="dialog" aria-modal="true"
+         aria-labelledby="bookingModalTitle">
+
+        <!-- =====================================================
+             MODAL HEADER
+        ===================================================== -->
+        <div class="booking-modal-header">
+
+            <div class="booking-modal-heading">
+                <div class="booking-modal-icon">
+                    <i class="bi bi-calendar2-check-fill"></i>
+                </div>
+
+                <div>
+                    <h2 id="bookingModalTitle">Book Service</h2>
+                    <p>Send your request to this verified professional.</p>
+                </div>
+            </div>
+
+            <button type="button"
+                    class="booking-modal-close"
+                    onclick="closeBookingModal()"
+                    aria-label="Close booking form">
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+        </div>
+
+        <!-- =====================================================
+             MODAL BODY - TWO COLUMN LAYOUT
+        ===================================================== -->
+        <div class="booking-modal-body">
+
+            <!-- =====================================================
+                 LEFT: SERVICE/WORKER SUMMARY
+            ===================================================== -->
+            <aside class="modal-summary">
+                <div class="modal-summary-content">
+
+                    <div class="modal-step">
+                        <span class="modal-step-number">01</span>
+                        Service
+                    </div>
+
+                    <div class="modal-service-icon">
+                        <i id="modalServiceIcon" class="bi bi-tools"></i>
+                    </div>
+
+                    <h3 id="modalServiceTitle">
+                        {{ service.name }}
+                    </h3>
+
+                    <p class="modal-service-text">
+                        Professional service from a verified LAMO worker.
+                    </p>
+
+                    <div class="modal-worker">
+
+                        <div class="modal-worker-avatar">
+                            <img id="modalWorkerImage"
+                                 src=""
+                                 alt="Worker"
+                                 style="display:none;">
+
+                            <i id="modalWorkerFallback"
+                               class="bi bi-person-fill"></i>
+                        </div>
+
+                        <div class="modal-worker-info">
+
+                            <small>Booking with</small>
+
+                            <strong id="modalWorkerName">
+                                Worker
+                            </strong>
+
+                            <span>
+                                <i class="bi bi-geo-alt"></i>
+                                <span id="modalWorkerDistrict">
+                                    {{ district }}
+                                </span>
+                            </span>
+
+                            <div class="modal-verified">
+                                <i class="bi bi-patch-check-fill"></i>
+                                Verified Professional
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="modal-benefits">
+
+                        <div class="modal-benefit">
+                            <i class="bi bi-shield-check"></i>
+                            Verified Worker
+                        </div>
+
+                        <div class="modal-benefit">
+                            <i class="bi bi-calendar-check"></i>
+                            Flexible Scheduling
+                        </div>
+
+                        <div class="modal-benefit">
+                            <i class="bi bi-headset"></i>
+                            LAMO Support
+                        </div>
+
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- =====================================================
+                 RIGHT: BOOKING FORM
+            ===================================================== -->
+            <section class="modal-form">
+
+                <div class="modal-form-top">
+
+                    <div class="modal-form-title">
+                        <h3>Service Details</h3>
+                        <p>Give us a few details about your request.</p>
+                    </div>
+
+                    <div class="modal-step-two">
+                        <span>02</span>
+                        Details
+                    </div>
+
+                </div>
+
+                <div id="modalBookingError" class="modal-booking-error" style="display:none;"></div>
+
+                <form id="bookingModalForm"
+                      method="POST"
+                      action="{% url 'book_service' %}">
+
+                    {% csrf_token %}
+
+                    <input type="hidden"
+                           name="worker"
+                           id="modalWorkerId"
+                           value="">
+
+                    <input type="hidden"
+                           name="service"
+                           id="modalServiceId"
+                           value="{{ service.id }}">
+
+                    <input type="hidden"
+                           name="service_name"
+                           id="modalSelectedService"
+                           value="{{ service.name }}">
+
+                    <!-- Selected Service Card -->
+                    <div class="modal-selected-service">
+
+                        <div class="modal-selected-service-icon">
+                            <i id="modalSelectedServiceIcon"
+                               class="bi bi-tools"></i>
+                        </div>
+
+                        <div>
+                            <small>Selected service</small>
+
+                            <strong id="modalSelectedServiceText">
+                                {{ service.name }}
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <!-- Service Type -->
+                    <label class="modal-label">
+                        Service Type
+                    </label>
+
+                    <div class="modal-booking-types">
+
+                        <button type="button"
+                                class="modal-booking-type active"
+                                data-booking-type="One Time"
+                                onclick="selectModalBookingType(this)">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>One-time</span>
+                            <small>Single visit</small>
+                        </button>
+
+                        <button type="button"
+                                class="modal-booking-type"
+                                data-booking-type="Recurring"
+                                onclick="selectModalBookingType(this)">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <span>Recurring</span>
+                            <small>Regular service</small>
+                        </button>
+
+                    </div>
+
+                    <input type="hidden"
+                           name="booking_type"
+                           id="modalBookingType"
+                           value="One Time">
+
+                    <!-- ONE-TIME OPTIONS (Preferred Date) -->
+                    <div id="oneTimeOptions">
+                        <div class="modal-form-group">
+                            <label class="modal-label">
+                                Preferred Date
+                            </label>
+                            <input type="date"
+                                   name="date"
+                                   id="modalBookingDate"
+                                   class="modal-input"
+                                   required>
+                        </div>
+                    </div>
+
+                    <!-- RECURRING TOP OPTIONS (Start Date, Frequency, Preferred Day) -->
+                    <div id="recurringTopOptions" style="display:none;">
+                        <div class="modal-form-row">
+                            <div class="modal-form-group">
+                                <label class="modal-label">
+                                    Start Date
+                                </label>
+                                <input type="date"
+                                       name="start_date"
+                                       id="modalStartDate"
+                                       class="modal-input">
+                            </div>
+
+                            <div class="modal-form-group">
+                                <label class="modal-label">
+                                    Frequency
+                                </label>
+                                <select name="frequency"
+                                        id="modalFrequency"
+                                        class="modal-select"
+                                        onchange="togglePreferredDay(this.value)">
+                                    <option value="Weekly" selected>Weekly</option>
+                                    <option value="Daily">Daily</option>
+                                    <option value="Monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="modal-form-group" id="preferredDayGroup">
+                            <label class="modal-label">
+                                Preferred Day
+                            </label>
+                            <select name="preferred_day"
+                                    id="modalPreferredDay"
+                                    class="modal-select">
+                                <option value="Monday" selected>Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- PREFERRED TIME (Shared by both One-time and Recurring) -->
+                    <div class="modal-form-group">
+                        <label class="modal-label">
+                            Preferred Time
+                        </label>
+
+                        <div class="time-toggle">
+                            <button type="button"
+                                    class="time-toggle-btn active"
+                                    id="timeSlotBtn"
+                                    onclick="toggleTimeSlot(true)">
+                                Time Slot
+                            </button>
+                            <button type="button"
+                                    class="time-toggle-btn"
+                                    id="customTimeBtn"
+                                    onclick="toggleTimeSlot(false)">
+                                Custom Time
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-group" id="timeSlotGroup">
+                        <select name="time_slot"
+                                id="modalTimeSlot"
+                                class="modal-select">
+                            <option value="">Select time slot</option>
+                            <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
+                            <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                            <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
+                            <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
+                            <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
+                            <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-form-group" id="customTimeGroup" style="display:none;">
+                        <input type="text"
+                               name="custom_time"
+                               id="modalCustomTime"
+                               class="modal-input"
+                               placeholder="e.g., 10:30 AM or After 5 PM">
+                    </div>
+
+                    <input type="hidden" name="time" id="modalFinalTime" value="">
+
+                    <!-- RECURRING BOTTOM OPTIONS (End Date) -->
+                    <div id="recurringBottomOptions" style="display:none;">
+                        <div class="modal-form-group">
+                            <label class="modal-label">
+                                End Date
+                            </label>
+                            <input type="date"
+                                   name="end_date"
+                                   id="modalEndDate"
+                                   class="modal-input">
+                        </div>
+                    </div>
+
+                    <!-- District (read-only from selected worker) -->
+                    <div class="modal-form-group">
+                        <label class="modal-label">
+                            Service District
+                        </label>
+                        <input type="text"
+                               name="district"
+                               id="modalServiceDistrict"
+                               class="modal-input"
+                               value="{{ district }}"
+                               readonly
+                               style="background:#f9fafb; cursor:not-allowed;">
+                        <small style="color: #6b7280; font-size: 11px;">District is automatically set based on the selected worker.</small>
+                    </div>
+
+                    <!-- Service Location -->
+                    <div class="modal-form-group">
+
+                        <label class="modal-label">
+                            Service Location
+                        </label>
+
+                        <input type="text"
+                               name="location"
+                               id="modalLocationInput"
+                               class="modal-input"
+                               placeholder="Enter your complete service location or select on map"
+                               required>
+
+                    </div>
+
+                    <!-- Map -->
+                    <div class="modal-form-group">
+
+                        <label class="modal-label">
+                            Select Location on Map
+                        </label>
+
+                        <div id="modalBookingMap"
+                             data-district="{{ district|escapejs }}"
+                             data-default-lat="{{ district_lat|default:9.9312 }}"
+                             data-default-lng="{{ district_lng|default:76.2673 }}"
+                             data-tile-url="{{ map_tile_url|escapejs }}"
+                             data-tile-attribution="{{ map_tile_attribution }}"
+                             data-tile-subdomains="{{ map_tile_subdomains|escapejs }}"
+                             data-tile-max-zoom="{{ map_tile_max_zoom|default:20 }}"
+                             style="height: 240px; border-radius: 14px; border: 1px solid var(--lamo-border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);"></div>
+
+                        <input type="hidden" name="latitude" id="modalLatitudeInput">
+                        <input type="hidden" name="longitude" id="modalLongitudeInput">
+
+                        <div id="modalDistrictValidation"
+                             style="margin-top: 8px; font-size: 12px; display: none; color: #dc2626;">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            Please select a service location within {{ district }}.
+                        </div>
+
+                        <button type="button" id="modalGetCurrentLocationBtn"
+                                style="margin-top: 10px; padding: 10px 16px; border: 1.5px solid var(--lamo-green); border-radius: 10px; background: #ffffff; cursor: pointer; font-size: 11px; font-weight: 700; color: var(--lamo-green); transition: all 0.2s ease; font-family: inherit; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="bi bi-geo-alt-fill"></i> Use My Current Location
+                        </button>
+
+                    </div>
+
+                    <!-- Requirement -->
+                    <div class="modal-form-group">
+
+                        <label class="modal-label">
+                            Describe Your Requirement
+                        </label>
+
+                        <textarea name="description"
+                                  class="modal-input"
+                                  placeholder="Example: Kitchen tap is leaking..."></textarea>
+
+                    </div>
+
+                    <!-- Contact Number -->
+                    <div class="modal-form-group">
+
+                        <label class="modal-label">
+                            Contact Number
+                        </label>
+
+                        <input type="tel"
+                               name="phone"
+                               id="modalPhone"
+                               class="modal-input"
+                               placeholder="Enter 10-digit mobile number"
+                               inputmode="numeric"
+                               pattern="[6-9][0-9]{9}"
+                               maxlength="10"
+                               minlength="10"
+                               autocomplete="tel"
+                               required>
+
+                        <small id="modalPhoneError"
+                               class="modal-phone-error">
+                            Enter a valid 10-digit Indian mobile number.
+                        </small>
+
+                    </div>
+
+                    <!-- Trust Bar -->
+                    <div class="modal-trust">
+
+                        <div class="modal-trust-item">
+                            <i class="bi bi-shield-check"></i>
+                            Verified Workers
+                        </div>
+
+                        <div class="modal-trust-item">
+                            <i class="bi bi-clock"></i>
+                            Flexible Time
+                        </div>
+
+                        <div class="modal-trust-item">
+                            <i class="bi bi-headset"></i>
+                            LAMO Support
+                        </div>
+
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit"
+                            class="modal-confirm"
+                            id="modalConfirmButton">
+                        Continue Booking
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+
+                </form>
+
+            </section>
+
+        </div>
+    </div>
+</div>
+
+
+<script>
+/* =========================================================
+   BOOKING MODAL
+======================================================== */
+
+const bookingModal =
+    document.getElementById("bookingModal");
+
+
+function openBookingModal(button) {
+
+    if (!bookingModal) {
+        return;
+    }
+
+    const aiRecommendationModal = document.getElementById("aiRecommendationModal");
+    if (aiRecommendationModal) {
+        aiRecommendationModal.classList.remove("show");
+        aiRecommendationModal.setAttribute("aria-hidden", "true");
+    }
+    const aiModeModal = document.getElementById("aiModeModal");
+    if (aiModeModal) {
+        aiModeModal.classList.remove("show");
+        aiModeModal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("ai-mode-open");
+    }
+
+    const workerId =
+        button.dataset.workerId || "";
+
+    const workerName =
+        button.dataset.workerName || "Worker";
+
+    const workerDistrict =
+        button.dataset.workerDistrict || "{{ district|escapejs }}";
+
+    const workerImage =
+        button.dataset.workerImage || "";
+
+    const serviceId =
+        button.dataset.serviceId || "{{ service.id }}";
+
+    const serviceName =
+        button.dataset.serviceName || "{{ service.name|escapejs }}";
+
+    const mapContainer = document.getElementById("modalBookingMap");
+    if (mapContainer) {
+        mapContainer.dataset.district = workerDistrict;
+    }
+
+    const form =
+        document.getElementById("bookingModalForm");
+
+    if (form) {
+        form.reset();
+    }
+
+    const serviceDistrict = document.getElementById("modalServiceDistrict");
+    if (serviceDistrict) {
+        serviceDistrict.value = workerDistrict;
+    }
+
+    document.getElementById("modalWorkerId").value =
+        workerId;
+
+    document.getElementById("modalServiceId").value =
+        serviceId;
+
+    document.getElementById("modalSelectedService").value = serviceName;
+
+    document.getElementById("modalWorkerName").textContent = workerName;
+    document.getElementById("modalWorkerDistrict").textContent = workerDistrict;
+    document.getElementById("modalServiceTitle").textContent = serviceName;
+    document.getElementById("modalSelectedServiceText").textContent = serviceName;
+
+    const image = document.getElementById("modalWorkerImage");
+    const fallback = document.getElementById("modalWorkerFallback");
+
+    if (workerImage && image) {
+        image.src = workerImage;
+        image.style.display = "block";
+        if (fallback) fallback.style.display = "none";
+    } else if (image && fallback) {
+        image.removeAttribute("src");
+        image.style.display = "none";
+        fallback.style.display = "block";
+    }
+
+    const defaultType = document.querySelector('.modal-booking-type[data-booking-type="One Time"]');
+    if (defaultType) {
+        selectModalBookingType(defaultType);
+    } else {
+        var bTypeInput = document.getElementById("modalBookingType");
+        if (bTypeInput) bTypeInput.value = "One Time";
+    }
+
+    setModalMinimumDate();
+    toggleTimeSlot(true);
+
+    const phone = document.getElementById("modalPhone");
+    const phoneError = document.getElementById("modalPhoneError");
+    if (phone) {
+        phone.classList.remove("modal-phone-valid", "modal-phone-invalid");
+    }
+    if (phoneError) {
+        phoneError.style.display = "none";
+    }
+
+    const modalErrorBox = document.getElementById("modalBookingError");
+    if (modalErrorBox) {
+        modalErrorBox.style.display = "none";
+        modalErrorBox.innerHTML = "";
+    }
+
+    const districtValidation = document.getElementById("modalDistrictValidation");
+    if (districtValidation) {
+        districtValidation.style.display = "none";
+    }
+
+    bookingModal.classList.add("open");
+    bookingModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+
+    setTimeout(function() {
+        const date = document.getElementById("modalBookingDate");
+        if (date && date.offsetParent !== null) {
+            date.focus();
+        }
+    }, 180);
+}
+
+function closeBookingModal() {
+    if (!bookingModal) {
+        return;
+    }
+    bookingModal.classList.remove("open");
+    bookingModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+}
+
+/* Renders a booking error using real DOM nodes instead of innerHTML.
+   The server's error_message can quote user-supplied values (e.g. the
+   district that was rejected), so writing it into innerHTML would let a
+   crafted value inject markup/script into this page. The icon is created
+   with createElement and the text with textContent, which is inert. */
+function showBookingError(modalErrorBox, message) {
+    const text = (message === null || message === undefined) ? "" : String(message);
+
+    if (!modalErrorBox) {
+        // No error container on this page: fall back to a plain alert,
+        // which also renders the text literally.
+        alert(text);
+        return;
+    }
+
+    modalErrorBox.textContent = "";
+    const icon = document.createElement("i");
+    icon.className = "bi bi-exclamation-triangle-fill";
+    icon.setAttribute("aria-hidden", "true");
+    modalErrorBox.appendChild(icon);
+    modalErrorBox.appendChild(document.createTextNode(" " + text));
+    modalErrorBox.style.display = "block";
+
+    if (typeof modalErrorBox.scrollIntoView === "function") {
+        modalErrorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+if (bookingModal) {
+    bookingModal.addEventListener("click", function(event) {
+        if (event.target === bookingModal) {
+            closeBookingModal();
+        }
+    });
+}
+
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && bookingModal && bookingModal.classList.contains("open")) {
+        closeBookingModal();
+    }
+});
+
+
+/* =========================================================
+   BOOKING TYPE & CONDITIONAL FIELDS
+========================================================= */
+
+function selectModalBookingType(element) {
+    document.querySelectorAll(".modal-booking-type").forEach(function(item) {
+        item.classList.remove("active");
+    });
+    element.classList.add("active");
+
+    var bookingType = element.dataset.bookingType;
+    document.getElementById("modalBookingType").value = bookingType;
+
+    var oneTimeOptions = document.getElementById('oneTimeOptions');
+    var recurringTopOptions = document.getElementById('recurringTopOptions');
+    var recurringBottomOptions = document.getElementById('recurringBottomOptions');
+
+    var bookingDate = document.getElementById('modalBookingDate');
+    var startDate = document.getElementById('modalStartDate');
+    var endDate = document.getElementById('modalEndDate');
+
+    if (bookingType === 'Recurring') {
+        if (oneTimeOptions) oneTimeOptions.style.display = 'none';
+        if (recurringTopOptions) recurringTopOptions.style.display = 'block';
+        if (recurringBottomOptions) recurringBottomOptions.style.display = 'block';
+
+        if (bookingDate) {
+            bookingDate.required = false;
+            bookingDate.value = '';
+        }
+        if (startDate) startDate.required = true;
+        if (endDate) endDate.required = true;
+    } else {
+        if (oneTimeOptions) oneTimeOptions.style.display = 'block';
+        if (recurringTopOptions) recurringTopOptions.style.display = 'none';
+        if (recurringBottomOptions) recurringBottomOptions.style.display = 'none';
+
+        if (bookingDate) bookingDate.required = true;
+        if (startDate) {
+            startDate.required = false;
+            startDate.value = '';
+        }
+        if (endDate) {
+            endDate.required = false;
+            endDate.value = '';
+        }
+    }
+}
+
+function togglePreferredDay(freqValue) {
+    var dayGroup = document.getElementById('preferredDayGroup');
+    if (dayGroup) {
+        if (freqValue === 'Weekly') {
+            dayGroup.style.display = 'block';
+        } else {
+            dayGroup.style.display = 'none';
+        }
+    }
+}
+
+
+/* =========================================================
+   TIME TOGGLE (Slot vs Custom)
+========================================================= */
+
+function toggleTimeSlot(useSlot) {
+    var slotBtn = document.getElementById('timeSlotBtn');
+    var customBtn = document.getElementById('customTimeBtn');
+    var slotGroup = document.getElementById('timeSlotGroup');
+    var customGroup = document.getElementById('customTimeGroup');
+    var timeSlot = document.getElementById('modalTimeSlot');
+    var customTime = document.getElementById('modalCustomTime');
+    var finalTime = document.getElementById('modalFinalTime');
+
+    if (useSlot) {
+        if (slotBtn) slotBtn.classList.add('active');
+        if (customBtn) customBtn.classList.remove('active');
+        if (slotGroup) slotGroup.style.display = 'block';
+        if (customGroup) customGroup.style.display = 'none';
+        if (timeSlot) timeSlot.required = true;
+        if (customTime) customTime.required = false;
+        if (finalTime && timeSlot) finalTime.value = timeSlot.value;
+    } else {
+        if (slotBtn) slotBtn.classList.remove('active');
+        if (customBtn) customBtn.classList.add('active');
+        if (slotGroup) slotGroup.style.display = 'none';
+        if (customGroup) customGroup.style.display = 'block';
+        if (timeSlot) timeSlot.required = false;
+        if (customTime) customTime.required = true;
+        if (finalTime && customTime) finalTime.value = customTime.value;
+    }
+}
+
+// Update final time when slot or custom time changes
+document.addEventListener('DOMContentLoaded', function() {
+    var timeSlot = document.getElementById('modalTimeSlot');
+    var customTime = document.getElementById('modalCustomTime');
+    var finalTime = document.getElementById('modalFinalTime');
+
+    if (timeSlot) {
+        timeSlot.addEventListener('change', function() {
+            var slotBtn = document.getElementById('timeSlotBtn');
+            if (slotBtn && slotBtn.classList.contains('active')) {
+                finalTime.value = this.value;
+            }
+        });
+    }
+
+    if (customTime) {
+        customTime.addEventListener('input', function() {
+            var customBtn = document.getElementById('customTimeBtn');
+            if (customBtn && customBtn.classList.contains('active')) {
+                finalTime.value = this.value;
+            }
+        });
+    }
+});
+
+
+/* =========================================================
+   DATE
+========================================================= */
+
+function setModalMinimumDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    const minDateStr = `${year}-${month}-${day}`;
+
+    ['modalBookingDate', 'modalStartDate', 'modalEndDate'].forEach(function(id) {
+        var input = document.getElementById(id);
+        if (input) input.min = minDateStr;
+    });
+}
+
+
+/* =========================================================
+   PHONE VALIDATION
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", function() {
+    const phone =
+            document.getElementById("modalPhone");
+
+        const error =
+            document.getElementById("modalPhoneError");
+
+        if (!phone) {
+            return;
+        }
+
+
+        function validateModalPhone() {
+
+            phone.value =
+                phone.value
+                    .replace(/\D/g, "")
+                    .slice(0, 10);
+
+            const value =
+                phone.value;
+
+            const valid =
+                /^[6-9][0-9]{9}$/.test(value);
+
+
+            if (value.length === 0) {
+
+                phone.classList.remove(
+                    "modal-phone-valid",
+                    "modal-phone-invalid"
+                );
+
+                error.style.display = "none";
+
+                return false;
+            }
+
+
+            if (valid) {
+
+                phone.classList.remove(
+                    "modal-phone-invalid"
+                );
+
+                phone.classList.add(
+                    "modal-phone-valid"
+                );
+
+                error.style.display = "none";
+
+                return true;
+            }
+
+
+            phone.classList.remove(
+                "modal-phone-valid"
+            );
+
+            phone.classList.add(
+                "modal-phone-invalid"
+            );
+
+            error.style.display = "block";
+
+            return false;
+        }
+
+
+        phone.addEventListener(
+            "input",
+            validateModalPhone
+        );
+
+        phone.addEventListener(
+            "blur",
+            validateModalPhone
+        );
+
+
+        const form =
+            document.getElementById("bookingModalForm");
+
+        if (form) {
+
+            form.addEventListener(
+                "submit",
+                function(event) {
+
+                    event.preventDefault();
+
+                    if (!validateModalPhone()) {
+
+                        error.style.display =
+                            "block";
+
+                        phone.focus();
+                        return;
+                    }
+
+                    const modalErrorBox =
+                        document.getElementById("modalBookingError");
+
+                    if (modalErrorBox) {
+                        modalErrorBox.style.display = "none";
+                        modalErrorBox.innerHTML = "";
+                    }
+
+                    const submitBtn =
+                        document.getElementById("modalConfirmButton");
+
+                    let origHtml = "";
+                    if (submitBtn) {
+                        origHtml = submitBtn.innerHTML;
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Checking...';
+                    }
+
+                    // Update final time before submission
+                    var finalTime = document.getElementById('modalFinalTime');
+                    var timeSlot = document.getElementById('modalTimeSlot');
+                    var customTime = document.getElementById('modalCustomTime');
+                    var slotBtn = document.getElementById('timeSlotBtn');
+
+                    if (finalTime && slotBtn.classList.contains('active')) {
+                        finalTime.value = timeSlot.value;
+                    } else if (finalTime && customTime) {
+                        finalTime.value = customTime.value;
+                    }
+
+                    const formData = new FormData(form);
+
+                    fetch(form.action, {
+                        method: "POST",
+                        body: formData,
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest"
+                        }
+                    })
+                    .then(function(res) {
+                        return res.json().then(function(data) {
+                            return { ok: res.ok, data: data };
+                        });
+                    })
+                    .then(function(result) {
+
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = origHtml;
+                        }
+
+                        if (result.ok && result.data && result.data.success) {
+                            window.location.href = result.data.redirect_url || "{% url 'home' %}";
+                        } else {
+                            const errMsg = (result.data && result.data.error_message)
+                                ? result.data.error_message
+                                : "This worker is already booked for the selected time. Please choose another time or date.";
+
+                            showBookingError(modalErrorBox, errMsg);
+                        }
+                    })
+                    .catch(function(err) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = origHtml;
+                        }
+                        showBookingError(modalErrorBox, "An error occurred while processing your booking. Please try again.");
+                    });
+                }
+            );
+        }
+
+
+        setModalMinimumDate();
+
+    }
+);
+</script>

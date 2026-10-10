@@ -5,867 +5,15 @@
 Register | LAMO
 {% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/accounts-register.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/accounts-register.js' %}" defer></script>
+{% endblock %}
+
 {% block content %}
-
-<style>
-
-* {
-    box-sizing: border-box;
-}
-
-.navbar,
-footer,
-.footer {
-    display: none !important;
-}
-
-.register-page {
-    min-height: 100vh;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 70px 20px 35px;
-
-    background-image:
-        linear-gradient(
-            135deg,
-            rgba(4, 47, 31, 0.78),
-            rgba(4, 47, 31, 0.54),
-            rgba(22, 163, 74, 0.28)
-        ),
-        url('{% static "img/login-back.png" %}');
-
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-}
-
-.register-container {
-    width: 100%;
-    max-width: 860px;
-    min-height: 480px;
-
-    display: grid;
-    grid-template-columns: 48% 52%;
-
-    overflow: hidden;
-
-    background: white;
-    border-radius: 24px;
-
-    box-shadow:
-        0 25px 70px rgba(0,0,0,.12);
-}
-
-
-/* =====================================================
-   BACK TO HOME
-===================================================== */
-
-.back-home {
-    position: fixed;
-    top: 22px;
-    left: 22px;
-    z-index: 1000;
-
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-
-    padding: 11px 17px;
-
-    border: 1px solid rgba(255,255,255,.9);
-    border-radius: 30px;
-
-    background: rgba(255,255,255,.92);
-    color: #374151;
-
-    font-size: 13px;
-    font-weight: 700;
-    text-decoration: none;
-
-    box-shadow: 0 8px 25px rgba(0,0,0,.08);
-
-    transition: .25s ease;
-}
-
-.back-home i {
-    font-size: 15px;
-}
-
-.back-home:hover {
-    color: #15803d;
-    background: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(22,163,74,.14);
-}
-
-
-/* =====================================================
-   LEFT
-===================================================== */
-
-.register-left {
-
-    position: relative;
-
-    padding: 24px;
-
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
-    color: white;
-
-    background-image:
-        linear-gradient(
-            145deg,
-            rgba(2,55,38,.97),
-            rgba(3,100,62,.90),
-            rgba(22,163,74,.72)
-        ),
-        url('{% static "img/image.png" %}');
-
-    background-size: cover;
-    background-position: center;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.brand-icon {
-
-    width: 48px;
-    height: 44px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #16a34a;
-    border-radius: 12px;
-
-    font-size: 21px;
-}
-
-.brand-name {
-    font-size: 21px;
-    font-weight: 800;
-}
-
-.brand-sub {
-    display: block;
-
-    color: #a7f3d0;
-
-    font-size: 9px;
-    letter-spacing: 1px;
-}
-
-.left-content {
-    margin-top: auto;
-    margin-bottom: auto;
-}
-
-.small-title {
-
-    color: #86efac;
-
-    font-size: 13px;
-    font-weight: 700;
-
-    text-transform: uppercase;
-    letter-spacing: 1px;
-
-    margin-bottom: 15px;
-}
-
-.left-content h1 {
-
-    max-width: 400px;
-
-    margin: 0 0 18px;
-
-    color: white;
-
-    font-size: 36px;
-    line-height: 1.0;
-    font-weight: 800;
-}
-
-.left-content h1 span {
-    color: #4ade80;
-}
-
-.left-content p {
-
-    max-width: 410px;
-
-    color: rgba(255,255,255,.78);
-
-    font-size: 12px;
-    line-height: 1.6;
-}
-
-.benefits {
-
-    display: grid;
-    grid-template-columns: repeat(3,1fr);
-
-    gap: 10px;
-
-    margin-top: 18px;
-}
-
-.benefit {
-
-    padding: 13px;
-
-    border: 1px solid rgba(255,255,255,.14);
-    border-radius: 12px;
-
-    background: rgba(255,255,255,.07);
-}
-
-.benefit i {
-
-    color: #4ade80;
-
-    font-size: 18px;
-}
-
-.benefit strong {
-
-    display: block;
-
-    margin-top: 5px;
-
-    font-size: 12px;
-}
-
-.benefit span {
-
-    color: rgba(255,255,255,.55);
-
-    font-size: 9px;
-}
-
-
-/* =====================================================
-   RIGHT
-===================================================== */
-
-.register-right {
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 24px;
-}
-
-.register-form {
-    width: 100%;
-    max-width: 390px;
-}
-
-.register-heading {
-    margin-bottom: 12px;
-}
-
-.register-heading h2 {
-
-    margin: 0 0 6px;
-
-    color: #172033;
-
-    font-size: 28px;
-    font-weight: 800;
-}
-
-.register-heading p {
-
-    margin: 0;
-
-    color: #6b7280;
-
-    font-size: 12px;
-}
-
-
-
-/* Hide the account heading while worker steps are active */
-.register-form:has(#stepWorkerOne.active) .register-heading,
-.register-form:has(#stepWorkerTwo.active) .register-heading,
-.register-form:has(#stepWorkerThree.active) .register-heading {
-    display: none;
-}
-
-/* =====================================================
-   STEPS
-===================================================== */
-
-.register-step {
-    display: none;
-
-    animation: stepIn .3s ease;
-}
-
-.register-step.active {
-    display: block;
-}
-
-@keyframes stepIn {
-
-    from {
-        opacity: 0;
-        transform: translateX(15px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-
-/* =====================================================
-   BASIC INPUT
-===================================================== */
-
-.input-group {
-
-    position: relative;
-
-    margin-bottom: 13px;
-}
-
-.input-group > i {
-
-    position: absolute;
-
-    left: 15px;
-    top: 50%;
-
-    transform: translateY(-50%);
-
-    color: #9ca3af;
-
-    z-index: 2;
-}
-
-.lamo-input {
-
-    width: 100%;
-    height: 44px;
-
-    padding: 0 45px;
-
-    border: 1.5px solid #e5e7eb;
-    border-radius: 13px;
-
-    outline: none;
-
-    font-size: 14px;
-}
-
-.lamo-input:focus {
-
-    border-color: #16a34a;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(22,163,74,.08);
-}
-
-
-/* PASSWORD */
-
-.password-toggle {
-
-    position: absolute;
-
-    right: 10px;
-    top: 50%;
-
-    transform: translateY(-50%);
-
-    border: none;
-
-    background: transparent;
-
-    color: #9ca3af;
-
-    cursor: pointer;
-}
-
-
-/* =====================================================
-   ROLE
-===================================================== */
-
-.role-label {
-
-    display: block;
-
-    margin: 12px 0 8px;
-
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.role-selector {
-
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-
-    gap: 12px;
-
-    margin-bottom: 18px;
-}
-
-.role-card {
-
-    position: relative;
-
-    padding: 13px;
-
-    border: 1.5px solid #e5e7eb;
-    border-radius: 14px;
-
-    cursor: pointer;
-
-    transition: .25s;
-}
-
-.role-card:hover {
-
-    border-color: #16a34a;
-
-    background: #f0fdf4;
-}
-
-.role-card.active {
-
-    border-color: #16a34a;
-
-    background: #f0fdf4;
-
-    box-shadow:
-        0 8px 20px
-        rgba(22,163,74,.10);
-}
-
-.role-card > i:first-child {
-
-    display: block;
-
-    margin-bottom: 8px;
-
-    color: #9ca3af;
-
-    font-size: 22px;
-}
-
-.role-card.active > i:first-child {
-    color: #16a34a;
-}
-
-.role-title {
-
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.role-desc {
-
-    margin-top: 4px;
-
-    color: #9ca3af;
-
-    font-size: 11px;
-}
-
-.role-check {
-
-    position: absolute;
-
-    right: 10px;
-    top: 10px;
-
-    color: #16a34a;
-
-    opacity: 0;
-}
-
-.role-card.active .role-check {
-    opacity: 1;
-}
-
-
-/* =====================================================
-   BUTTON
-===================================================== */
-
-.btn-main {
-
-    width: 100%;
-    height: 48px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    gap: 8px;
-
-    border: none;
-    border-radius: 13px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #16a34a,
-            #0f9f46
-        );
-
-    color: white;
-
-    font-size: 14px;
-    font-weight: 700;
-
-    cursor: pointer;
-
-    box-shadow:
-        0 10px 25px
-        rgba(22,163,74,.20);
-
-    transition: .25s;
-}
-
-.btn-main:hover {
-    transform: translateY(-2px);
-}
-
-
-/* =====================================================
-   WORKER HEADER
-===================================================== */
-
-.step-head {
-
-    display: flex;
-
-    align-items: center;
-    justify-content: space-between;
-
-    margin-bottom: 10px;
-}
-
-.step-title {
-
-    margin: 0;
-
-    font-size: 26px;
-    font-weight: 800;
-}
-
-.step-subtitle {
-
-    margin: 5px 0 0;
-
-    color: #6b7280;
-
-    font-size: 13px;
-}
-
-.step-count {
-
-    padding: 7px 12px;
-
-    border: 1px solid #bbf7d0;
-
-    border-radius: 30px;
-
-    background: #f0fdf4;
-
-    color: #16a34a;
-
-    font-size: 11px;
-    font-weight: 700;
-}
-
-
-/* PROGRESS */
-
-.worker-progress {
-
-    display: flex;
-
-    gap: 7px;
-
-    margin: 18px 0;
-}
-
-.progress-dot {
-
-    width: 9px;
-    height: 9px;
-
-    border-radius: 50%;
-
-    background: #e5e7eb;
-}
-
-.progress-dot.active {
-
-    width: 28px;
-
-    border-radius: 20px;
-
-    background: #16a34a;
-}
-
-
-/* =====================================================
-   WORKER FIELDS
-===================================================== */
-
-.worker-grid {
-
-    display: grid;
-
-    grid-template-columns: 1fr 1fr;
-
-    gap: 12px;
-}
-
-.worker-full {
-    grid-column: 1 / -1;
-}
-
-.worker-input,
-.worker-select,
-.worker-textarea {
-
-    width: 100%;
-
-    border: 1.5px solid #e5e7eb;
-
-    border-radius: 13px;
-
-    outline: none;
-
-    background: white;
-
-    color: #172033;
-
-    font-size: 14px;
-
-    transition: .25s;
-}
-
-.worker-input,
-.worker-select {
-
-    height: 46px;
-
-    padding: 0 14px;
-}
-
-.worker-textarea {
-
-    min-height: 90px;
-
-    padding: 13px 14px;
-
-    resize: vertical;
-}
-
-.worker-input:focus,
-.worker-select:focus,
-.worker-textarea:focus {
-
-    border-color: #16a34a;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(22,163,74,.08);
-}
-
-.worker-file {
-
-    width: 100%;
-
-    padding: 13px;
-
-    border: 1.5px dashed #d1d5db;
-
-    border-radius: 13px;
-
-    background: #f9fafb;
-
-    font-size: 12px;
-}
-
-
-/* =====================================================
-   ACTIONS
-===================================================== */
-
-.step-actions {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    gap: 12px;
-
-    margin-top: 20px;
-}
-
-.step-back,
-.step-next {
-
-    height: 48px;
-
-    padding: 0 20px;
-
-    border-radius: 12px;
-
-    font-size: 13px;
-    font-weight: 700;
-
-    cursor: pointer;
-}
-
-.step-back {
-
-    border: 1px solid #e5e7eb;
-
-    background: white;
-
-    color: #6b7280;
-}
-
-.step-next {
-
-    margin-left: auto;
-
-    border: none;
-
-    background: #16a34a;
-
-    color: white;
-
-    box-shadow:
-        0 8px 20px
-        rgba(22,163,74,.20);
-}
-
-.step-next:hover {
-    background: #15803d;
-}
-
-
-/* =====================================================
-   LOGIN
-===================================================== */
-
-.auth-links {
-
-    margin-top: 18px;
-
-    text-align: center;
-
-    color: #6b7280;
-
-    font-size: 12px;
-}
-
-.auth-links a {
-
-    color: #16a34a;
-
-    font-weight: 700;
-
-    text-decoration: none;
-}
-
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media(max-width: 850px) {
-
-    .register-container {
-
-        grid-template-columns: 1fr;
-
-    }
-
-    .register-left {
-
-        min-height: 300px;
-    }
-
-}
-
-@media(max-width: 600px) {
-
-    .register-page {
-        padding: 70px 12px 20px;
-        background-attachment: scroll;
-    }
-
-    .register-container {
-        border-radius: 22px;
-        min-height: auto;
-    }
-
-    .back-home {
-        top: 15px;
-        left: 15px;
-        padding: 9px 14px;
-        font-size: 12px;
-    }
-
-    .register-left {
-        min-height: 260px;
-        padding: 25px;
-    }
-
-    .left-content h1 {
-        font-size: 36px;
-    }
-
-    .register-right {
-        padding: 24px 20px;
-    }
-
-    .worker-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .worker-full {
-        grid-column: auto;
-    }
-
-    .step-head {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-}
-
-</style>
 
 
 <div class="register-page">
@@ -886,19 +34,17 @@ footer,
 
             <div class="brand">
 
-                <div class="brand-icon">
-                    <i class="bi bi-gear-fill"></i>
-                </div>
+                <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo">
 
                 <div>
 
-                    <div class="brand-name">
+                    <!-- <div class="brand-name">
                         LAMO
                     </div>
 
                     <span class="brand-sub">
                         LABOUR MANAGEMENT SYSTEM
-                    </span>
+                    </span> -->
 
                 </div>
 
@@ -919,10 +65,10 @@ footer,
                 </h1>
 
                 <p>
-                    Whether you're looking for skilled
-                    professionals or searching for new work
-                    opportunities, LAMO brings employers
-                    and workers together in one simple
+                    Whether you're looking to book
+                    service workers or offer your services,
+                    LAMO brings customers and service
+                    workers together in one simple
                     platform.
                 </p>
 
@@ -1012,6 +158,17 @@ footer,
 
                     {% csrf_token %}
 
+                    <!-- {# Carries the guest's original destination (e.g. the
+                       service they were viewing) through registration.
+                       register_view validates it before storing it, and
+                       login_view honours it only if it is still a safe local
+                       path. #} -->
+                    {% if request.GET.next %}
+                        <input type="hidden"
+                               name="next"
+                               value="{{ request.GET.next }}">
+                    {% endif %}
+
 
                     <!-- =================================================
                          STEP 1
@@ -1023,6 +180,13 @@ footer,
                     >
 
                         <div class="input-group">
+
+                            <label
+                                for="username"
+                                class="form-label"
+                            >
+                                Username
+                            </label>
 
                             <i class="bi bi-person"></i>
 
@@ -1041,6 +205,13 @@ footer,
 
                         <div class="input-group">
 
+                            <label
+                                for="email"
+                                class="form-label"
+                            >
+                                Email Address
+                            </label>
+
                             <i class="bi bi-envelope"></i>
 
                             <input
@@ -1057,6 +228,13 @@ footer,
 
 
                         <div class="input-group">
+
+                            <label
+                                for="password"
+                                class="form-label"
+                            >
+                                Password
+                            </label>
 
                             <i class="bi bi-lock"></i>
 
@@ -1091,6 +269,13 @@ footer,
 
 
                         <div class="input-group">
+
+                            <label
+                                for="confirm_password"
+                                class="form-label"
+                            >
+                                Confirm Password
+                            </label>
 
                             <i class="bi bi-shield-lock"></i>
 
@@ -1144,9 +329,9 @@ footer,
                                     User
                                 </div>
 
-                                <div class="role-desc">
-                                    Post jobs & hire workers
-                                </div>
+                                <!-- <div class="role-desc">
+                                    Book services & hire workers
+                                </div> -->
 
                                 <i class="bi bi-check-circle-fill role-check"></i>
 
@@ -1165,9 +350,9 @@ footer,
                                     Worker
                                 </div>
 
-                                <div class="role-desc">
-                                    Find jobs & earn
-                                </div>
+                                <!-- <div class="role-desc">
+                                    Offer services & earn
+                                </div> -->
 
                                 <i class="bi bi-check-circle-fill role-check"></i>
 
@@ -1237,7 +422,7 @@ footer,
                             </div>
 
                             <span class="step-count">
-                                Step 2 of 4
+                                2 of 3
                             </span>
 
                         </div>
@@ -1256,10 +441,14 @@ footer,
 
                         <div class="worker-grid">
 
-
-                            <!-- PHONE -->
-
                             <div>
+
+                                <label
+                                    for="phone"
+                                    class="form-label"
+                                >
+                                    Phone Number
+                                </label>
 
                                 <input
                                     type="tel"
@@ -1277,15 +466,21 @@ footer,
                             </div>
 
 
-                            <!-- SERVICE -->
-
                             <div>
+
+                                <label
+                                    for="service"
+                                    class="form-label"
+                                >
+                                    Service
+                                </label>
 
                                 <select
                                     name="service"
                                     id="service"
                                     class="worker-select"
                                     required
+                                    onchange="toggleOtherService(this.value)"
                                 >
 
                                     <option value="">
@@ -1302,110 +497,23 @@ footer,
 
                                     {% endfor %}
 
+                                    <option value="other">
+                                        Other
+                                    </option>
+
                                 </select>
 
                             </div>
 
 
-                            <!-- EXPERIENCE -->
-
                             <div>
 
-                                <input
-                                    type="number"
-                                    name="experience_years"
-                                    id="experience_years"
-                                    class="worker-input"
-                                    placeholder="Experience (years)"
-                                    min="0"
-                                    max="60"
-                                    required
+                                <label
+                                    for="district"
+                                    class="form-label"
                                 >
-
-                            </div>
-
-
-                        </div>
-
-
-                        <div class="step-actions">
-
-                            <button
-                                type="button"
-                                class="step-back"
-                                id="workerBackOne"
-                            >
-
-                                <i class="bi bi-arrow-left"></i>
-
-                                Back
-
-                            </button>
-
-
-                            <button
-                                type="button"
-                                class="step-next"
-                                id="workerNext"
-                            >
-
-                                Next
-
-                                <i class="bi bi-arrow-right"></i>
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- =================================================
-                         STEP 3 — WORK & PRICING
-                    ================================================= -->
-
-                    <div
-                        class="register-step"
-                        id="stepWorkerTwo"
-                    >
-
-                        <div class="step-head">
-
-                            <div>
-
-                                <h3 class="step-title">
-                                    Work & Pricing
-                                </h3>
-
-                                <p class="step-subtitle">
-                                    Set your location, availability and pricing.
-                                </p>
-
-                            </div>
-
-                            <span class="step-count">
-                                Step 3 of 4
-                            </span>
-
-                        </div>
-
-
-                        <div class="worker-progress">
-
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot"></span>
-
-                        </div>
-
-
-                        <div class="worker-grid">
-
-
-                            <!-- DISTRICT -->
-
-                            <div>
+                                    District
+                                </label>
 
                                 <select
                                     name="district"
@@ -1479,9 +587,57 @@ footer,
                             </div>
 
 
-                            <!-- AVAILABILITY -->
+                            <div class="worker-address-field">
+
+                                <label
+                                    for="address"
+                                    class="form-label"
+                                >
+                                    Full Address
+                                </label>
+
+                                <textarea
+                                    name="address"
+                                    id="address"
+                                    class="worker-textarea"
+                                    placeholder="Full Address"
+                                    required
+                                ></textarea>
+
+                            </div>
+
 
                             <div>
+
+                                <label
+                                    for="experience_years"
+                                    class="form-label"
+                                >
+                                    Experience (Years)
+                                </label>
+
+                                <input
+                                    type="number"
+                                    name="experience_years"
+                                    id="experience_years"
+                                    class="worker-input"
+                                    placeholder="Experience (years)"
+                                    min="0"
+                                    max="60"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div>
+
+                                <label
+                                    for="availability"
+                                    class="form-label"
+                                >
+                                    Availability
+                                </label>
 
                                 <select
                                     name="availability"
@@ -1515,9 +671,117 @@ footer,
                             </div>
 
 
-                            <!-- PRICING TYPE -->
+                            <div
+                                id="otherServiceGroup"
+                                class="worker-full"
+                                style="display:none; margin-top:12px;"
+                            >
+
+                                <label
+                                    for="custom_service"
+                                    class="form-label"
+                                >
+                                    Other Service
+                                </label>
+
+                                <input
+                                    type="text"
+                                    name="custom_service"
+                                    id="custom_service"
+                                    class="worker-input"
+                                    placeholder="Enter your service (e.g. AC Repair)"
+                                    maxlength="100"
+                                >
+
+                            </div>
+
+
+                        </div>
+
+
+                        <div class="step-actions">
+
+                            <button
+                                type="button"
+                                class="step-back"
+                                id="workerBackOne"
+                            >
+
+                                <i class="bi bi-arrow-left"></i>
+
+                                Back
+
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="step-next"
+                                id="workerNext"
+                            >
+
+                                Next
+
+                                <i class="bi bi-arrow-right"></i>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         STEP 3 — WORK & PRICING
+                    ================================================= -->
+
+                    <div
+                        class="register-step"
+                        id="stepWorkerTwo"
+                    >
+
+                        <div class="step-head">
 
                             <div>
+
+                                <h3 class="step-title">
+                                    Pricing & Verification
+                                </h3>
+
+                                <p class="step-subtitle">
+                                    Set your pricing and upload verification details.
+                                </p>
+
+                            </div>
+
+                            <span class="step-count">
+                                3 of 3
+                            </span>
+
+                        </div>
+
+
+                        <div class="worker-progress">
+
+                            <span class="progress-dot active"></span>
+
+                            <span class="progress-dot active"></span>
+
+                            <span class="progress-dot active"></span>
+
+                        </div>
+
+
+                        <div class="worker-grid">
+
+                            <div>
+
+                                <label
+                                    for="pricing_type"
+                                    class="form-label"
+                                >
+                                    Pricing Type
+                                </label>
 
                                 <select
                                     name="pricing_type"
@@ -1539,9 +803,14 @@ footer,
                             </div>
 
 
-                            <!-- PRICING AMOUNT -->
-
                             <div>
+
+                                <label
+                                    for="pricing_amount"
+                                    class="form-label"
+                                >
+                                    Pricing Amount (₹)
+                                </label>
 
                                 <input
                                     type="number"
@@ -1552,9 +821,95 @@ footer,
                                     min="0.01"
                                     max="99999999.99"
                                     step="0.01"
-                                    step="0.01"
                                     required
                                 >
+
+                            </div>
+
+
+                            <div class="worker-full">
+
+                                <label
+                                    for="proof_type"
+                                    class="form-label"
+                                >
+                                    Proof Type
+                                </label>
+
+                                <select
+                                    name="proof_type"
+                                    id="proof_type"
+                                    class="worker-select"
+                                    required
+                                >
+
+                                    <option value="">
+                                        Select Proof Type
+                                    </option>
+
+                                    <option value="aadhaar">
+                                        Aadhaar
+                                    </option>
+
+                                    <option value="pan">
+                                        PAN
+                                    </option>
+
+                                    <option value="voter_id">
+                                        Voter ID
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="worker-full">
+
+                                <label
+                                    for="proof_document"
+                                    class="form-label"
+                                >
+                                    Proof Document
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="proof_document"
+                                    id="proof_document"
+                                    class="worker-file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    required
+                                >
+
+                                <small class="worker-help">
+                                    Upload the ID proof you selected above.
+                                    PDF, JPG, JPEG or PNG — Max 5 MB.
+                                </small>
+
+                            </div>
+
+
+                            <div class="worker-full">
+
+                                <label
+                                    for="profile_image"
+                                    class="form-label"
+                                >
+                                    Profile Image
+                                </label>
+
+                                <input
+                                    type="file"
+                                    name="profile_image"
+                                    id="profile_image"
+                                    class="worker-file"
+                                    accept=".jpg,.jpeg,.png,.webp"
+                                >
+
+                                <small class="worker-help">
+                                    Profile image is optional.
+                                </small>
 
                             </div>
 
@@ -1580,141 +935,6 @@ footer,
                                 type="button"
                                 class="step-next"
                                 id="workerNextTwo"
-                            >
-
-                                Next
-
-                                <i class="bi bi-arrow-right"></i>
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
-
-
-                    <!-- =================================================
-                         STEP 4 — VERIFICATION & PROFILE
-                    ================================================= -->
-
-                    <div
-                        class="register-step"
-                        id="stepWorkerThree"
-                    >
-
-                        <div class="step-head">
-
-                            <div>
-
-                                <h3 class="step-title">
-                                    Verification & Profile
-                                </h3>
-
-                                <p class="step-subtitle">
-                                    Add your verification and profile details.
-                                </p>
-
-                            </div>
-
-                            <span class="step-count">
-                                Step 4 of 4
-                            </span>
-
-                        </div>
-
-
-                        <div class="worker-progress">
-
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot active"></span>
-                            <span class="progress-dot active"></span>
-
-                        </div>
-
-
-                        <div class="worker-grid">
-
-                            <!-- PROOF DOCUMENT -->
-
-                            <div class="worker-full">
-
-                                <label class="worker-label">
-                                    Proof Document
-                                </label>
-
-                                <input
-                                    type="file"
-                                    name="proof_document"
-                                    id="proof_document"
-                                    class="worker-file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    required
-                                >
-
-                                <small class="worker-help">
-                                    Upload ID proof, experience certificate or skill certificate.
-                                    PDF, JPG, JPEG or PNG — Max 5 MB.
-                                </small>
-
-                            </div>
-
-
-                            <!-- FULL ADDRESS -->
-
-                            <div class="worker-full">
-
-                                <textarea
-                                    name="address"
-                                    id="address"
-                                    class="worker-textarea"
-                                    placeholder="Full Address"
-                                    required
-                                ></textarea>
-
-                            </div>
-
-
-                            <!-- PROFILE IMAGE -->
-
-                            <div class="worker-full">
-
-                                <input
-                                    type="file"
-                                    name="profile_image"
-                                    id="profile_image"
-                                    class="worker-file"
-                                    accept=".jpg,.jpeg,.png,.webp"
-                                >
-
-                                <small class="worker-help">
-                                    Profile image is optional.
-                                </small>
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="step-actions">
-
-                            <button
-                                type="button"
-                                class="step-back"
-                                id="workerBackThree"
-                            >
-
-                                <i class="bi bi-arrow-left"></i>
-
-                                Back
-
-                            </button>
-
-
-                            <button
-                                type="submit"
-                                class="step-next"
                             >
 
                                 Create Account
@@ -1749,741 +969,5 @@ footer,
 
 </div>
 
-
-<script>
-
-document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-
-
-        const form =
-            document.getElementById(
-                'registerForm'
-            );
-
-
-        const roleCards =
-            document.querySelectorAll(
-                '.role-card'
-            );
-
-
-        const roleSelect =
-            document.getElementById(
-                'roleSelect'
-            );
-
-
-        const stepAccount =
-            document.getElementById(
-                'stepAccount'
-            );
-
-
-        const stepWorkerOne =
-            document.getElementById(
-                'stepWorkerOne'
-            );
-
-
-        const stepWorkerTwo =
-            document.getElementById(
-                'stepWorkerTwo'
-            );
-
-        const stepWorkerThree =
-            document.getElementById(
-                'stepWorkerThree'
-            );
-
-
-        const continueButton =
-            document.getElementById(
-                'continueButton'
-            );
-
-
-        const workerNext =
-            document.getElementById(
-                'workerNext'
-            );
-
-
-        const workerBackOne =
-            document.getElementById(
-                'workerBackOne'
-            );
-
-
-        const workerBackTwo =
-            document.getElementById(
-                'workerBackTwo'
-            );
-
-        const workerNextTwo =
-            document.getElementById(
-                'workerNextTwo'
-            );
-
-        const workerBackThree =
-            document.getElementById(
-                'workerBackThree'
-            );
-
-
-        const heading =
-            document.getElementById(
-                'registerHeading'
-            );
-
-
-        const subtitle =
-            document.getElementById(
-                'registerSubtitle'
-            );
-
-
-        /* ==========================================
-           SHOW STEP
-        ========================================== */
-
-        function showStep(step) {
-
-            document
-                .querySelectorAll(
-                    '.register-step'
-                )
-                .forEach(
-                    function (item) {
-
-                        item.classList.remove(
-                            'active'
-                        );
-
-                    }
-                );
-
-
-            step.classList.add(
-                'active'
-            );
-
-        }
-
-
-        /* ==========================================
-           ROLE
-        ========================================== */
-
-        roleCards.forEach(
-            function (card) {
-
-                card.addEventListener(
-                    'click',
-                    function () {
-
-                        roleCards.forEach(
-                            function (item) {
-
-                                item.classList.remove(
-                                    'active'
-                                );
-
-                            }
-                        );
-
-
-                        this.classList.add(
-                            'active'
-                        );
-
-
-                        roleSelect.value =
-                            this.dataset.role;
-
-                    }
-                );
-
-
-                card.addEventListener(
-                    'keydown',
-                    function (event) {
-
-                        if (
-                            event.key === 'Enter' ||
-                            event.key === ' '
-                        ) {
-
-                            event.preventDefault();
-
-                            this.click();
-
-                        }
-
-                    }
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           CONTINUE
-        ========================================== */
-
-        continueButton.addEventListener(
-            'click',
-            function () {
-
-
-                const role =
-                    roleSelect.value;
-
-
-                if (!role) {
-
-                    alert(
-                        'Please select User or Worker.'
-                    );
-
-                    return;
-
-                }
-
-
-                /*
-                 USER
-                 */
-
-                if (role === 'USER') {
-
-                    form.submit();
-
-                    return;
-
-                }
-
-
-                /*
-                 WORKER
-                 */
-
-                heading.textContent =
-                    'Complete your worker profile';
-
-                subtitle.textContent =
-                    'A few professional details first.';
-
-
-                showStep(
-                    stepWorkerOne
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           WORKER NEXT
-        ========================================== */
-
-        workerNext.addEventListener(
-            'click',
-            function () {
-
-
-                console.log(
-                    'Worker Next clicked'
-                );
-
-
-                const phone =
-                    document
-                        .getElementById('phone')
-                        .value
-                        .trim();
-
-
-                const service =
-                    document
-                        .getElementById('service')
-                        .value;
-
-
-                const experience =
-                    document
-                        .getElementById(
-                            'experience_years'
-                        )
-                        .value;
-
-
-                /* PHONE */
-
-                if (
-                    !/^[6-9][0-9]{9}$/.test(phone)
-                ) {
-
-                    alert(
-                        'Please enter a valid 10-digit Indian mobile number.'
-                    );
-
-                    document
-                        .getElementById('phone')
-                        .focus();
-
-                    return;
-
-                }
-
-
-                /* SERVICE */
-
-                if (!service) {
-
-                    alert(
-                        'Please select your service.'
-                    );
-
-                    document
-                        .getElementById('service')
-                        .focus();
-
-                    return;
-
-                }
-
-
-                /* EXPERIENCE */
-
-                if (
-                    experience === '' ||
-                    Number(experience) < 0
-                ) {
-
-                    alert(
-                        'Please enter valid experience.'
-                    );
-
-                    document
-                        .getElementById(
-                            'experience_years'
-                        )
-                        .focus();
-
-                    return;
-
-                }
-
-
-                console.log(
-                    'Moving to Step 3'
-                );
-
-
-                heading.textContent =
-                    'Work & Pricing';
-
-
-                subtitle.textContent =
-                    'Set your location, availability and pricing.';
-
-
-                showStep(
-                    stepWorkerTwo
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           WORKER NEXT — STEP 3 TO STEP 4
-        ========================================== */
-
-        workerNextTwo.addEventListener(
-            'click',
-            function () {
-
-                const district =
-                    document.getElementById('district').value;
-
-                const availability =
-                    document.getElementById('availability').value;
-
-                const pricingType =
-                    document.getElementById('pricing_type').value;
-
-                const pricingAmount =
-                    document.getElementById('pricing_amount')
-                        .value.trim();
-
-                if (!district) {
-                    alert('Please select your district.');
-                    document.getElementById('district').focus();
-                    return;
-                }
-
-                if (!availability) {
-                    alert('Please select your availability.');
-                    document.getElementById('availability').focus();
-                    return;
-                }
-
-                if (!pricingType) {
-                    alert('Please select a pricing type.');
-                    document.getElementById('pricing_type').focus();
-                    return;
-                }
-
-                if (
-                    !pricingAmount ||
-                    !Number.isFinite(Number(pricingAmount)) ||
-                    Number(pricingAmount) <= 0
-                ) {
-                    alert('Please enter a pricing amount greater than ₹0.');
-                    document.getElementById('pricing_amount').focus();
-                    return;
-                }
-
-                heading.textContent =
-                    'Verification & Profile';
-
-                subtitle.textContent =
-                    'Add your verification and profile details.';
-
-                showStep(
-                    stepWorkerThree
-                );
-            }
-        );
-
-
-        /* ==========================================
-           BACK STEP 2
-        ========================================== */
-
-        workerBackOne.addEventListener(
-            'click',
-            function () {
-
-                heading.textContent =
-                    'Create your account';
-
-                subtitle.textContent =
-                    'Get started with LAMO in just a few steps.';
-
-                showStep(
-                    stepAccount
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           BACK STEP 4
-        ========================================== */
-
-        workerBackTwo.addEventListener(
-            'click',
-            function () {
-
-                heading.textContent =
-                    'Work & Pricing';
-
-                subtitle.textContent =
-                    'Set your location, availability and pricing.';
-
-                showStep(
-                    stepWorkerTwo
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           BACK STEP 4
-        ========================================== */
-
-        workerBackThree.addEventListener(
-            'click',
-            function () {
-
-                heading.textContent =
-                    'Work & Pricing';
-
-                subtitle.textContent =
-                    'Set your location, availability and pricing.';
-
-                showStep(
-                    stepWorkerTwo
-                );
-
-            }
-        );
-
-
-        /* ==========================================
-           FINAL SUBMIT
-        ========================================== */
-
-        form.addEventListener(
-            'submit',
-            function (event) {
-
-
-                const role =
-                    roleSelect.value;
-
-
-                const password =
-                    document
-                        .getElementById(
-                            'password'
-                        )
-                        .value;
-
-
-                const confirmPassword =
-                    document
-                        .getElementById(
-                            'confirm_password'
-                        )
-                        .value;
-
-
-                /* ROLE */
-
-                if (!role) {
-
-                    event.preventDefault();
-
-                    alert(
-                        'Please select User or Worker.'
-                    );
-
-                    showStep(
-                        stepAccount
-                    );
-
-                    return;
-
-                }
-
-
-                /* PASSWORD */
-
-                if (
-                    password !==
-                    confirmPassword
-                ) {
-
-                    event.preventDefault();
-
-                    alert(
-                        'Passwords do not match.'
-                    );
-
-                    showStep(
-                        stepAccount
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    password.length < 8
-                ) {
-
-                    event.preventDefault();
-
-                    alert(
-                        'Password must contain at least 8 characters.'
-                    );
-
-                    showStep(
-                        stepAccount
-                    );
-
-                    return;
-
-                }
-
-
-                /* WORKER */
-
-                if (
-                    role === 'WORKER'
-                ) {
-
-
-                    const proofDocument =
-                        document.getElementById(
-                            'proof_document'
-                        );
-
-                    const address =
-                        document
-                            .getElementById(
-                                'address'
-                            )
-                            .value
-                            .trim();
-
-
-                    if (!proofDocument.files.length) {
-
-                        event.preventDefault();
-
-                        alert(
-                            'Please upload your proof document.'
-                        );
-
-                        showStep(
-                            stepWorkerThree
-                        );
-
-                        proofDocument.focus();
-
-                        return;
-
-                    }
-
-                    const proofFile =
-                        proofDocument.files[0];
-
-                    const allowedProofTypes = [
-                        'application/pdf',
-                        'image/jpeg',
-                        'image/png'
-                    ];
-
-                    if (
-                        !allowedProofTypes.includes(proofFile.type) ||
-                        proofFile.size > 5 * 1024 * 1024
-                    ) {
-                        event.preventDefault();
-                        alert(
-                            'Proof must be a PDF, JPG or PNG file smaller than 5 MB.'
-                        );
-                        proofDocument.focus();
-                        return;
-                    }
-
-                    const profileImage =
-                        document.getElementById('profile_image');
-
-                    if (profileImage.files.length) {
-                        const imageFile =
-                            profileImage.files[0];
-
-                        const allowedImageTypes = [
-                            'image/jpeg',
-                            'image/png',
-                            'image/webp'
-                        ];
-
-                        if (
-                            !allowedImageTypes.includes(imageFile.type) ||
-                            imageFile.size > 5 * 1024 * 1024
-                        ) {
-                            event.preventDefault();
-                            alert(
-                                'Profile image must be JPG, PNG or WEBP and smaller than 5 MB.'
-                            );
-                            profileImage.focus();
-                            return;
-                        }
-                    }
-
-
-                    if (!address) {
-
-                        event.preventDefault();
-
-                        alert(
-                            'Please enter your address.'
-                        );
-
-                        showStep(
-                            stepWorkerThree
-                        );
-
-                        document
-                            .getElementById(
-                                'address'
-                            )
-                            .focus();
-
-                        return;
-
-                    }
-
-                }
-
-            }
-        );
-
-
-    }
-);
-
-
-/* ==========================================
-   PASSWORD SHOW / HIDE
-========================================== */
-
-function togglePassword(
-    inputId,
-    iconId
-) {
-
-    const input =
-        document.getElementById(
-            inputId
-        );
-
-    const icon =
-        document.getElementById(
-            iconId
-        );
-
-
-    if (
-        input.type === 'password'
-    ) {
-
-        input.type = 'text';
-
-        icon.classList.remove(
-            'bi-eye'
-        );
-
-        icon.classList.add(
-            'bi-eye-slash'
-        );
-
-    } else {
-
-        input.type = 'password';
-
-        icon.classList.remove(
-            'bi-eye-slash'
-        );
-
-        icon.classList.add(
-            'bi-eye'
-        );
-
-    }
-
-}
-
-</script>
 
 {% endblock %}

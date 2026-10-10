@@ -1,2961 +1,358 @@
+{% extends 'base.html' %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
+{% block title %}Book Service | LAMO{% endblock %}
 
-<head>
+{% block content %}
+<div class="service-page" style="padding-top: 40px; padding-bottom: 60px;">
 
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Book a Service | LAMO</title>
-
-
-    <!-- Bootstrap Icons -->
-    <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    >
-
-    <!-- Leaflet Map -->
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    >
-
-
-<style>
-
-/* =========================================================
-   RESET
-========================================================= */
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-
-    font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-    background: #f4f8f6;
-
-    color: #17251f;
-}
-
-
-/* =========================================================
-   PAGE
-========================================================= */
-
-.booking-page {
-
-    min-height: 100vh;
-
-    padding:
-        24px
-        20px
-        45px;
-
-    position: relative;
-
-    overflow: hidden;
-
-    background:
-        radial-gradient(
-            circle at 8% 10%,
-            rgba(8,127,91,.10),
-            transparent 22%
-        ),
-        radial-gradient(
-            circle at 95% 85%,
-            rgba(22,163,74,.07),
-            transparent 24%
-        ),
-        #f5f9f7;
-}
-
-
-.booking-container {
-
-    width: min(
-        1050px,
-        100%
-    );
-
-    margin: auto;
-}
-
-
-/* =========================================================
-   TOP BAR
-========================================================= */
-
-.top-bar {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    margin-bottom: 28px;
-}
-
-
-.back-btn {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    padding:
-        8px
-        12px;
-
-    border: 1px solid #dce7e2;
-
-    border-radius: 10px;
-
-    background: rgba(255,255,255,.75);
-
-    color: #52625b;
-
-    text-decoration: none;
-
-    font-size: 15px;
-
-    font-weight: 750;
-
-    transition: .2s ease;
-}
-
-
-.back-btn:hover {
-
-    color: #087f5b;
-
-    border-color: #a9d8c6;
-
-    transform: translateX(-2px);
-}
-
-
-.lamo-mark {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    color: #087f5b;
-
-    font-size: 11px;
-
-    font-weight: 900;
-
-    letter-spacing: .7px;
-}
-
-
-.lamo-mark span {
-
-    width: 25px;
-    height: 25px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 8px;
-
-    background: #087f5b;
-
-    color: white;
-
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   HERO
-========================================================= */
-
-.booking-hero {
-
-    margin-bottom: 22px;
-}
-
-
-.hero-mini {
-
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 6px;
-
-    padding:
-        6px
-        10px;
-
-    margin-bottom: 9px;
-
-    border-radius: 30px;
-
-    background: #e5f6ee;
-
-    color: #087f5b;
-
-    font-size: 8px;
-
-    font-weight: 850;
-
-    text-transform: uppercase;
-
-    letter-spacing: .7px;
-}
-
-
-.booking-hero h1 {
-
-    margin: 0;
-
-    font-size:
-        clamp(
-            28px,
-            4vw,
-            38px
-        );
-
-    line-height: 1.1;
-
-    letter-spacing: -1.3px;
-
-    font-weight: 900;
-
-    color: #16241e;
-}
-
-
-.booking-hero h1 span {
-
-    color: #087f5b;
-}
-
-
-.booking-hero p {
-
-    max-width: 600px;
-
-    margin:
-        8px 0
-        0;
-
-    color: #75827d;
-
-    font-size: 11px;
-
-    line-height: 1.6;
-}
-
-
-/* =========================================================
-   SERVICE PILLS
-========================================================= */
-
-.service-selector {
-
-    display: flex;
-
-    gap: 7px;
-
-    overflow-x: auto;
-
-    padding-bottom: 8px;
-
-    margin-bottom: 18px;
-
-    scrollbar-width: none;
-}
-
-
-.service-selector::-webkit-scrollbar {
-    display: none;
-}
-
-
-.service-option {
-
-    flex-shrink: 0;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 5px;
-
-    padding:
-        8px
-        12px;
-
-    border:
-        1px solid
-        #dce7e2;
-
-    border-radius: 30px;
-
-    background: white;
-
-    color: #53625c;
-
-    font-size: 9px;
-
-    font-weight: 750;
-
-    cursor: pointer;
-
-    transition: .2s ease;
-}
-
-
-.service-option:hover {
-
-    border-color: #087f5b;
-
-    color: #087f5b;
-}
-
-
-.service-option.active {
-
-    background: #087f5b;
-
-    border-color: #087f5b;
-
-    color: white;
-
-    box-shadow:
-        0 5px 14px
-        rgba(8,127,91,.16);
-}
-
-
-/* =========================================================
-   BOOKING WORKSPACE
-========================================================= */
-
-.booking-workspace {
-
-    display: grid;
-
-    grid-template-columns:
-        330px
-        minmax(0,1fr);
-
-    background: white;
-
-    border:
-        1px solid
-        #dfe9e4;
-
-    border-radius: 20px;
-
-    overflow: hidden;
-
-    box-shadow:
-        0 14px 40px
-        rgba(22,65,49,.07);
-}
-
-
-/* =========================================================
-   LEFT PANEL
-========================================================= */
-
-.booking-overview {
-
-    position: relative;
-
-    padding: 24px;
-
-    overflow: hidden;
-
-    background:
-        linear-gradient(
-            150deg,
-            #063c2b,
-            #087f5b
-        );
-
-    color: white;
-}
-
-
-.booking-overview::before {
-
-    content: "";
-
-    position: absolute;
-
-    width: 180px;
-    height: 180px;
-
-    right: -90px;
-    top: -80px;
-
-    border-radius: 50%;
-
-    border:
-        1px solid
-        rgba(255,255,255,.12);
-}
-
-
-.booking-overview::after {
-
-    content: "";
-
-    position: absolute;
-
-    width: 120px;
-    height: 120px;
-
-    left: -75px;
-    bottom: -60px;
-
-    border-radius: 50%;
-
-    border:
-        1px solid
-        rgba(255,255,255,.10);
-}
-
-
-.overview-content {
-
-    position: relative;
-
-    z-index: 2;
-}
-
-
-.step-label {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    color:
-        rgba(255,255,255,.55);
-
-    font-size: 8px;
-
-    font-weight: 850;
-
-    letter-spacing: 1px;
-}
-
-
-.step-number {
-
-    width: 21px;
-    height: 21px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 7px;
-
-    background:
-        rgba(255,255,255,.13);
-
-    color: white;
-
-    font-size: 8px;
-}
-
-
-.service-icon-box {
-
-    width: 52px;
-    height: 52px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    margin:
-        28px
-        0
-        13px;
-
-    border-radius: 15px;
-
-    background:
-        rgba(255,255,255,.13);
-
-    border:
-        1px solid
-        rgba(255,255,255,.14);
-
-    font-size: 21px;
-}
-
-
-.booking-overview h2 {
-
-    margin: 0;
-
-    color: white;
-
-    font-size: 25px;
-
-    font-weight: 900;
-}
-
-
-.service-description {
-
-    margin:
-        7px
-        0
-        20px;
-
-    color:
-        rgba(255,255,255,.68);
-
-    font-size: 9px;
-
-    line-height: 1.65;
-}
-
-
-/* =========================================================
-   WORKER
-========================================================= */
-
-.worker-card {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 9px;
-
-    padding: 10px;
-
-    border:
-        1px solid
-        rgba(255,255,255,.14);
-
-    border-radius: 13px;
-
-    background:
-        rgba(255,255,255,.09);
-}
-
-
-.worker-photo {
-
-    width: 42px;
-    height: 42px;
-
-    flex-shrink: 0;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    overflow: hidden;
-
-    border-radius: 11px;
-
-    background:
-        rgba(255,255,255,.13);
-
-    font-size: 17px;
-}
-
-
-.worker-photo img {
-
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
-}
-
-
-.worker-info {
-
-    min-width: 0;
-
-    flex: 1;
-}
-
-
-.worker-info small {
-
-    display: block;
-
-    margin-bottom: 2px;
-
-    color:
-        rgba(255,255,255,.48);
-
-    font-size: 6px;
-
-    font-weight: 850;
-
-    letter-spacing: .8px;
-}
-
-
-.worker-info strong {
-
-    display: block;
-
-    overflow: hidden;
-
-    color: white;
-
-    font-size: 10px;
-
-    text-overflow: ellipsis;
-
-    white-space: nowrap;
-}
-
-
-.worker-info p {
-
-    margin: 3px 0 0;
-
-    color:
-        rgba(255,255,255,.60);
-
-    font-size: 7px;
-}
-
-
-.verified {
-
-    padding:
-        4px
-        6px;
-
-    border-radius: 20px;
-
-    background:
-        rgba(255,255,255,.12);
-
-    color: #b6f4d4;
-
-    font-size: 6px;
-
-    font-weight: 850;
-}
-
-
-/* =========================================================
-   LEFT FEATURES
-========================================================= */
-
-.overview-features {
-
-    margin-top: 24px;
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 9px;
-}
-
-
-.overview-feature {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    color:
-        rgba(255,255,255,.72);
-
-    font-size: 8px;
-}
-
-
-.overview-feature i {
-
-    color: #8df0bd;
-
-    font-size: 13px;
-}
-
-
-/* =========================================================
-   RIGHT FORM
-========================================================= */
-
-.booking-form {
-
-    padding: 25px 28px;
-}
-
-
-.form-top {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    margin-bottom: 17px;
-}
-
-
-.form-title h3 {
-
-    margin: 0;
-
-    color: #17251f;
-
-    font-size: 17px;
-
-    font-weight: 900;
-}
-
-
-.form-title p {
-
-    margin: 4px 0 0;
-
-    color: #87918d;
-
-    font-size: 9px;
-}
-
-
-.step-two {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 6px;
-
-    color: #087f5b;
-
-    font-size: 8px;
-
-    font-weight: 850;
-}
-
-
-.step-two span {
-
-    width: 21px;
-    height: 21px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 7px;
-
-    background: #e7f7f0;
-
-}
-
-
-/* =========================================================
-   SELECTED SERVICE
-========================================================= */
-
-.selected-service {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 9px;
-
-    padding:
-        9px
-        11px;
-
-    margin-bottom: 15px;
-
-    border:
-        1px solid
-        #dceae4;
-
-    border-radius: 11px;
-
-    background: #f6fbf9;
-}
-
-
-.selected-service-icon {
-
-    width: 31px;
-    height: 31px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 9px;
-
-    background: #e3f6ed;
-
-    color: #087f5b;
-
-    font-size: 13px;
-}
-
-
-.selected-service small {
-
-    display: block;
-
-    color: #89958f;
-
-    font-size: 6px;
-
-    font-weight: 850;
-
-    text-transform: uppercase;
-
-    letter-spacing: .5px;
-}
-
-
-.selected-service strong {
-
-    display: block;
-
-    margin-top: 2px;
-
-    color: #25332d;
-
-    font-size: 10px;
-}
-
-
-/* =========================================================
-   LABELS
-========================================================= */
-
-.form-label {
-
-    display: block;
-
-    margin-bottom: 5px;
-
-    color: #3d4a45;
-
-    font-size: 8px;
-
-    font-weight: 850;
-}
-
-
-/* =========================================================
-   INPUTS
-========================================================= */
-
-.form-control,
-.form-select {
-
-    width: 100%;
-
-    height: 40px;
-
-    padding:
-        0
-        10px;
-
-    border:
-        1px solid
-        #dce5e1;
-
-    border-radius: 9px;
-
-    background: white;
-
-    color: #26342f;
-
-    outline: none;
-
-    font-size: 9px;
-
-    transition: .2s ease;
-}
-
-
-textarea.form-control {
-
-    height: 65px;
-
-    padding: 9px;
-
-    resize: vertical;
-}
-
-
-.form-control:focus,
-.form-select:focus {
-
-    border-color: #087f5b;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(8,127,91,.06);
-}
-
-
-/* =========================================================
-   BOOKING TYPE
-========================================================= */
-
-.booking-types {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(3,1fr);
-
-    gap: 6px;
-
-    margin-bottom: 14px;
-}
-
-
-.booking-type {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 5px;
-
-    min-height: 38px;
-
-    padding: 7px;
-
-    border:
-        1px solid
-        #dce5e1;
-
-    border-radius: 9px;
-
-    background: white;
-
-    cursor: pointer;
-
-    transition: .2s ease;
-}
-
-
-.booking-type i {
-
-    color: #087f5b;
-
-    font-size: 12px;
-}
-
-
-.booking-type span {
-
-    color: #64706b;
-
-    font-size: 8px;
-
-    font-weight: 800;
-}
-
-
-.booking-type:hover {
-
-    border-color: #9ecfbb;
-}
-
-
-.booking-type.active {
-
-    border-color: #087f5b;
-
-    background: #effaf5;
-
-    box-shadow:
-        inset 0 0 0 1px
-        #087f5b;
-}
-
-
-.booking-type.active span {
-
-    color: #087f5b;
-}
-
-
-/* =========================================================
-   FORM GRID
-========================================================= */
-
-.form-row {
-
-    display: grid;
-
-    grid-template-columns:
-        1fr 1fr;
-
-    gap: 9px;
-
-    margin-bottom: 10px;
-}
-
-
-.form-group {
-
-    margin-bottom: 10px;
-}
-
-
-/* =========================================================
-   TRUST ROW
-========================================================= */
-
-.trust-strip {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    padding:
-        11px 0
-        2px;
-
-    margin-top: 4px;
-
-    border-top:
-        1px solid
-        #edf1ef;
-}
-
-
-.trust-item {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 4px;
-
-    color: #87918d;
-
-    font-size: 7px;
-
-    font-weight: 700;
-}
-
-
-.trust-item i {
-
-    color: #087f5b;
-
-    font-size: 11px;
-}
-
-
-/* =========================================================
-   BUTTON
-========================================================= */
-
-.confirm-btn {
-
-    width: 100%;
-
-    height: 43px;
-
-    margin-top: 11px;
-
-    border: none;
-
-    border-radius: 10px;
-
-    background:
-        linear-gradient(
-            90deg,
-            #087f5b,
-            #0a956d
-        );
-
-    color: white;
-
-    font-size: 9px;
-
-    font-weight: 850;
-
-    cursor: pointer;
-
-    box-shadow:
-        0 7px 18px
-        rgba(8,127,91,.18);
-
-    transition: .2s ease;
-}
-
-
-.confirm-btn:hover {
-
-    transform: translateY(-1px);
-
-    box-shadow:
-        0 10px 23px
-        rgba(8,127,91,.25);
-}
-
-
-/* =========================================================
-   SUCCESS
-========================================================= */
-
-.booking-success {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    padding:
-        9px
-        11px;
-
-    margin-bottom: 14px;
-
-    border-radius: 9px;
-
-    background: #ecfdf5;
-
-    border:
-        1px solid
-        #b8ebd2;
-
-    color: #087f5b;
-
-    font-size: 8px;
-
-    font-weight: 750;
-}
-
-
-.booking-success i {
-
-    font-size: 13px;
-}
-
-/* =========================================================
-   ERROR & CONFLICT ALERT BOX
-========================================================= */
-
-.booking-error-box {
-    padding: 16px 18px;
-    margin-bottom: 20px;
-    border-radius: 14px;
-    background: #fff5f5;
-    border: 1px solid #fecaca;
-    color: #991b1b;
-    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.06);
-}
-
-.error-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.error-header i {
-    color: #dc2626;
-    font-size: 20px;
-    flex-shrink: 0;
-    margin-top: 1px;
-}
-
-.error-title-text {
-    font-weight: 700;
-    font-size: 14px;
-    color: #991b1b;
-    margin-bottom: 2px;
-}
-
-.error-msg-text {
-    font-size: 13px;
-    color: #7f1d1d;
-    font-weight: 500;
-}
-
-.error-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px dashed #fca5a5;
-}
-
-.action-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: #fee2e2;
-    color: #991b1b;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.alt-workers-section {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #fecaca;
-}
-
-.alt-workers-section small {
-    display: block;
-    font-weight: 700;
-    color: #7f1d1d;
-    font-size: 12px;
-    margin-bottom: 8px;
-}
-
-.alt-workers-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.alt-worker-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: white;
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-    font-size: 12px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.alt-worker-pill:hover {
-    background: #087f5b;
-    color: white;
-    border-color: #087f5b;
-}
-
-
-
-
-/* =========================================================
-   PHONE VALIDATION
-========================================================= */
-
-.phone-error {
-    display: none;
-    margin-top: 5px;
-    color: #c62828;
-    font-size: 9px;
-    font-weight: 600;
-}
-
-.form-control.phone-invalid {
-    border-color: #dc3545 !important;
-    box-shadow: 0 0 0 3px rgba(220,53,69,.08) !important;
-}
-
-.form-control.phone-valid {
-    border-color: #087f5b !important;
-    box-shadow: 0 0 0 3px rgba(8,127,91,.06) !important;
-}
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media(max-width: 850px) {
-
-    .booking-workspace {
-
-        grid-template-columns: 1fr;
-    }
-
-
-    .booking-overview {
-
-        padding: 20px;
-    }
-
-
-    .overview-features {
-
-        display: grid;
-
-        grid-template-columns:
-            repeat(3,1fr);
-    }
-
-}
-
-
-@media(max-width: 600px) {
-
-    .booking-page {
-
-        padding:
-            17px
-            12px
-            35px;
-    }
-
-
-    .top-bar {
-
-        margin-bottom: 20px;
-    }
-
-
-    .booking-hero h1 {
-
-        font-size: 29px;
-    }
-
-
-    .booking-form {
-
-        padding:
-            20px
-            17px;
-    }
-
-
-    .form-row {
-
-        grid-template-columns: 1fr;
-    }
-
-
-    .overview-features {
-
-        grid-template-columns: 1fr;
-    }
-
-
-    .booking-types {
-
-        grid-template-columns: 1fr;
-    }
-
-
-    .trust-strip {
-
-        flex-direction: column;
-
-        gap: 7px;
-    }
-
-}
-
-
-/* =========================================================
-   LARGE & EASY-TO-READ TYPOGRAPHY
-   Final overrides - layout/functionality unchanged
-========================================================= */
-
-/* Top navigation */
-.back-btn {
-    font-size: 16px;
-}
-
-.lamo-mark {
-    font-size: 13px;
-}
-
-.lamo-mark span {
-    font-size: 14px;
-}
-
-/* Hero */
-.hero-mini {
-    font-size: 10px;
-    padding: 7px 12px;
-}
-
-.booking-hero h1 {
-    font-size: clamp(32px, 4.5vw, 44px);
-}
-
-.booking-hero p {
-    font-size: 14px;
-    line-height: 1.7;
-}
-
-/* Service selector */
-.service-option {
-    font-size: 12px;
-    padding: 10px 14px;
-}
-
-.service-option i {
-    font-size: 14px;
-}
-
-/* Left overview */
-.step-label {
-    font-size: 10px;
-}
-
-.step-number {
-    font-size: 10px;
-}
-
-.service-icon-box {
-    width: 58px;
-    height: 58px;
-    font-size: 24px;
-}
-
-.booking-overview h2 {
-    font-size: 29px;
-}
-
-.service-description {
-    font-size: 12px;
-    line-height: 1.75;
-}
-
-/* Worker card */
-.worker-info small {
-    font-size: 8px;
-}
-
-.worker-info strong {
-    font-size: 13px;
-}
-
-.worker-info p {
-    font-size: 10px;
-}
-
-.verified {
-    font-size: 8px;
-    padding: 5px 8px;
-}
-
-.overview-feature {
-    font-size: 11px;
-}
-
-.overview-feature i {
-    font-size: 15px;
-}
-
-/* Right form */
-.form-title h3 {
-    font-size: 20px;
-}
-
-.form-title p {
-    font-size: 12px;
-}
-
-.step-two {
-    font-size: 10px;
-}
-
-.step-two span {
-    font-size: 10px;
-}
-
-/* Selected service */
-.selected-service {
-    padding: 11px 13px;
-}
-
-.selected-service-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 15px;
-}
-
-.selected-service small {
-    font-size: 8px;
-}
-
-.selected-service strong {
-    font-size: 13px;
-}
-
-/* Form labels */
-.form-label {
-    font-size: 11px;
-}
-
-/* Inputs */
-.form-control,
-.form-select {
-    height: 46px;
-    padding: 0 13px;
-    font-size: 13px;
-}
-
-textarea.form-control {
-    height: 85px;
-    padding: 11px 13px;
-    font-size: 13px;
-}
-
-/* Booking types */
-.booking-type {
-    min-height: 44px;
-    padding: 9px;
-}
-
-.booking-type i {
-    font-size: 14px;
-}
-
-.booking-type span {
-    font-size: 11px;
-}
-
-/* Phone error */
-.phone-error {
-    font-size: 11px;
-}
-
-/* Trust row */
-.trust-item {
-    font-size: 10px;
-}
-
-.trust-item i {
-    font-size: 13px;
-}
-
-/* Button */
-.confirm-btn {
-    height: 49px;
-    font-size: 13px;
-}
-
-/* Success */
-.booking-success {
-    font-size: 11px;
-    padding: 11px 13px;
-}
-
-/* Mobile */
-@media(max-width: 600px) {
-
-    .booking-hero h1 {
-        font-size: 32px;
-    }
-
-    .booking-hero p {
-        font-size: 14px;
-    }
-
-    .booking-overview h2 {
-        font-size: 27px;
-    }
-
-    .service-description {
-        font-size: 12px;
-    }
-
-    .form-title h3 {
-        font-size: 20px;
-    }
-
-    .form-title p {
-        font-size: 12px;
-    }
-
-    .form-label {
-        font-size: 11px;
-    }
-
-    .form-control,
-    .form-select {
-        height: 48px;
-        font-size: 14px;
-    }
-
-    textarea.form-control {
-        height: 95px;
-        font-size: 14px;
-    }
-
-    .booking-type span {
-        font-size: 12px;
-    }
-
-    .confirm-btn {
-        height: 51px;
-        font-size: 14px;
-    }
-}
-
-</style>
-
-</head>
-
-
-<body>
-
-
-<section class="booking-page">
-
-
-<div class="booking-container">
-
-
-    <!-- =====================================================
-         TOP
-    ====================================================== -->
-
-    <div class="top-bar">
-
-
-        <!-- BACK -->
+    <div class="container">
 
         {% if service %}
-            <a href="{% url 'service_detail' service.id %}" class="back-btn">
+            <a href="{% url 'service_workers' service.id %}?district={{ district }}" class="back-link" style="margin-bottom: 20px; display: inline-flex;">
+                <i class="bi bi-arrow-left"></i>
+                Back to {{ service.name }} Workers
+            </a>
         {% else %}
-            <a href="{% url 'home' %}" class="back-btn">
+            <a href="{% url 'service_page' %}" class="back-link" style="margin-bottom: 20px; display: inline-flex;">
+                <i class="bi bi-arrow-left"></i>
+                Back to Services
+            </a>
         {% endif %}
 
-            <i class="bi bi-arrow-left"></i>
-
-            Back
-
-        </a>
-
-
-        <!-- LAMO -->
-
-        <div class="lamo-mark">
-
-            <span>
-                <i class="bi bi-house-heart-fill"></i>
-            </span>
-
-            LAMO
-
-        </div>
-
-
-    </div>
-
-
-
-    <!-- =====================================================
-         HERO
-    ====================================================== -->
-
-    <div class="booking-hero">
-
-
-        <div class="hero-mini">
-
-            <i class="bi bi-shield-check"></i>
-
-            Safe & Simple Booking
-
-        </div>
-
-
-        <h1>
-
-            Book your
-            <span>service</span>
-
-        </h1>
-
-
-        <p>
-
-            Choose your service, tell us when and where you need it,
-            and send your request to a verified professional.
-
-        </p>
-
-
-    </div>
-
-
-
-    <!-- =====================================================
-         SERVICE SELECTOR
-    ====================================================== -->
-
-    {% if not worker %}
-
-    <div class="service-selector">
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Plumber"
-        >
-
-            <i class="bi bi-droplet-fill"></i>
-            Plumber
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Electrician"
-        >
-
-            <i class="bi bi-lightning-charge-fill"></i>
-            Electrician
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Painter"
-        >
-
-            <i class="bi bi-paint-bucket"></i>
-            Painter
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Carpenter"
-        >
-
-            <i class="bi bi-tools"></i>
-            Carpenter
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="AC Repair"
-        >
-
-            <i class="bi bi-snow"></i>
-            AC Repair
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Appliance Repair"
-        >
-
-            <i class="bi bi-speaker"></i>
-            Appliance
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="Home Cleaning"
-        >
-
-            <i class="bi bi-stars"></i>
-            Cleaning
-
-        </button>
-
-
-        <button
-            type="button"
-            class="service-option"
-            data-service="General Services"
-        >
-
-            <i class="bi bi-person-workspace"></i>
-            General
-
-        </button>
-
-
-    </div>
-
-    {% endif %}
-
-
-
-    <!-- =====================================================
-         BOOKING WORKSPACE
-    ====================================================== -->
-
-    <div class="booking-workspace">
-
-
-        <!-- =================================================
-             STEP 1
-        ================================================== -->
-
-        <div class="booking-overview">
-
-
-            <div class="overview-content">
-
-
-                <div class="step-label">
-
-                    <span class="step-number">
-                        01
-                    </span>
-
-                    SERVICE
-
-                </div>
-
-
-
-                <div class="service-icon-box">
-
-                    <i
-                        id="serviceIcon"
-                        class="bi bi-droplet-fill"
-                    ></i>
-
-                </div>
-
-
-
-                <h2 id="serviceTitle">
-
-                    {% if service %}
-                        {{ service.name }}
-                    {% else %}
-                        Plumber
+        <div class="row g-4">
+
+            <div class="col-lg-5">
+
+                <div class="worker-summary-card" style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
+
+                    <h4 style="margin-bottom: 16px;">Booking Summary</h4>
+
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #dcfce7; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-tools" style="color: #16a34a; font-size: 20px;"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted">Service</small>
+                            <div style="font-weight: 600;">{{ service.name }}</div>
+                        </div>
+                    </div>
+
+                    {% if worker %}
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            {% if worker.profile_image %}
+                            <img src="{{ worker.profile_image.url }}" alt="{{ worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                            <i class="bi bi-person-fill" style="color: #4f46e5; font-size: 20px;"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <small class="text-muted">Worker</small>
+                            <div style="font-weight: 600;">{{ worker.user.get_full_name|default:worker.user.username }}</div>
+                        </div>
+                    </div>
                     {% endif %}
 
-                </h2>
+                    <div style="background: #f9fafb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="bi bi-geo-alt-fill" style="color: #16a34a;"></i>
+                            <strong>Service District</strong>
+                        </div>
+                        <div style="font-size: 1.1rem; font-weight: 600;">{{ district }}</div>
+                        <small class="text-muted">District is automatically set based on the selected worker.</small>
+                    </div>
 
+                </div>
 
+            </div>
 
-                <p
-                    class="service-description"
-                    id="serviceDescription"
-                >
+            <div class="col-lg-7">
 
-                    Professional service from
-                    a verified LAMO worker.
+                <div style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
 
-                </p>
+                    <h4 style="margin-bottom: 20px;">Booking Details</h4>
 
+                    {% if error_message %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        {{ error_message }}
+                    </div>
+                    {% endif %}
 
+                    <form method="POST" action="{% url 'book_service' %}" id="bookServiceForm" accept-charset="UTF-8">
+                        {% csrf_token %}
 
-                <!-- WORKER -->
-
-                {% if worker %}
-
-                <div class="worker-card">
-
-
-                    <div class="worker-photo">
-
-                        {% if worker.profile_image %}
-
-                            <img
-                                src="{{ worker.profile_image.url }}"
-                                alt="Worker"
-                            >
-
-                        {% else %}
-
-                            <i class="bi bi-person-fill"></i>
-
+                        {% if worker %}
+                        <input type="hidden" name="worker" value="{{ worker.id }}">
                         {% endif %}
 
-                    </div>
+                        {% if service %}
+                        <input type="hidden" name="service" value="{{ service.id }}">
+                        {% endif %}
 
+                        <input type="hidden" name="district" value="{{ district }}">
 
-                    <div class="worker-info">
+                        <div class="mb-3">
+                            <label class="form-label">Service Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="booking_type" id="bookingTypeOneTime" value="One Time" checked>
+                                <label class="btn btn-outline-success" for="bookingTypeOneTime">One-time</label>
 
-                        <small>
-                            BOOKING WITH
-                        </small>
+                                <input type="radio" class="btn-check" name="booking_type" id="bookingTypeRecurring" value="Recurring">
+                                <label class="btn btn-outline-success" for="bookingTypeRecurring">Recurring</label>
+                            </div>
+                        </div>
 
+                        <div class="mb-3" id="oneTimeFields">
+                            <label for="id_date" class="form-label">Preferred Date</label>
+                            <input type="date" name="date" id="id_date" class="form-control" required>
+                        </div>
 
-                        <strong>
+                        <div class="mb-3" id="recurringFields" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label for="id_start_date" class="form-label">Start Date</label>
+                                    <input type="date" name="start_date" id="id_start_date" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="id_frequency" class="form-label">Frequency</label>
+                                    <select name="frequency" id="id_frequency" class="form-select">
+                                        <option value="Weekly" selected>Weekly</option>
+                                        <option value="Daily">Daily</option>
+                                        <option value="Monthly">Monthly</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <label for="id_preferred_day" class="form-label">Preferred Day</label>
+                                <select name="preferred_day" id="id_preferred_day" class="form-select">
+                                    <option value="Monday" selected>Monday</option>
+                                    <option value="Tuesday">Tuesday</option>
+                                    <option value="Wednesday">Wednesday</option>
+                                    <option value="Thursday">Thursday</option>
+                                    <option value="Friday">Friday</option>
+                                    <option value="Saturday">Saturday</option>
+                                    <option value="Sunday">Sunday</option>
+                                </select>
+                            </div>
+                            <div class="mt-2">
+                                <label for="id_end_date" class="form-label">End Date</label>
+                                <input type="date" name="end_date" id="id_end_date" class="form-control">
+                            </div>
+                        </div>
 
-                            {{ worker.user.get_full_name|default:worker.user.username }}
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Time</label>
+                            <select name="time_slot" id="id_time_slot" class="form-select" required>
+                                <option value="">Select time slot</option>
+                                <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
+                                <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                                <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
+                                <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
+                                <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
+                                <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                            </select>
+                            <input type="hidden" name="time" id="id_time" value="">
+                        </div>
 
-                            <i
-                                class="bi bi-patch-check-fill"
-                                style="color:#8df0bd;"
-                            ></i>
+                        <div class="mb-3">
+                            <label for="id_location" class="form-label">Service Location</label>
+                            <input type="text" name="location" id="id_location" class="form-control" placeholder="Enter your complete service location or select on map" required>
+                        </div>
 
-                        </strong>
+                        <div class="mb-3">
+                            <label class="form-label">Select Location on Map</label>
+                            <div id="bookServiceMap"
+                                 data-district="{{ district|escapejs }}"
+                                 data-default-lat="{{ district_lat|default:9.9312 }}"
+                                 data-default-lng="{{ district_lng|default:76.2673 }}"
+                                 style="height: 240px; border-radius: 14px; border: 1px solid #e5e7eb;"></div>
+                            <input type="hidden" name="latitude" id="id_latitude">
+                            <input type="hidden" name="longitude" id="id_longitude">
+                            <div id="districtValidation" style="margin-top: 8px; font-size: 12px; display: none; color: #dc2626;">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                Please select a service location within {{ district }}.
+                            </div>
 
+                            <button type="button"
+                                    id="bookingGetCurrentLocationBtn"
+                                    class="btn btn-outline-success btn-sm mt-2"
+                                    style="font-size: 12px; font-weight: 600;">
+                                <i class="bi bi-geo-alt-fill"></i> Use My Current Location
+                            </button>
+                        </div>
 
-                        <p>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Describe Your Requirement</label>
+                            <textarea name="description" id="id_description" class="form-control" rows="3" placeholder="Example: Kitchen tap is leaking..."></textarea>
+                        </div>
 
-                            <i class="bi bi-geo-alt"></i>
+                        <div class="mb-3">
+                            <label for="id_phone" class="form-label">Contact Number</label>
+                            <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="Enter 10-digit mobile number" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" minlength="10" required>
+                        </div>
 
-                            {{ worker.district }}
+                        <button type="submit" class="btn btn-success w-100" style="padding: 12px; font-weight: 600;">
+                            Continue Booking <i class="bi bi-arrow-right"></i>
+                        </button>
 
-                        </p>
-
-                    </div>
-
-
-                    <span class="verified">
-
-                        VERIFIED
-
-                    </span>
-
+                    </form>
 
                 </div>
-
-                {% endif %}
-
-
-
-                <!-- FEATURES -->
-
-                <div class="overview-features">
-
-
-                    <div class="overview-feature">
-
-                        <i class="bi bi-shield-check"></i>
-
-                        Verified professional
-
-                    </div>
-
-
-                    <div class="overview-feature">
-
-                        <i class="bi bi-calendar-check"></i>
-
-                        Flexible scheduling
-
-                    </div>
-
-
-                    <div class="overview-feature">
-
-                        <i class="bi bi-headset"></i>
-
-                        LAMO support
-
-                    </div>
-
-
-                </div>
-
 
             </div>
-
 
         </div>
-
-
-
-        <!-- =================================================
-             STEP 2
-        ================================================== -->
-
-        <div class="booking-form">
-
-
-            {% if booking_success %}
-
-            <div class="booking-success">
-
-                <i class="bi bi-check-circle-fill"></i>
-
-                Booking request submitted successfully.
-
-            </div>
-
-            {% endif %}
-
-            {% if error_message %}
-
-            <div class="booking-error-box">
-
-                <div class="error-header">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <div>
-                        <div class="error-title-text">Booking Conflict</div>
-                        <div class="error-msg-text">{{ error_message }}</div>
-                    </div>
-                </div>
-
-                <div class="error-actions">
-                    <span class="action-tag"><i class="bi bi-clock-history"></i> Choose another time</span>
-                    <span class="action-tag"><i class="bi bi-calendar-event"></i> Choose another date</span>
-                    {% if other_workers %}
-                    <span class="action-tag"><i class="bi bi-people-fill"></i> Try another worker</span>
-                    {% endif %}
-                </div>
-
-                {% if other_workers %}
-                <div class="alt-workers-section">
-                    <small><i class="bi bi-person-lines-fill me-1"></i> Available alternative workers for {{ service.name }}:</small>
-                    <div class="alt-workers-list">
-                        {% for alt in other_workers %}
-                        <a href="{% url 'book_service' %}?worker={{ alt.id }}&service={{ service.id }}" class="alt-worker-pill">
-                            <i class="bi bi-person-badge-fill me-1"></i> {{ alt.user.get_full_name|default:alt.user.username }} ({{ alt.district }})
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-            </div>
-
-            {% endif %}
-
-
-
-            <div class="form-top">
-
-
-                <div class="form-title">
-
-                    <h3>
-                        Service details
-                    </h3>
-
-                    <p>
-                        Give us a few details about your request.
-                    </p>
-
-                </div>
-
-
-                <div class="step-two">
-
-                    <span>
-                        02
-                    </span>
-
-                    DETAILS
-
-                </div>
-
-
-            </div>
-
-
-
-            <form
-                method="POST"
-                action="{% url 'book_service' %}"
-            >
-
-                {% csrf_token %}
-
-
-
-                <!-- WORKER -->
-
-                {% if worker %}
-
-                <input
-                    type="hidden"
-                    name="worker"
-                    value="{{ worker.id }}"
-                >
-
-                {% endif %}
-
-
-
-                <!-- SERVICE -->
-
-                {% if service %}
-
-                <input
-                    type="hidden"
-                    name="service"
-                    value="{{ service.id }}"
-                >
-
-                {% else %}
-
-                <input
-                    type="hidden"
-                    name="service"
-                    id="serviceId"
-                    value=""
-                >
-
-                {% endif %}
-
-
-
-                <!-- SELECTED SERVICE -->
-
-                <div class="selected-service">
-
-
-                    <div class="selected-service-icon">
-
-                        <i
-                            id="selectedServiceIcon"
-                            class="bi bi-tools"
-                        ></i>
-
-                    </div>
-
-
-                    <div>
-
-                        <small>
-                            Selected service
-                        </small>
-
-                        <strong id="selectedServiceText">
-
-                            {% if service %}
-                                {{ service.name }}
-                            {% else %}
-                                Plumber
-                            {% endif %}
-
-                        </strong>
-
-                    </div>
-
-
-                </div>
-
-
-                <input
-                    type="hidden"
-                    name="service_name"
-                    id="selectedService"
-                    value="{% if service %}{{ service.name }}{% else %}Plumber{% endif %}"
-                >
-
-
-
-                <!-- BOOKING TYPE -->
-
-                <label class="form-label">
-
-                    Service Type
-
-                </label>
-
-
-                <div class="booking-types">
-
-
-                    <div
-                        class="booking-type active"
-                        onclick="selectBookingType(this)"
-                    >
-
-                        <i class="bi bi-calendar-event"></i>
-
-                        <span>
-                            One Time
-                        </span>
-
-                    </div>
-
-<!-- 
-                    <div
-                        class="booking-type"
-                        onclick="selectBookingType(this)"
-                    >
-
-                        <i class="bi bi-arrow-repeat"></i>
-
-                        <span>
-                            Recurring
-                        </span>
-
-                    </div> -->
-
-
-                    <div
-                        class="booking-type"
-                        onclick="selectBookingType(this)"
-                    >
-
-                        <i class="bi bi-lightning-charge"></i>
-
-                        <span>
-                            Emergency
-                        </span>
-
-                    </div>
-
-
-                </div>
-
-
-                <input
-                    type="hidden"
-                    name="booking_type"
-                    id="bookingType"
-                    value="One Time"
-                >
-
-
-
-                <!-- DATE + TIME -->
-
-                <div class="form-row">
-
-
-                    <div>
-
-                        <label class="form-label">
-                            Preferred Date
-                        </label>
-
-
-                        <input
-                            type="date"
-                            name="date"
-                            id="bookingDate"
-                            class="form-control"
-                            value="{{ form_data.date|default:'' }}"
-                            required
-                        >
-
-                    </div>
-
-
-                    <div>
-
-                        <label class="form-label">
-                            Preferred Time
-                        </label>
-
-
-                        <select
-                            name="time"
-                            class="form-select"
-                            required
-                        >
-
-                            <option value="">
-                                Select time
-                            </option>
-
-                            <option value="8:00 AM - 10:00 AM" {% if form_data.time == "8:00 AM - 10:00 AM" %}selected{% endif %}>
-                                8:00 AM - 10:00 AM
-                            </option>
-
-                            <option value="10:00 AM - 12:00 PM" {% if form_data.time == "10:00 AM - 12:00 PM" %}selected{% endif %}>
-                                10:00 AM - 12:00 PM
-                            </option>
-
-                            <option value="12:00 PM - 2:00 PM" {% if form_data.time == "12:00 PM - 2:00 PM" %}selected{% endif %}>
-                                12:00 PM - 2:00 PM
-                            </option>
-
-                            <option value="2:00 PM - 4:00 PM" {% if form_data.time == "2:00 PM - 4:00 PM" %}selected{% endif %}>
-                                2:00 PM - 4:00 PM
-                            </option>
-
-                            <option value="4:00 PM - 6:00 PM" {% if form_data.time == "4:00 PM - 6:00 PM" %}selected{% endif %}>
-                                4:00 PM - 6:00 PM
-                            </option>
-
-                            <option value="6:00 PM - 8:00 PM" {% if form_data.time == "6:00 PM - 8:00 PM" %}selected{% endif %}>
-                                6:00 PM - 8:00 PM
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- LOCATION -->
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Service Location
-                    </label>
-
-
-                    <input
-                        type="text"
-                        name="location"
-                        id="locationInput"
-                        class="form-control"
-                        placeholder="Enter your complete service location or select on map"
-                        value="{{ form_data.location|default:'' }}"
-                        required
-                    >
-
-                </div>
-
-                <!-- MAP -->
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Select Location on Map
-                    </label>
-
-                    <div id="bookingMap" style="height: 300px; border-radius: 12px; border: 1px solid #dfece7;"></div>
-
-                    <input type="hidden" name="latitude" id="latitudeInput" value="{{ form_data.latitude|default:'' }}">
-                    <input type="hidden" name="longitude" id="longitudeInput" value="{{ form_data.longitude|default:'' }}">
-
-                    <button type="button" id="getCurrentLocationBtn" class="btn btn-sm btn-outline-secondary mt-2">
-                        <i class="bi bi-geo-alt"></i> Use My Current Location
-                    </button>
-
-                </div>
-
-
-
-                <!-- DESCRIPTION -->
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Describe Your Requirement
-                    </label>
-
-
-                    <textarea
-                        name="description"
-                        class="form-control"
-                        placeholder="Example: Kitchen tap is leaking..."
-                    >{{ form_data.description|default:'' }}</textarea>
-
-                </div>
-
-
-
-                <!-- PHONE -->
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Contact Number
-                    </label>
-
-
-                    <input
-                        type="tel"
-                        name="phone"
-                        id="phone"
-                        class="form-control"
-                        placeholder="Enter 10-digit mobile number"
-                        inputmode="numeric"
-                        pattern="[6-9][0-9]{9}"
-                        maxlength="10"
-                        minlength="10"
-                        autocomplete="tel"
-                        value="{{ form_data.phone|default:'' }}"
-                        required
-                    >
-
-                    <small id="phoneError" class="phone-error">
-                        Enter a valid 10-digit Indian mobile number.
-                    </small>
-
-                </div>
-
-
-
-                <!-- TRUST -->
-
-                <div class="trust-strip">
-
-
-                    <div class="trust-item">
-
-                        <i class="bi bi-shield-check"></i>
-
-                        Verified Workers
-
-                    </div>
-
-
-                    <div class="trust-item">
-
-                        <i class="bi bi-clock"></i>
-
-                        Flexible Time
-
-                    </div>
-
-
-                    <div class="trust-item">
-
-                        <i class="bi bi-headset"></i>
-
-                        LAMO Support
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- SUBMIT -->
-
-                <button
-                    type="submit"
-                    class="confirm-btn"
-                >
-
-                    Continue Booking
-
-                    <i class="bi bi-arrow-right ms-2"></i>
-
-                </button>
-
-
-            </form>
-
-
-        </div>
-
 
     </div>
 
-
 </div>
+{% endblock %}
 
-</section>
-
-
-
-<script>
-
-
-
-/* =========================================================
-   PHONE VALIDATION
-========================================================= */
-
-document.addEventListener("DOMContentLoaded", function () {
-
-    const phoneInput = document.getElementById("phone");
-    const phoneError = document.getElementById("phoneError");
-
-    if (!phoneInput) {
-        return;
-    }
-
-    function validatePhone() {
-
-        phoneInput.value = phoneInput.value.replace(/\D/g, "").slice(0, 10);
-
-        const phone = phoneInput.value;
-        const validPhone = /^[6-9][0-9]{9}$/.test(phone);
-
-        if (phone.length === 0) {
-            phoneInput.classList.remove("phone-valid", "phone-invalid");
-            phoneError.style.display = "none";
-            return false;
-        }
-
-        if (validPhone) {
-            phoneInput.classList.remove("phone-invalid");
-            phoneInput.classList.add("phone-valid");
-            phoneError.style.display = "none";
-            return true;
-        }
-
-        phoneInput.classList.remove("phone-valid");
-        phoneInput.classList.add("phone-invalid");
-        phoneError.style.display = "block";
-        return false;
-    }
-
-    phoneInput.addEventListener("input", validatePhone);
-    phoneInput.addEventListener("blur", validatePhone);
-
-    const bookingForm = phoneInput.closest("form");
-
-    if (bookingForm) {
-        bookingForm.addEventListener("submit", function (event) {
-
-            if (!validatePhone()) {
-                event.preventDefault();
-                phoneError.style.display = "block";
-                phoneInput.focus();
-            }
-
-        });
-    }
-
-});
-
-/* =========================================================
-   SERVICE DATA
-========================================================= */
-
-const serviceData = {
-
-    "Plumber": {
-        icon: "bi-droplet-fill",
-        description:
-            "Expert plumbing services for leakage, pipe fitting, drain cleaning and general plumbing work."
-    },
-
-    "Electrician": {
-        icon: "bi-lightning-charge-fill",
-        description:
-            "Professional electrical installation, wiring, repairs and electrical maintenance."
-    },
-
-    "Painter": {
-        icon: "bi-paint-bucket",
-        description:
-            "Interior and exterior painting services for homes, offices and commercial buildings."
-    },
-
-    "Carpenter": {
-        icon: "bi-tools",
-        description:
-            "Furniture repair, custom carpentry, door and window fixing and other woodwork."
-    },
-
-    "AC Repair": {
-        icon: "bi-snow",
-        description:
-            "AC installation, servicing, maintenance and cooling-related repair services."
-    },
-
-    "Appliance Repair": {
-        icon: "bi-speaker",
-        description:
-            "Repair services for washing machines, refrigerators, microwaves and appliances."
-    },
-
-    "Home Cleaning": {
-        icon: "bi-stars",
-        description:
-            "Professional home cleaning including kitchens, bathrooms and deep cleaning."
-    },
-
-    "General Services": {
-        icon: "bi-person-workspace",
-        description:
-            "Handyman services for small repairs, maintenance work and household requirements."
-    }
-
-};
-
-
-/* =========================================================
-   SERVICE BUTTONS
-========================================================= */
-
-document
-    .querySelectorAll(".service-option")
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            function () {
-
-                document
-                    .querySelectorAll(".service-option")
-                    .forEach(btn =>
-                        btn.classList.remove("active")
-                    );
-
-
-                this.classList.add("active");
-
-
-                updateService(
-                    this.dataset.service
-                );
-
-            }
-        );
-
-    });
-
-
-
-/* =========================================================
-   UPDATE SERVICE
-========================================================= */
-
-function updateService(service) {
-
-    const data =
-        serviceData[service];
-
-
-    if (!data) {
-        return;
-    }
-
-
-    const title =
-        document.getElementById(
-            "serviceTitle"
-        );
-
-
-    const selectedService =
-        document.getElementById(
-            "selectedService"
-        );
-
-
-    const selectedServiceText =
-        document.getElementById(
-            "selectedServiceText"
-        );
-
-
-    const serviceIcon =
-        document.getElementById(
-            "serviceIcon"
-        );
-
-
-    const selectedServiceIcon =
-        document.getElementById(
-            "selectedServiceIcon"
-        );
-
-
-    const description =
-        document.getElementById(
-            "serviceDescription"
-        );
-
-
-    if (title) {
-        title.textContent = service;
-    }
-
-
-    if (selectedService) {
-        selectedService.value = service;
-    }
-
-
-    if (selectedServiceText) {
-        selectedServiceText.textContent =
-            service;
-    }
-
-
-    if (description) {
-        description.textContent =
-            data.description;
-    }
-
-
-    if (serviceIcon) {
-        serviceIcon.className =
-            "bi " + data.icon;
-    }
-
-
-    if (selectedServiceIcon) {
-        selectedServiceIcon.className =
-            "bi " + data.icon;
-    }
-
-}
-
-
-
-/* =========================================================
-   BOOKING TYPE
-========================================================= */
-
-function selectBookingType(element) {
-
-    document
-        .querySelectorAll(".booking-type")
-        .forEach(item => {
-
-            item.classList.remove(
-                "active"
-            );
-
-        });
-
-
-    element.classList.add(
-        "active"
-    );
-
-
-    document.getElementById(
-        "bookingType"
-    ).value =
-        element
-            .querySelector("span")
-            .textContent
-            .trim();
-
-}
-
-
-
-/* =========================================================
-   PAGE LOAD
-========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-
-        /* DATE */
-
-        const dateInput =
-            document.getElementById(
-                "bookingDate"
-            );
-
-
-        if (dateInput) {
-
-            const today =
-                new Date();
-
-
-            const year =
-                today.getFullYear();
-
-
-            const month =
-                String(
-                    today.getMonth() + 1
-                ).padStart(
-                    2,
-                    "0"
-                );
-
-
-            const day =
-                String(
-                    today.getDate()
-                ).padStart(
-                    2,
-                    "0"
-                );
-
-
-            dateInput.min =
-                `${year}-${month}-${day}`;
-
-        }
-
-
-
-        /* INITIAL SERVICE */
-
-        {% if service %}
-
-            updateService(
-                "{{ service.name|escapejs }}"
-            );
-
-        {% else %}
-
-            updateService(
-                "Plumber"
-            );
-
-        {% endif %}
-
-
-
-        /* ACTIVE SERVICE */
-
-        {% if not worker %}
-
-        const initialService =
-            "{% if service %}{{ service.name|escapejs }}{% else %}Plumber{% endif %}";
-
-
-        document
-            .querySelectorAll(
-                ".service-option"
-            )
-            .forEach(button => {
-
-                if (
-                    button.dataset.service ===
-                    initialService
-                ) {
-
-                    button.classList.add(
-                        "active"
-                    );
-
-                }
-
-            });
-
-        {% endif %}
-
-    }
-);
-
-</script>
-
-<!-- Leaflet JS -->
+{% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-/* =========================================================
-   MAP INITIALIZATION
-========================================================= */
-document.addEventListener("DOMContentLoaded", function () {
-    const mapContainer = document.getElementById("bookingMap");
-    if (!mapContainer) return;
+document.addEventListener('DOMContentLoaded', function() {
+    const bookingTypeOneTime = document.getElementById('bookingTypeOneTime');
+    const bookingTypeRecurring = document.getElementById('bookingTypeRecurring');
+    const oneTimeFields = document.getElementById('oneTimeFields');
+    const recurringFields = document.getElementById('recurringFields');
+    const timeSlot = document.getElementById('id_time_slot');
+    const timeHidden = document.getElementById('id_time');
 
-    // Default to Kochi, Kerala
-    const defaultLat = 9.9312;
-    const defaultLng = 76.2673;
-
-    const map = L.map("bookingMap").setView([defaultLat, defaultLng], 13);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
-
-    let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
-
-    const latInput = document.getElementById("latitudeInput");
-    const lngInput = document.getElementById("longitudeInput");
-    const locationInput = document.getElementById("locationInput");
-
-    // Update inputs when marker is dragged
-    marker.on("dragend", function (e) {
-        const latlng = marker.getLatLng();
-        latInput.value = latlng.lat.toFixed(6);
-        lngInput.value = latlng.lng.toFixed(6);
-        reverseGeocode(latlng.lat, latlng.lng);
-    });
-
-    // Update marker when map is clicked
-    map.on("click", function (e) {
-        marker.setLatLng(e.latlng);
-        latInput.value = e.latlng.lat.toFixed(6);
-        lngInput.value = e.latlng.lng.toFixed(6);
-        reverseGeocode(e.latlng.lat, e.latlng.lng);
-    });
-
-    // Reverse geocode to get address
-    function reverseGeocode(lat, lng) {
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-            .then(response => response.json())
-            .then(data => {
-                if data && data.display_name) {
-                    locationInput.value = data.display_name;
-                }
-            })
-            .catch(err => console.log("Geocoding error:", err));
+    function toggleBookingType() {
+        if (bookingTypeRecurring && bookingTypeRecurring.checked) {
+            oneTimeFields.style.display = 'none';
+            recurringFields.style.display = 'block';
+        } else {
+            oneTimeFields.style.display = 'block';
+            recurringFields.style.display = 'none';
+        }
     }
 
-    // Get current location button
-    const currentLocationBtn = document.getElementById("getCurrentLocationBtn");
-    if (currentLocationBtn) {
-        currentLocationBtn.addEventListener("click", function () {
-            if (navigator.geolocation) {
+    if (bookingTypeOneTime) bookingTypeOneTime.addEventListener('change', toggleBookingType);
+    if (bookingTypeRecurring) bookingTypeRecurring.addEventListener('change', toggleBookingType);
+
+    if (timeSlot && timeHidden) {
+        timeSlot.addEventListener('change', function() {
+            timeHidden.value = this.value;
+        });
+    }
+
+    const mapContainer = document.getElementById('bookServiceMap');
+    if (mapContainer) {
+        const defaultLat = parseFloat(mapContainer.dataset.defaultLat) || 9.9312;
+        const defaultLng = parseFloat(mapContainer.dataset.defaultLng) || 76.2673;
+        const district = mapContainer.dataset.district || '';
+
+        // Tile provider comes from Django settings (MAP_TILE_*, env driven).
+        const configuredTileUrl = "{{ map_tile_url|escapejs }}";
+        const tileUrl = configuredTileUrl
+            || "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+        const tileAttribution = "{{ map_tile_attribution|escapejs }}"
+            || 'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, Intermap, GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), &copy; OpenStreetMap contributors';
+        const tileSubdomains = "{{ map_tile_subdomains|escapejs }}";
+        const tileMaxZoom = parseInt("{{ map_tile_max_zoom|default:19 }}", 10) || 19;
+
+        const map = L.map('bookServiceMap').setView([defaultLat, defaultLng], 13);
+        L.tileLayer(tileUrl, {
+            attribution: tileAttribution,
+            subdomains: tileSubdomains,
+            maxZoom: tileMaxZoom
+        }).addTo(map);
+
+        let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+        const latInput = document.getElementById('id_latitude');
+        const lngInput = document.getElementById('id_longitude');
+        const locationInput = document.getElementById('id_location');
+        const validationDiv = document.getElementById('districtValidation');
+
+        function validateDistrict(lat, lng) {
+            if (!district || !validationDiv) return;
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    const address = data.address || {};
+                    const districtFields = ['state_district', 'county', 'district', 'city', 'town', 'village'];
+                    let matched = false;
+                    for (const field of districtFields) {
+                        const value = address[field] || '';
+                        // NOTE: this used to read `district.toLowerCase() in value.toLowerCase()`,
+                        // which tests array indexes - never a substring - so the warning showed
+                        // up even for a correct location.
+                        if (value && value.toLowerCase().includes(district.toLowerCase())) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched && data.display_name) {
+                        validationDiv.style.display = 'block';
+                    } else {
+                        validationDiv.style.display = 'none';
+                    }
+                })
+                .catch(() => {
+                    validationDiv.style.display = 'none';
+                });
+        }
+
+        function reverseGeocode(lat, lng) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.display_name && locationInput) {
+                        locationInput.value = data.display_name;
+                    }
+                })
+                .catch(() => {});
+        }
+
+        marker.on('dragend', function(e) {
+            const latlng = marker.getLatLng();
+            latInput.value = latlng.lat.toFixed(6);
+            lngInput.value = latlng.lng.toFixed(6);
+            reverseGeocode(latlng.lat, latlng.lng);
+            validateDistrict(latlng.lat, latlng.lng);
+        });
+
+        map.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            latInput.value = e.latlng.lat.toFixed(6);
+            lngInput.value = e.latlng.lng.toFixed(6);
+            reverseGeocode(e.latlng.lat, e.latlng.lng);
+            validateDistrict(e.latlng.lat, e.latlng.lng);
+        });
+
+        const currentLocationBtn = document.getElementById('bookingGetCurrentLocationBtn');
+        if (currentLocationBtn) {
+            currentLocationBtn.addEventListener('click', function () {
+                if (!navigator.geolocation) {
+                    alert('Geolocation is not supported by your browser.');
+                    return;
+                }
+
                 navigator.geolocation.getCurrentPosition(
                     function (position) {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
+
                         map.setView([lat, lng], 15);
                         marker.setLatLng([lat, lng]);
                         latInput.value = lat.toFixed(6);
                         lngInput.value = lng.toFixed(6);
+
                         reverseGeocode(lat, lng);
+                        validateDistrict(lat, lng);
                     },
-                    function (error) {
-                        alert("Unable to get your location. Please ensure location permission is granted.");
+                    function () {
+                        alert('Unable to get your location. Please ensure location permission is granted.');
                     }
                 );
-            } else {
-                alert("Geolocation is not supported by your browser.");
-            }
-        });
+            });
+        }
     }
 });
 </script>
-
-</body>
-
-</html>
+{% endblock %}

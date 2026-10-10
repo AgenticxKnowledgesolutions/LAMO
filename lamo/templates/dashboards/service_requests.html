@@ -1,0 +1,190 @@
+﻿{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+
+
+{% block title %}Service Requests | LAMO{% endblock %}
+{% block page_title %}Service Requests{% endblock %}
+{% block page_subtitle %}Manage custom service requests from workers{% endblock %}
+
+{% block extra_css %}    <link rel="stylesheet" href="{% static 'css/dashboards-service_requests.css' %}">
+
+{% endblock %}
+
+
+{% block content %}
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+<div class="sr-header">
+    <div class="sr-heading">
+        <h2>Service Requests</h2>
+        <p>Review and manage custom service requests from workers</p>
+    </div>
+
+    <div class="sr-filters">
+        <a href="{% url 'service_requests' %}" class="sr-filter-btn {% if not status_filter %}active{% endif %}">
+            <i class="bi bi-list-ul"></i> All
+        </a>
+        <a href="{% url 'service_requests' %}?status=PENDING" class="sr-filter-btn {% if status_filter == 'PENDING' %}active{% endif %}">
+            <span class="count">{{ pending_count }}</span> Pending
+        </a>
+        <a href="{% url 'service_requests' %}?status=APPROVED" class="sr-filter-btn {% if status_filter == 'APPROVED' %}active{% endif %}">
+            <span class="count">{{ approved_count }}</span> Approved
+        </a>
+        <a href="{% url 'service_requests' %}?status=PUBLISHED" class="sr-filter-btn {% if status_filter == 'PUBLISHED' %}active{% endif %}">
+            <span class="count">{{ published_count }}</span> Published
+        </a>
+        <a href="{% url 'service_requests' %}?status=REJECTED" class="sr-filter-btn {% if status_filter == 'REJECTED' %}active{% endif %}">
+            <span class="count">{{ rejected_count }}</span> Rejected
+        </a>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     STATS
+========================================================= -->
+<div class="sr-stats">
+    <div class="sr-stat-card">
+        <div class="sr-stat-icon pending"><i class="bi bi-clock"></i></div>
+        <div class="sr-stat-info">
+            <h4>{{ pending_count }}</h4>
+            <span>Pending Review</span>
+        </div>
+    </div>
+    <div class="sr-stat-card">
+        <div class="sr-stat-icon approved"><i class="bi bi-check-circle"></i></div>
+        <div class="sr-stat-info">
+            <h4>{{ approved_count }}</h4>
+            <span>Approved</span>
+        </div>
+    </div>
+    <div class="sr-stat-card">
+        <div class="sr-stat-icon published"><i class="bi bi-globe"></i></div>
+        <div class="sr-stat-info">
+            <h4>{{ published_count }}</h4>
+            <span>Published</span>
+        </div>
+    </div>
+    <div class="sr-stat-card">
+        <div class="sr-stat-icon rejected"><i class="bi bi-x-circle"></i></div>
+        <div class="sr-stat-info">
+            <h4>{{ rejected_count }}</h4>
+            <span>Rejected</span>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     REQUESTS LIST
+========================================================= -->
+{% if service_requests %}
+<div class="sr-requests-list">
+    {% for req in service_requests %}
+    <div class="sr-request-card">
+        <div class="sr-request-icon">
+            <i class="bi bi-tools"></i>
+        </div>
+
+        <div class="sr-request-body">
+            <div class="sr-request-header">
+                <span class="sr-request-name">{{ req.name }}</span>
+                <span class="sr-status {{ req.status|lower }}">{{ req.get_status_display }}</span>
+            </div>
+
+            <div class="sr-request-meta">
+                <span><i class="bi bi-person"></i> {{ req.requested_by.username }}</span>
+                <span><i class="bi bi-calendar"></i> {{ req.created_at|date:"M d, Y" }}</span>
+                {% if req.reviewed_by %}
+                <span><i class="bi bi-person-check"></i> {{ req.reviewed_by.username }}</span>
+                {% endif %}
+            </div>
+
+            {% if req.admin_remark %}
+            <div style="margin-top: 8px; padding: 8px 12px; background: #f8faf9; border-radius: 8px; font-size: 12px; color: #4d5953;">
+                <strong>Remark:</strong> {{ req.admin_remark }}
+            </div>
+            {% endif %}
+
+            {% if req.published_service %}
+            <div style="margin-top: 6px; font-size: 11px; color: #087f5b;">
+                <i class="bi bi-check-circle"></i> Published as: <strong>{{ req.published_service.name }}</strong>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="sr-request-actions">
+            {% if req.status == 'PENDING' %}
+            <button type="button" class="sr-btn sr-btn-view" data-bs-toggle="modal" data-bs-target="#approveModal{{ req.id }}">
+                <i class="bi bi-eye"></i> View
+            </button>
+
+            <!-- Approve/Reject Modal -->
+            <div class="modal fade" id="approveModal{{ req.id }}" tabindex="-1" aria-labelledby="approveModalLabel{{ req.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="approveModalLabel{{ req.id }}">
+                                <i class="bi bi-question-circle me-2"></i> Review Service Request
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST" action="{% url 'service_request_approve' req.id %}">
+                            {% csrf_token %}
+                            <div class="modal-body">
+                                <p style="font-size: 14px; color: #4d5953; margin-bottom: 16px;">
+                                    Are you sure you want to process the request for <strong>"{{ req.name }}"</strong>?
+                                </p>
+                                <div class="mb-3">
+                                    <label for="admin_remark{{ req.id }}" class="form-label">Admin Remark (optional)</label>
+                                    <textarea name="admin_remark" id="admin_remark{{ req.id }}" class="form-control" rows="3" placeholder="Add a remark for the worker..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="border-top: 1px solid #edf0ee;">
+                                <button type="submit" name="confirm" value="no" class="btn btn-danger btn-sm">
+                                    <i class="bi bi-x-circle me-1"></i> Reject
+                                </button>
+                                <button type="submit" name="confirm" value="yes" class="btn btn-success btn-sm" style="background: #087f5b; border: 0;">
+                                    <i class="bi bi-check-circle me-1"></i> Approve
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% elif req.status == 'APPROVED' %}
+            <a href="{% url 'service_request_publish' req.id %}" class="sr-btn sr-btn-publish">
+                <i class="bi bi-globe"></i> Publish
+            </a>
+
+            {% elif req.status == 'PUBLISHED' %}
+            <a href="{% url 'service_detail' req.published_service.id %}" class="sr-btn sr-btn-view" target="_blank">
+                <i class="bi bi-eye"></i> View
+            </a>
+
+            {% elif req.status == 'REJECTED' %}
+            <span style="font-size: 11px; color: #9aa39e;">No actions available</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="sr-empty">
+    <div class="sr-empty-icon">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h5>No service requests found</h5>
+    <p>{% if status_filter %}No requests with status "{{ status_filter }}".{% else %}When workers request custom services, they will appear here.{% endif %}</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+
+

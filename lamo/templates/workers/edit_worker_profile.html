@@ -1,126 +1,548 @@
-{% extends 'base.html' %}
+﻿{% extends 'workers/worker_sidebar.html' %}
+{% load static %}
+
 {% block title %}Edit Profile - LAMO{% endblock %}
-{% block content %}
-<style>
-.ep-container {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 40px 20px 60px;
-}
-.ep-card {
-    background: #fff;
-    border-radius: 20px;
-    padding: 40px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-}
-.ep-card h2 {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 24px;
-    color: #1e293b;
-}
-.ep-form label {
-    font-weight: 600;
-    font-size: 13px;
-    color: #374151;
-    margin-bottom: 6px;
-    display: block;
-}
-.ep-form input, .ep-form textarea, .ep-form select {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 10px;
-    font-size: 14px;
-    margin-bottom: 18px;
-    transition: border-color 0.2s;
-}
-.ep-form input:focus, .ep-form textarea:focus, .ep-form select:focus {
-    border-color: #6366f1;
-    outline: none;
-}
-.ep-btn {
-    padding: 12px 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.ep-btn:hover { opacity: 0.9; }
-.ep-cancel {
-    margin-left: 12px;
-    color: #6b7280;
-    text-decoration: none;
-    font-size: 14px;
-}
-@media (max-width: 600px) {
-    .ep-card { padding: 24px 18px; }
-}
-</style>
-<div class="ep-container">
-    <div class="ep-card">
-        <h2>Edit Worker Profile</h2>
-        <form method="POST" enctype="multipart/form-data" class="ep-form">
-            {% csrf_token %}
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label>Phone</label>
-                    {{ form.phone }}
-                    {% if form.phone.errors %}
-                        <small style="color:red">{{ form.phone.errors.0 }}</small>
-                    {% endif %}
-                </div>
-                <div>
-                    <label>Experience (Years)</label>
-                    {{ form.experience_years }}
-                    {% if form.experience_years.errors %}
-                        <small style="color:red">{{ form.experience_years.errors.0 }}</small>
-                    {% endif %}
-                </div>
+
+{% block extra_css %}
+<link rel="stylesheet"
+    href="{% static 'css/workers-edit_worker_profile.css' %}?v=20260923">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/workers-edit_worker_profile.js' %}" defer></script>
+{% endblock %}
+
+
+{% block worker_content %}
+
+<div class="ep-page">
+
+    <!-- ================= HEADER ================= -->
+
+    <div class="ep-header">
+
+        <div>
+            <div class="ep-breadcrumb">
+                Worker <span>›</span> Edit Profile
             </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label>Service</label>
-                    {{ form.service }}
-                </div>
-                <div>
-                    <label>District</label>
-                    {{ form.district }}
-                </div>
-            </div>
-            <label>Availability</label>
-            {{ form.availability }}
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label>Pricing Type</label>
-                    {{ form.pricing_type }}
-                </div>
-                <div>
-                    <label>Pricing Amount (₹)</label>
-                    {{ form.pricing_amount }}
-                </div>
-            </div>
-            <label>Address</label>
-            {{ form.address }}
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label>Profile Image</label>
-                    {{ form.profile_image }}
-                </div>
-                <div>
-                    <label>Proof Document</label>
-                    {{ form.proof_document }}
-                    {% if form.proof_document.errors %}
-                        <small style="color:red">{{ form.proof_document.errors.0 }}</small>
-                    {% endif %}
-                </div>
-            </div>
-            <button type="submit" class="ep-btn">Save Changes</button>
-            <a href="{% url 'worker_profile' %}" class="ep-cancel">Cancel</a>
-        </form>
+
+            <h1>Edit Worker Profile</h1>
+
+            <p>
+                Update your profile, service and location information.
+            </p>
+        </div>
+
+        <div class="ep-header-icon">
+            ✏️
+        </div>
+
     </div>
+
+
+    <!-- ================= MAIN CARD ================= -->
+
+    <div class="ep-card">
+
+        <div class="ep-top-line"></div>
+
+        <form method="POST"
+              enctype="multipart/form-data"
+              class="ep-form">
+
+            {% csrf_token %}
+
+
+            {% if form.non_field_errors %}
+                <div class="ep-form-error">
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+
+
+            <!-- =================================================
+                 PERSONAL & SERVICE
+                 ================================================= -->
+
+            <section class="ep-section">
+
+                <div class="ep-section-title">
+
+                    <div class="ep-section-icon">
+                        👤
+                    </div>
+
+                    <div>
+                        <h2>Personal & Service Details</h2>
+                        <p>Manage your basic worker information.</p>
+                    </div>
+
+                </div>
+
+
+                <!-- ROW 1 -->
+
+                <div class="ep-row">
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.phone.id_for_label }}">
+                            Phone
+                        </label>
+
+                        {{ form.phone }}
+
+                        {% if form.phone.errors %}
+                            <small class="ep-error">
+                                {{ form.phone.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.experience_years.id_for_label }}">
+                            Experience (Years)
+                        </label>
+
+                        {{ form.experience_years }}
+
+                        {% if form.experience_years.errors %}
+                            <small class="ep-error">
+                                {{ form.experience_years.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- ROW 2 -->
+
+                <div class="ep-row">
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.service.id_for_label }}">
+                            Service
+                        </label>
+
+                        {{ form.service }}
+
+                        {% if form.service.errors %}
+                            <small class="ep-error">
+                                {{ form.service.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.district.id_for_label }}">
+                            District
+                        </label>
+
+                        {{ form.district }}
+
+                        {% if form.district.errors %}
+                            <small class="ep-error">
+                                {{ form.district.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- ROW 3 -->
+
+                <div class="ep-row">
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.availability.id_for_label }}">
+                            Availability
+                        </label>
+
+                        {{ form.availability }}
+
+                        {% if form.availability.errors %}
+                            <small class="ep-error">
+                                {{ form.availability.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.pricing_type.id_for_label }}">
+                            Pricing Type
+                        </label>
+
+                        {{ form.pricing_type }}
+
+                        {% if form.pricing_type.errors %}
+                            <small class="ep-error">
+                                {{ form.pricing_type.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- ROW 4 -->
+
+                <div class="ep-row">
+
+                    <div class="ep-field">
+
+                        <label for="{{ form.pricing_amount.id_for_label }}">
+                            Pricing Amount (₹)
+                        </label>
+
+                        <div class="ep-money-input">
+                            <span>₹</span>
+                            {{ form.pricing_amount }}
+                        </div>
+
+                        {% if form.pricing_amount.errors %}
+                            <small class="ep-error">
+                                {{ form.pricing_amount.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+                    <div></div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 ADDRESS & LOCATION
+                 ================================================= -->
+
+            <section class="ep-section">
+
+                <div class="ep-section-title">
+
+                    <div class="ep-section-icon">
+                        📍
+                    </div>
+
+                    <div>
+                        <h2>Address & Location</h2>
+                        <p>
+                            Your location helps customers find nearby services.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <!-- ADDRESS -->
+
+                <div class="ep-field">
+
+                    <label for="{{ form.address.id_for_label }}">
+                        Address
+                    </label>
+
+                    {{ form.address }}
+
+                    {% if form.address.errors %}
+                        <small class="ep-error">
+                            {{ form.address.errors.0 }}
+                        </small>
+                    {% endif %}
+
+                </div>
+
+
+                <!-- LOCATION -->
+
+                <div class="ep-location-card">
+
+                    <div class="ep-location-heading">
+
+                        <div>
+                            <strong>Service Location</strong>
+
+                            <p>
+                                Set your exact current location.
+                            </p>
+                        </div>
+
+                        <span>📍</span>
+
+                    </div>
+
+
+                    <div class="ep-location-row">
+
+                        <!-- LATITUDE -->
+
+                        <div class="ep-field">
+
+                            <label for="{{ form.latitude.id_for_label }}">
+                                Latitude
+                            </label>
+
+                            {{ form.latitude }}
+
+                            {% if form.latitude.errors %}
+                                <small class="ep-error">
+                                    {{ form.latitude.errors.0 }}
+                                </small>
+                            {% endif %}
+
+                        </div>
+
+
+                        <!-- LONGITUDE -->
+
+                        <div class="ep-field">
+
+                            <label for="{{ form.longitude.id_for_label }}">
+                                Longitude
+                            </label>
+
+                            {{ form.longitude }}
+
+                            {% if form.longitude.errors %}
+                                <small class="ep-error">
+                                    {{ form.longitude.errors.0 }}
+                                </small>
+                            {% endif %}
+
+                        </div>
+
+
+                        {% if profile.current_place %}
+
+                            <div class="ep-field ep-place-field">
+
+                                <div class="ep-place-display">
+
+                                    📍 {{ profile.current_place }}
+
+                                </div>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- BUTTON -->
+
+                        <div class="ep-location-button-wrapper">
+
+                            <button type="button"
+                                    id="setWorkerLocationBtn"
+                                    class="ep-location-btn">
+
+                                <span>📍</span>
+
+                                <span>
+                                    Use My Current Location
+                                </span>
+
+                            </button>
+
+                            <small id="workerLocationStatus"
+                                   class="ep-location-status">
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 DOCUMENTS
+                 ================================================= -->
+
+            <section class="ep-section">
+
+                <div class="ep-section-title">
+
+                    <div class="ep-section-icon">
+                        📎
+                    </div>
+
+                    <div>
+                        <h2>Documents & Profile</h2>
+                        <p>Update your profile image and proof document.</p>
+                    </div>
+
+                </div>
+
+
+                <div class="ep-document-row">
+
+
+                    <!-- PROFILE IMAGE -->
+
+                    <div class="ep-document-card">
+
+                        <div class="ep-document-header">
+
+                            <div>
+                                <label>Profile Image</label>
+
+                                <p>
+                                    JPG, PNG or WEBP
+                                </p>
+                            </div>
+
+                            <span>👤</span>
+
+                        </div>
+
+
+                        {% if form.instance.profile_image %}
+
+                        <div class="ep-current-file">
+
+                            <img
+                                src="{{ form.instance.profile_image.url }}"
+                                alt="Current profile image"
+                                class="ep-profile-preview"
+                            >
+
+                            <div>
+                                <small>Current image</small>
+
+                                <a
+                                    href="{{ form.instance.profile_image.url }}"
+                                    target="_blank"
+                                >
+                                    View image
+                                </a>
+                            </div>
+
+                        </div>
+
+                        {% endif %}
+
+
+                        <div class="ep-file-input">
+                            {{ form.profile_image }}
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- PROOF DOCUMENT -->
+
+                    <div class="ep-document-card">
+
+                        <div class="ep-document-header">
+
+                            <div>
+                                <label>Proof Document</label>
+
+                                <p>
+                                    PDF, JPG or PNG
+                                </p>
+                            </div>
+
+                            <span>📄</span>
+
+                        </div>
+
+
+                        {% if form.instance.proof_document %}
+
+                        <div class="ep-current-file">
+
+                            <div class="ep-document-check">
+                                ✓
+                            </div>
+
+                            <div>
+                                <small>Current document</small>
+
+                                {# Raw media URLs for proof documents are
+                                   private: only admins can download them
+                                   (workers_list -> proof_download endpoint).
+                                   Workers see a confirmation instead. #}
+                                <span class="ep-current-file-secure">
+                                    Document on file
+                                </span>
+                            </div>
+
+                        </div>
+
+                        {% endif %}
+
+
+                        <div class="ep-file-input">
+                            {{ form.proof_document }}
+                        </div>
+
+
+                        {% if form.proof_document.errors %}
+                            <small class="ep-error">
+                                {{ form.proof_document.errors.0 }}
+                            </small>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 ACTIONS
+                 ================================================= -->
+
+            <div class="ep-actions">
+
+                <button type="submit"
+                        class="ep-save">
+
+                    <span>✓</span>
+                    Save Changes
+
+                </button>
+
+
+                <a href="{% url 'worker_profile' %}"
+                   class="ep-cancel">
+
+                    Cancel
+
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
 </div>
+
 {% endblock %}

@@ -4,423 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- CSRF token for JavaScript (AJAX) - rendered by Django so it also works
+         when CSRF_COOKIE_HTTPONLY is enabled in production. -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}Admin | LAMO{% endblock %}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    <link rel="stylesheet" href="{% static 'css/admin-base.css' %}">
 
-        body {
-            font-family: "Inter", sans-serif;
-            background: #f5f7f6;
-            color: #17211d;
-        }
-
-        /* =========================
-           SIDEBAR
-        ========================= */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 255px;
-            height: 100vh;
-            background: #123c2d;
-            color: white;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            transition: 0.3s ease;
-        }
-
-        .sidebar,
-        .main {
-            transition: width 0.3s ease, margin-left 0.3s ease;
-        }
-
-        body.sidebar-collapsed .sidebar { width: 82px; }
-        body.sidebar-collapsed .main { margin-left: 82px; }
-
-        body.sidebar-collapsed .brand {
-            justify-content: center;
-            padding: 0;
-        }
-
-        body.sidebar-collapsed .brand-logo { margin-right: 0; }
-
-        body.sidebar-collapsed .brand-name,
-        body.sidebar-collapsed .menu-title,
-        body.sidebar-collapsed .sidebar-menu a span,
-        body.sidebar-collapsed .admin-info { display: none; }
-
-        body.sidebar-collapsed .sidebar-content {
-            padding-left: 10px;
-            padding-right: 10px;
-        }
-
-        body.sidebar-collapsed .sidebar-menu a {
-            justify-content: center;
-            padding: 13px 10px;
-            position: relative;
-        }
-
-        body.sidebar-collapsed .sidebar-menu a i {
-            width: auto;
-            font-size: 19px;
-        }
-
-        body.sidebar-collapsed .sidebar-bottom { padding: 12px 10px; }
-
-        body.sidebar-collapsed .admin-mini {
-            justify-content: center;
-            padding: 8px;
-        }
-
-        body.sidebar-collapsed .admin-avatar { margin-right: 0; }
-
-        body.sidebar-collapsed .logout-btn { justify-content: center; }
-        body.sidebar-collapsed .logout-btn span { display: none; }
-
-        .sidebar-collapse-btn {
-            position: absolute;
-            top: 88px;
-            right: -13px;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 0;
-            border-radius: 50%;
-            background: #ffffff;
-            color: #123c2d;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-            cursor: pointer;
-            z-index: 1100;
-            transition: 0.25s ease;
-        }
-
-        .sidebar-collapse-btn:hover {
-            transform: scale(1.08);
-            background: #dff5e8;
-        }
-
-        .sidebar-collapse-btn i {
-            font-size: 13px;
-            transition: transform 0.3s ease;
-        }
-
-        body.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
-
-        body.sidebar-collapsed .sidebar-menu a:hover::after {
-            content: attr(data-title);
-            position: absolute;
-            left: 68px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #123c2d;
-            color: white;
-            padding: 7px 11px;
-            border-radius: 7px;
-            font-size: 11px;
-            white-space: nowrap;
-            z-index: 2000;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-        }
-
-        .brand {
-            height: 75px;
-            display: flex;
-            align-items: center;
-            padding: 0 25px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .brand-logo {
-            width: 42px;
-            height: 42px;
-            background: #dff5e8;
-            color: #123c2d;
-            border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 21px;
-            font-weight: 800;
-            margin-right: 12px;
-        }
-
-        .brand-name {
-            font-size: 23px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .sidebar-content {
-            padding: 25px 15px;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .menu-title {
-            color: rgba(255,255,255,0.45);
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 0 12px;
-            margin: 8px 0 12px;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-menu li { margin-bottom: 5px; }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            gap: 13px;
-            padding: 12px 13px;
-            border-radius: 10px;
-            text-decoration: none;
-            color: rgba(255,255,255,0.72);
-            font-size: 14px;
-            font-weight: 500;
-            transition: 0.2s ease;
-        }
-
-        .sidebar-menu a i {
-            font-size: 18px;
-            width: 22px;
-            text-align: center;
-        }
-
-        .sidebar-menu a:hover {
-            color: white;
-            background: rgba(255,255,255,0.09);
-        }
-
-        .sidebar-menu a.active {
-            color: #123c2d;
-            background: #dff5e8;
-            font-weight: 700;
-        }
-
-        .sidebar-bottom {
-            padding: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .admin-mini {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-radius: 12px;
-            background: rgba(255,255,255,0.07);
-        }
-
-        .admin-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: #dff5e8;
-            color: #123c2d;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            margin-right: 10px;
-        }
-
-        .admin-info { overflow: hidden; }
-
-        .admin-info strong {
-            display: block;
-            font-size: 13px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .admin-info span {
-            font-size: 11px;
-            color: rgba(255,255,255,0.55);
-        }
-
-        /* =========================
-           LOGOUT BUTTON
-        ========================= */
-        .logout-btn {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 11px;
-            padding: 11px 14px;
-            border: 1px solid #f0d9d6;
-            border-radius: 11px;
-            background: #fff8f7;
-            color: #b42318;
-            font-size: 12px;
-            font-weight: 700;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
-        }
-
-        .logout-btn i {
-            width: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
-
-        .logout-btn:hover {
-            background: #fff0ee;
-            border-color: #e8bcb7;
-            color: #9f1f16;
-            transform: translateY(-1px);
-        }
-
-        .logout-btn:active {
-            transform: translateY(0);
-            background: #ffe7e4;
-        }
-
-        body.sidebar-collapsed .logout-btn {
-            width: 100%;
-            justify-content: center;
-            padding: 11px 8px;
-        }
-
-        body.sidebar-collapsed .logout-btn i { width: auto; margin: 0; }
-
-        .logout-btn .bi-box-arrow-right { transition: transform .2s ease; }
-        .logout-btn:hover .bi-box-arrow-right { transform: translateX(2px); }
-
-        /* =========================
-           MAIN
-        ========================= */
-        .main {
-            margin-left: 255px;
-            min-height: 100vh;
-        }
-
-        /* =========================
-           TOPBAR
-        ========================= */
-        .topbar {
-            height: 75px;
-            background: white;
-            border-bottom: 1px solid #e8ece9;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 30px;
-            position: sticky;
-            top: 0;
-            z-index: 900;
-        }
-
-        .page-title h4 {
-            margin: 0;
-            font-size: 19px;
-            font-weight: 750;
-        }
-
-        .page-title small {
-            color: #7a8781;
-            font-size: 12px;
-        }
-
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .notification {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #53615b;
-            background: #f5f7f6;
-            text-decoration: none;
-            position: relative;
-        }
-
-        .notification:hover {
-            background: #eaf2ed;
-            color: #123c2d;
-        }
-
-        .notification-dot {
-            position: absolute;
-            width: 7px;
-            height: 7px;
-            background: #e45d5d;
-            border-radius: 50%;
-            top: 8px;
-            right: 9px;
-        }
-
-        .mobile-toggle {
-            display: none;
-            border: 0;
-            background: #f0f4f1;
-            width: 40px;
-            height: 40px;
-            border-radius: 9px;
-            font-size: 20px;
-        }
-
-        /* =========================
-           CONTENT
-        ========================= */
-        .content {
-            padding: 30px;
-        }
-
-        /* =========================
-           MOBILE
-        ========================= */
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.show { transform: translateX(0); }
-            .main { margin-left: 0; }
-            .mobile-toggle { display: block; }
-            .topbar { padding: 0 18px; }
-            .content { padding: 20px 15px; }
-            .page-title { display: none; }
-        }
-
-        /* overlay for mobile */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.35);
-            z-index: 999;
-        }
-
-        .sidebar-overlay.show { display: block; }
-
-        @media (max-width: 500px) {
-            .topbar-right .notification { display: none; }
-        }
-    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -429,7 +23,7 @@
 ========================================================= -->
 <aside class="sidebar" id="sidebar">
     <div class="brand">
-        <div class="brand-logo">L</div>
+        <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo-img">
         <div class="brand-name">LAMO</div>
     </div>
 
@@ -456,6 +50,13 @@
             </li>
 
             <li>
+                <a href="{% url 'service_requests' %}" data-title="Service Requests" class="{% if request.resolver_match.url_name == 'service_requests' or request.resolver_match.url_name == 'service_request_approve' or request.resolver_match.url_name == 'service_request_publish' %}active{% endif %}">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Service Requests</span>
+                </a>
+            </li>
+
+            <li>
                 <a href="{% url 'users_list' %}" data-title="Users" class="{% if request.resolver_match.url_name == 'users_list' %}active{% endif %}">
                     <i class="bi bi-people-fill"></i>
                     <span>Users</span>
@@ -475,6 +76,13 @@
                     <span>Bookings</span>
                 </a>
             </li>
+
+            <li>
+                <a href="{% url 'admin_payments' %}" data-title="Payments" class="{% if request.resolver_match.url_name == 'admin_payments' %}active{% endif %}">
+                    <i class="bi bi-credit-card-fill"></i>
+                    <span>Payments</span>
+                </a>
+            </li>
         </ul>
 
         <div class="menu-title mt-4">Management</div>
@@ -484,6 +92,35 @@
                 <a href="{% url 'admin_reviews_complaints' %}" data-title="Reviews & Complaints" class="{% if request.resolver_match.url_name == 'admin_reviews_complaints' %}active{% endif %}">
                     <i class="bi bi-star-fill"></i>
                     <span>Reviews & Complaints</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="menu-title mt-4">Exports</div>
+
+        <ul class="sidebar-menu">
+            <li>
+                <a href="{% url 'admin_export_csv' 'bookings' %}" data-title="Bookings CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Bookings CSV</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_export_csv' 'payments' %}" data-title="Payments CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Payments CSV</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_export_csv' 'complaints' %}" data-title="Complaints CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Complaints CSV</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_export_csv' 'enquiries' %}" data-title="Enquiries CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Enquiries CSV</span>
                 </a>
             </li>
         </ul>
@@ -533,12 +170,36 @@
             </div>
         </div>
         <div class="topbar-right">
-            <a href="{% url 'admin_notifications' %}" class="notification {% if request.resolver_match.url_name == 'admin_notifications' %}active{% endif %}">
-                <i class="bi bi-bell"></i>
-                {% if unread_count > 0 %}
-                    <span class="notification-dot"></span>
-                {% endif %}
-            </a>
+            <div class="dropdown">
+                <a href="#" class="notification dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none;">
+                    <i class="bi bi-bell"></i>
+                    {% if global_unread_count > 0 %}
+                        <span class="notification-dot" style="position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: red; border-radius: 50%;"></span>
+                    {% endif %}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                  <li><h6 class="dropdown-header">Notifications</h6></li>
+                  {% for notif in global_notifications %}
+                  <li>
+                    <a class="dropdown-item {% if not notif.is_read %}bg-light{% endif %}" href="{{ notif.get_target_url }}">
+                      <small class="text-muted d-block">{{ notif.created_at|timesince }} ago</small>
+                      <span style="white-space: normal; font-size: 0.85rem;" class="{% if not notif.is_read %}fw-bold{% endif %}">
+                        {{ notif.message }}
+                      </span>
+                    </a>
+                  </li>
+                  {% empty %}
+                  <li><span class="dropdown-item-text text-muted">No notifications</span></li>
+                  {% endfor %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form action="{% url 'mark_all_notifications_read' %}" method="POST" class="px-3 py-1">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-link text-decoration-none p-0 w-100 text-center">Mark all as read</button>
+                    </form>
+                  </li>
+                </ul>
+            </div>
         </div>
     </header>
 
@@ -562,63 +223,11 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const sidebar = document.getElementById("sidebar");
-    const sidebarToggle = document.getElementById("sidebarToggle");
-    const sidebarOverlay = document.getElementById("sidebarOverlay");
-    const sidebarCollapseBtn = document.getElementById("sidebarCollapseBtn");
 
-    if (sidebarCollapseBtn) {
-        sidebarCollapseBtn.addEventListener("click", function () {
-            if (window.innerWidth > 768) {
-                document.body.classList.toggle("sidebar-collapsed");
-                const isCollapsed = document.body.classList.contains("sidebar-collapsed");
-                localStorage.setItem("adminSidebarCollapsed", isCollapsed ? "true" : "false");
-                sidebarCollapseBtn.title = isCollapsed ? "Expand Sidebar" : "Minimize Sidebar";
-            }
-        });
-    }
+<script src="{% static 'js/admin-base.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
 
-    if (window.innerWidth > 768 && localStorage.getItem("adminSidebarCollapsed") === "true") {
-        document.body.classList.add("sidebar-collapsed");
-        if (sidebarCollapseBtn) sidebarCollapseBtn.title = "Expand Sidebar";
-    }
+    {% include 'includes/ai_assistant.html' %}
 
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener("click", function () {
-            sidebar.classList.toggle("show");
-            sidebarOverlay.classList.toggle("show");
-        });
-    }
-
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener("click", function () {
-            sidebar.classList.remove("show");
-            sidebarOverlay.classList.remove("show");
-        });
-    }
-
-    document.querySelectorAll(".sidebar-menu a").forEach(function (link) {
-        link.addEventListener("click", function () {
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove("show");
-                sidebarOverlay.classList.remove("show");
-            }
-        });
-    });
-
-    window.addEventListener("resize", function () {
-        if (window.innerWidth <= 768) {
-            document.body.classList.remove("sidebar-collapsed");
-        } else {
-            if (localStorage.getItem("adminSidebarCollapsed") === "true") {
-                document.body.classList.add("sidebar-collapsed");
-            }
-        }
-    });
-});
-</script>
-{% block extra_js %}{% endblock %}
 </body>
 </html>

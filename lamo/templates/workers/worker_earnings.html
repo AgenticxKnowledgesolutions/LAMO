@@ -1,0 +1,128 @@
+{% extends 'workers/worker_sidebar.html' %}
+
+{% block title %}My Earnings | LAMO{% endblock %}
+
+{% block worker_content %}
+
+<style>
+    .earn-page { min-height: 100vh; padding: 30px; background: radial-gradient(circle at top right, rgba(8,127,91,.05), transparent 30%), #f5f9f7; }
+    .earn-container { width: 100%; max-width: 1100px; margin: 0 auto; }
+    .earn-head { margin-bottom: 26px; }
+    .earn-title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
+    .earn-sub { color: #64748b; font-size: 14px; margin: 0; }
+    .earn-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+                  gap: 16px; margin-bottom: 28px; }
+    .earn-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+                 padding: 20px; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
+    .earn-stat small { color: #64748b; font-size: 12px; font-weight: 700;
+                       text-transform: uppercase; letter-spacing: .06em; }
+    .earn-stat h3 { font-size: 26px; font-weight: 800; color: #0f172a; margin: 8px 0 0; }
+    .earn-stat p { color: #94a3b8; font-size: 12px; margin: 6px 0 0; }
+    .earn-stat.green h3 { color: #087f5b; }
+    .earn-stat.amber h3 { color: #b45309; }
+    .earn-h2 { font-size: 15px; font-weight: 800; color: #334155; text-transform: uppercase;
+               letter-spacing: .06em; margin: 30px 0 14px; }
+    .earn-table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+                       overflow-x: auto; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
+    .earn-table { width: 100%; border-collapse: collapse; min-width: 620px; }
+    .earn-table th, .earn-table td { text-align: left; padding: 13px 18px; font-size: 14px; }
+    .earn-table th { background: #f8fafc; color: #64748b; font-size: 11px; font-weight: 800;
+                     text-transform: uppercase; letter-spacing: .06em; }
+    .earn-table td { color: #334155; border-top: 1px solid #f1f5f9; }
+    .earn-table .right { text-align: right; }
+    .earn-table a { color: #087f5b; text-decoration: none; font-weight: 600; }
+    .earn-empty { text-align: center; padding: 50px 20px; color: #94a3b8; }
+    .earn-empty i { font-size: 38px; display: block; margin-bottom: 12px; }
+    .earn-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .earn-bar-label { width: 92px; font-size: 12px; color: #64748b; font-weight: 700; flex-shrink: 0; }
+    .earn-bar-track { flex: 1; height: 9px; background: #e2e8f0; border-radius: 20px; overflow: hidden; }
+    .earn-bar-fill { height: 100%; background: #087f5b; border-radius: 20px; }
+    .earn-bar-val { width: 92px; text-align: right; font-size: 12px; color: #334155; font-weight: 700; flex-shrink: 0; }
+</style>
+
+<div class="earn-page">
+    <div class="earn-container">
+
+        <div class="earn-head">
+            <h1 class="earn-title">My Earnings</h1>
+            <p class="earn-sub">Completed and paid jobs only.</p>
+        </div>
+
+        <div class="earn-stats">
+            <div class="earn-stat green">
+                <small>Total earnings</small>
+                <h3>{{ total_earnings|floatformat:2 }}</h3>
+                <p>All time</p>
+            </div>
+            <div class="earn-stat">
+                <small>This month</small>
+                <h3>{{ this_month|floatformat:2 }}</h3>
+                <p>Since the 1st</p>
+            </div>
+            <div class="earn-stat amber">
+                <small>Awaiting payout</small>
+                <h3>{{ awaiting_payout|floatformat:2 }}</h3>
+                <p>Completed, not yet paid</p>
+            </div>
+            <div class="earn-stat">
+                <small>Completed jobs</small>
+                <h3>{{ completed_count }}</h3>
+                <p>Rating: {{ avg_rating }}/5</p>
+            </div>
+        </div>
+
+        {% if monthly %}
+        <h2 class="earn-h2">Monthly breakdown</h2>
+        <div class="earn-table-wrap" style="padding: 20px;">
+            {% for m in monthly %}
+            <div class="earn-bar-row">
+                <div class="earn-bar-label">{{ m.month|date:"M Y" }}</div>
+                <div class="earn-bar-track">
+                    <div class="earn-bar-fill" style="width: {% widthratio m.total max_month_total 100 %}%;"></div>
+                </div>
+                <div class="earn-bar-val">{{ m.total|floatformat:2 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h2 class="earn-h2">Paid jobs</h2>
+
+        {% if paid_bookings %}
+        <div class="earn-table-wrap">
+            <table class="earn-table">
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th class="right">Amount</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in paid_bookings %}
+                    <tr>
+                        <td>{{ b.service.name }}</td>
+                        <td>{{ b.customer.username }}</td>
+                        <td>{{ b.date|date:"d M Y"|default:"-" }}</td>
+                        <td class="right">{{ b.estimated_cost|floatformat:2 }}</td>
+                        <td class="right"><a href="{% url 'booking_invoice' b.id %}">Receipt</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="earn-table-wrap">
+            <div class="earn-empty">
+                <i class="bi bi-cash-coin"></i>
+                No paid jobs yet. Earnings appear here once a booking is completed and paid.
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}

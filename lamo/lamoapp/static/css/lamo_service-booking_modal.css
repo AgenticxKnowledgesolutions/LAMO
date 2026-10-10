@@ -1,0 +1,829 @@
+/* =========================================================
+   BOOKING MODAL
+========================================================= */
+
+:root {
+    --lamo-green: #087f5b;
+    --lamo-green-dark: #056b4d;
+    --lamo-green-light: #eaf8f2;
+    --lamo-green-soft: #f1faf6;
+    --lamo-text: #17352c;
+    --lamo-text-secondary: #74827c;
+    --lamo-border: #dfeae5;
+    --lamo-radius: 12px;
+    --lamo-shadow: 0 30px 90px rgba(0, 35, 25, 0.28);
+}
+
+.booking-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(8, 45, 35, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.booking-modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.booking-modal {
+    width: min(1040px, 96vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid var(--lamo-border);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: var(--lamo-shadow);
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.booking-modal-overlay.open .booking-modal {
+    transform: translateY(0) scale(1);
+}
+
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
+.booking-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--lamo-border);
+    background: linear-gradient(180deg, #fbfefc 0%, #ffffff 100%);
+    flex-shrink: 0;
+}
+
+.booking-modal-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.booking-modal-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #e4f7ee 0%, #d0f0e0 100%);
+    color: var(--lamo-green);
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(8, 127, 91, 0.12);
+}
+
+.booking-modal-heading h2 {
+    margin: 0;
+    color: var(--lamo-text);
+    font-size: 21px;
+    line-height: 1.2;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+}
+
+.booking-modal-heading p {
+    margin: 4px 0 0;
+    color: var(--lamo-text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.booking-modal-close {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--lamo-border);
+    border-radius: 12px;
+    background: #ffffff;
+    color: #66756f;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.booking-modal-close:hover {
+    background: var(--lamo-green-light);
+    color: var(--lamo-green);
+    border-color: var(--lamo-green);
+    transform: rotate(90deg);
+}
+
+/* =========================================================
+   MODAL BODY - TWO COLUMN LAYOUT
+========================================================= */
+
+.booking-modal-body {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    min-height: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* =========================================================
+   LEFT SUMMARY PANEL
+========================================================= */
+
+.modal-summary {
+    position: relative;
+    overflow: hidden;
+    padding: 28px 24px;
+    background: linear-gradient(150deg, #063c2b 0%, #087f5b 60%, #0a8f65 100%);
+    color: #ffffff;
+}
+
+.modal-summary::before {
+    content: "";
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    right: -100px;
+    top: -80px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+}
+
+.modal-summary::after {
+    content: "";
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    left: -60px;
+    bottom: -50px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.modal-summary-content {
+    position: relative;
+    z-index: 2;
+}
+
+.modal-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.modal-step-number {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.modal-service-icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 24px 0 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 26px;
+    backdrop-filter: blur(10px);
+}
+
+.modal-summary h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+}
+
+.modal-service-text {
+    margin: 8px 0 24px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.modal-worker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+}
+
+.modal-worker-avatar {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 22px;
+}
+
+.modal-worker-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.modal-worker-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.modal-worker-info small {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.modal-worker-info strong {
+    display: block;
+    overflow: hidden;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal-worker-info span {
+    display: block;
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 9px;
+}
+
+.modal-verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #b8f8d5;
+    font-size: 7px;
+    font-weight: 800;
+}
+
+.modal-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-benefit {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.modal-benefit i {
+    color: #8df0bd;
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+}
+
+/* =========================================================
+   RIGHT FORM PANEL
+========================================================= */
+
+.modal-form {
+    padding: 28px 32px;
+    background: #ffffff;
+    overflow-y: auto;
+}
+
+.modal-form-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.modal-form-title h3 {
+    margin: 0;
+    color: var(--lamo-text);
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.2px;
+}
+
+.modal-form-title p {
+    margin: 4px 0 0;
+    color: var(--lamo-text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.modal-step-two {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--lamo-green);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.modal-step-two span {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--lamo-green-light);
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* =========================================================
+   SELECTED SERVICE CARD
+========================================================= */
+
+.modal-selected-service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    border: 1px solid var(--lamo-border);
+    border-radius: var(--lamo-radius);
+    background: var(--lamo-green-soft);
+}
+
+.modal-selected-service-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #e3f6ed 0%, #d0f0e0 100%);
+    color: var(--lamo-green);
+    font-size: 16px;
+}
+
+.modal-selected-service small {
+    display: block;
+    color: var(--lamo-text-secondary);
+    font-size: 7px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal-selected-service strong {
+    display: block;
+    margin-top: 2px;
+    color: var(--lamo-text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   FORM LABELS & INPUTS
+========================================================= */
+
+.modal-form .modal-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--lamo-text);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.modal-form .modal-input,
+.modal-form .modal-select {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    border: 1.5px solid #e0e7e4;
+    border-radius: var(--lamo-radius);
+    background: #ffffff;
+    color: var(--lamo-text);
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.modal-form .modal-input:hover,
+.modal-form .modal-select:hover {
+    border-color: #b8d4c8;
+}
+
+.modal-form .modal-input:focus,
+.modal-form .modal-select:focus {
+    border-color: var(--lamo-green);
+    box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.08);
+}
+
+.modal-form textarea.modal-input {
+    height: 90px;
+    padding: 12px 14px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.modal-form .modal-input::placeholder {
+    color: #a2ada8;
+    font-weight: 400;
+}
+
+.modal-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.modal-form-group {
+    margin-bottom: 14px;
+}
+
+/* =========================================================
+   BOOKING TYPE SELECTOR
+========================================================= */
+
+.modal-booking-types {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.modal-booking-type {
+    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 8px;
+    border: 1.5px solid #e0e7e4;
+    border-radius: var(--lamo-radius);
+    background: #ffffff;
+    color: #64706b;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.modal-booking-type i {
+    color: var(--lamo-green);
+    font-size: 18px;
+}
+
+.modal-booking-type span {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.modal-booking-type small {
+    font-size: 9px;
+    color: var(--lamo-text-secondary);
+    font-weight: 500;
+}
+
+.modal-booking-type:hover {
+    border-color: #b8d4c8;
+    background: var(--lamo-green-soft);
+}
+
+.modal-booking-type.active {
+    border-color: var(--lamo-green);
+    background: var(--lamo-green-light);
+    box-shadow: inset 0 0 0 1px var(--lamo-green), 0 2px 8px rgba(8, 127, 91, 0.1);
+}
+
+.modal-booking-type.active span {
+    color: var(--lamo-green);
+}
+
+/* =========================================================
+   TIME TOGGLE
+========================================================= */
+
+.time-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #f3f7f5;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
+.time-toggle-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #64706b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.time-toggle-btn:hover {
+    color: var(--lamo-green);
+}
+
+.time-toggle-btn.active {
+    background: #ffffff;
+    color: var(--lamo-green);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    font-weight: 700;
+}
+
+/* =========================================================
+   PHONE VALIDATION
+========================================================= */
+
+.modal-phone-error {
+    display: none;
+    margin-top: 6px;
+    color: #c62828;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.modal-input.modal-phone-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.08) !important;
+}
+
+.modal-input.modal-phone-valid {
+    border-color: var(--lamo-green) !important;
+    box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.06) !important;
+}
+
+/* =========================================================
+   TRUST BAR
+========================================================= */
+
+.modal-trust {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px 0 8px;
+    margin-top: 4px;
+    border-top: 1px solid #edf1ef;
+}
+
+.modal-trust-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--lamo-text-secondary);
+    font-size: 9px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.modal-trust-item i {
+    color: var(--lamo-green);
+    font-size: 12px;
+}
+
+/* =========================================================
+   SUBMIT BUTTON
+========================================================= */
+
+.modal-confirm {
+    width: 100%;
+    height: 52px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 13px;
+    background: linear-gradient(135deg, var(--lamo-green) 0%, #0a956d 100%);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(8, 127, 91, 0.25);
+    transition: all 0.2s ease;
+}
+
+.modal-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(8, 127, 91, 0.35);
+}
+
+.modal-confirm:active {
+    transform: translateY(0);
+}
+
+button.book-worker {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+button.book-worker:focus-visible {
+    outline: 3px solid rgba(8, 127, 91, 0.2);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   ERROR MESSAGE
+========================================================= */
+
+.modal-booking-error {
+    display: none;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: var(--lamo-radius);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.06);
+}
+
+.modal-booking-error i {
+    color: #dc2626;
+    font-size: 14px;
+    margin-right: 8px;
+    vertical-align: -2px;
+}
+
+/* =========================================================
+   BODY SCROLL LOCK
+========================================================= */
+
+body.modal-open {
+    overflow: hidden;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 760px) {
+    .booking-modal-overlay {
+        padding: 10px;
+    }
+
+    .booking-modal {
+        max-height: 94vh;
+        border-radius: 20px;
+    }
+
+    .booking-modal-body {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-summary {
+        padding: 20px;
+    }
+
+    .modal-summary h3 {
+        font-size: 22px;
+    }
+
+    .modal-service-icon {
+        width: 50px;
+        height: 50px;
+        margin: 16px 0 10px;
+        font-size: 20px;
+    }
+
+    .modal-benefits {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .modal-benefit {
+        font-size: 8px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .modal-form {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 500px) {
+    .booking-modal-header {
+        padding: 16px 18px;
+    }
+
+    .booking-modal-heading h2 {
+        font-size: 18px;
+    }
+
+    .booking-modal-heading p {
+        font-size: 9px;
+    }
+
+    .booking-modal-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+
+    .booking-modal-close {
+        width: 36px;
+        height: 36px;
+    }
+
+    .modal-summary {
+        padding: 18px;
+    }
+
+    .modal-benefits {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-form {
+        padding: 18px;
+    }
+
+    .modal-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-trust {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-trust-item {
+        justify-content: flex-start;
+    }
+}
+

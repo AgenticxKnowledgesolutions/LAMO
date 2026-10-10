@@ -1,0 +1,527 @@
+.users-page {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 10px 24px 30px;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 768px) {
+        .users-page {
+            padding: 10px 12px 30px;
+        }
+    }
+
+
+    /* HEADER */
+
+    .users-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        margin-bottom: 22px;
+    }
+
+    .users-heading h2 {
+        margin: 0;
+
+        color: #17211d;
+
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .users-heading p {
+        margin: 5px 0 0;
+
+        color: #7b8781;
+
+        font-size: 13px;
+    }
+
+
+    /* COUNT */
+
+    .user-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-width: 32px;
+        height: 28px;
+
+        padding: 0 10px;
+
+        border-radius: 20px;
+
+        background: #edf6f0;
+        color: #216247;
+
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+
+    /* TABLE CARD */
+
+    .users-table-card {
+        width: 100%;
+
+        background: #ffffff;
+
+        border: 1px solid #e6ece8;
+
+        border-radius: 12px;
+
+        overflow: hidden;
+
+        box-shadow:
+            0 2px 8px rgba(18, 60, 45, 0.04);
+    }
+
+
+    .users-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+
+    /* TABLE */
+
+    .users-table {
+        width: 100%;
+
+        min-width: 700px;
+
+        border-collapse: collapse;
+    }
+
+
+    .users-table th {
+        padding: 14px 20px;
+
+        background: #f8faf9;
+
+        border-bottom: 1px solid #e6ece8;
+
+        color: #7b8781;
+
+        font-size: 10px;
+        font-weight: 700;
+
+        text-align: left;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.7px;
+    }
+
+
+    .users-table td {
+        padding: 15px 20px;
+
+        border-bottom: 1px solid #f0f3f1;
+
+        color: #4d5953;
+
+        font-size: 13px;
+
+        vertical-align: middle;
+    }
+
+
+    .users-table tbody tr:hover {
+        background: #fbfdfc;
+    }
+
+
+    .users-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+
+    /* USER */
+
+    .user-info {
+        display: flex;
+        align-items: center;
+
+        gap: 11px;
+    }
+
+
+    .user-avatar {
+        width: 38px;
+        height: 38px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex-shrink: 0;
+
+        border-radius: 50%;
+
+        background: #dff3e8;
+        color: #123c2d;
+
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+
+    .user-details strong {
+        display: block;
+
+        color: #17211d;
+
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+
+    .user-details span {
+        display: block;
+
+        margin-top: 3px;
+
+        color: #9aa39e;
+
+        font-size: 10px;
+    }
+
+
+    /* EMAIL */
+
+    .user-email {
+        color: #5f6b65;
+    }
+
+
+    /* STATUS */
+
+    .status {
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 6px;
+
+        padding: 5px 10px;
+
+        border-radius: 20px;
+
+        font-size: 10px;
+        font-weight: 650;
+    }
+
+
+    .status::before {
+        content: "";
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+    }
+
+
+    .status.active {
+        background: #eaf7ee;
+        color: #28754d;
+    }
+
+
+    .status.active::before {
+        background: #42a969;
+    }
+
+
+    .status.inactive {
+        background: #fff0f0;
+        color: #c75252;
+    }
+
+
+    .status.inactive::before {
+        background: #c75252;
+    }
+
+
+    /* ACTION */
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+
+        display: inline-flex;
+
+        align-items: center;
+        justify-content: center;
+
+        border: 1px solid #e7ece9;
+
+        border-radius: 7px;
+
+        background: #ffffff;
+
+        color: #3971b8;
+
+        text-decoration: none;
+
+        cursor: pointer;
+    }
+
+
+    .action-btn:hover {
+        background: #edf4ff;
+        border-color: #d9e8ff;
+        color: #3971b8;
+    }
+
+
+    .action-btn.delete-btn {
+        color: #dc2626;
+    }
+
+    .action-btn.delete-btn:hover {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #dc2626;
+    }
+
+
+    /* EMPTY */
+
+    .empty-users {
+        padding: 65px 20px;
+
+        text-align: center;
+    }
+
+
+    .empty-icon {
+        width: 52px;
+        height: 52px;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        margin: 0 auto 14px;
+
+        border-radius: 50%;
+
+        background: #f2f6f3;
+        color: #8da097;
+
+        font-size: 20px;
+    }
+
+
+    .empty-users h5 {
+        margin: 0;
+
+        color: #37413b;
+
+        font-size: 15px;
+    }
+
+
+    .empty-users p {
+        margin: 5px 0 0;
+
+        color: #9aa39e;
+
+        font-size: 12px;
+    }
+
+
+    /* MOBILE */
+
+    @media (max-width: 768px) {
+
+        .users-page {
+            padding: 10px 15px 25px;
+        }
+
+        .users-table {
+            min-width: 500px;
+        }
+
+    }
+
+
+    /* =========================================================
+       LAMO ANIMATED MESSAGE TOAST
+    ========================================================= */
+    .lamo-toast-container {
+        position: fixed;
+        top: 22px;
+        right: 22px;
+        z-index: 99999;
+        width: min(390px, calc(100vw - 30px));
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        pointer-events: none;
+    }
+
+    .lamo-toast {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 42px 15px 14px;
+        background: rgba(255,255,255,.98);
+        border: 1px solid #e8ece9;
+        border-radius: 14px;
+        box-shadow: 0 14px 35px rgba(20,50,35,.14);
+        overflow: hidden;
+        pointer-events: auto;
+        animation: lamoToastIn .45s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    .lamo-toast.is-closing {
+        animation: lamoToastOut .35s ease forwards;
+    }
+
+    .lamo-toast-icon {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+    }
+
+    .lamo-toast-content {
+        min-width: 0;
+        padding-top: 1px;
+    }
+
+    .lamo-toast-title {
+        display: block;
+        margin: 0 0 2px;
+        color: #19372b;
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.3;
+    }
+
+    .lamo-toast-message {
+        display: block;
+        color: #66736d;
+        font-size: 12px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .lamo-toast-close {
+        position: absolute;
+        top: 9px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        background: transparent;
+        color: #9aa59f;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: .2s ease;
+    }
+
+    .lamo-toast-close:hover {
+        background: #f1f4f2;
+        color: #405049;
+        transform: rotate(90deg);
+    }
+
+    .lamo-toast-progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 100%;
+        transform-origin: left;
+        animation: lamoToastProgress 4.5s linear forwards;
+    }
+
+    .lamo-toast.success .lamo-toast-icon {
+        background: #e7f7ed;
+        color: #16834b;
+    }
+    .lamo-toast.success .lamo-toast-progress {
+        background: #25a65d;
+    }
+
+    .lamo-toast.error .lamo-toast-icon,
+    .lamo-toast.danger .lamo-toast-icon {
+        background: #fff0f0;
+        color: #d14343;
+    }
+    .lamo-toast.error .lamo-toast-progress,
+    .lamo-toast.danger .lamo-toast-progress {
+        background: #df5555;
+    }
+
+    .lamo-toast.warning .lamo-toast-icon {
+        background: #fff7df;
+        color: #d58a09;
+    }
+    .lamo-toast.warning .lamo-toast-progress {
+        background: #efa91c;
+    }
+
+    .lamo-toast.info .lamo-toast-icon,
+    .lamo-toast.debug .lamo-toast-icon {
+        background: #eaf3ff;
+        color: #3578c5;
+    }
+    .lamo-toast.info .lamo-toast-progress,
+    .lamo-toast.debug .lamo-toast-progress {
+        background: #4d8ed8;
+    }
+
+    @keyframes lamoToastIn {
+        0% { opacity: 0; transform: translateX(45px) scale(.96); }
+        70% { transform: translateX(-5px) scale(1.01); }
+        100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes lamoToastOut {
+        0% { opacity: 1; transform: translateX(0) scale(1); }
+        100% { opacity: 0; transform: translateX(45px) scale(.96); }
+    }
+
+    @keyframes lamoToastProgress {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+    }
+
+    @media (max-width: 600px) {
+        .lamo-toast-container {
+            top: 14px;
+            right: 15px;
+            left: 15px;
+            width: auto;
+        }
+        .lamo-toast {
+            width: 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lamo-toast,
+        .lamo-toast.is-closing,
+        .lamo-toast-progress {
+            animation: none !important;
+        }
+    }

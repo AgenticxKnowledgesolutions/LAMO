@@ -1,0 +1,172 @@
+/* =========================================================
+   LAMO SHARED DESIGN SYSTEM
+   Global typography, hero, and reusable component styles
+   ========================================================= */
+
+:root {
+    /* ====== Hero (matches home.html hero-section min-height) ====== */
+    --lamo-hero-min-height: 520px;
+    --lamo-hero-padding-top: 70px;
+    --lamo-hero-padding-bottom: 55px;
+
+    /* ====== Typography scale (based on home.html reference) ====== */
+    --lamo-page-title-size: clamp(2.4rem, 4.5vw, 3.4rem);
+    --lamo-section-title-size: clamp(2rem, 4vw, 3rem);
+    --lamo-section-subtitle-size: 0.85rem;
+    --lamo-body-size: 1rem;
+    --lamo-body-line-height: 1.7;
+    --lamo-small-size: 0.85rem;
+    --lamo-button-size: 0.95rem;
+
+    /* ====== Colors (LAMO brand) ====== */
+    --lamo-primary: #087f5b;
+    --lamo-primary-dark: #056b4d;
+    --lamo-dark-green: #064d3a;
+    --lamo-text: #17231f;
+    --lamo-muted: #6b7b74;
+    --lamo-border: #dce7e2;
+}
+
+/* =========================================================
+   GLOBAL TYPOGRAPHY
+   Scoped to page content (does NOT affect navbar)
+   ========================================================= */
+
+.lamo-page-heading {
+    font-size: var(--lamo-page-title-size);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--lamo-text);
+    margin: 0 0 20px;
+}
+
+.lamo-section-heading {
+    font-size: var(--lamo-section-title-size);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    color: var(--lamo-text);
+    margin: 0 0 14px;
+}
+
+.lamo-section-subtitle {
+    font-size: var(--lamo-section-subtitle-size);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--lamo-primary);
+}
+
+.lamo-body-text {
+    font-size: var(--lamo-body-size);
+    line-height: var(--lamo-body-line-height);
+    color: var(--lamo-muted);
+}
+
+.lamo-small-text {
+    font-size: var(--lamo-small-size);
+    line-height: 1.5;
+    color: var(--lamo-muted);
+}
+
+/* =========================================================
+   LAMO PAGE HERO
+   Shared hero class for Home, About, Services, Contact
+   ========================================================= */
+
+.lamo-page-hero {
+    position: relative;
+    z-index: 2;
+    min-height: var(--lamo-hero-min-height);
+    padding: var(--lamo-hero-padding-top) 0 var(--lamo-hero-padding-bottom);
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.lamo-page-hero .container {
+    position: relative;
+    z-index: 2;
+}
+
+/* =========================================================
+   RESPONSIVE HERO
+   Tablet and mobile reductions (consistent across pages)
+   ========================================================= */
+
+@media (max-width: 991px) {
+    .lamo-page-hero {
+        min-height: 480px;
+        padding: 60px 0 50px;
+    }
+}
+
+@media (max-width: 767px) {
+    .lamo-page-hero {
+        min-height: 460px;
+        padding: 55px 0 45px;
+    }
+}
+
+@media (max-width: 575px) {
+    .lamo-page-hero {
+        min-height: 450px;
+        padding: 50px 0 40px;
+    }
+}
+
+/* =========================================================
+   LAMO BUTTONS
+   Shared button styles
+   ========================================================= */
+
+.lamo-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--lamo-primary);
+    color: white;
+    border-radius: 50px;
+    text-decoration: none;
+    font-size: var(--lamo-button-size);
+    font-weight: 700;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.lamo-btn-primary:hover {
+    background: var(--lamo-primary-dark);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.lamo-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: transparent;
+    color: var(--lamo-primary);
+    border: 2px solid var(--lamo-primary);
+    border-radius: 50px;
+    text-decoration: none;
+    font-size: var(--lamo-button-size);
+    font-weight: 700;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.lamo-btn-outline:hover {
+    background: var(--lamo-primary);
+    color: white;
+    transform: translateY(-2px);
+}

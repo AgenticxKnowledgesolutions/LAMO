@@ -1,0 +1,609 @@
+.stat-card-link {
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .stat-card-link:hover {
+        text-decoration: none;
+        color: inherit;
+        transform: translateY(-2px);
+    }
+
+    /* =========================
+       STAT CARDS
+    ========================= */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+        margin-bottom: 28px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #e8ece9;
+        border-radius: 15px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: 0.2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(20,50,35,0.07);
+    }
+
+    .stat-info small {
+        color: #7b8882;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .stat-info h3 {
+        margin: 7px 0 3px;
+        font-size: 28px;
+        font-weight: 800;
+    }
+
+    .stat-info span {
+        color: #6d7973;
+        font-size: 11px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: #e8f5ed;
+        color: #1c6547;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 21px;
+    }
+
+    .stat-icon.revenue { background: #fef3c7; color: #d97706; }
+    .stat-icon.complaints { background: #fee2e2; color: #dc2626; }
+    .stat-icon.rating { background: #fef9c3; color: #ca8a04; }
+    .stat-icon.completed { background: #d1fae5; color: #059669; }
+
+    @media (max-width: 768px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+
+    @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr !important; }
+    }
+
+    /* The "Recent Bookings | Top Workers" row sets its 2fr/1fr split inline
+       (so it cannot be reached by a normal class rule). Without this override
+       the two columns keep their desktop ratio at phone widths and the page
+       scrolls sideways. Collapsing to one column below 768px matches the
+       existing .bottom-grid behaviour and leaves >=768px untouched. */
+    @media (max-width: 768px) {
+        .dash-split { grid-template-columns: 1fr !important; }
+    }
+
+    /* =========================
+       PANELS
+    ========================= */
+    .panel {
+        background: white;
+        border: 1px solid #e8ece9;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        padding: 19px 22px;
+        border-bottom: 1px solid #edf0ee;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-header h5 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 750;
+    }
+
+    .panel-header p {
+        margin: 4px 0 0;
+        color: #87918c;
+        font-size: 11px;
+    }
+
+    .btn-add {
+        background: #123c2d;
+        color: white;
+        border: 0;
+        padding: 9px 15px;
+        border-radius: 9px;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .btn-add:hover {
+        background: #1b5a42;
+        color: white;
+    }
+
+    /* =========================
+       TABLE
+    ========================= */
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .service-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .service-table th {
+        background: #fafcfb;
+        color: #7a8781;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        font-weight: 700;
+        padding: 13px 20px;
+        border-bottom: 1px solid #edf0ee;
+        white-space: nowrap;
+    }
+
+    .service-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f0f2f1;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .service-table tbody tr:hover {
+        background: #fbfcfb;
+    }
+
+    .service-name {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .service-icon {
+        width: 38px;
+        height: 38px;
+        background: #edf6f0;
+        color: #1b6245;
+        border-radius: 9px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 17px;
+    }
+
+    .service-name strong {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .service-name small {
+        color: #8b9691;
+        font-size: 10px;
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #eaf7ee;
+        color: #28754d;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        background: #42a969;
+        border-radius: 50%;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 7px;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 13px;
+    }
+
+    .edit-btn {
+        background: #edf4ff;
+        color: #3971b8;
+    }
+
+    .delete-btn {
+        background: #fff0f0;
+        color: #c75252;
+    }
+
+    .edit-btn:hover {
+        background: #dceaff;
+    }
+
+    .delete-btn:hover {
+        background: #ffe0e0;
+    }
+
+    /* =========================
+       BOTTOM GRID
+    ========================= */
+    .bottom-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .quick-list {
+        padding: 10px;
+    }
+
+    .quick-item {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 13px;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #27352e;
+        transition: 0.2s;
+    }
+
+    .quick-item:hover {
+        background: #f5f8f6;
+    }
+
+    .quick-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+        background: #edf6f0;
+        color: #1b6245;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .quick-item strong {
+        font-size: 12px;
+        display: block;
+    }
+
+    .quick-item small {
+        color: #8a9590;
+        font-size: 10px;
+    }
+
+    /* =========================
+       SYSTEM SUMMARY
+    ========================= */
+    .summary {
+        padding: 18px 22px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 13px 0;
+        border-bottom: 1px solid #edf0ee;
+        font-size: 12px;
+    }
+
+    .summary-row:last-child {
+        border-bottom: 0;
+    }
+
+    .summary-row span:first-child {
+        color: #7d8983;
+    }
+
+    .summary-row strong {
+        font-weight: 700;
+    }
+
+    /* =========================
+       MODAL
+    ========================= */
+    .modal-content {
+        border: 0;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: #123c2d;
+        color: white;
+        border: 0;
+    }
+
+    .modal-header .btn-close {
+        filter: invert(1);
+    }
+
+    .modal-title {
+        font-weight: 700;
+    }
+
+    .form-label {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 9px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #4e9272;
+        box-shadow: 0 0 0 3px rgba(78,146,114,0.12);
+    }
+
+    .btn-save {
+        background: #123c2d;
+        color: white;
+        border: 0;
+        border-radius: 9px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-save:hover {
+        background: #1b5a42;
+        color: white;
+    }
+
+    /* =========================
+       MOBILE
+    ========================= */
+    @media (max-width: 1100px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .bottom-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .stat-card {
+            padding: 17px;
+        }
+
+        .panel-header {
+            padding: 16px;
+        }
+
+        .service-table th,
+        .service-table td {
+            padding: 12px;
+        }
+    }
+
+    /* =========================================================
+       MODERN DJANGO MESSAGE TOASTS
+    ========================================================= */
+    .lamo-toast-container {
+        position: fixed;
+        top: 22px;
+        right: 22px;
+        z-index: 99999;
+        width: min(390px, calc(100vw - 30px));
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        pointer-events: none;
+    }
+
+    .lamo-toast {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 42px 15px 14px;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid #e8ece9;
+        border-radius: 14px;
+        box-shadow: 0 14px 35px rgba(20, 50, 35, 0.14);
+        overflow: hidden;
+        pointer-events: auto;
+        animation: lamoToastIn .45s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    .lamo-toast.is-closing {
+        animation: lamoToastOut .35s ease forwards;
+    }
+
+    .lamo-toast-icon {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+    }
+
+    .lamo-toast-content {
+        min-width: 0;
+        padding-top: 1px;
+    }
+
+    .lamo-toast-title {
+        display: block;
+        margin: 0 0 2px;
+        color: #19372b;
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.3;
+    }
+
+    .lamo-toast-message {
+        display: block;
+        color: #66736d;
+        font-size: 12px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .lamo-toast-close {
+        position: absolute;
+        top: 9px;
+        right: 10px;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        background: transparent;
+        color: #9aa59f;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: .2s ease;
+    }
+
+    .lamo-toast-close:hover {
+        background: #f1f4f2;
+        color: #405049;
+        transform: rotate(90deg);
+    }
+
+    .lamo-toast-progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 100%;
+        transform-origin: left;
+        animation: lamoToastProgress 4.5s linear forwards;
+    }
+
+    /* SUCCESS */
+    .lamo-toast.success .lamo-toast-icon {
+        background: #e7f7ed;
+        color: #16834b;
+    }
+
+    .lamo-toast.success .lamo-toast-progress {
+        background: #25a65d;
+    }
+
+    /* ERROR / DANGER */
+    .lamo-toast.error .lamo-toast-icon,
+    .lamo-toast.danger .lamo-toast-icon {
+        background: #fff0f0;
+        color: #d14343;
+    }
+
+    .lamo-toast.error .lamo-toast-progress,
+    .lamo-toast.danger .lamo-toast-progress {
+        background: #df5555;
+    }
+
+    /* WARNING */
+    .lamo-toast.warning .lamo-toast-icon {
+        background: #fff7df;
+        color: #d58a09;
+    }
+
+    .lamo-toast.warning .lamo-toast-progress {
+        background: #efa91c;
+    }
+
+    /* INFO */
+    .lamo-toast.info .lamo-toast-icon {
+        background: #eaf3ff;
+        color: #3578c5;
+    }
+
+    .lamo-toast.info .lamo-toast-progress {
+        background: #4d8ed8;
+    }
+
+    @keyframes lamoToastIn {
+        0% {
+            opacity: 0;
+            transform: translateX(45px) scale(.96);
+        }
+        70% {
+            transform: translateX(-5px) scale(1.01);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+    }
+
+    @keyframes lamoToastOut {
+        0% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translateX(45px) scale(.96);
+        }
+    }
+
+    @keyframes lamoToastProgress {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(0); }
+    }
+
+    @media (max-width: 600px) {
+        .lamo-toast-container {
+            top: 14px;
+            right: 15px;
+            left: 15px;
+            width: auto;
+        }
+
+        .lamo-toast {
+            width: 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lamo-toast,
+        .lamo-toast.is-closing,
+        .lamo-toast-progress {
+            animation: none !important;
+        }
+    }

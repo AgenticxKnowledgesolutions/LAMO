@@ -1,0 +1,2664 @@
+/* =====================================================
+           ROOT VARIABLES
+        ====================================================== */
+
+    :root {
+
+      --primary: #16a34a;
+
+      --primary-hover: #15803d;
+
+      --dark-green: #042f1f;
+
+      --text-dark: #1f2937;
+
+      --text-muted: #ecf0f9;
+
+      --bg-light: #f9fafb;
+
+    }
+
+
+    /* =====================================================
+           BODY
+        ====================================================== */
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+
+    body {
+
+      font-family: "Poppins", sans-serif;
+
+      color: var(--text-dark);
+
+      background-color: #ffffff;
+
+      overflow-x: hidden;
+
+      margin: 0;
+
+    }
+
+
+    a {
+      text-decoration: none;
+    }
+
+
+    /* =====================================================
+           GLOBAL TYPOGRAPHY
+        ====================================================== */
+
+    .section-subtitle {
+
+      color: var(--primary);
+
+      font-weight: 600;
+
+      font-size: 0.85rem;
+
+      letter-spacing: 1.5px;
+
+      text-transform: uppercase;
+
+      margin-bottom: 0.5rem;
+
+      display: block;
+
+    }
+
+
+    .section-title {
+
+      font-weight: 700;
+
+      font-size: 2.25rem;
+
+      color: var(--text-dark);
+
+      margin-bottom: 1rem;
+
+    }
+
+
+    /* =====================================================
+           SITE HEADER
+        ====================================================== */
+
+    .site-header {
+
+      position: relative;
+
+      background-color: var(--dark-green);
+
+      border-bottom-left-radius: 40% 40px;
+
+      border-bottom-right-radius: 40% 40px;
+
+      overflow: visible;
+
+    }
+    /* =====================================================
+           MAIN NAVBAR
+
+           LEFT   = LAMO
+           CENTER = Navigation
+           RIGHT  = User / Login / Register
+
+           On scroll the navbar becomes a full-width
+           dark-green transparent glass bar.
+        ====================================================== */
+
+    .navbar {
+
+      position: fixed;
+
+      top: 0;
+
+      left: 0;
+
+      width: 100%;
+
+      min-height: 72px;
+
+      padding: 0.45rem 34px;
+
+      z-index: 1050;
+
+      background: transparent;
+
+      border: none;
+
+      box-shadow: none;
+
+      transition:
+        background 0.35s ease,
+        box-shadow 0.35s ease,
+        backdrop-filter 0.35s ease;
+
+    }
+
+
+    /* =====================================================
+           NAVBAR INNER
+        ====================================================== */
+
+    .navbar > .container {
+
+      position: relative;
+
+      width: 100%;
+
+      max-width: 1750px;
+
+      min-height: 58px;
+
+      padding-left: 0;
+
+      padding-right: 0;
+
+      display: grid;
+
+      grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+
+      align-items: center;
+
+      column-gap: 24px;
+
+    }
+
+/* =====================================================
+   FOOTER BRAND SPACING
+   ===================================================== */
+
+.site-footer .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.site-footer .brand-icon-wrap {
+    flex-shrink: 0;
+}
+
+.site-footer .brand-text-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+  /* =====================================================
+   LOGO
+====================================================== */
+
+/* =====================================================
+   LAMO NAVBAR IMAGE LOGO
+====================================================== */
+
+.lamo-navbar-logo {
+    width: 110px;
+    height: auto;
+    max-height: 42px;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.brand-logo:hover .lamo-navbar-logo {
+    transform: scale(1.03);
+}
+
+.brand-logo:hover {
+    color: #ffffff;
+}
+
+
+/* =====================================================
+   OLD BRAND LOGO STYLES
+   Used by footer / other logo areas
+====================================================== */
+
+.brand-icon-wrap {
+    width: 44px;
+    height: 44px;
+    background: var(--primary);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.brand-icon-wrap .bi-people-fill {
+    position: absolute;
+    font-size: 0.7rem;
+    color: white;
+    bottom: 7px;
+    right: 7px;
+}
+
+.brand-text-wrap {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.brand-name {
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+    color: #ffffff;
+    transition: color 0.3s ease;
+}
+
+.brand-sub {
+    font-size: 0.55rem;
+    color: #a7f3d0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.3s ease;
+}
+
+    /* =====================================================
+           NAVBAR COLLAPSE
+        ====================================================== */
+
+    .navbar-collapse.show {
+      display: block;
+    }
+
+
+    /* =====================================================
+           MAIN OVAL NAVIGATION
+           CENTERED ON THE SCREEN.
+        ====================================================== */
+
+    .nav-pill {
+
+      grid-column: 2;
+
+      justify-self: center;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 0.28rem 0.42rem;
+
+      border-radius: 60px;
+
+      background:
+        rgba(255, 255, 255, 0.10);
+
+      border:
+        1px solid rgba(255, 255, 255, 0.45);
+
+      backdrop-filter: blur(16px);
+
+      -webkit-backdrop-filter: blur(16px);
+
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.10);
+
+      transition:
+        background 0.35s ease,
+        border-color 0.35s ease,
+        box-shadow 0.35s ease;
+
+      z-index: 2;
+
+    }
+
+
+           /* THIS IS THE OVAL FROM YOUR DRAWING.
+        ====================================================== */
+
+    .nav-pill {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 0.28rem 0.42rem;
+
+      border-radius: 60px;
+
+      background:
+        rgba(255, 255, 255, 0.10);
+
+      border:
+        1px solid rgba(255, 255, 255, 0.45);
+
+      backdrop-filter: blur(16px);
+
+      -webkit-backdrop-filter: blur(16px);
+
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.10);
+
+      transition:
+        background 0.35s ease,
+        border-color 0.35s ease,
+        box-shadow 0.35s ease;
+
+      transform: translateX(-10px);
+
+    }
+
+
+    /* =====================================================
+           NAV LIST
+        ====================================================== */
+
+    .nav-pill .navbar-nav {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 0.6rem;
+
+      margin: 0;
+
+    }
+
+
+    /* =====================================================
+           NAV LINKS
+        ====================================================== */
+
+    .nav-pill .nav-link {
+
+      position: relative;
+
+      color:
+        rgba(255, 255, 255, 0.95) !important;
+
+      font-weight: 500;
+
+      font-size: 0.91rem;
+
+      padding:
+        0.55rem 0.85rem !important;
+
+      border-radius: 30px;
+
+      white-space: nowrap;
+
+      transition:
+        color 0.3s ease,
+        background 0.3s ease,
+        transform 0.3s ease;
+
+    }
+
+
+    /* =====================================================
+           NAV HOVER
+        ====================================================== */
+
+    .nav-pill .nav-link:hover {
+
+      color: #ffffff !important;
+
+      background:
+        rgba(255, 255, 255, 0.12);
+
+      transform: translateY(-1px);
+
+    }
+
+
+    /* =====================================================
+           ACTIVE NAVIGATION
+
+           ONLY THE SELECTED ITEM GETS THIS SMALL PILL.
+        ====================================================== */
+
+    .nav-pill .nav-link.active {
+
+      color: #ffffff !important;
+
+      background:
+        rgba(255, 255, 255, 0.20);
+
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+
+        0 3px 12px rgba(0, 0, 0, 0.08);
+
+    }
+
+
+    /* =====================================================
+           ACTIVE GREEN DOT
+        ====================================================== */
+
+    .nav-pill .nav-link.active::after {
+
+      content: "";
+
+      position: absolute;
+
+      left: 50%;
+
+      bottom: 4px;
+
+      transform:
+        translateX(-50%);
+
+      width: 5px;
+
+      height: 5px;
+
+      border-radius: 50%;
+
+      background: #4ade80;
+
+      box-shadow:
+        0 0 8px rgba(74, 222, 128, 0.8);
+
+    }
+
+
+    /* =====================================================
+           USER NOTIFICATION ICON
+       ====================================================== */
+
+    .notification-nav-link {
+
+      width: 42px;
+
+      height: 38px;
+
+      display: inline-flex !important;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 0.45rem !important;
+
+    }
+
+
+    .notification-nav-link i {
+
+      font-size: 1.05rem;
+
+      transition: transform 0.25s ease;
+
+    }
+
+
+    .notification-nav-link:hover i {
+
+      transform: scale(1.12);
+
+    }
+
+
+    .navbar.scrolled .notification-nav-link.active {
+
+      color: var(--primary) !important;
+
+    }
+    /* =====================================================
+           NAV ACTIONS
+           Public: Login / Register
+           Authenticated: User dropdown
+        ====================================================== */
+
+    /* =====================================================
+   NAV ACTIONS
+   Public: Login / Register
+   Authenticated: User dropdown
+   ===================================================== */
+
+.nav-actions {
+    grid-column: 3;
+    justify-self: end;
+
+    display: flex;
+    align-items: center;
+
+    /* Space between Contact and Login */
+    margin-left: 55px;
+
+    /* Space between Login and Register */
+    gap: 14px;
+
+    flex-shrink: 0;
+    z-index: 3;
+}
+
+    /* =====================================================
+           USER MENU
+        ====================================================== */
+
+    .user-menu {
+
+      position: relative;
+
+    }
+
+
+    .user-menu-trigger {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      min-height: 42px;
+
+      padding: 7px 13px;
+
+      border-radius: 30px;
+
+      border: 1px solid rgba(255, 255, 255, 0.35);
+
+      background: rgba(255, 255, 255, 0.08);
+
+      color: #ffffff;
+
+      font-family: "Poppins", sans-serif;
+
+      font-size: 13px;
+
+      font-weight: 600;
+
+      white-space: nowrap;
+
+      cursor: pointer;
+
+      transition:
+        background 0.3s ease,
+        border-color 0.3s ease,
+        color 0.3s ease,
+        transform 0.3s ease;
+
+    }
+
+
+    .user-menu-trigger:hover {
+
+      background: rgba(255, 255, 255, 0.15);
+
+      border-color: rgba(255, 255, 255, 0.55);
+
+      transform: translateY(-1px);
+
+    }
+
+
+    .user-menu-trigger .bi-person-circle {
+
+      font-size: 1.05rem;
+
+    }
+
+    /* First letter avatar for the logged-in user */
+    .user-initial {
+
+      width: 34px;
+
+      height: 34px;
+
+      border-radius: 50%;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background: #16a34a;
+
+      color: #ffffff;
+
+      font-size: 0.9rem;
+
+      font-weight: 700;
+
+      line-height: 1;
+
+      text-transform: uppercase;
+
+      flex-shrink: 0;
+
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+    }
+
+
+    .user-menu-trigger .bi-chevron-down {
+
+      font-size: 0.7rem;
+
+      transition: transform 0.25s ease;
+
+    }
+
+
+    .user-menu.show .user-menu-trigger .bi-chevron-down {
+
+      transform: rotate(180deg);
+
+    }
+
+
+    .user-dropdown {
+
+      position: absolute;
+
+      top: calc(100% + 10px);
+
+      right: 0;
+
+      min-width: 190px;
+
+      padding: 8px;
+
+      border-radius: 16px;
+
+      background: rgba(255, 255, 255, 0.97);
+
+      border: 1px solid rgba(255, 255, 255, 0.8);
+
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.18);
+
+      backdrop-filter: blur(18px);
+
+      -webkit-backdrop-filter: blur(18px);
+
+      opacity: 0;
+
+      visibility: hidden;
+
+      transform: translateY(-8px);
+
+      transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease,
+        transform 0.2s ease;
+
+      z-index: 1100;
+
+    }
+
+
+    .user-menu.show .user-dropdown {
+
+      opacity: 1;
+
+      visibility: visible;
+
+      transform: translateY(0);
+
+    }
+
+
+    .user-dropdown a {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+      width: 100%;
+
+      padding: 10px 12px;
+
+      border-radius: 10px;
+
+      color: #1f2937;
+
+      font-size: 13px;
+
+      font-weight: 600;
+
+      transition:
+        color 0.2s ease,
+        background 0.2s ease;
+
+    }
+
+
+    .user-dropdown a i {
+
+      width: 18px;
+
+      text-align: center;
+
+      font-size: 15px;
+
+    }
+
+
+    .user-dropdown a:hover {
+
+      color: var(--primary);
+
+      background: rgba(22, 163, 74, 0.09);
+
+    }
+
+
+    .user-dropdown a.logout-item:hover {
+
+      color: #dc3545;
+
+      background: rgba(220, 53, 69, 0.08);
+
+    }
+
+
+    /* =====================================================
+           USER GREETING
+           Kept for compatibility with existing styles.
+        ====================================================== */
+
+    .user-greeting-nav {
+
+      color: #ffffff;
+
+      font-size: 13px;
+
+      font-weight: 600;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 6px;
+
+      white-space: nowrap;
+
+    }
+
+
+    /* =====================================================
+           LOGIN
+        ====================================================== */
+
+        ====================================================== */
+
+    /* =====================================================
+   LOGIN BUTTON
+   Transparent glass style
+   ===================================================== */
+
+.btn-login {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 44px;
+    padding: 0.48rem 1.15rem;
+
+    border-radius: 30px;
+
+    /* Transparent glass */
+    background: rgba(255, 255, 255, 0.08) !important;
+
+    /* Visible glass border */
+    border: 1px solid rgba(255, 255, 255, 0.55) !important;
+
+    /* Glass blur */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+
+    color: #ffffff !important;
+
+    font-family: "Poppins", sans-serif;
+    font-size: 0.91rem;
+    font-weight: 500;
+
+    white-space: nowrap;
+    text-decoration: none !important;
+
+    box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.08);
+
+    transition:
+        background 0.3s ease,
+        border-color 0.3s ease,
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+
+/* LOGIN HOVER */
+
+.btn-login:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+
+    border-color: rgba(255, 255, 255, 0.75) !important;
+
+    color: #ffffff !important;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+
+    /* =====================================================
+           REGISTER
+        ====================================================== */
+
+    .btn-register {
+
+      background: var(--primary);
+
+      border: 1px solid var(--primary);
+
+      color: #ffffff;
+
+      padding:
+        0.48rem 1.15rem;
+
+      border-radius: 30px;
+
+      font-weight: 600;
+
+      font-size: 0.91rem;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      white-space: nowrap;
+
+      text-decoration: none;
+
+      transition: all 0.3s ease;
+
+    }
+
+
+    .btn-register:hover {
+
+      background: var(--primary-hover);
+
+      border-color: var(--primary-hover);
+
+      color: #ffffff;
+
+      transform: translateY(-1px);
+
+    }
+    /* =====================================================
+           SCROLLED NAVBAR
+           FULL-WIDTH DARK GREEN GLASS
+        ====================================================== */
+
+    .navbar.scrolled {
+
+      background:
+        rgba(4, 47, 31, 0.82);
+
+      border-bottom:
+        1px solid rgba(255, 255, 255, 0.12);
+
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.18);
+
+      backdrop-filter: blur(18px);
+
+      -webkit-backdrop-filter: blur(18px);
+
+    }
+
+
+    .navbar.scrolled .nav-pill {
+
+      background:
+        rgba(255, 255, 255, 0.08);
+
+      border-color:
+        rgba(255, 255, 255, 0.25);
+
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.16);
+
+    }
+
+
+    .navbar.scrolled .nav-pill .nav-link {
+
+      color:
+        rgba(255, 255, 255, 0.95) !important;
+
+    }
+
+
+    .navbar.scrolled .nav-pill .nav-link:hover {
+
+      color: #ffffff !important;
+
+      background:
+        rgba(255, 255, 255, 0.12);
+
+    }
+
+
+    .navbar.scrolled .nav-pill .nav-link.active {
+
+      color: #ffffff !important;
+
+      background:
+        rgba(255, 255, 255, 0.18);
+
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.20);
+
+    }
+
+
+    .navbar.scrolled .nav-pill .nav-link.active::after {
+
+      background: #4ade80;
+
+      box-shadow:
+        0 0 8px rgba(74, 222, 128, 0.8);
+
+    }
+
+
+    /* =====================================================
+           SCROLLED LOGO
+        ====================================================== */
+
+    .navbar.scrolled .brand-name,
+    .navbar.scrolled .brand-logo {
+
+      color: #ffffff;
+
+    }
+
+
+    .navbar.scrolled .brand-sub {
+
+      color: #a7f3d0;
+
+    }
+
+
+    /* =====================================================
+           SCROLLED USER MENU
+        ====================================================== */
+
+    .navbar.scrolled .user-menu-trigger {
+
+      color: #ffffff;
+
+      background:
+        rgba(255, 255, 255, 0.08);
+
+      border-color:
+        rgba(255, 255, 255, 0.28);
+
+    }
+
+
+    .navbar.scrolled .user-menu-trigger:hover {
+
+      background:
+        rgba(255, 255, 255, 0.15);
+
+      border-color:
+        rgba(255, 255, 255, 0.50);
+
+    }
+
+
+    /* =====================================================
+           SCROLLED LOGIN
+        ====================================================== */
+
+    .navbar.scrolled .btn-login {
+
+      color: #ffffff;
+
+      border-color:
+        rgba(255, 255, 255, 0.35);
+
+      background:
+        rgba(255, 255, 255, 0.06);
+
+    }
+
+
+    .navbar.scrolled .btn-login:hover {
+
+      color: #ffffff;
+
+      border-color:
+        rgba(255, 255, 255, 0.60);
+
+      background:
+        rgba(255, 255, 255, 0.13);
+
+    }
+
+
+    /* =====================================================
+           MOBILE TOGGLE
+        ====================================================== */
+
+
+    .navbar-toggler {
+
+      color: #ffffff !important;
+
+    }
+
+
+    .navbar.scrolled .navbar-toggler {
+
+      color: #1f2937 !important;
+
+    }
+/* =====================================================
+   PUBLIC NAVBAR
+   Contact → Login spacing ONLY
+   Do NOT affect logged-in K/user layout
+   ===================================================== */
+
+@media (min-width: 992px) {
+
+    /* Public user: Login/Register */
+    .navbar .nav-actions:has(.btn-login) {
+        margin-left: 35% !important;
+        margin-right: 0 !important;
+        gap: 14px !important;
+    }
+
+    /* Logged-in user: K stays at far right
+       with the large gap */
+    .navbar .nav-actions:has(.user-menu) {
+        margin-left: 75% !important;
+        margin-right: 0 !important;
+        gap: 18px !important;
+    }
+
+}
+    /* =====================================================
+           MOBILE
+        ====================================================== */
+
+    @media (max-width: 991px) {
+
+      .navbar {
+
+        padding: 0.45rem 14px;
+
+      }
+
+
+      .navbar > .container {
+
+        min-height: 58px;
+
+        padding-left: 0.35rem;
+
+        padding-right: 0.35rem;
+
+        display: flex;
+
+        flex-wrap: wrap;
+
+      }
+
+
+      .brand-logo {
+
+        position: static;
+
+        transform: none;
+
+      }
+
+
+      .navbar-toggler {
+
+        margin-left: auto;
+
+        padding: 0.25rem 0.45rem;
+
+      }
+
+
+      .navbar-collapse {
+
+        width: 100%;
+
+        height: auto;
+
+        margin-top: 10px;
+
+        padding: 12px;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+        gap: 12px;
+
+        border-radius: 18px;
+
+        background:
+          rgba(4, 47, 31, 0.88);
+
+        border:
+          1px solid rgba(255, 255, 255, 0.16);
+
+        backdrop-filter: blur(18px);
+
+        -webkit-backdrop-filter: blur(18px);
+
+      }
+
+
+      .navbar.scrolled .navbar-collapse {
+
+        background:
+          rgba(4, 47, 31, 0.92);
+
+      }
+
+
+      .nav-pill {
+
+        grid-column: auto;
+
+        position: static;
+
+        transform: none;
+
+        width: 100%;
+
+        border-radius: 20px;
+
+        padding: 6px;
+
+      }
+
+
+      .nav-pill .navbar-nav {
+
+        width: 100%;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+      }
+
+
+      .nav-pill .nav-item {
+
+        width: 100%;
+
+      }
+
+
+      .nav-pill .nav-link {
+
+        width: 100%;
+
+        text-align: center;
+
+        padding:
+          0.7rem 1rem !important;
+
+      }
+
+
+      .nav-actions {
+
+        grid-column: auto;
+
+        position: static;
+
+        transform: none;
+
+        width: 100%;
+
+        justify-content: center;
+
+      }
+
+
+      .user-menu {
+
+        width: 100%;
+
+      }
+
+
+      .user-menu-trigger {
+
+        width: 100%;
+
+        justify-content: center;
+
+      }
+
+
+      .user-dropdown {
+
+        position: static;
+
+        width: 100%;
+
+        margin-top: 8px;
+
+        display: none;
+
+        opacity: 1;
+
+        visibility: visible;
+
+        transform: none;
+
+        background: rgba(255, 255, 255, 0.97);
+
+      }
+
+
+      .user-menu.show .user-dropdown {
+
+        display: block;
+
+      }
+
+
+      .btn-login,
+      .btn-register {
+
+        flex: 1;
+
+        max-width: 180px;
+
+      }
+
+    }
+
+
+    /* =====================================================
+           VERY SMALL MOBILE
+        ====================================================== */
+
+    @media (max-width: 480px) {
+
+      .brand-sub {
+
+        display: none;
+
+      }
+
+
+      .brand-name {
+
+        font-size: 1.15rem;
+
+      }
+
+
+      .brand-icon-wrap {
+
+        width: 40px;
+
+        height: 40px;
+
+      }
+
+
+      .nav-actions {
+
+        flex-direction: column;
+
+      }
+
+
+      .btn-login,
+      .btn-register {
+
+        width: 100%;
+
+        max-width: none;
+
+      }
+
+
+      .user-menu {
+
+        width: 100%;
+
+      }
+
+    }
+
+
+
+
+
+    /* =====================================================
+           WORKER NAVBAR
+
+           Transparent at top, white after scrolling.
+        ====================================================== */
+
+    .worker-navbar {
+
+      position: fixed;
+
+      top: 0;
+      left: 0;
+
+      width: 100%;
+
+      height: 106px;
+
+      padding: 0 36px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      z-index: 1100;
+
+      background: transparent;
+
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+
+      transition:
+        background 0.35s ease,
+        box-shadow 0.35s ease,
+        border-color 0.35s ease;
+
+    }
+
+
+    .worker-navbar.scrolled {
+
+      background: rgba(255, 255, 255, 0.97);
+
+      border-bottom-color: #e5e9e7;
+
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
+
+    }
+
+
+    /* WORKER BRAND */
+
+    .worker-brand {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+      color: #ffffff;
+
+      text-decoration: none;
+
+      flex-shrink: 0;
+
+      transition: color 0.35s ease;
+
+    }
+
+
+    .worker-brand:hover {
+      color: #ffffff;
+    }
+
+
+    .worker-brand-icon {
+
+      position: relative;
+
+      width: 56px;
+      height: 56px;
+
+      border-radius: 12px;
+
+      background: #16a34a;
+
+      display: flex;
+
+      align-items: center;
+      justify-content: center;
+
+      color: #ffffff;
+
+      font-size: 25px;
+
+    }
+
+
+    .worker-brand-icon .bi-people-fill {
+
+      position: absolute;
+
+      right: 9px;
+      bottom: 9px;
+
+      font-size: 13px;
+
+    }
+
+
+    .worker-brand-text {
+
+      display: flex;
+      flex-direction: column;
+
+      line-height: 1;
+
+    }
+
+
+    .worker-brand-text strong {
+
+      font-size: 28px;
+
+      font-weight: 800;
+
+      letter-spacing: 0.5px;
+
+    }
+
+
+    .worker-brand-text small {
+
+      margin-top: 5px;
+
+      font-size: 9px;
+
+      font-weight: 600;
+
+      letter-spacing: 0.3px;
+
+      color: rgba(255, 255, 255, 0.75);
+
+      transition: color 0.35s ease;
+
+    }
+
+
+    .worker-navbar.scrolled .worker-brand {
+      color: #111827;
+    }
+
+
+    .worker-navbar.scrolled .worker-brand:hover {
+      color: #087f5b;
+    }
+
+
+    .worker-navbar.scrolled .worker-brand-text small {
+      color: #6b7280;
+    }
+
+
+    /* WORKER CENTER LABEL */
+
+    .worker-center-label {
+
+      position: absolute;
+
+      left: 200px;
+      top: 50%;
+
+      transform: translateY(-50%);
+
+      padding: 12px 20px;
+
+      border-radius: 30px;
+
+      color: #ffffff;
+
+      background: rgba(255, 255, 255, 0.10);
+
+      border: 1px solid rgba(255, 255, 255, 0.30);
+
+      font-size: 16px;
+
+      font-weight: 700;
+
+      white-space: nowrap;
+
+      transition:
+        color 0.35s ease,
+        background 0.35s ease,
+        border-color 0.35s ease;
+
+    }
+
+
+    .worker-center-label i {
+      margin-right: 7px;
+    }
+
+
+    .worker-navbar.scrolled .worker-center-label {
+
+      color: #123c2d;
+
+      background: #eef8f3;
+
+      border-color: #d7e9df;
+
+    }
+
+
+    /* WORKER LINKS */
+
+    .worker-nav-links {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 4px;
+
+      padding: 4px;
+
+      border-radius: 35px;
+
+      border: 1px solid rgba(255, 255, 255, 0.35);
+
+      background: rgba(255, 255, 255, 0.08);
+
+      transition:
+        background 0.35s ease,
+        border-color 0.35s ease;
+
+    }
+
+
+    .worker-nav-links a {
+
+      padding: 10px 24px;
+
+      border-radius: 28px;
+
+      color: #ffffff;
+
+      text-decoration: none;
+
+      font-size: 17px;
+
+      font-weight: 600;
+
+      transition:
+        color 0.25s ease,
+        background 0.25s ease;
+
+    }
+
+
+    .worker-nav-links a:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+
+    .worker-nav-links a.active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+
+    .worker-navbar.scrolled .worker-nav-links {
+
+      background: #f7faf8;
+
+      border-color: #dfe7e3;
+
+    }
+
+
+    .worker-navbar.scrolled .worker-nav-links a {
+      color: #111827;
+    }
+
+
+    .worker-navbar.scrolled .worker-nav-links a:hover {
+
+      color: #087f5b;
+
+      background: #eaf6ef;
+
+    }
+
+
+    .worker-navbar.scrolled .worker-nav-links a.active {
+
+      color: #087f5b;
+
+      background: #e2f4ea;
+
+    }
+
+
+    /* WORKER LOGOUT */
+
+    .worker-logout-form {
+      margin: 0;
+    }
+
+
+    .worker-logout {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 9px;
+
+      padding: 11px 24px;
+
+      border-radius: 28px;
+
+      border: 1px solid rgba(255, 255, 255, 0.35);
+
+      background: transparent;
+
+      color: #ffffff;
+
+      font-size: 17px;
+
+      font-weight: 600;
+
+      cursor: pointer;
+
+      transition:
+        color 0.35s ease,
+        background 0.35s ease,
+        border-color 0.35s ease;
+
+    }
+
+
+    .worker-logout:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+
+    .worker-navbar.scrolled .worker-logout {
+
+      color: #111827;
+
+      border-color: #dfe5e1;
+
+      background: #ffffff;
+
+    }
+
+
+    .worker-navbar.scrolled .worker-logout:hover {
+
+      color: #dc3545;
+
+      background: #fff1f1;
+
+      border-color: #f0caca;
+
+    }
+
+
+    /* WORKER MOBILE */
+
+    @media (max-width: 1100px) {
+
+      .worker-navbar {
+        padding: 0 22px;
+      }
+
+      .worker-center-label {
+        display: none;
+      }
+
+      .worker-nav-links a {
+        padding: 9px 15px;
+        font-size: 14px;
+      }
+
+      .worker-logout {
+        padding: 9px 15px;
+        font-size: 14px;
+      }
+
+    }
+
+
+    @media (max-width: 768px) {
+
+      .worker-navbar {
+        height: 78px;
+        padding: 0 15px;
+      }
+
+      .worker-brand-text small {
+        display: none;
+      }
+
+      .worker-brand-text strong {
+        font-size: 22px;
+      }
+
+      .worker-brand-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+      }
+
+      .worker-nav-links {
+        display: none;
+      }
+
+      .worker-logout {
+        padding: 9px 13px;
+      }
+
+    }
+
+    /* =====================================================
+           FOOTER
+        ====================================================== */
+
+    .site-footer {
+
+      background-color:
+        var(--dark-green);
+
+      color: #d1d5db;
+
+      padding:
+        4rem 0 2rem;
+
+    }
+
+
+    .footer-heading {
+
+      color: white;
+
+      font-weight: 600;
+
+      font-size: 1.1rem;
+
+      margin-bottom: 1.5rem;
+
+    }
+
+
+    /* Footer brand description paragraph (text-muted) */
+    .site-footer .text-muted {
+
+      color: #ffffff !important;
+
+    }
+
+
+    .footer-links {
+
+      list-style: none;
+
+      padding: 0;
+
+      margin: 0;
+
+    }
+
+
+    .footer-links li {
+
+      margin-bottom: 0.75rem;
+
+    }
+
+
+    .footer-links a {
+
+      color: #d1d5db;
+
+      text-decoration: none;
+
+      transition: color 0.3s;
+
+      font-size: 0.9rem;
+
+    }
+
+
+    .footer-links a:hover {
+
+      color: var(--primary);
+
+    }
+
+
+    .social-links a {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      width: 36px;
+
+      height: 36px;
+
+      border-radius: 50%;
+
+      background:
+        rgba(255, 255, 255, 0.1);
+
+      color: white;
+
+      margin-right: 0.5rem;
+
+      transition: all 0.3s;
+
+    }
+
+
+    .social-links a:hover {
+
+      background: var(--primary);
+
+      color: #ffffff;
+
+    }
+
+
+    .footer-bottom {
+
+      border-top:
+        1px solid rgba(255, 255, 255, 0.1);
+
+      margin-top: 3rem;
+
+      padding-top: 1.5rem;
+
+      font-size: 0.85rem;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      gap: 20px;
+
+    }
+
+
+    .footer-bottom-links a {
+
+      color: #d1d5db;
+
+      margin-left: 1.5rem;
+
+    }
+
+
+    .footer-bottom-links a:hover {
+
+      color: var(--primary);
+
+    }
+
+
+    @media (max-width: 767px) {
+
+      .footer-bottom {
+
+        flex-direction: column;
+
+        text-align: center;
+
+      }
+
+
+      .footer-bottom-links a {
+
+        margin:
+          0 0.5rem;
+
+      }
+
+    }
+
+
+
+/* =====================================================
+   FINAL LOGIN + NAV ACTION FIX
+   ===================================================== */
+
+/* Login/Register container */
+.nav-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 20px !important;
+    flex-shrink: 0 !important;
+    z-index: 3 !important;
+}
+
+/* Desktop: extra space between Contact and Login */
+@media (min-width: 992px) {
+    .navbar .nav-actions {
+        grid-column: 3 !important;
+        justify-self: end !important;
+        position: static !important;
+        transform: none !important;
+        margin-left: 70% !important;
+        margin-right: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 16px !important;
+    }
+}
+
+/* Login: white transparent glass oval */
+.btn-login,
+.navbar .btn-login,
+.navbar.scrolled .btn-login {
+    min-height: 44px !important;
+    padding: 8px 18px !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.10) !important;
+    border: 1px solid rgba(255, 255, 255, 0.55) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    font-family: "Poppins", sans-serif !important;
+    font-size: 0.91rem !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+    transition: background 0.3s ease,
+                border-color 0.3s ease,
+                transform 0.3s ease,
+                box-shadow 0.3s ease !important;
+}
+
+/* Login hover */
+.btn-login:hover,
+.navbar .btn-login:hover,
+.navbar.scrolled .btn-login:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.80) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14) !important;
+}
+
+/* Register: matching oval shape */
+.btn-register,
+.navbar .btn-register {
+    min-height: 44px !important;
+    padding: 8px 18px !important;
+    border-radius: 999px !important;
+    background: var(--primary) !important;
+    border: 1px solid var(--primary) !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.91rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    text-decoration: none !important;
+    transition: background 0.3s ease,
+                border-color 0.3s ease,
+                transform 0.3s ease !important;
+}
+
+.btn-register:hover,
+.navbar .btn-register:hover {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+/* =====================================================
+   FINAL NAVBAR SPACING
+   ===================================================== */
+
+/* LAMO ↔ Home */
+@media (min-width: 992px) {
+
+    .navbar .nav-pill {
+        margin-left: 100px;
+    }
+
+
+    /* Home ↔ About Us ↔ Services ↔ Contact */
+    .navbar .nav-pill .navbar-nav {
+        gap: 1.5rem !important;
+    }
+
+
+    /* Contact ↔ Login */
+    .navbar .nav-actions {
+        margin-left: 40% !important;
+        gap: 16px !important;
+    }
+}
+/* Mobile: remove the large desktop-only Contact/Login gap */
+@media (max-width: 991px) {
+    .nav-actions {
+        margin-left: 220px !important;
+        gap: 12px !important;
+    }
+
+    .btn-login,
+    .btn-register {
+        border-radius: 999px !important;
+    }
+}
+
+.toast-container {
+    position: fixed;
+    top: 90px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+.toast {
+    min-width: 300px;
+    max-width: 420px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    pointer-events: auto;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+    border-left: 4px solid;
+}
+.toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+.toast.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+.toast-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    color: white;
+}
+.toast-content {
+    flex: 1;
+    min-width: 0;
+}
+.toast-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: #1f2937;
+}
+.toast-message {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+.toast-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.toast-close:hover { color: #4b5563; }
+.toast-success { border-left-color: #087f5b; }
+.toast-success .toast-icon { background: #087f5b; }
+.toast-error { border-left-color: #dc2626; }
+.toast-error .toast-icon { background: #dc2626; }
+.toast-warning { border-left-color: #f59e0b; }
+.toast-warning .toast-icon { background: #f59e0b; }
+.toast-info { border-left-color: #3b82f6; }
+.toast-info .toast-icon { background: #3b82f6; }
+@media (max-width: 480px) {
+    .toast-container {
+        top: 80px;
+        right: 10px;
+        left: 10px;
+    }
+    .toast { min-width: 0; max-width: none; }
+}
+
+.toast-container {
+    position: fixed;
+    top: 90px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+.toast {
+    min-width: 300px;
+    max-width: 420px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    pointer-events: auto;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+    border-left: 4px solid;
+}
+.toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+.toast.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+.toast-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    color: white;
+}
+.toast-content {
+    flex: 1;
+    min-width: 0;
+}
+.toast-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: #1f2937;
+}
+.toast-message {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+.toast-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px;
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.toast-close:hover { color: #4b5563; }
+.toast-success { border-left-color: #087f5b; }
+.toast-success .toast-icon { background: #087f5b; }
+.toast-error { border-left-color: #dc2626; }
+.toast-error .toast-icon { background: #dc2626; }
+.toast-warning { border-left-color: #f59e0b; }
+.toast-warning .toast-icon { background: #f59e0b; }
+.toast-info { border-left-color: #3b82f6; }
+.toast-info .toast-icon { background: #3b82f6; }
+@media (max-width: 480px) {
+    .toast-container {
+        top: 80px;
+        right: 10px;
+        left: 10px;
+    }
+    .toast { min-width: 0; max-width: none; }
+}
+    /* =====================================================
+       NOTIFICATION SLIDE-OVER DRAWER (part 1: shell/header/tabs)
+       Replaces the old Bootstrap notification dropdown in the
+       main navbar. Renders the same server-side data
+       (global_notifications + global_unread_count) so the
+       backend is untouched. Single implementation: there is no
+       old dropdown behaviour left alongside this drawer.
+       ====================================================== */
+
+    /* Backdrop dims the page; blur is subtle. Hidden by default
+       and must never intercept clicks/keyboard when closed. */
+    .lamo-notif-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 31, 23, 0.55);
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.28s ease, visibility 0.28s ease;
+      z-index: 10060;
+    }
+
+    /* Drawer: fixed right-side panel, fully off-viewport when closed. */
+    .lamo-notif-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      height: 100dvh;
+      width: 480px;
+      max-width: 92vw;
+      background: #ffffff;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -18px 0 48px rgba(4, 47, 31, 0.22);
+      border-left: 1px solid #e5e7eb;
+      transform: translateX(105%);
+      visibility: hidden;
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+                  visibility 0.32s ease;
+      z-index: 10070;
+    }
+
+    .lamo-notif-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .lamo-notif-drawer.open {
+      transform: translateX(0);
+      visibility: visible;
+    }
+
+    /* Header: sticky, white, padded. */
+    .lamo-notif-head {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      padding: 22px 24px 14px;
+      border-bottom: 1px solid #eef1ee;
+      z-index: 2;
+    }
+
+    .lamo-notif-head-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .lamo-notif-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0c2b21;
+      line-height: 1.25;
+    }
+
+    .lamo-notif-subtitle {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .lamo-notif-close {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: #f3f5f4;
+      color: #334155;
+      font-size: 1.05rem;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .lamo-notif-close:hover {
+      background: #e6f4ec;
+      color: #087f5b;
+    }
+
+    .lamo-notif-close:focus-visible {
+      outline: 2px solid #087f5b;
+      outline-offset: 2px;
+    }
+
+    /* Filter tabs: rounded pills, horizontal scroll when narrow. */
+    .lamo-notif-tabs {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+
+    .lamo-notif-tab {
+      flex-shrink: 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #374151;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* =====================================================
+       NOTIFICATION SLIDE-OVER DRAWER (part 2: list/footer)
+       ====================================================== */
+
+    /* Scrollable list between header and footer. */
+    .lamo-notif-list {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 10px 12px 16px;
+      margin: 0;
+      list-style: none;
+    }
+
+    .lamo-notif-empty {
+      text-align: center;
+      padding: 56px 28px;
+      color: #6b7280;
+    }
+
+    .lamo-notif-empty i {
+      font-size: 2rem;
+      color: #9db8ac;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .lamo-notif-empty strong {
+      display: block;
+      color: #334155;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .lamo-notif-empty p {
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Row: icon left, text centre, unread dot + chevron right. */
+    .lamo-notif-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 12px;
+      border-bottom: 1px solid #eef1ee;
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.18s ease;
+    }
+
+    .lamo-notif-row:last-child {
+      border-bottom: none;
+    }
+
+    .lamo-notif-row:hover {
+      background: #f0faf4;
+    }
+
+    .lamo-notif-row.is-unread {
+      background: #f6fbf8;
+    }
+
+    .lamo-notif-row.is-unread:hover {
+      background: #eaf7ef;
+    }
+
+    .lamo-notif-icon {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .lamo-notif-icon--msg {
+      background: #e6f6ec;
+      color: #087f5b;
+    }
+
+    .lamo-notif-icon--booking {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .lamo-notif-icon--success {
+      background: #e6f6ec;
+      color: #15803d;
+    }
+
+    .lamo-notif-icon--payment {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
+    .lamo-notif-icon--cancel {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .lamo-notif-icon--general {
+      background: #eef1ee;
+      color: #4b5563;
+    }
+
+    .lamo-notif-body {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .lamo-notif-text {
+      margin: 0;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #1f2937;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .lamo-notif-row.is-unread .lamo-notif-text {
+      font-weight: 700;
+    }
+
+    .lamo-notif-time {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.76rem;
+      color: #6b7280;
+    }
+
+    .lamo-notif-side {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-top: 4px;
+      color: #9ca3af;
+    }
+
+    .lamo-notif-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #16a34a;
+    }
+
+    /* Row mark-as-read check: posts to the existing endpoint. */
+    .lamo-notif-check {
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      color: #6b7280;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .lamo-notif-check:hover {
+      background: #087f5b;
+      border-color: #087f5b;
+      color: #ffffff;
+    }
+
+    /* Footer: fixed mint button, list scrolls independently. */
+    .lamo-notif-foot {
+      border-top: 1px solid #eef1ee;
+      background: #ffffff;
+      padding: 14px 20px 18px;
+    }
+
+    .lamo-notif-viewall {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 50px;
+      border-radius: 12px;
+      background: #e9f9f0;
+      border: 1px solid #6ee7b7;
+      color: #06694a;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+
+    .lamo-notif-viewall:hover {
+      background: #d3f1e0;
+      color: #055c40;
+    }
+
+    /* Tablet */
+    @media (max-width: 1024px) {
+      .lamo-notif-drawer {
+        width: 420px;
+        max-width: 92vw;
+      }
+    }
+
+    /* Mobile: full-width, full-height panel. */
+    @media (max-width: 768px) {
+      .lamo-notif-drawer {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .lamo-notif-head {
+        padding: 18px 18px 12px;
+      }
+
+      .lamo-notif-row {
+        padding: 14px 10px;
+      }
+
+      .lamo-notif-tab {
+        padding: 9px 15px;
+      }
+
+      .lamo-notif-foot {
+        padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lamo-notif-backdrop,
+      .lamo-notif-drawer {
+        transition: none;
+      }
+    }
+    }
+
+    .lamo-notif-tab:hover {
+      border-color: #6ee7b7;
+      color: #06694a;
+    }
+
+    .lamo-notif-tab.active {
+      background: #087f5b;
+      border-color: #087f5b;
+      color: #ffffff;
+    }
+
+    .lamo-notif-tab:focus-visible {
+      outline: 2px solid #087f5b;
+      outline-offset: 2px;
+    }
+
+    .lamo-notif-tab-count {
+      font-weight: 700;
+      opacity: 0.85;
+    }

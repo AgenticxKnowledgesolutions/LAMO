@@ -1,0 +1,68 @@
+.ep-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+}
+.ep-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+}
+.ep-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #1e293b;
+}
+.ep-form label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 6px;
+    display: block;
+}
+.ep-form input, .ep-form textarea, .ep-form select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 18px;
+    transition: border-color 0.2s;
+}
+.ep-form input:focus, .ep-form textarea:focus {
+    border-color: #6366f1;
+    outline: none;
+}
+.ep-btn {
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #087f5b, #056b4d);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ep-btn:hover { opacity: 0.9; }
+.ep-cancel {
+    margin-left: 12px;
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 14px;
+}
+.ep-avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 12px;
+    border: 3px solid #e5e7eb;
+}
+@media (max-width: 600px) {
+    .ep-card { padding: 24px 18px; }
+    .ep-form > div[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,6 +1,8 @@
 ﻿# Secrets
 .env
 .env.*
+# ...but the template must be committed so new developers can copy it
+!.env.example
 
 # Python cache
 __pycache__/
@@ -27,3 +29,33 @@ media/
 .DS_Store
 Thumbs.db
 /lamo/db.sqlite3
+
+# collectstatic output
+staticfiles/
+
+# Logs (see LOGGING in lamo/lamo/settings.py)
+logs/
+*.log
+
+# Agent / editor worktrees (clean up with: git worktree prune)
+.kilo/
+
+# Local-only artifacts (never commit)
+/lamo/lamo_project
+.pre_fix_backups/
+fetched.html
+_d.txt
+
+# Scratch / debug artifacts created during development and the
+# pre-deployment audit (confirmed temporary - see the audit report).
+# Patterns without a leading slash match at ANY depth, so these also cover
+# lamo/temp_out.txt, lamo/temp_render.py, etc.
+temp_out.txt
+temp_render.py
+home_render.html
+_probe_bell.py
+pyaudit/
+
+# Accidental shell-history artifact: a broken PowerShell activation line was
+# saved as a file in the repo root. Never commit it.
+s -ExecutionPolicy*

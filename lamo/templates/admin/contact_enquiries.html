@@ -1,0 +1,123 @@
+{% extends 'dashboards/admin_dashboard.html' %}
+{% load static %}
+
+{% block title %}Contact Enquiries | LAMO Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="fw-bold mb-1">Contact Enquiries</h2>
+            <p class="text-muted mb-0">View and manage enquiries submitted by users through the contact form.</p>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                <div class="card-body">
+                    <small class="text-muted">Total</small>
+                    <h3 class="fw-bold mb-0">{{ total_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm" style="border-radius:12px; border-left:4px solid #087f5b !important;">
+                <div class="card-body">
+                    <small class="text-muted">New</small>
+                    <h3 class="fw-bold mb-0" style="color:#087f5b;">{{ new_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm" style="border-radius:12px; border-left:4px solid #f59e0b !important;">
+                <div class="card-body">
+                    <small class="text-muted">Read</small>
+                    <h3 class="fw-bold mb-0" style="color:#f59e0b;">{{ read_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm" style="border-radius:12px; border-left:4px solid #6b7b74 !important;">
+                <div class="card-body">
+                    <small class="text-muted">Resolved</small>
+                    <h3 class="fw-bold mb-0" style="color:#6b7b74;">{{ resolved_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status filter -->
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        <a href="{% url 'admin_contact_enquiries' %}"
+           class="btn btn-sm {% if selected_status == 'all' %}btn-success{% else %}btn-outline-secondary{% endif %}"
+           style="border-radius:20px;">
+           All
+        </a>
+        <a href="{% url 'admin_contact_enquiries' %}?status=NEW"
+           class="btn btn-sm {% if selected_status == 'NEW' %}btn-success{% else %}btn-outline-secondary{% endif %}"
+           style="border-radius:20px;">
+           New
+        </a>
+        <a href="{% url 'admin_contact_enquiries' %}?status=READ"
+           class="btn btn-sm {% if selected_status == 'READ' %}btn-success{% else %}btn-outline-secondary{% endif %}"
+           style="border-radius:20px;">
+           Read
+        </a>
+        <a href="{% url 'admin_contact_enquiries' %}?status=RESOLVED"
+           class="btn btn-sm {% if selected_status == 'RESOLVED' %}btn-success{% else %}btn-outline-secondary{% endif %}"
+           style="border-radius:20px;">
+           Resolved
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="border-radius:14px; overflow:hidden;">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead style="background:#f7fbf9;">
+                    <tr>
+                        <th class="px-3 py-3" style="font-size:13px;">Name</th>
+                        <th class="py-3" style="font-size:13px;">Email</th>
+                        <th class="py-3" style="font-size:13px;">Subject</th>
+                        <th class="py-3" style="font-size:13px;">Date</th>
+                        <th class="py-3" style="font-size:13px;">Status</th>
+                        <th class="py-3" style="font-size:13px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enquiry in enquiries %}
+                        <tr>
+                            <td class="px-3" style="font-weight:600;">{{ enquiry.name }}</td>
+                            <td style="font-size:14px;">{{ enquiry.email }}</td>
+                            <td style="font-size:14px;">{{ enquiry.subject }}</td>
+                            <td style="font-size:13px; color:#6b7b74;">{{ enquiry.created_at|date:"d M Y, H:i" }}</td>
+                            <td>
+                                {% if enquiry.status == 'NEW' %}
+                                    <span class="badge" style="background:#087f5b; color:white; font-weight:600; padding:5px 10px; border-radius:12px;">New</span>
+                                {% elif enquiry.status == 'READ' %}
+                                    <span class="badge" style="background:#f59e0b; color:white; font-weight:600; padding:5px 10px; border-radius:12px;">Read</span>
+                                {% else %}
+                                    <span class="badge" style="background:#6b7b74; color:white; font-weight:600; padding:5px 10px; border-radius:12px;">Resolved</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'admin_enquiry_detail' enquiry.id %}" class="btn btn-sm btn-outline-success" style="border-radius:20px; font-size:12px; padding:4px 12px;">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5" style="color:#6b7b74;">
+                                <i class="bi bi-inbox" style="font-size:36px; opacity:0.4;"></i>
+                                <p class="mt-2 mb-0">No contact enquiries found.</p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

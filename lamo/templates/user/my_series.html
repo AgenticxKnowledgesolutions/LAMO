@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}My Recurring Bookings | LAMO{% endblock %}
+
+{% block content %}
+
+<style>
+    .ser-wrap { max-width: 980px; margin: 0 auto; padding: 40px 20px 70px; }
+    .ser-head { display: flex; justify-content: space-between; align-items: center;
+                gap: 16px; flex-wrap: wrap; margin-bottom: 26px; }
+    .ser-back { display: inline-block; color: #64748b; text-decoration: none;
+                font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .ser-back:hover { color: #087f5b; }
+    .ser-title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
+    .ser-sub { color: #64748b; font-size: 14px; margin: 0; }
+    .ser-h2 { font-size: 15px; font-weight: 800; color: #334155; text-transform: uppercase;
+              letter-spacing: .06em; margin: 30px 0 14px; }
+    .ser-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+               padding: 20px 22px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
+    .ser-card.paused { opacity: .72; background: #f8fafc; }
+    .ser-top { display: flex; justify-content: space-between; gap: 14px;
+               align-items: flex-start; flex-wrap: wrap; }
+    .ser-name { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+    .ser-meta { color: #64748b; font-size: 13px; line-height: 1.7; }
+    .ser-badge { display: inline-block; padding: 4px 11px; border-radius: 20px; font-size: 11px;
+                  font-weight: 700; background: #ecfdf5; color: #06694a; margin-bottom: 8px; }
+    .ser-badge.off { background: #f1f5f9; color: #64748b; }
+    .ser-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ser-btn { padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+               border: 1px solid #cbd5e1; background: #fff; color: #334155; cursor: pointer;
+               font-family: inherit; text-decoration: none; display: inline-block; }
+    .ser-btn:hover { background: #f8fafc; }
+    .ser-btn.danger { color: #b91c1c; border-color: #fecaca; }
+    .ser-btn.danger:hover { background: #fef2f2; }
+    .ser-empty { text-align: center; padding: 50px 20px; color: #94a3b8; }
+    .ser-empty i { font-size: 40px; display: block; margin-bottom: 12px; }
+</style>
+
+
+<div class="ser-wrap">
+
+    <a href="{% url 'user_dashboard' %}" class="ser-back">
+        <i class="bi bi-arrow-left"></i> Back to dashboard
+    </a>
+
+    <div class="ser-head">
+        <div>
+            <h1 class="ser-title">Recurring Bookings</h1>
+            <p class="ser-sub">Pause a series to stop new bookings being requested, or cancel it entirely.</p>
+        </div>
+        <a href="{% url 'book_service' %}" class="ser-btn">+ New booking</a>
+    </div>
+
+    <h2 class="ser-h2">Active ({{ active_series|length }})</h2>
+
+    {% for series in active_series %}
+        <div class="ser-card">
+            <div class="ser-top">
+                <div>
+                    <span class="ser-badge">Active</span>
+                    <h3 class="ser-name">{{ series.service.name }}</h3>
+                    <div class="ser-meta">
+                        Worker: {{ series.worker.user.first_name|default:series.worker.user.username }}<br>
+                        {{ series.get_frequency_display }}{% if series.preferred_day %} on {{ series.preferred_day }}{% endif %}
+                        at {{ series.time }}<br>
+                        {{ series.start_date|date:"d M Y" }} &rarr; {{ series.end_date|date:"d M Y" }}<br>
+                        {{ series.bookings.count }} booking(s) in this series
+                    </div>
+                </div>
+                <div class="ser-actions">
+                    <form method="POST" action="{% url 'series_toggle_active' series.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ser-btn">Pause</button>
+                    </form>
+                    <form method="POST" action="{% url 'series_cancel' series.id %}"
+                          onsubmit="return confirm('Cancel this series and all of its upcoming bookings? This cannot be undone.');"
+                          style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ser-btn danger">Cancel series</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="ser-empty">
+            <i class="bi bi-calendar2-x"></i>
+            No active recurring bookings.
+        </div>
+    {% endfor %}
+
+    <h2 class="ser-h2">Paused / cancelled ({{ paused_series|length }})</h2>
+
+    {% for series in paused_series %}
+        <div class="ser-card paused">
+            <div class="ser-top">
+                <div>
+                    <span class="ser-badge off">Paused</span>
+                    <h3 class="ser-name">{{ series.service.name }}</h3>
+                    <div class="ser-meta">
+                        Worker: {{ series.worker.user.first_name|default:series.worker.user.username }}<br>
+                        {{ series.get_frequency_display }} at {{ series.time }}<br>
+                        {{ series.start_date|date:"d M Y" }} &rarr; {{ series.end_date|date:"d M Y" }}
+                    </div>
+                </div>
+                <div class="ser-actions">
+                    <form method="POST" action="{% url 'series_toggle_active' series.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="ser-btn">Resume</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="ser-empty">
+            <i class="bi bi-pause-circle"></i>
+            Nothing paused right now.
+        </div>
+    {% endfor %}
+
+</div>
+
+{% endblock %}

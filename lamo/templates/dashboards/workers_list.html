@@ -1,703 +1,64 @@
-{% extends "dashboards/admin_dashboard.html" %}
+﻿{% extends 'admin/base_admin.html' %}
+{% load static %}
 
-{% block title %}
-Workers | LAMO
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/dashboards-workers_list.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/dashboards-workers_list.js' %}" defer></script>
 {% endblock %}
 
 
 {% block content %}
 
-<style>
-
-/* =========================================================
-   WORKERS PAGE
-========================================================= */
-.workers-page {
-    width: 100%;
-    max-width: 100%;
-
-    margin: 0;
-
-    padding: 22px 35px 40px;
-
-    box-sizing: border-box;
-}
-
-/* =========================================================
-   HEADER
-========================================================= */
-
-.workers-header {
-    width: 100%;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    margin-bottom: 26px;
-}
-
-
-.workers-heading h2 {
-    margin: 0;
-
-    color: #17211d;
-
-    font-size: 25px;
-    font-weight: 750;
-}
-
-
-.workers-heading p {
-    margin: 6px 0 0;
-
-    color: #7b8781;
-
-    font-size: 13px;
-}
-
-
-.worker-count {
-    min-width: 36px;
-    height: 36px;
-
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 0 12px;
-
-    border-radius: 50%;
-
-    background: #eaf6ef;
-
-    color: #216247;
-
-    font-size: 12px;
-    font-weight: 700;
-}
-
-
-/* =========================================================
-   CARD GRID
-========================================================= */
-
-.workers-grid {
-    width: 100%;
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fill, minmax(280px, 1fr));
-
-    justify-content: center;
-
-    gap: 28px;
-
-    align-items: stretch;
-}
-
-
-/* =========================================================
-   WORKER CARD
-========================================================= */
-
-.worker-card {
-    width: 100%;
-
-    min-width: 0;
-
-    display: flex;
-    flex-direction: column;
-
-    background: #ffffff;
-
-    border: 1px solid #e3ebe6;
-
-    border-radius: 18px;
-
-    padding: 21px;
-
-    box-sizing: border-box;
-
-    box-shadow:
-        0 5px 18px rgba(25, 65, 48, 0.05);
-
-    transition:
-        transform 0.25s ease,
-        box-shadow 0.25s ease;
-}
-
-
-.worker-card:hover {
-    transform: translateY(-4px);
-
-    box-shadow:
-        0 14px 32px rgba(25, 65, 48, 0.10);
-}
-
-
-/* =========================================================
-   TOP
-========================================================= */
-
-.worker-top {
-    width: 100%;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 13px;
-
-    min-width: 0;
-
-    margin-bottom: 18px;
-}
-
-
-/* =========================================================
-   AVATAR
-========================================================= */
-
-.worker-avatar {
-    width: 60px;
-    height: 60px;
-
-    flex-shrink: 0;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    overflow: hidden;
-
-    border-radius: 50%;
-
-    background: #dff3e8;
-
-    color: #216247;
-
-    font-size: 21px;
-
-    font-weight: 750;
-}
-
-
-.worker-avatar img {
-    width: 100%;
-    height: 100%;
-
-    object-fit: cover;
-}
-
-
-/* =========================================================
-   NAME
-========================================================= */
-
-.worker-name {
-    min-width: 0;
-
-    flex: 1;
-}
-
-
-.worker-name h4 {
-    margin: 0;
-
-    color: #17211d;
-
-    font-size: 16px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-}
-
-
-.worker-name p {
-    margin: 4px 0 0;
-
-    color: #8a958f;
-
-    font-size: 11px;
-
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-}
-
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-.status-badge {
-    flex-shrink: 0;
-
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 5px;
-
-    padding: 5px 9px;
-
-    border-radius: 20px;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-}
-
-
-.status-badge::before {
-    content: "";
-
-    width: 6px;
-    height: 6px;
-
-    border-radius: 50%;
-}
-
-
-/* VERIFIED */
-
-.status-verified {
-    background: #eaf7ee;
-
-    color: #28754d;
-}
-
-
-.status-verified::before {
-    background: #42a969;
-}
-
-
-/* PENDING */
-
-.status-pending {
-    background: #fff7e8;
-
-    color: #a06b1b;
-}
-
-
-.status-pending::before {
-    background: #e2a33a;
-}
-
-
-/* =========================================================
-   DETAILS
-========================================================= */
-
-.worker-details {
-    display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-    gap: 12px;
-
-    padding: 16px 0;
-
-    border-top: 1px solid #edf1ee;
-
-    border-bottom: 1px solid #edf1ee;
-}
-
-
-/* =========================================================
-   DETAIL ITEM
-========================================================= */
-
-.detail-item {
-    min-width: 0;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 9px;
-}
-
-
-.detail-icon {
-    width: 30px;
-    height: 30px;
-
-    flex-shrink: 0;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 8px;
-
-    background: #f0f7f3;
-
-    color: #28754d;
-
-    font-size: 13px;
-}
-
-
-.detail-content {
-    min-width: 0;
-}
-
-
-.detail-label {
-    display: block;
-
-    margin-bottom: 2px;
-
-    color: #9aa39e;
-
-    font-size: 9px;
-
-    font-weight: 600;
-
-    text-transform: uppercase;
-
-    letter-spacing: .4px;
-}
-
-
-.detail-value {
-    display: block;
-
-    max-width: 100%;
-
-    color: #46524c;
-
-    font-size: 11px;
-
-    font-weight: 650;
-
-    white-space: nowrap;
-
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-}
-
-
-/* =========================================================
-   ACTIONS
-========================================================= */
-
-.worker-actions {
-    width: 100%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    gap: 10px;
-
-    margin-top: 17px;
-}
-
-
-/* =========================================================
-   PROOF BUTTON
-========================================================= */
-
-.proof-btn {
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    padding: 9px 12px;
-
-    border-radius: 9px;
-
-    background: #f1f6f4;
-
-    color: #216247;
-
-    text-decoration: none;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-
-    transition: .2s ease;
-}
-
-
-.proof-btn:hover {
-    background: #e3f1eb;
-
-    color: #123c2d;
-
-    text-decoration: none;
-}
-
-
-/* =========================================================
-   VERIFY BUTTON
-========================================================= */
-
-.verify-btn {
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    padding: 9px 13px;
-
-    border: none;
-
-    border-radius: 9px;
-
-    background: #087f5b;
-
-    color: #ffffff;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-
-    cursor: pointer;
-
-    transition: .2s ease;
-}
-
-
-.verify-btn:hover {
-    background: #066b4d;
-
-    transform: translateY(-1px);
-}
-
-
-/* =========================================================
-   VERIFIED LABEL
-========================================================= */
-
-.verified-label {
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    padding: 9px 13px;
-
-    border-radius: 9px;
-
-    background: #eaf7ee;
-
-    color: #28754d;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-}
-
-
-/* =========================================================
-   EMPTY STATE
-========================================================= */
-
-.empty-workers {
-    grid-column: 1 / -1;
-
-    background: #ffffff;
-
-    border: 1px solid #e5ebe7;
-
-    border-radius: 18px;
-
-    padding: 70px 20px;
-
-    text-align: center;
-}
-
-
-.empty-icon {
-    width: 58px;
-    height: 58px;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    margin: 0 auto 15px;
-
-    border-radius: 50%;
-
-    background: #f0f6f2;
-
-    color: #7d9589;
-
-    font-size: 22px;
-}
-
-
-.empty-workers h4 {
-    margin: 0;
-
-    color: #37413b;
-
-    font-size: 16px;
-}
-
-
-.empty-workers p {
-    margin: 6px 0 0;
-
-    color: #9aa39e;
-
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   LARGE SCREEN
-========================================================= */
-
-
-/* =========================================================
-   TABLET
-========================================================= */
-
-@media (max-width: 1100px) {
-
-    .workers-grid {
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-    }
-
-}
-
-
-/* =========================================================
-   SMALL TABLET
-========================================================= */
-
-@media (max-width: 800px) {
-
-    .workers-page {
-        padding: 20px;
-    }
-
-    .workers-grid {
-        grid-template-columns: 1fr;
-    }
-
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 600px) {
-
-    .workers-page {
-        padding: 15px;
-    }
-
-    .workers-header {
-        align-items: flex-start;
-
-        gap: 15px;
-    }
-
-    .workers-heading h2 {
-        font-size: 21px;
-    }
-
-    .workers-heading p {
-        font-size: 12px;
-    }
-
-    .worker-card {
-        padding: 18px;
-    }
-
-    .worker-top {
-        align-items: flex-start;
-    }
-
-    .status-badge {
-        font-size: 9px;
-    }
-
-    .worker-details {
-        grid-template-columns: 1fr;
-    }
-
-    .worker-actions {
-        flex-wrap: wrap;
-    }
-
-}
-
-
-/* =========================================================
-   VERY SMALL MOBILE
-========================================================= */
-
-@media (max-width: 400px) {
-
-    .worker-top {
-        flex-wrap: wrap;
-    }
-
-    .status-badge {
-        margin-left: 73px;
-        margin-top: -8px;
-    }
-
-    .worker-actions {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .proof-btn,
-    .verify-btn,
-    .verified-label {
-        width: 100%;
-    }
-
-}
-
-</style>
+<!-- =========================================================
+     DJANGO MESSAGE TOASTS
+========================================================= -->
+{% if messages %}
+<div class="lamo-toast-container" id="lamoToastContainer" aria-live="polite">
+    {% for message in messages %}
+    <div class="lamo-toast {{ message.tags|default:'info' }}" role="alert">
+
+        <div class="lamo-toast-icon">
+            {% if 'success' in message.tags %}
+                <i class="bi bi-check-lg"></i>
+            {% elif 'error' in message.tags or 'danger' in message.tags %}
+                <i class="bi bi-x-lg"></i>
+            {% elif 'warning' in message.tags %}
+                <i class="bi bi-exclamation-lg"></i>
+            {% else %}
+                <i class="bi bi-info-lg"></i>
+            {% endif %}
+        </div>
+
+        <div class="lamo-toast-content">
+            <span class="lamo-toast-title">
+                {% if 'success' in message.tags %}
+                    Success
+                {% elif 'error' in message.tags or 'danger' in message.tags %}
+                    Error
+                {% elif 'warning' in message.tags %}
+                    Warning
+                {% else %}
+                    Information
+                {% endif %}
+            </span>
+
+            <span class="lamo-toast-message">{{ message }}</span>
+        </div>
+
+        <button type="button"
+                class="lamo-toast-close"
+                aria-label="Close notification">
+            <i class="bi bi-x"></i>
+        </button>
+
+        <div class="lamo-toast-progress"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 
 <div class="workers-page">
@@ -709,24 +70,49 @@ Workers | LAMO
 
     <div class="workers-header">
 
-        <!-- <div class="workers-heading">
-
-            <h2>
-                Workers
-            </h2>
-
-            <p>
-                Manage and verify registered workers.
-            </p>
-
-        </div> -->
+        <div class="workers-heading">
+            <h2>Workers</h2>
+            <p>Manage and verify registered workers.</p>
+        </div>
 
 
-        <span class="worker-count">
-            {{ workers|length }}
+        <span class="worker-count" title="Total registered workers">
+            {{ workers.paginator.count }}
         </span>
 
     </div>
+
+
+    <!-- =====================================================
+         SEARCH
+         Plain GET form - read-only query, so no CSRF is needed and the
+         search stays in the URL (survives reload, can be shared/bookmarked).
+    ===================================================== -->
+
+    <form method="GET" action="{% url 'workers_list' %}" class="workers-search">
+
+        <input
+            type="search"
+            name="q"
+            value="{{ search }}"
+            placeholder="Search by name, email, phone, district or trade"
+            aria-label="Search workers"
+            class="workers-search-input"
+        >
+
+        <button type="submit" class="workers-search-btn">
+            <i class="bi bi-search"></i>
+            Search
+        </button>
+
+        {% if search %}
+            <a href="{% url 'workers_list' %}" class="workers-search-clear">
+                <i class="bi bi-x-circle"></i>
+                Clear
+            </a>
+        {% endif %}
+
+    </form>
 
 
     <!-- =====================================================
@@ -786,7 +172,13 @@ Workers | LAMO
 
                 <!-- STATUS -->
 
-                {% if worker.is_verified %}
+                {% if not worker.user.is_active %}
+
+                    <span class="status-badge status-suspended">
+                        Suspended
+                    </span>
+
+                {% elif worker.is_verified %}
 
                     <span class="status-badge status-verified">
                         Verified
@@ -831,6 +223,10 @@ Workers | LAMO
 
                                 {{ worker.service.name|title }}
 
+                            {% elif worker.custom_service %}
+
+                                <span style="color:#087f5b; font-weight:700;">Other</span>
+
                             {% else %}
 
                                 No service
@@ -842,6 +238,33 @@ Workers | LAMO
                     </div>
 
                 </div>
+
+
+                <!-- CUSTOM SERVICE (only if "Other" was selected) -->
+
+                {% if worker.custom_service %}
+
+                <div class="detail-row">
+
+                    <div class="detail-icon">
+                        <i class="bi bi-tag-fill"></i>
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Custom Service
+                        </span>
+
+                        <span class="detail-value" style="color:#087f5b; font-weight:600;">
+                            {{ worker.custom_service }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                {% endif %}
 
 
                 <!-- PHONE -->
@@ -943,14 +366,14 @@ Workers | LAMO
                     </div>
 
                 </div>
-
-
                 <!-- AVAILABILITY -->
 
                 <div class="detail-item">
 
                     <div class="detail-icon">
+
                         <i class="bi bi-clock-fill"></i>
+
                     </div>
 
                     <div class="detail-content">
@@ -968,6 +391,31 @@ Workers | LAMO
                 </div>
 
 
+                <!-- PRICING -->
+
+                <div class="detail-item">
+
+                    <div class="detail-icon">
+
+                        <i class="bi bi-cash-stack"></i>
+
+                    </div>
+
+                    <div class="detail-content">
+
+                        <span class="detail-label">
+                            Rate
+                        </span>
+
+                        <span class="detail-value">
+                            â‚¹{{ worker.pricing_amount|default:"0" }} / {{ worker.get_pricing_type_display|default:"Hour" }}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
             </div>
 
 
@@ -978,12 +426,38 @@ Workers | LAMO
             <div class="worker-actions">
 
 
+                <!-- PROOF TYPE -->
+
+                {% if worker.proof_type %}
+
+                    <span
+                        class="proof-type-badge"
+                        style="background:#e7f7ef; color:#087f5b; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700; margin-bottom:6px; display:inline-block;"
+                    >
+
+                        Proof Type:
+
+                        {% if worker.proof_type == 'aadhaar' %}
+                            Aadhaar
+                        {% elif worker.proof_type == 'pan' %}
+                            PAN
+                        {% elif worker.proof_type == 'voter_id' %}
+                            Voter ID
+                        {% else %}
+                            {{ worker.proof_type }}
+                        {% endif %}
+
+                    </span>
+
+                {% endif %}
+
+
                 <!-- PROOF -->
 
                 {% if worker.proof_document %}
 
                     <a
-                        href="{{ worker.proof_document.url }}"
+                        href="{% url 'worker_proof_document' worker.pk %}"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="proof-btn"
@@ -1022,6 +496,7 @@ Workers | LAMO
                         method="POST"
                         action="{% url 'worker_verify' worker.id %}"
                         onsubmit="return confirm('Are you sure you want to verify this worker?');"
+                        style="display:inline;"
                     >
 
                         {% csrf_token %}
@@ -1033,13 +508,92 @@ Workers | LAMO
 
                             <i class="bi bi-check-lg"></i>
 
-                            Verify Worker
+                            Verify
 
                         </button>
 
                     </form>
 
                 {% endif %}
+
+
+                <!-- SUSPEND/UNSUSPEND -->
+
+                {% if worker.user.is_active %}
+
+                    <form
+                        method="POST"
+                        action="{% url 'admin_suspend_worker' worker.id %}"
+                        onsubmit="return confirm('Are you sure you want to suspend this worker?');"
+                        style="display:inline;"
+                    >
+
+                        {% csrf_token %}
+
+                        <input type="hidden" name="action" value="suspend">
+
+                        <button
+                            type="submit"
+                            class="suspend-btn"
+                            title="Suspend Worker"
+                        >
+
+                            <i class="bi bi-pause-circle"></i>
+
+                        </button>
+
+                    </form>
+
+                {% else %}
+
+                    <form
+                        method="POST"
+                        action="{% url 'admin_suspend_worker' worker.id %}"
+                        onsubmit="return confirm('Are you sure you want to unsuspend this worker?');"
+                        style="display:inline;"
+                    >
+
+                        {% csrf_token %}
+
+                        <input type="hidden" name="action" value="unsuspend">
+
+                        <button
+                            type="submit"
+                            class="unsuspend-btn"
+                            title="Unsuspend Worker"
+                        >
+
+                            <i class="bi bi-play-circle"></i>
+
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+                <!-- DELETE -->
+
+                <form
+                    method="POST"
+                    action="{% url 'admin_delete_worker' worker.id %}"
+                    onsubmit="return confirm('Are you sure you want to delete this worker? This action cannot be undone.');"
+                    style="display:inline;"
+                >
+
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="delete-btn"
+                        title="Delete Worker"
+                    >
+
+                        <i class="bi bi-trash"></i>
+
+                    </button>
+
+                </form>
 
 
             </div>
@@ -1095,3 +649,5 @@ Workers | LAMO
 
 
 {% endblock %}
+
+

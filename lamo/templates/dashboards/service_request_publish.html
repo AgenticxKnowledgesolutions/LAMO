@@ -1,0 +1,131 @@
+﻿{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+
+
+{% block title %}Publish Service | LAMO{% endblock %}
+{% block page_title %}Publish Service{% endblock %}
+{% block page_subtitle %}Add final details before publishing the service{% endblock %}
+
+{% block extra_css %}    <link rel="stylesheet" href="{% static 'css/dashboards-service_request_publish.css' %}">
+
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/dashboards-service_request_publish.js' %}" defer></script>
+{% endblock %}
+
+
+{% block content %}
+
+<a href="{% url 'service_requests' %}" class="pub-back">
+    <i class="bi bi-arrow-left"></i> Back to Service Requests
+</a>
+
+<div class="pub-card">
+    <div class="pub-card-header">
+        <h3><i class="bi bi-globe me-2"></i>Publish Service</h3>
+        <p>Review and add the final details before making this service public.</p>
+    </div>
+
+    <div class="pub-card-body">
+        <!-- Request Info -->
+        <div class="pub-request-info">
+            <div class="pub-request-icon">
+                <i class="bi bi-tools"></i>
+            </div>
+            <div>
+                <strong>Request: {{ service_request.name }}</strong>
+                <span>Requested by {{ service_request.requested_by.username }} on {{ service_request.created_at|date:"M d, Y" }}</span>
+            </div>
+        </div>
+
+        <!-- Publish Form -->
+        <form method="POST" action="{% url 'service_request_publish' service_request.id %}" enctype="multipart/form-data" id="publishForm">
+            {% csrf_token %}
+
+            <!-- Service Name -->
+            <div class="pub-field-group">
+                <label class="pub-field-label" for="pub_service_name">
+                    Service Name
+                    <span>Required</span>
+                </label>
+                <input
+                    type="text"
+                    name="name"
+                    id="pub_service_name"
+                    class="pub-form-control"
+                    value="{{ service_request.name }}"
+                    placeholder="Enter service name"
+                    required
+                >
+                <small class="pub-field-help">This name will be displayed to customers on the website.</small>
+            </div>
+
+            <!-- Description -->
+            <div class="pub-field-group">
+                <label class="pub-field-label" for="pub_service_desc">
+                    Service Description
+                    <span>Required</span>
+                </label>
+                <textarea
+                    name="description"
+                    id="pub_service_desc"
+                    class="pub-form-control"
+                    placeholder="Describe what this service provides and what customers can expect..."
+                    required
+                ></textarea>
+                <small class="pub-field-help">A clear description helps customers understand the service.</small>
+            </div>
+
+            <!-- Service Image -->
+            <div class="pub-field-group">
+                <label class="pub-field-label">
+                    Service Image
+                    <span>Required</span>
+                </label>
+                <div class="pub-image-upload" id="imageUploadArea">
+                    <input
+                        type="file"
+                        name="image"
+                        id="pub_service_image"
+                        accept="image/*"
+                        required
+                        onchange="previewImage(this)"
+                    >
+                    <div class="pub-image-upload-icon">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                    </div>
+                    <div class="pub-image-upload-text" id="uploadText">
+                        Click to upload service image
+                    </div>
+                    <div class="pub-image-upload-hint">
+                        JPG, PNG, WEBP â€” Max 5 MB
+                    </div>
+                </div>
+                <img
+                    id="imagePreview"
+                    class="pub-image-preview"
+                    src=""
+                    alt="Preview"
+                >
+            </div>
+
+            <!-- Actions -->
+            <div class="pub-actions">
+                <a href="{% url 'service_requests' %}" class="pub-btn-cancel">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="pub-btn-save">
+                    <i class="bi bi-check-circle"></i> Publish Service
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}
+
+
+

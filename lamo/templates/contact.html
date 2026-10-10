@@ -7,500 +7,8 @@ Contact Us | LAMO
 
 
 {% block extra_css %}
-
-<style>
-
-/* =========================================================
-   CONTACT HERO
-========================================================= */
-
-.contact-hero {
-    width: 100%;
-    min-height: 560px;
-
-    background-image: url("{% static 'img/image.png' %}");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-
-    display: flex;
-    align-items: center;
-
-    position: relative;
-}
-
-
-/* =========================================================
-   HERO CONTENT
-========================================================= */
-
-.contact-hero-content {
-    width: 100%;
-    max-width: 1200px;
-
-    margin: 0 auto;
-
-    padding: 70px 6%;
-}
-
-
-/* =========================================================
-   HERO TEXT
-========================================================= */
-
-.contact-hero-text {
-    max-width: 520px;
-}
-
-
-.contact-hero-badge {
-    display: inline-flex;
-
-    align-items: center;
-    gap: 8px;
-
-    padding: 9px 17px;
-
-    background: rgba(255, 255, 255, 0.9);
-
-    border-radius: 50px;
-
-    color: #087f5b;
-
-    font-size: 14px;
-    font-weight: 700;
-
-    margin-bottom: 22px;
-}
-
-
-.contact-hero-text h1 {
-    font-size: clamp(42px, 5vw, 64px);
-
-    line-height: 1.05;
-
-    font-weight: 800;
-
-    color: #173b32;
-
-    margin: 0 0 22px;
-}
-
-
-.contact-hero-text h1 span {
-    color: #087f5b;
-}
-
-
-.contact-hero-text p {
-    max-width: 500px;
-
-    font-size: 18px;
-
-    line-height: 1.7;
-
-    color: #40554e;
-
-    margin-bottom: 30px;
-}
-
-
-/* =========================================================
-   HERO BUTTON
-========================================================= */
-
-.contact-hero-btn {
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    padding: 14px 25px;
-
-    background: #087f5b;
-
-    color: white;
-
-    border-radius: 50px;
-
-    text-decoration: none;
-
-    font-size: 15px;
-
-    font-weight: 700;
-
-    transition: 0.3s ease;
-}
-
-
-.contact-hero-btn:hover {
-    color: white;
-
-    transform: translateY(-3px);
-
-    background: #066b4d;
-
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-
-
-/* =========================================================
-   CONTACT SECTION
-========================================================= */
-
-.contact-section {
-    padding: 90px 6%;
-
-    background: #f7faf9;
-}
-
-
-.contact-wrapper {
-    max-width: 1180px;
-
-    margin: 0 auto;
-}
-
-
-/* =========================================================
-   CONTACT INFORMATION
-========================================================= */
-
-.contact-info {
-    height: 100%;
-
-    background: #087f5b;
-
-    color: white;
-
-    padding: 45px;
-
-    border-radius: 22px;
-
-    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-}
-
-
-.contact-info h2 {
-    font-size: 32px;
-
-    font-weight: 800;
-
-    margin-bottom: 15px;
-}
-
-
-.contact-info > p {
-    color: rgba(255,255,255,0.85);
-
-    line-height: 1.7;
-
-    margin-bottom: 35px;
-}
-
-
-/* =========================================================
-   CONTACT INFO ITEMS
-========================================================= */
-
-.info-item {
-    display: flex;
-
-    align-items: flex-start;
-
-    gap: 17px;
-
-    margin-bottom: 27px;
-}
-
-
-.info-icon {
-    min-width: 48px;
-
-    width: 48px;
-    height: 48px;
-
-    border-radius: 13px;
-
-    background: rgba(255,255,255,0.14);
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-}
-
-
-.info-icon i {
-    font-size: 18px;
-}
-
-
-.info-item h6 {
-    margin: 2px 0 5px;
-
-    font-size: 15px;
-
-    font-weight: 700;
-}
-
-
-.info-item p {
-    margin: 0;
-
-    color: rgba(255,255,255,0.78);
-
-    font-size: 14px;
-
-    line-height: 1.6;
-}
-
-
-/* =========================================================
-   SOCIAL LINKS
-========================================================= */
-
-.social-links {
-    display: flex;
-
-    gap: 12px;
-
-    margin-top: 35px;
-}
-
-
-.social-links a {
-    width: 42px;
-    height: 42px;
-
-    border-radius: 50%;
-
-    background: rgba(255,255,255,0.13);
-
-    color: white;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    text-decoration: none;
-
-    transition: 0.3s ease;
-}
-
-
-.social-links a:hover {
-    background: white;
-
-    color: #087f5b;
-
-    transform: translateY(-3px);
-}
-
-
-/* =========================================================
-   CONTACT FORM
-========================================================= */
-
-.contact-form {
-    height: 100%;
-
-    background: white;
-
-    padding: 45px;
-
-    border-radius: 22px;
-
-    box-shadow: 0 15px 40px rgba(0,0,0,0.06);
-}
-
-
-.contact-form h2 {
-    font-size: 32px;
-
-    font-weight: 800;
-
-    color: #173b32;
-
-    margin-bottom: 8px;
-}
-
-
-.form-subtitle {
-    color: #71807b;
-
-    margin-bottom: 30px;
-}
-
-
-/* =========================================================
-   FORM LABEL
-========================================================= */
-
-.form-label {
-    font-size: 14px;
-
-    font-weight: 600;
-
-    color: #263f37;
-
-    margin-bottom: 7px;
-}
-
-
-/* =========================================================
-   INPUT
-========================================================= */
-
-.contact-form .form-control {
-    width: 100%;
-
-    min-height: 50px;
-
-    padding: 12px 15px;
-
-    border: 1px solid #dce7e3;
-
-    border-radius: 10px;
-
-    font-size: 14px;
-
-    color: #263f37;
-
-    background: white;
-
-    transition: 0.25s ease;
-}
-
-
-.contact-form .form-control::placeholder {
-    color: #a2afaa;
-}
-
-
-.contact-form .form-control:focus {
-    border-color: #087f5b;
-
-    box-shadow: 0 0 0 3px rgba(8,127,91,0.10);
-
-    outline: none;
-}
-
-
-/* =========================================================
-   TEXTAREA
-========================================================= */
-
-.contact-form textarea.form-control {
-    min-height: 145px;
-
-    resize: vertical;
-}
-
-
-/* =========================================================
-   SUBMIT BUTTON
-========================================================= */
-
-.submit-btn {
-    width: 100%;
-
-    min-height: 52px;
-
-    border: none;
-
-    border-radius: 11px;
-
-    background: #087f5b;
-
-    color: white;
-
-    font-size: 15px;
-
-    font-weight: 700;
-
-    cursor: pointer;
-
-    transition: 0.3s ease;
-}
-
-
-.submit-btn:hover {
-    background: #066b4d;
-
-    transform: translateY(-2px);
-
-    box-shadow: 0 8px 20px rgba(8,127,91,0.20);
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media (max-width: 992px) {
-
-    .contact-hero {
-        min-height: 500px;
-
-        background-position: center;
-    }
-
-    .contact-hero-content {
-        padding: 60px 7%;
-    }
-
-}
-
-
-@media (max-width: 576px) {
-
-    .contact-hero {
-        min-height: 520px;
-
-        background-position: center;
-    }
-
-    .contact-hero-content {
-        padding: 50px 25px;
-    }
-
-    .contact-hero-text {
-        max-width: 100%;
-    }
-
-    .contact-hero-text h1 {
-        font-size: 42px;
-    }
-
-    .contact-hero-text p {
-        font-size: 16px;
-    }
-
-    .contact-section {
-        padding: 50px 18px;
-    }
-
-    .contact-info,
-    .contact-form {
-        padding: 30px 23px;
-    }
-
-    .contact-info h2,
-    .contact-form h2 {
-        font-size: 27px;
-    }
-
-}
-
-</style>
-
+    <link rel="stylesheet" href="{% static 'css/contact.css' %}">
 {% endblock %}
-
 
 
 {% block content %}
@@ -510,7 +18,7 @@ Contact Us | LAMO
      CONTACT HERO
 ========================================================= -->
 
-<section class="contact-hero">
+<section class="contact-hero lamo-page-hero">
 
     <div class="contact-hero-content">
 
@@ -559,7 +67,6 @@ Contact Us | LAMO
     </div>
 
 </section>
-
 
 
 <!-- =========================================================
@@ -625,7 +132,6 @@ Contact Us | LAMO
                     </div>
 
 
-
                     <!-- PHONE -->
 
                     <div class="info-item">
@@ -652,7 +158,6 @@ Contact Us | LAMO
                     </div>
 
 
-
                     <!-- EMAIL -->
 
                     <div class="info-item">
@@ -677,7 +182,6 @@ Contact Us | LAMO
                         </div>
 
                     </div>
-
 
 
                     <!-- WORKING HOURS -->
@@ -708,7 +212,6 @@ Contact Us | LAMO
                     </div>
 
 
-
                     <!-- SOCIAL -->
 
                     <div class="social-links">
@@ -734,7 +237,6 @@ Contact Us | LAMO
                 </div>
 
             </div>
-
 
 
             <!-- =================================================
@@ -778,7 +280,6 @@ Contact Us | LAMO
                     {% endif %}
 
 
-
                     <!-- FORM -->
 
                     <form
@@ -817,7 +318,6 @@ Contact Us | LAMO
                             </div>
 
 
-
                             <!-- EMAIL -->
 
                             <div class="col-md-6">
@@ -841,7 +341,6 @@ Contact Us | LAMO
                                 >
 
                             </div>
-
 
 
                             <!-- PHONE -->
@@ -868,7 +367,6 @@ Contact Us | LAMO
                             </div>
 
 
-
                             <!-- SUBJECT -->
 
                             <div class="col-md-6">
@@ -893,7 +391,6 @@ Contact Us | LAMO
                             </div>
 
 
-
                             <!-- MESSAGE -->
 
                             <div class="col-12">
@@ -915,7 +412,6 @@ Contact Us | LAMO
                                 ></textarea>
 
                             </div>
-
 
 
                             <!-- SUBMIT -->

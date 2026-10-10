@@ -10,6 +10,10 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
+    <!-- CSRF token for JavaScript (AJAX) - rendered by Django so it also works
+         when CSRF_COOKIE_HTTPONLY is enabled in production. -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
     <title>
         {% block title %}LAMO Worker{% endblock %}
     </title>
@@ -91,6 +95,8 @@
 
             z-index: 1000;
 
+            overflow-y: auto;
+
             transition:
                 width .25s ease,
                 transform .25s ease;
@@ -118,23 +124,15 @@
         }
 
 
-        .brand-icon {
-            width: 38px;
-            height: 38px;
+        .brand-logo {
+            width: auto;
+            height: 30px;
 
             flex-shrink: 0;
 
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            object-fit: contain;
 
-            border-radius: 11px;
-
-            background: var(--green);
-
-            color: white;
-
-            font-size: 17px;
+            display: block;
         }
 
 
@@ -251,34 +249,6 @@
             background: #fff1f2;
 
             transform: translateX(2px);
-        }
-
-
-        /* =========================
-           NOTIFICATION
-        ========================= */
-
-        .notification-badge {
-            margin-left: auto;
-
-            min-width: 20px;
-            height: 20px;
-
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-
-            padding: 0 6px;
-
-            border-radius: 20px;
-
-            background: #ff5b61;
-
-            color: white;
-
-            font-size: 10px;
-
-            font-weight: 800;
         }
 
 
@@ -427,10 +397,7 @@
         .sidebar-link span,
 
         .worker-layout.sidebar-mini
-        .sidebar-user-info,
-
-        .worker-layout.sidebar-mini
-        .notification-badge {
+        .sidebar-user-info {
             display: none;
         }
 
@@ -505,11 +472,15 @@
 
 
         .mobile-logo {
-            color: var(--green-dark);
+            display: flex;
+            align-items: center;
+        }
 
-            font-size: 20px;
-
-            font-weight: 850;
+        .mobile-logo img {
+            height: 34px;
+            width: auto;
+            object-fit: contain;
+            display: block;
         }
 
 
@@ -626,10 +597,7 @@
             .sidebar-link span,
 
             .worker-layout.sidebar-mini
-            .sidebar-user-info,
-
-            .worker-layout.sidebar-mini
-            .notification-badge {
+            .sidebar-user-info {
                 display: block;
             }
 
@@ -661,6 +629,13 @@
 
     </style>
 
+    <!-- =====================================================
+         PAGE-SPECIFIC STYLES
+         Child templates override the extra_css block to load their
+         own stylesheet. Without this block Django silently discards it.
+    ====================================================== -->
+    {% block extra_css %}{% endblock %}
+
 </head>
 
 
@@ -687,11 +662,7 @@
 
         <div class="sidebar-brand">
 
-            <div class="brand-icon">
-
-                <i class="bi bi-tools"></i>
-
-            </div>
+            <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo">
 
             <span class="brand-text">
                 LAMO
@@ -743,6 +714,25 @@
             </a>
 
 
+            <!-- MY EARNINGS -->
+
+            <a
+                href="{% url 'worker_earnings' %}"
+                class="sidebar-link
+                {% if request.resolver_match.url_name == 'worker_earnings' %}
+                    active
+                {% endif %}"
+            >
+
+                <i class="bi bi-cash-coin"></i>
+
+                <span>
+                    My Earnings
+                </span>
+
+            </a>
+
+
             <!-- PROFILE -->
 
             <a
@@ -760,34 +750,6 @@
                 </span>
 
             </a>
-
-
-            <!-- NOTIFICATIONS -->
-
-            <a
-                href="{% url 'worker_notifications' %}"
-                class="sidebar-link
-                {% if request.resolver_match.url_name == 'worker_notifications' %}
-                    active
-                {% endif %}"
-            >
-
-                <i class="bi bi-bell-fill"></i>
-
-                <span>
-                    Notifications
-                </span>
-
-                {% if unread_count %}
-
-                    <span class="notification-badge">
-                        {{ unread_count }}
-                    </span>
-
-                {% endif %}
-
-            </a>
-
 
             <!-- MY AVAILABILITY / LEAVE -->
 
@@ -810,18 +772,19 @@
 
             <!-- LOGOUT -->
 
-            <a
-                href="{% url 'logout' %}"
-                class="sidebar-link logout-link"
-            >
-
-                <i class="bi bi-box-arrow-right"></i>
-
-                <span>
-                    Logout
-                </span>
-
-            </a>
+            <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
+                {% csrf_token %}
+                <button
+                    type="submit"
+                    class="sidebar-link logout-link"
+                    style="width: 100%; background: none; border: none; cursor: pointer; font: inherit; text-align: left;"
+                >
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>
+                        Logout
+                    </span>
+                </button>
+            </form>
 
 
         </nav>
@@ -935,7 +898,7 @@
 
 
             <div class="mobile-logo">
-                LAMO
+                <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo">
             </div>
 
 
@@ -1144,6 +1107,16 @@ document.addEventListener(
 
 </script>
 
+<!-- =====================================================
+     PAGE-SPECIFIC SCRIPTS
+     Child templates override the extra_js block to load their
+     own JS. Loaded after the sidebar's inline script so the
+     DOM elements it wires up already exist.
+====================================================== -->
+{% block extra_js %}{% endblock %}
+
+<!-- AI Service Assistant - same widget the public pages use -->
+{% include 'includes/ai_assistant.html' %}
 
 </body>
 

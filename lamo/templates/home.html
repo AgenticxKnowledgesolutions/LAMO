@@ -5,6 +5,10 @@
 LAMO | Labour Management System - Our Services
 {% endblock %}
 
+  {% block extra_js %}
+    <script src="{% static 'js/home.js' %}" defer></script>
+  {% endblock %}
+
 
 {% block extra_css %}
 
@@ -60,2021 +64,11 @@ LAMO | Labour Management System - Our Services
 </div>
 {% endif %}
 
-<style>
-  /* =========================================================
-   GLOBAL
-========================================================= */
-
-  html {
-    scroll-behavior: smooth;
-  }
-
-  body {
-    overflow-x: hidden;
-  }
-
-
-  /* =========================================================
-   HERO SECTION
-========================================================= */
-
-  .hero-section {
-    position: relative;
-    z-index: 2;
-
-    /* Reduced height to remove the large white gap below the hero */
-    min-height: 620px;
-
-    padding: 85px 0 65px;
-
-    display: flex;
-    align-items: center;
-  }
-
-
-  /* =========================================================
-   HERO BACKGROUND
-========================================================= */
-
-  #siteHeader {
-    background-image: url("{% static 'img/image.png' %}");
-
-    /* Keep the same image, but reduce the empty lower area */
-    min-height: 800px;
-
-    background-size: cover;
-    background-position: center bottom;
-    background-repeat: no-repeat;
-
-    background-color: var(--dark-green);
-  }
-
-
-  /* =========================================================
-   HERO CONTAINER
-========================================================= */
-
-  .hero-section .container {
-    position: relative;
-    z-index: 5;
-  }
-
-
-  /* =========================================================
-   HERO LEFT CONTENT
-========================================================= */
-
-  .hero-left {
-    display: flex;
-    flex-direction: column;
-
-    align-items: flex-start;
-
-    width: 100%;
-
-    max-width: 620px;
-  }
-
-
-  /* =========================================================
-   HERO BADGES
-========================================================= */
-
-  .hero-badges {
-    display: flex;
-
-    align-items: stretch;
-
-    gap: 18px;
-
-    width: 100%;
-
-    margin-bottom: 35px;
-
-    flex-wrap: nowrap;
-
-    animation: heroFadeUp 0.8s ease both;
-  }
-
-
-  .hero-badge {
-    width: 155px;
-
-    min-height: 72px;
-
-    padding: 12px 15px;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 11px;
-
-    border: 1px solid rgba(22, 163, 74, 0.55);
-
-    border-radius: 10px;
-
-    background: rgba(0, 40, 25, 0.48);
-
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-
-    color: #ffffff;
-
-    font-size: 0.82rem;
-
-    font-weight: 600;
-
-    line-height: 1.35;
-
-    flex-shrink: 0;
-
-    transition:
-      transform 0.3s ease,
-      background 0.3s ease,
-      border-color 0.3s ease,
-      box-shadow 0.3s ease;
-  }
-
-
-  .hero-badge:hover {
-    transform: translateY(-5px);
-
-    background: rgba(22, 163, 74, 0.16);
-
-    border-color: rgba(22, 163, 74, 0.9);
-
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  }
-
-
-  .hero-badge i {
-    color: #16a34a;
-
-    font-size: 1.35rem;
-
-    flex-shrink: 0;
-  }
-
-
-  /* =========================================================
-   HERO TITLE
-========================================================= */
-
-  .hero-title {
-    margin: 0 0 20px 0;
-
-    max-width: 600px;
-
-    color: #ffffff;
-
-    font-size: clamp(3rem, 5vw, 4.5rem);
-
-    font-weight: 800;
-
-    line-height: 1.05;
-
-    letter-spacing: -1.5px;
-
-    animation: heroFadeUp 0.8s ease 0.15s both;
-  }
-
-
-  .hero-title span {
-    color: #16a34a;
-
-    display: inline-block;
-  }
-
-
-  /* =========================================================
-   HERO DESCRIPTION
-========================================================= */
-
-  .hero-text {
-    margin: 0;
-
-    max-width: 520px;
-
-    color: #d1d5db;
-
-    font-size: 1.08rem;
-
-    line-height: 1.7;
-
-    animation: heroFadeUp 0.8s ease 0.3s both;
-  }
-
-
-  .hero-text strong {
-    color: #ffffff;
-
-    font-weight: 600;
-  }
-
-
-  /* =========================================================
-   HERO ANIMATION
-========================================================= */
-
-  @keyframes heroFadeUp {
-
-    from {
-      opacity: 0;
-
-      transform: translateY(25px);
-    }
-
-    to {
-      opacity: 1;
-
-      transform: translateY(0);
-    }
-
-  }
-
-
-  /* =========================================================
-     MODERN SERVICES SECTION
-  ========================================================= */
-  .services-section{
-    position:relative;
-    padding:78px 0 100px;
-    background:#f7faf8;
-    overflow:hidden;
-  }
-  .services-section:before,.services-section:after{content:"";position:absolute;border-radius:50%;background:rgba(22,163,74,.045);pointer-events:none}
-  .services-section:before{width:420px;height:420px;top:-180px;right:-140px}
-  .services-section:after{width:300px;height:300px;bottom:-150px;left:-100px}
-  .services-section .container{position:relative;z-index:2}
-  .services-heading{max-width:720px;margin:0 auto 55px}
-  .services-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:30px;background:#e7f7ef;color:#087f5b;font-size:.78rem;font-weight:700;letter-spacing:.5px;margin-bottom:15px}
-  .services-heading h2{margin:0 0 14px;color:#14251e;font-size:clamp(2rem,4vw,3rem);font-weight:800;letter-spacing:-1px}
-  .services-heading p{max-width:600px;margin:0 auto;color:#6b7b74;font-size:1rem;line-height:1.7}
-  .services-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
-  .modern-service-card{position:relative;height:100%;background:#fff;border:1px solid #e4ece8;border-radius:22px;overflow:hidden;transition:transform .35s ease,box-shadow .35s ease,border-color .35s ease}
-  .modern-service-card:hover{transform:translateY(-8px);border-color:#c9e5d8;box-shadow:0 22px 45px rgba(18,72,50,.11)}
-  .modern-service-image{position:relative;height:210px;overflow:hidden;background:#eaf7f1}
-  .modern-service-image img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease}
-  .modern-service-card:hover .modern-service-image img{transform:scale(1.08)}
-  .modern-service-image:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.48),transparent 60%);pointer-events:none}
-  .service-type-badge,.featured-badge{position:absolute;z-index:3;display:inline-flex;align-items:center;gap:6px;border-radius:30px;font-weight:700;box-shadow:0 5px 15px rgba(0,0,0,.08)}
-  .service-type-badge{top:15px;left:15px;padding:7px 11px;background:rgba(255,255,255,.93);color:#087f5b;font-size:.72rem;backdrop-filter:blur(8px)}
-  .featured-badge{top:15px;right:15px;padding:7px 10px;background:#fbbf24;color:#3b2a00;font-size:.7rem;font-weight:800}
-  .modern-service-content{padding:21px 20px 20px}
-  .modern-service-content h3{margin:0 0 8px;color:#17251f;font-size:1.12rem;font-weight:750}
-  .modern-service-content p{margin:0 0 18px;color:#71807a;font-size:.84rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:42px}
-  .service-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .service-availability{display:inline-flex;align-items:center;gap:6px;color:#5e7068;font-size:.72rem;font-weight:600}
-  .service-availability span{width:7px;height:7px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.1)}
-  .modern-book-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:11px;background:#087f5b;color:#fff!important;text-decoration:none;font-size:.75rem;font-weight:700;white-space:nowrap;transition:background .25s ease,transform .25s ease}
-  .modern-book-btn:hover{background:#056b4c;color:#fff!important;transform:translateX(2px)}
-  .modern-book-btn i{transition:transform .25s ease}.modern-book-btn:hover i{transform:translateX(3px)}
-  .services-empty{padding:65px 20px;text-align:center;background:#fff;border:1px dashed #c9ddd4;border-radius:22px}
-  .services-empty-icon{width:65px;height:65px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;border-radius:18px;background:#e7f7ef;color:#087f5b;font-size:1.8rem}
-  .services-empty h4{margin-bottom:7px;color:#20322a;font-weight:750}.services-empty p{margin:0;color:#7a8983;font-size:.9rem}
-  .services-more{margin-top:45px;text-align:center}
-  .services-more-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border:1px solid #b9dcca;border-radius:30px;background:#fff;color:#087f5b;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .25s ease}
-  .services-more-btn:hover{background:#087f5b;border-color:#087f5b;color:#fff}
-  @media(max-width:1199px){.services-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-  @media(max-width:991px){.services-section{padding:75px 0}.services-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}}
-  @media(max-width:575px){.services-section{padding:60px 0}.services-heading{margin-bottom:35px}.services-heading h2{font-size:2rem}.services-heading p{font-size:.88rem}.services-grid{grid-template-columns:1fr;gap:18px}.modern-service-image{height:205px}}
-
-  /* =========================================================
-   ABOUT
-========================================================= */
-
-
-  /* =========================================================
-     ADDITIONAL SERVICES
-  ========================================================= */
-
-  .more-services-container {
-    display: none;
-    opacity: 0;
-    transform: translateY(25px);
-  }
-
-  .more-services-container.show {
-    display: block;
-    animation: servicesReveal 0.55s ease forwards;
-  }
-
-  @keyframes servicesReveal {
-    from {
-      opacity: 0;
-      transform: translateY(25px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .extra-service-card {
-    height: 100%;
-    animation: cardAppear 0.5s ease both;
-  }
-
-  .extra-service-card:nth-child(1) {
-    animation-delay: 0.05s;
-  }
-
-  .extra-service-card:nth-child(2) {
-    animation-delay: 0.10s;
-  }
-
-  .extra-service-card:nth-child(3) {
-    animation-delay: 0.15s;
-  }
-
-  .extra-service-card:nth-child(4) {
-    animation-delay: 0.20s;
-  }
-
-  .extra-service-card:nth-child(5) {
-    animation-delay: 0.25s;
-  }
-
-  .extra-service-card:nth-child(6) {
-    animation-delay: 0.30s;
-  }
-
-  .extra-service-card:nth-child(7) {
-    animation-delay: 0.35s;
-  }
-
-  .extra-service-card:nth-child(8) {
-    animation-delay: 0.40s;
-  }
-
-  @keyframes cardAppear {
-    from {
-      opacity: 0;
-      transform: translateY(20px) scale(0.98);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  .btn-view-all {
-    cursor: pointer;
-  }
-
-  #moreServicesIcon {
-    transition: transform 0.3s ease;
-  }
-
-  #moreServicesBtn.expanded #moreServicesIcon {
-    transform: rotate(180deg);
-  }
-
-  .about-section {
-    padding: 90px 0;
-
-    background: #ffffff;
-  }
-
-
-  .about-img-container {
-    position: relative;
-
-    border-radius: 20px;
-  }
-
-
-  .about-img-container img {
-    width: 100%;
-
-    border-radius: 20px;
-
-    display: block;
-
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  }
-
-
-  .experience-badge {
-    position: absolute;
-
-    left: -20px;
-
-    bottom: 30px;
-
-    z-index: 2;
-
-    padding: 1.5rem 2rem;
-
-    background: var(--dark-green);
-
-    color: #ffffff;
-
-    border-radius: 16px;
-
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 1rem;
-  }
-
-
-  .exp-top,
-  .exp-bottom {
-    display: flex;
-
-    flex-direction: column;
-  }
-
-
-  .exp-top {
-    padding-bottom: 1rem;
-
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-
-  .exp-number {
-    color: #ffffff;
-
-    font-size: 2.2rem;
-
-    font-weight: 800;
-
-    line-height: 1;
-  }
-
-
-  .exp-label {
-    color: #a7f3d0;
-
-    font-size: 0.8rem;
-
-    margin-top: 0.25rem;
-  }
-
-
-  .about-features {
-    list-style: none;
-
-    padding: 0;
-
-    margin: 1.5rem 0 2rem;
-  }
-
-
-  .about-features li {
-    display: flex;
-
-    align-items: center;
-
-    gap: 0.75rem;
-
-    margin-bottom: 0.75rem;
-
-    color: #4b5563;
-
-    font-size: 0.95rem;
-  }
-
-
-  .about-features i {
-    color: var(--primary);
-
-    font-size: 1.25rem;
-  }
-
-
-  .btn-learn {
-    display: inline-block;
-
-    padding: 0.75rem 1.75rem;
-
-    border: none;
-
-    border-radius: 8px;
-
-    background: var(--primary);
-
-    color: #ffffff;
-
-    font-size: 0.95rem;
-
-    font-weight: 600;
-
-    text-decoration: none;
-
-    transition: all 0.3s ease;
-  }
-
-
-  .btn-learn:hover {
-    background: var(--primary-hover);
-
-    color: #ffffff;
-
-    transform: translateY(-2px);
-  }
-
-
-  /* =========================================================
-   HOW IT WORKS
-========================================================= */
-
-  .how-section {
-    padding: 90px 0;
-
-    background: #ffffff;
-  }
-
-
-  .how-step {
-    position: relative;
-
-    z-index: 2;
-
-    text-align: center;
-  }
-
-
-  .how-icon {
-    width: 80px;
-
-    height: 80px;
-
-    margin: 0 auto 25px;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: #ffffff;
-
-    border: 2px solid var(--primary);
-
-    color: var(--primary);
-
-    font-size: 2rem;
-
-    box-shadow: 0 10px 30px rgba(22, 163, 74, 0.2);
-  }
-
-
-  .how-step.active .how-icon {
-    background: var(--primary);
-
-    color: #ffffff;
-  }
-
-
-  .how-step h4 {
-    font-weight: 700;
-
-    color: #1f2937;
-
-    margin-bottom: 12px;
-  }
-
-
-  .how-step p {
-    max-width: 300px;
-
-    margin: 0 auto;
-
-    color: #6b7280;
-
-    line-height: 1.6;
-  }
-
-
-  /* =========================================================
-   WORKERS / EMPLOYERS
-========================================================= */
-
-  .role-section {
-    padding: 90px 0;
-  }
-
-
-  .role-section.light {
-    background: var(--bg-light);
-  }
-
-
-  .role-section.white {
-    background: #ffffff;
-  }
-
-
-  .role-image {
-    position: relative;
-  }
-
-
-  .role-image>img {
-    width: 100%;
-
-    height: 400px;
-
-    object-fit: cover;
-
-    border-radius: 20px;
-
-    display: block;
-
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
-  }
-
-
-  .role-badge {
-    position: absolute;
-
-    padding: 18px 22px;
-
-    background: #ffffff;
-
-    border-radius: 14px;
-
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-  }
-
-
-  .role-badge h5 {
-    font-weight: 700;
-
-    margin-bottom: 4px;
-  }
-
-
-  .role-badge p {
-    margin: 0;
-
-    color: #6b7280;
-
-    font-size: 0.8rem;
-  }
-
-
-  /* =========================================================
-   TESTIMONIALS
-========================================================= */
-
-  .testimonials-section {
-    padding: 90px 0;
-
-    background: #fdfdfd;
-  }
-
-
-  .testimonial-card {
-    height: 100%;
-
-    padding: 1.75rem;
-
-    background: #ffffff;
-
-    border: 1px solid #eaebec;
-
-    border-radius: 16px;
-
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-
-    transition: all 0.3s ease;
-  }
-
-
-  .testimonial-card:hover {
-    transform: translateY(-5px);
-
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
-  }
-
-
-  .quote-icon {
-    width: 38px;
-
-    height: 38px;
-
-    margin-bottom: 1rem;
-
-    border-radius: 8px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: rgba(22, 163, 74, 0.1);
-
-    color: var(--primary);
-
-    font-size: 1.25rem;
-  }
-
-
-  .testimonial-text {
-    color: #4b5563;
-
-    font-size: 0.9rem;
-
-    line-height: 1.6;
-
-    margin-bottom: 1.5rem;
-  }
-
-
-  .testimonial-author {
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-  }
-
-
-  .author-info {
-    display: flex;
-
-    align-items: center;
-
-    gap: 0.75rem;
-  }
-
-
-  .author-img {
-    width: 42px;
-
-    height: 42px;
-
-    border-radius: 50%;
-
-    object-fit: cover;
-  }
-
-
-  .author-name {
-    color: #1f2937;
-
-    font-size: 0.9rem;
-
-    font-weight: 700;
-
-    margin: 0;
-  }
-
-
-  .author-role {
-    color: #6b7280;
-
-    font-size: 0.75rem;
-
-    margin: 0;
-  }
-
-
-  .stars {
-    color: #fbbf24;
-
-    font-size: 0.8rem;
-  }
-
-
-  /* =========================================================
-   CONTACT
-========================================================= */
-
-  .contact-section {
-    padding: 90px 0;
-
-    background: #ffffff;
-  }
-
-
-  .contact-info-list {
-    list-style: none;
-
-    padding: 0;
-
-    margin: 1.5rem 0;
-  }
-
-
-  .contact-info-list li {
-    display: flex;
-
-    align-items: center;
-
-    gap: 1rem;
-
-    margin-bottom: 1.25rem;
-
-    color: #4b5563;
-
-    font-size: 0.95rem;
-  }
-
-
-  .contact-icon {
-    width: 38px;
-
-    height: 38px;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: rgba(22, 163, 74, 0.1);
-
-    color: var(--primary);
-
-    font-size: 1.1rem;
-
-    flex-shrink: 0;
-  }
-
-
-  .contact-form-wrap {
-    padding: 1.5rem;
-
-    background: #ffffff;
-
-    border: 1px solid #eaebec;
-
-    border-radius: 16px;
-
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
-  }
-
-
-  .contact-form .form-control {
-    margin-bottom: 0.5rem;
-
-    padding: 0.75rem 1rem;
-
-    background: #fdfdfd;
-
-    border: 1px solid #e5e7eb;
-
-    border-radius: 8px;
-
-    font-size: 0.9rem;
-  }
-
-
-  .contact-form .form-control:focus {
-    border-color: var(--primary);
-
-    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
-  }
-
-
-  .btn-submit {
-    width: 100%;
-
-    padding: 0.75rem;
-
-    border: none;
-
-    border-radius: 8px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 0.5rem;
-
-    background: var(--primary);
-
-    color: #ffffff;
-
-    font-size: 0.95rem;
-
-    font-weight: 600;
-  }
-
-
-  .support-graphic {
-    position: relative;
-
-    display: inline-block;
-  }
-
-
-  .support-graphic img {
-    max-height: 280px;
-
-    border-radius: 20px;
-  }
-
-
-  .support-badge {
-    position: absolute;
-
-    bottom: 20px;
-
-    left: -20px;
-
-    width: 70px;
-
-    height: 70px;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: var(--primary);
-
-    color: #ffffff;
-
-    font-weight: 800;
-  }
-
-
-  /* =========================================================
-   MOBILE
-========================================================= */
-
-  @media (max-width: 991px) {
-
-    #siteHeader {
-      min-height: 500px;
-
-      background-position: center bottom;
-    }
-
-
-    .hero-section {
-      min-height: 600px;
-
-      padding: 85px 0 60px;
-    }
-
-
-    .hero-left {
-      max-width: 650px;
-    }
-
-
-    .hero-badges {
-      gap: 12px;
-
-      margin-bottom: 30px;
-    }
-
-
-    .hero-badge {
-      width: 145px;
-
-      min-height: 68px;
-
-      padding: 10px 12px;
-
-      font-size: 0.78rem;
-    }
-
-
-    .hero-title {
-      font-size: 3.2rem;
-
-      max-width: 550px;
-    }
-
-
-    .hero-text {
-      font-size: 1rem;
-    }
-
-  }
-
-
-  @media (max-width: 576px) {
-
-    #siteHeader {
-      min-height: 700px;
-
-      background-position: 65% bottom;
-    }
-
-
-    .hero-section {
-      min-height: 590px;
-
-      padding: 85px 0 45px;
-    }
-
-
-    .hero-badges {
-      width: 100%;
-
-      gap: 7px;
-
-      margin-bottom: 28px;
-
-      flex-wrap: nowrap;
-    }
-
-
-    .hero-badge {
-      width: auto;
-
-      min-width: 0;
-
-      flex: 1;
-
-      min-height: 60px;
-
-      padding: 8px 6px;
-
-      gap: 6px;
-
-      border-radius: 8px;
-
-      font-size: 0.64rem;
-    }
-
-
-    .hero-badge i {
-      font-size: 1rem;
-    }
-
-
-    .hero-title {
-      font-size: 2.45rem;
-
-      line-height: 1.08;
-
-      letter-spacing: -0.8px;
-
-      margin-bottom: 16px;
-    }
-
-
-    .hero-text {
-      max-width: 95%;
-
-      font-size: 0.9rem;
-
-      line-height: 1.6;
-    }
-
-
-    .services-section,
-    .about-section,
-    .how-section,
-    .role-section,
-    .testimonials-section,
-    .contact-section {
-      padding: 60px 0;
-    }
-
-
-    .experience-badge {
-      left: 10px;
-
-      bottom: 15px;
-
-      padding: 1rem;
-    }
-
-
-    .role-image>img {
-      height: 300px;
-    }
-
-  }
-
-
-  @media (max-width: 380px) {
-
-    .hero-section {
-      padding-top: 95px;
-    }
-
-
-    .hero-badge {
-      min-height: 58px;
-
-      padding: 7px 5px;
-
-      font-size: 0.58rem;
-    }
-
-
-    .hero-badge i {
-      font-size: 0.9rem;
-    }
-
-
-    .hero-title {
-      font-size: 2.15rem;
-    }
-
-
-    .hero-text {
-      font-size: 0.82rem;
-    }
-
-  }
-
-
-/* =========================================================
-   AUTO LOGIN POPUP — UI ONLY
-   Appears 2 seconds after opening the homepage.
-   Uses the existing Django login URL.
-   ========================================================= */
-
-.lamo-login-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 20px;
-
-  background: rgba(3, 28, 21, .68);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
-
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-
-  transition: opacity .35s ease, visibility .35s ease;
-}
-
-.lamo-login-overlay.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.lamo-login-modal {
-  position: relative;
-  width: min(430px, 100%);
-
-  padding: 30px;
-
-  border: 1px solid rgba(255,255,255,.22);
-  border-radius: 26px;
-
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.98), rgba(238,249,244,.98));
-
-  box-shadow:
-    0 30px 90px rgba(0,0,0,.28);
-
-  transform: translateY(35px) scale(.88);
-  opacity: 0;
-
-  transition:
-    transform .55s cubic-bezier(.2,.8,.2,1),
-    opacity .4s ease;
-
-  overflow: hidden;
-}
-
-.lamo-login-overlay.show .lamo-login-modal {
-  transform: translateY(0) scale(1);
-  opacity: 1;
-}
-
-.lamo-login-modal::before {
-  content: "";
-  position: absolute;
-
-  width: 180px;
-  height: 180px;
-
-  right: -80px;
-  top: -80px;
-
-  border-radius: 50%;
-
-  background: rgba(8,127,91,.08);
-
-  animation: lamoLoginFloat 5s ease-in-out infinite;
-}
-
-.lamo-login-modal::after {
-  content: "";
-  position: absolute;
-
-  width: 100px;
-  height: 100px;
-
-  left: -55px;
-  bottom: -55px;
-
-  border-radius: 50%;
-
-  background: rgba(67,189,145,.08);
-}
-
-.lamo-login-close {
-  position: absolute;
-  z-index: 5;
-
-  top: 14px;
-  right: 14px;
-
-  width: 34px;
-  height: 34px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border: 1px solid #dcebe4;
-  border-radius: 50%;
-
-  background: rgba(255,255,255,.8);
-  color: #527067;
-
-  cursor: pointer;
-
-  transition: .3s ease;
-}
-
-.lamo-login-close:hover {
-  background: #087f5b;
-  color: #fff;
-  transform: rotate(90deg);
-}
-
-.lamo-login-brand {
-  position: relative;
-  z-index: 2;
-
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  margin-bottom: 20px;
-}
-
-.lamo-login-brand-icon {
-  width: 44px;
-  height: 44px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 14px;
-
-  background: #087f5b;
-  color: #fff;
-
-  font-size: 19px;
-
-  box-shadow: 0 9px 22px rgba(8,127,91,.2);
-
-  animation: lamoLoginIcon 2.5s ease-in-out infinite;
-}
-
-.lamo-login-brand span {
-  color: #087f5b;
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: .5px;
-}
-
-.lamo-login-title {
-  position: relative;
-  z-index: 2;
-
-  margin: 0 0 7px;
-
-  color: #14352b;
-
-  font-size: 27px;
-  font-weight: 900;
-  letter-spacing: -.8px;
-}
-
-.lamo-login-subtitle {
-  position: relative;
-  z-index: 2;
-
-  margin: 0 0 22px;
-
-  color: #74847d;
-
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.lamo-login-form {
-  position: relative;
-  z-index: 2;
-}
-
-.lamo-login-field {
-  margin-bottom: 14px;
-}
-
-.lamo-login-field label {
-  display: block;
-
-  margin-bottom: 6px;
-
-  color: #38564c;
-
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.lamo-login-input-wrap {
-  position: relative;
-}
-
-.lamo-login-input-wrap i {
-  position: absolute;
-  z-index: 2;
-
-  left: 13px;
-  top: 50%;
-
-  transform: translateY(-50%);
-
-  color: #087f5b;
-  font-size: 14px;
-}
-
-.lamo-login-input {
-  width: 100%;
-  height: 46px;
-
-  padding: 0 40px;
-
-  border: 1px solid #d8e8e0;
-  border-radius: 12px;
-
-  outline: none;
-
-  background: #fff;
-  color: #193a30;
-
-  font-size: 12px;
-
-  transition: .25s ease;
-}
-
-.lamo-login-input:focus {
-  border-color: #087f5b;
-
-  box-shadow:
-    0 0 0 4px rgba(8,127,91,.09);
-}
-
-.lamo-password-toggle {
-  position: absolute;
-  z-index: 3;
-
-  right: 11px;
-  top: 50%;
-
-  transform: translateY(-50%);
-
-  border: 0;
-  background: transparent;
-
-  color: #80918a;
-
-  cursor: pointer;
-}
-
-.lamo-login-error {
-  display: none;
-
-  margin: 5px 0 12px;
-  padding: 9px 11px;
-
-  border-radius: 10px;
-
-  background: #fff0f0;
-  color: #c0392b;
-
-  font-size: 10px;
-}
-
-.lamo-login-error.show {
-  display: block;
-  animation: lamoError .3s ease both;
-}
-
-.lamo-login-submit {
-  width: 100%;
-  height: 46px;
-
-  margin-top: 4px;
-
-  border: 0;
-  border-radius: 12px;
-
-  background: #087f5b;
-  color: #fff;
-
-  font-size: 12px;
-  font-weight: 850;
-
-  cursor: pointer;
-
-  box-shadow: 0 10px 24px rgba(8,127,91,.18);
-
-  transition: .3s ease;
-}
-
-.lamo-login-submit:hover {
-  background: #056b4c;
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 14px 28px rgba(8,127,91,.25);
-}
-
-.lamo-login-submit:active {
-  transform: translateY(0) scale(.98);
-}
-
-.lamo-login-register {
-  position: relative;
-  z-index: 2;
-
-  margin: 17px 0 0;
-
-  text-align: center;
-
-  color: #7b8b84;
-  font-size: 10px;
-}
-
-.lamo-login-register a {
-  color: #087f5b;
-  font-weight: 850;
-  text-decoration: none;
-}
-
-.lamo-login-register a:hover {
-  text-decoration: underline;
-}
-
-@keyframes lamoLoginFloat {
-  0%, 100% {
-    transform: translate(0, 0);
-  }
-
-  50% {
-    transform: translate(-10px, 12px);
-  }
-}
-
-@keyframes lamoLoginIcon {
-  0%, 100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px) rotate(-3deg);
-  }
-}
-
-@keyframes lamoError {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (max-width: 500px) {
-  .lamo-login-modal {
-    padding: 25px 20px;
-    border-radius: 22px;
-  }
-
-  .lamo-login-title {
-    font-size: 24px;
-  }
-}
-
-
-/* =========================================================
-   LAMO HOME PAGE - MODERN MESSAGE TOAST
-========================================================= */
-
-.lamo-toast-container {
-  position: fixed;
-  top: 86px;
-  right: 24px;
-  z-index: 10000;
-
-  width: min(390px, calc(100vw - 32px));
-
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  pointer-events: none;
-}
-
-.lamo-toast {
-  position: relative;
-
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-
-  min-height: 72px;
-  padding: 14px 40px 15px 14px;
-
-  overflow: hidden;
-
-  background: rgba(255,255,255,.98);
-  border: 1px solid #e4ebe7;
-  border-radius: 15px;
-
-  box-shadow:
-    0 16px 40px rgba(19, 53, 42, .14),
-    0 3px 10px rgba(19, 53, 42, .05);
-
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  pointer-events: auto;
-
-  animation: lamoToastIn .38s cubic-bezier(.2,.8,.2,1) both;
-}
-
-.lamo-toast::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: #087f5b;
-}
-
-.toast-success::before { background: #16a34a; }
-.toast-error::before { background: #dc3545; }
-.toast-warning::before { background: #f59e0b; }
-.toast-info::before { background: #2563eb; }
-
-.toast-icon {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 11px;
-
-  background: #e7f7ef;
-  color: #087f5b;
-
-  font-size: 18px;
-}
-
-.toast-error .toast-icon {
-  background: #fff0f1;
-  color: #dc3545;
-}
-
-.toast-warning .toast-icon {
-  background: #fff8e7;
-  color: #d97706;
-}
-
-.toast-info .toast-icon {
-  background: #eef4ff;
-  color: #2563eb;
-}
-
-.toast-content {
-  min-width: 0;
-  padding-top: 1px;
-}
-
-.toast-title {
-  margin-bottom: 3px;
-
-  color: #17251f;
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.25;
-}
-
-.toast-message {
-  color: #71807a;
-  font-size: 11px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.toast-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-
-  width: 27px;
-  height: 27px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border: 0;
-  border-radius: 8px;
-
-  background: transparent;
-  color: #9aa6a1;
-
-  cursor: pointer;
-  font-size: 10px;
-
-  transition: .2s ease;
-}
-
-.toast-close:hover {
-  background: #edf5f1;
-  color: #087f5b;
-}
-
-.toast-error .toast-close:hover {
-  background: #fff0f1;
-  color: #dc3545;
-}
-
-.toast-progress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-
-  width: 100%;
-  height: 2px;
-
-  background: #087f5b;
-  transform-origin: left;
-  animation: lamoToastProgress 5s linear forwards;
-}
-
-.toast-error .toast-progress { background: #dc3545; }
-.toast-warning .toast-progress { background: #f59e0b; }
-.toast-info .toast-progress { background: #2563eb; }
-
-.lamo-toast.toast-closing {
-  animation: lamoToastOut .25s ease forwards;
-}
-
-@keyframes lamoToastIn {
-  from {
-    opacity: 0;
-    transform: translateX(28px) scale(.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-
-@keyframes lamoToastOut {
-  from {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(28px) scale(.96);
-  }
-}
-
-@keyframes lamoToastProgress {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
-}
-
-@media (max-width: 600px) {
-  .lamo-toast-container {
-    top: 72px;
-    right: 14px;
-    left: 14px;
-    width: auto;
-  }
-
-  .lamo-toast {
-    min-height: 68px;
-    padding: 13px 38px 14px 13px;
-    border-radius: 14px;
-  }
-
-  .toast-icon {
-    width: 35px;
-    height: 35px;
-    flex-basis: 35px;
-    font-size: 16px;
-  }
-
-  .toast-title {
-    font-size: 12px;
-  }
-
-  .toast-message {
-    font-size: 10.5px;
-  }
-}
-
-
-
-/* =========================================================
-   LAMO GREEN INTERACTION EFFECTS
-   Navbar, hero section and images are intentionally untouched.
-========================================================= */
-
-/* Services background - soft green atmosphere */
-.services-section {
-  background:
-    radial-gradient(circle at 10% 20%, rgba(22,163,74,.08), transparent 28%),
-    radial-gradient(circle at 90% 80%, rgba(8,127,91,.07), transparent 30%),
-    #f7faf8;
-}
-
-.services-section::before {
-  width: 420px;
-  height: 420px;
-  top: -180px;
-  right: -140px;
-  background: rgba(22,163,74,.055);
-  filter: blur(2px);
-  animation: greenFloat 7s ease-in-out infinite;
-}
-
-.services-section::after {
-  width: 300px;
-  height: 300px;
-  bottom: -150px;
-  left: -100px;
-  background: rgba(8,127,91,.045);
-  animation: greenFloatReverse 8s ease-in-out infinite;
-}
-
-/* Services heading */
-.services-heading h2 {
-  position: relative;
-  display: inline-block;
-}
-
-.services-heading h2::after {
-  content: "";
-  display: block;
-  width: 55px;
-  height: 4px;
-  margin: 14px auto 0;
-  border-radius: 20px;
-  background: linear-gradient(90deg, #087f5b, #16a34a, #34d399);
-  transition: width .35s ease;
-}
-
-.services-heading:hover h2::after {
-  width: 100px;
-}
-
-/* Service cards */
-.modern-service-card {
-  position: relative;
-  transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease;
-}
-
-.modern-service-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 15%;
-  width: 70%;
-  height: 3px;
-  border-radius: 0 0 10px 10px;
-  background: linear-gradient(90deg, transparent, #16a34a, #087f5b, transparent);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform .4s ease;
-  z-index: 5;
-}
-
-.modern-service-card:hover::before {
-  transform: scaleX(1);
-}
-
-.modern-service-card:hover {
-  transform: translateY(-10px);
-  border-color: rgba(22,163,74,.35);
-  box-shadow: 0 20px 45px rgba(8,127,91,.12), 0 0 0 4px rgba(22,163,74,.035);
-}
-
-.modern-service-card h3 {
-  transition: color .25s ease, transform .25s ease;
-}
-
-.modern-service-card:hover h3 {
-  color: #087f5b;
-  transform: translateX(2px);
-}
-
-/* Price badge */
-.modern-service-content span[style*="background:#e5f6ee"] {
-  transition: background .25s ease, transform .25s ease, box-shadow .25s ease;
-}
-
-.modern-service-card:hover .modern-service-content span[style*="background:#e5f6ee"] {
-  background: #087f5b !important;
-  color: #fff !important;
-  transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(8,127,91,.18);
-}
-
-/* Availability indicator */
-.modern-service-card:hover .service-availability span {
-  box-shadow: 0 0 0 5px rgba(22,163,74,.12), 0 0 12px rgba(22,163,74,.35);
-  animation: availabilityPulse 1.3s infinite;
-}
-
-/* Button light sweep */
-.modern-book-btn {
-  position: relative;
-  overflow: hidden;
-}
-
-.modern-book-btn::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -120%;
-  width: 80%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
-  transform: skewX(-20deg);
-  transition: left .55s ease;
-}
-
-.modern-book-btn:hover::before {
-  left: 130%;
-}
-
-/* Explore button */
-.services-more-btn {
-  position: relative;
-  overflow: hidden;
-  transition: transform .3s ease, box-shadow .3s ease, background .3s ease;
-}
-
-.services-more-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(8,127,91,.15), 0 0 0 4px rgba(22,163,74,.05);
-}
-
-/* About section - subtle green depth */
-.about-section {
-  position: relative;
-  background: linear-gradient(120deg, #fff 0%, #f8fcfa 50%, #fff 100%);
-}
-
-.about-section::before {
-  content: "";
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  right: -120px;
-  top: 50px;
-  border-radius: 50%;
-  background: rgba(22,163,74,.045);
-  filter: blur(5px);
-  pointer-events: none;
-}
-
-/* About feature hover */
-.about-features li {
-  padding: 8px 10px;
-  border-radius: 10px;
-  transition: background .25s ease, transform .25s ease;
-}
-
-.about-features li:hover {
-  background: rgba(22,163,74,.06);
-  transform: translateX(6px);
-}
-
-.about-features i {
-  transition: transform .25s ease;
-}
-
-.about-features li:hover i {
-  transform: scale(1.15);
-}
-
-/* How It Works hover */
-.how-step {
-  padding: 25px 15px;
-  border-radius: 20px;
-  transition: transform .3s ease, background .3s ease, box-shadow .3s ease;
-}
-
-.how-step:hover {
-  transform: translateY(-7px);
-  background: rgba(22,163,74,.045);
-  box-shadow: 0 15px 35px rgba(8,127,91,.08);
-}
-
-.how-icon {
-  transition: transform .3s ease, background .3s ease, color .3s ease, box-shadow .3s ease;
-}
-
-.how-step:hover .how-icon {
-  background: #087f5b;
-  color: #fff;
-  transform: scale(1.08) rotate(3deg);
-  box-shadow: 0 12px 30px rgba(8,127,91,.22);
-}
-
-/* Animations */
-@keyframes greenFloat {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-20px, 18px); }
-}
-
-@keyframes greenFloatReverse {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(18px, -15px); }
-}
-
-@keyframes availabilityPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-
-/* Keep effects calm on mobile */
-@media (max-width: 576px) {
-  .services-section::before {
-    width: 280px;
-    height: 280px;
-  }
-
-  .services-section::after {
-    width: 220px;
-    height: 220px;
-  }
-
-  .modern-service-card:hover {
-    transform: translateY(-6px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .services-section::before,
-  .services-section::after,
-  .modern-service-card,
-  .how-step,
-  .how-icon,
-  .about-features li {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-</style>
 
 {% endblock %}
-
+  {% block page_css %}
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+  {% endblock %}
 
 
 {% block hero %}
@@ -2083,7 +77,7 @@ LAMO | Labour Management System - Our Services
      HERO
 ========================================================= -->
 
-<section class="hero-section" id="home">
+<section class="hero-section lamo-page-hero" id="home">
 
   <div class="container">
 
@@ -2209,7 +203,6 @@ LAMO | Labour Management System - Our Services
 {% endblock %}
 
 
-
 {% block content %}
 
 <!-- =========================================================
@@ -2222,12 +215,34 @@ LAMO | Labour Management System - Our Services
       <h2>Find the Right Service<br><span style="color:var(--primary);">for Your Need</span></h2>
       <p>From everyday home repairs to professional services, find trusted workers for almost every task in one place.</p>
       
-      <form method="GET" action="{% url 'home' %}#services" style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;">
-        <input type="text" name="q" value="{{ query|default:'' }}" placeholder="Search services by name or description..." style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;">
-        <button type="submit" style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;">Search</button>
-        {% if query %}
-          <a href="{% url 'home' %}#services" style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; text-decoration:none; font-weight:600; display:inline-flex; align-items:center;">Clear</a>
-        {% endif %}
+      <form
+        method="GET"
+        action="{% url 'home' %}#services"
+        id="homeSearchForm"
+        style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;"
+      >
+        <input
+          type="text"
+          name="q"
+          id="homeSearchInput"
+          value="{{ query|default:'' }}"
+          placeholder="Search services by name or description..."
+          style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;"
+        >
+        <button
+          type="submit"
+          id="homeSearchButton"
+          style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;"
+        >
+          Search
+        </button>
+        <button
+          type="button"
+          id="homeSearchClear"
+          style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center;"
+        >
+          Clear
+        </button>
       </form>
     </div>
 
@@ -2252,7 +267,7 @@ LAMO | Labour Management System - Our Services
                 <h3 style="margin:0;">{{ service.name }}</h3>
                 {% if service.price %}<span style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{ service.price }}</span>{% endif %}
               </div>
-              <p>{{ service.description }}</p>
+              <p class="modern-service-desc">{{ service.description }}</p>
               <div class="service-card-footer">
                 <div class="service-availability"><span></span> Available</div>
                 {% if user.is_authenticated %}
@@ -2277,11 +292,13 @@ LAMO | Labour Management System - Our Services
       </div>
     {% endif %}
 
-    <div class="services-more" data-aos="fade-up">
-      <button type="button" class="services-more-btn" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">
-        Explore All Services <i class="bi bi-arrow-down"></i>
-      </button>
-    </div>
+    {% if has_more_services or services %}
+      <div class="services-more" data-aos="fade-up">
+        <a href="{% url 'service_page' %}" class="services-more-btn">
+          Explore All Services <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    {% endif %}
   </div>
 </section>
 
@@ -2373,18 +390,19 @@ LAMO | Labour Management System - Our Services
 
         <p class="text-muted mb-3">
 
-          LAMO is a smart labour management
-          platform that connects employers
-          with verified and skilled professionals
-          for all kinds of work.
+          LAMO is a service-booking platform
+          that helps customers find verified
+          and skilled service workers for all
+          kinds of everyday services.
 
         </p>
 
 
         <p class="text-muted mb-4">
 
-          Our mission is to make hiring easy,
-          secure and reliable for everyone.
+          Our mission is to make booking
+          services easy, secure and reliable
+          for everyone.
 
         </p>
 
@@ -2393,7 +411,7 @@ LAMO | Labour Management System - Our Services
 
           <li>
             <i class="bi bi-check-circle-fill"></i>
-            Verified & experienced professionals
+            Verified & experienced service workers
           </li>
 
           <li>
@@ -2443,7 +461,6 @@ LAMO | Labour Management System - Our Services
   </div>
 
 </section>
-
 
 
 <!-- =========================================================
@@ -2506,14 +523,14 @@ LAMO | Labour Management System - Our Services
           </div>
 
           <h4>
-            1. Find a Worker
+            1. Find a Service
           </h4>
 
           <p>
 
-            Browse verified professionals
-            and choose the right person
-            for your work.
+            Browse service categories and
+            choose the right professional
+            for your service need.
 
           </p>
 
@@ -2564,14 +581,14 @@ LAMO | Labour Management System - Our Services
           </div>
 
           <h4>
-            3. Get It Done
+            3. Service Completed
           </h4>
 
           <p>
 
             Sit back and relax while
-            the professional completes
-            your work.
+            the service worker completes
+            your service.
 
           </p>
 
@@ -2584,7 +601,6 @@ LAMO | Labour Management System - Our Services
   </div>
 
 </section>
-
 
 
 <!-- =========================================================
@@ -2620,7 +636,7 @@ LAMO | Labour Management System - Our Services
             </h5>
 
             <p>
-              Flexible timings & regular jobs
+              Flexible timings & regular bookings
             </p>
 
           </div>
@@ -2639,14 +655,14 @@ LAMO | Labour Management System - Our Services
         </span>
 
         <h2 class="section-title">
-          Grow Your Career with LAMO
+          Grow Your Service Business with LAMO
         </h2>
 
         <p class="text-muted mb-4">
 
-          Join professionals who are finding
-          work and growing their income
-          through our platform.
+          Join service workers who are
+          finding customers and growing
+          their income through our platform.
 
         </p>
 
@@ -2657,7 +673,7 @@ LAMO | Labour Management System - Our Services
 
             <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
 
-            Access to hundreds of jobs
+            Access to hundreds of service bookings
 
           </li>
 
@@ -2666,7 +682,7 @@ LAMO | Labour Management System - Our Services
 
             <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
 
-            Timely payments
+            Manage your availability easily
 
           </li>
 
@@ -2696,7 +712,7 @@ LAMO | Labour Management System - Our Services
                    color:white;
                    ">
 
-          Join as Worker
+          Join as Service Worker
 
           <i class="bi bi-arrow-right ms-1"></i>
 
@@ -2711,12 +727,11 @@ LAMO | Labour Management System - Our Services
 </section>
 
 
-
 <!-- =========================================================
-     FOR EMPLOYERS
+     FOR CUSTOMERS
 ========================================================= -->
 
-<section id="employers" class="role-section white">
+<section id="customers" class="role-section white">
 
   <div class="container">
 
@@ -2729,7 +744,7 @@ LAMO | Labour Management System - Our Services
 
         <div class="role-image">
 
-          <img src="{% static 'img/lamo_role_employer_1786301184375.png' %}" alt="For Employers" onerror="
+          <img src="{% static 'img/lamo_role_employer_1786301184375.png' %}" alt="For Customers" onerror="
                         this.src='https://images.unsplash.com/photo-1504307651254-35680f356f90?w=800&q=80'
                         ">
 
@@ -2741,11 +756,11 @@ LAMO | Labour Management System - Our Services
                          ">
 
             <h5>
-              Trusted Pros
+              Trusted Service Workers
             </h5>
 
             <p>
-              Verified professionals
+              Verified service professionals
             </p>
 
           </div>
@@ -2760,17 +775,17 @@ LAMO | Labour Management System - Our Services
       <div class="col-lg-6" data-aos="fade-right">
 
         <span class="section-subtitle">
-          For Employers
+          For Customers
         </span>
 
         <h2 class="section-title">
-          Hire the Best Talent
+          Book Services with Confidence
         </h2>
 
         <p class="text-muted mb-4">
 
-          Finding reliable and skilled workers
-          has never been this simple.
+          Finding reliable and skilled service
+          workers has never been this simple.
 
         </p>
 
@@ -2781,7 +796,7 @@ LAMO | Labour Management System - Our Services
 
             <i class="bi bi-shield-fill-check text-success me-3 fs-5"></i>
 
-            Verified workers
+            Verified service workers
 
           </li>
 
@@ -2790,7 +805,7 @@ LAMO | Labour Management System - Our Services
 
             <i class="bi bi-lightning-fill text-success me-3 fs-5"></i>
 
-            Quick hiring
+            Quick and easy booking
 
           </li>
 
@@ -2820,7 +835,7 @@ LAMO | Labour Management System - Our Services
                    color:white;
                    ">
 
-          Post a Job
+          Book a Service
 
           <i class="bi bi-arrow-right ms-1"></i>
 
@@ -2835,9 +850,8 @@ LAMO | Labour Management System - Our Services
 </section>
 
 
-
 <!-- =========================================================
-     TESTIMONIALS
+     REVIEWS / TESTIMONIALS
 ========================================================= -->
 
 <section id="testimonials" class="testimonials-section">
@@ -2848,11 +862,11 @@ LAMO | Labour Management System - Our Services
     <div class="text-center mb-5" data-aos="fade-up">
 
       <span class="section-subtitle">
-        What People Say
+        What Our Customers Say
       </span>
 
       <h2 class="section-title">
-        Feedback from Our Happy Clients
+        Reviews from Our Customers
       </h2>
 
       <div style="
@@ -2868,166 +882,75 @@ LAMO | Labour Management System - Our Services
 
     <div class="row g-4 justify-content-center">
 
+      {% if reviews %}
 
-      <!-- TESTIMONIAL 1 -->
+        {% for review in reviews %}
 
-      <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
-        <div class="testimonial-card">
-          <div class="quote-icon">
-            <i class="bi bi-quote"></i>
-          </div>
-          <p class="testimonial-text">
-            "LAMO helped me find a skilled
-            plumber within minutes.
-            Very professional service!"
+          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
+            <div class="testimonial-card">
+              <div class="quote-icon">
+                <i class="bi bi-quote"></i>
+              </div>
+              <p class="testimonial-text">
+                "{% if review.comment %}{{ review.comment }}{% else %}Great service experience with LAMO!{% endif %}"
+              </p>
+              <div class="testimonial-author">
+                <div class="author-info">
+                  <div class="author-avatar">
+                    {{ review.customer.username|first|upper }}
+                  </div>
+                  <div>
 
-          </p>
-          <div class="testimonial-author">
-            <div class="author-info">
-              <img src="https://ui-avatars.com/api/?name=Ramesh+Kumar&background=random" class="author-img"
-                alt="Ramesh">
-              <div>
+                    <h5 class="author-name">
+                      {{ review.customer.get_full_name|default:review.customer.username }}
+                    </h5>
 
-                <h5 class="author-name">
-                  Ramesh Kumar
-                </h5>
+                    <p class="author-role">
+                      {% if review.booking.service %}{{ review.booking.service.name }}{% else %}Customer{% endif %}
+                    </p>
 
-                <p class="author-role">
-                  Home Owner
-                </p>
+                  </div>
+
+                </div>
+
+
+                <div class="stars">
+
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= review.rating %}
+                      <i class="bi bi-star-fill"></i>
+                    {% else %}
+                      <i class="bi bi-star"></i>
+                    {% endif %}
+                  {% endfor %}
+
+                </div>
 
               </div>
 
             </div>
 
-
-            <div class="stars">
-
-              ★★★★★
-
-            </div>
-
           </div>
 
+        {% endfor %}
+
+      {% else %}
+
+        <div class="col-12 text-center" data-aos="fade-up">
+          <div class="empty-reviews-state">
+            <i class="bi bi-chat-quote" style="font-size:48px;color:#087f5b;opacity:0.5;"></i>
+            <h4 class="mt-3" style="color:#17231f;">No reviews yet</h4>
+            <p class="text-muted">Be the first to share your experience with LAMO.</p>
+          </div>
         </div>
 
-      </div>
-
-
-      <!-- TESTIMONIAL 2 -->
-
-      <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
-
-        <div class="testimonial-card">
-
-          <div class="quote-icon">
-
-            <i class="bi bi-quote"></i>
-
-          </div>
-
-
-          <p class="testimonial-text">
-
-            "We hired an electrician
-            through LAMO for our office.
-            Excellent quality and service."
-
-          </p>
-
-
-          <div class="testimonial-author">
-
-            <div class="author-info">
-
-              <img src="https://ui-avatars.com/api/?name=Anita+Sharma&background=random" class="author-img" alt="Anita">
-
-              <div>
-
-                <h5 class="author-name">
-                  Anita Sharma
-                </h5>
-
-                <p class="author-role">
-                  Office Manager
-                </p>
-
-              </div>
-
-            </div>
-
-
-            <div class="stars">
-              ★★★★★
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- TESTIMONIAL 3 -->
-
-      <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
-
-        <div class="testimonial-card">
-
-          <div class="quote-icon">
-
-            <i class="bi bi-quote"></i>
-
-          </div>
-
-
-          <p class="testimonial-text">
-
-            "The platform is very easy
-            to use and the workers are
-            reliable. Highly recommended!"
-
-          </p>
-
-
-          <div class="testimonial-author">
-
-            <div class="author-info">
-
-              <img src="https://ui-avatars.com/api/?name=Vikram+Singh&background=random" class="author-img"
-                alt="Vikram">
-
-              <div>
-
-                <h5 class="author-name">
-                  Vikram Singh
-                </h5>
-
-                <p class="author-role">
-                  Business Owner
-                </p>
-
-              </div>
-
-            </div>
-
-
-            <div class="stars">
-              ★★★★★
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
+      {% endif %}
 
     </div>
 
   </div>
 
 </section>
-
 
 
 <!-- =========================================================
@@ -3131,7 +1054,7 @@ LAMO | Labour Management System - Our Services
       </div>
 
 
-      <!-- CONTACT FORM -->
+      <!-- CONTACT FORM
 
       <div class="col-lg-4" data-aos="fade-left">
 
@@ -3183,7 +1106,7 @@ LAMO | Labour Management System - Our Services
 
                 </button>
 
-              </div>
+              </div> -->
 
             </div>
 
@@ -3198,12 +1121,6 @@ LAMO | Labour Management System - Our Services
   </div>
 
 </section>
-
-
-
-
-
-
 
 
 <!-- =========================================================
@@ -3450,22 +1367,83 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     /* -----------------------------------------------------
-       SHOW LOGIN POPUP AFTER 2 SECONDS
-       ----------------------------------------------------- */
+       SHOW LOGIN POPUP AFTER 3 SECONDS
+       Only on first visit (uses localStorage to remember)
+    ----------------------------------------------------- */
 
     {% if not user.is_authenticated %}
 
     if (overlay) {
 
-        setTimeout(function () {
+        try {
 
-            openLoginPopup();
+            var popupShown = localStorage.getItem("lamo_login_popup_shown");
 
-        }, 2000);
+            if (!popupShown) {
+
+                setTimeout(function () {
+
+                    openLoginPopup();
+
+                    localStorage.setItem("lamo_login_popup_shown", "true");
+
+                }, 3000);
+
+            }
+
+        } catch (e) {
+
+            setTimeout(function () {
+
+                openLoginPopup();
+
+            }, 3000);
+
+        }
 
     }
 
     {% endif %}
+
+
+    /* -----------------------------------------------------
+       HOME SEARCH — CLEAR BUTTON
+       Clears search input, removes ?q= from URL,
+       does NOT reload the page.
+    ----------------------------------------------------- */
+
+    (function () {
+
+        var searchInput = document.getElementById("homeSearchInput");
+        var clearButton = document.getElementById("homeSearchClear");
+
+        if (!clearButton) return;
+
+        clearButton.addEventListener("click", function (event) {
+
+            event.preventDefault();
+
+            if (searchInput) {
+                searchInput.value = "";
+            }
+
+            // Remove ?q= from URL without reloading
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.delete("q");
+                window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+            } catch (e) {
+                // ignore
+            }
+
+            // Focus the search input for convenience
+            if (searchInput) {
+                searchInput.focus();
+            }
+
+        });
+
+    })();
 
 
     /* -----------------------------------------------------
@@ -3714,8 +1692,41 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
+    /* Prefer the Django-rendered token: with CSRF_COOKIE_HTTPONLY=True
+       (production) the csrftoken cookie is not readable from JavaScript, which
+       used to make this request fail with 403. */
+
+    function getCsrfToken() {
+
+        const meta =
+            document.querySelector(
+                'meta[name="csrf-token"]'
+            );
+
+        if (meta && meta.content) {
+
+            return meta.content;
+
+        }
+
+        const input =
+            document.querySelector(
+                'input[name="csrfmiddlewaretoken"]'
+            );
+
+        if (input && input.value) {
+
+            return input.value;
+
+        }
+
+        return getCookie("csrftoken") || "";
+
+    }
+
+
     const csrftoken =
-        getCookie("csrftoken");
+        getCsrfToken();
 
 
     /* -----------------------------------------------------
@@ -4059,7 +2070,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const response =
                 await fetch(
-                    "/ai/assistant/",
+                    "{% url 'ai_service_assistant' %}",
                     {
 
                         method: "POST",
@@ -4285,48 +2296,5 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-
-
-<script>
-/* =========================================================
-   LAMO MESSAGE TOAST CONTROLS
-========================================================= */
-
-function closeLamoToast(button) {
-  const toast = button.closest(".lamo-toast");
-
-  if (!toast) {
-    return;
-  }
-
-  toast.classList.add("toast-closing");
-
-  setTimeout(function () {
-    toast.remove();
-  }, 250);
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-  const toasts =
-    document.querySelectorAll(".lamo-toast");
-
-  toasts.forEach(function (toast) {
-
-    setTimeout(function () {
-      if (!toast.isConnected) {
-        return;
-      }
-
-      toast.classList.add("toast-closing");
-
-      setTimeout(function () {
-        toast.remove();
-      }, 250);
-
-    }, 5000);
-
-  });
-});
-</script>
 
 {% endblock %}
