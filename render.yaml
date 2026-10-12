@@ -21,7 +21,7 @@ services:
     # collectstatic runs with DJANGO_ENV unset (development), so it never trips
     # the production SECRET_KEY/CACHE/DEBUG gates during build.
     buildCommand: >-
-      pip install -r requirements.txt &&
+      python -m pip install -r requirements.txt &&
       cd lamo &&
       python manage.py collectstatic --noinput
     startCommand: cd lamo && gunicorn lamo.wsgi --log-file -
