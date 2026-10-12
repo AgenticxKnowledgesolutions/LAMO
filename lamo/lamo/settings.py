@@ -359,6 +359,121 @@ _MYSQL_OPTIONS = {
     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
 }
 
+# ============================================================
+# MySQL TLS / SSL (optional, environment-driven)
+# ============================================================
+# Managed MySQL (Aiven, Render, ...) requires an encrypted connection that
+# also VERIFIES the server certificate. Two variables turn that on without
+# ever putting a credential in source:
+#
+#   DJANGO_DB_SSL_MODE   VERIFY_IDENTITY (default) verifies the certificate
+#                        chain AND the hostname; VERIFY_CA verifies the chain
+#                        only. Anything else - including DISABLED, PREFERRED
+#                        and REQUIRED, which encrypt but do NOT verify - is
+#                        rejected, so verification can never be switched off.
+#   DJANGO_DB_SSL_CA     path to the CA certificate (Aiven: the ca.pem
+#                        downloaded from the service Overview page).
+#
+# When both are unset, resolve_mysql_ssl_options() returns {} and the local
+# MySQL configuration stays byte-for-byte identical to what it is today.
+#
+# Error messages name variables, accepted modes and file paths only - never
+# raw input values and never credentials - so a copy/pasted secret cannot
+# leak into a log or a traceback.
+
+_MYSQL_SSL_MODES = ('VERIFY_IDENTITY', 'VERIFY_CA')
+
+
+def _mysql_driver_ssl_modes():
+    """SSL modes the *installed* mysqlclient reports for MYSQL_OPT_SSL_MODE.
+
+    Read from the driver's own docstring so the answer always matches the
+    library that is actually importable instead of a hard-coded assumption.
+    Returns an empty frozenset when the driver cannot be inspected, in which
+    case per-mode support is simply not enforced.
+    """
+    try:
+        from MySQLdb import connections as _mysql_connections
+        doc = _mysql_connections.Connection.__init__.__doc__ or ''
+    except Exception:
+        return frozenset()
+    return frozenset(mode for mode in _MYSQL_SSL_MODES if mode in doc)
+
+
+def resolve_mysql_ssl_options(ssl_mode=None, ssl_ca=None):
+    """Build mysqlclient SSL entries for ``DATABASES['default']['OPTIONS']``.
+
+    Arguments default to the ``DJANGO_DB_SSL_MODE`` / ``DJANGO_DB_SSL_CA``
+    environment variables. Returns ``{}`` when SSL is not requested, so the
+    existing local MySQL configuration is preserved exactly.
+
+    Raises ``ImproperlyConfigured`` when the configuration is incomplete or
+    would not verify the server certificate. The message never contains
+    credential values - only variable names, accepted mode names and paths.
+    """
+    if ssl_mode is None:
+        ssl_mode = os.getenv('DJANGO_DB_SSL_MODE', '')
+    if ssl_ca is None:
+        ssl_ca = os.getenv('DJANGO_DB_SSL_CA', '')
+
+    ssl_mode = (ssl_mode or '').strip()
+    ssl_ca = (ssl_ca or '').strip()
+
+    # SSL not requested: leave the local configuration untouched.
+    if not ssl_mode and not ssl_ca:
+        return {}
+
+    supported = _mysql_driver_ssl_modes()
+
+    if ssl_mode:
+        mode = ssl_mode.upper()
+        if mode not in _MYSQL_SSL_MODES:
+            # Deliberately does NOT echo the offending value: DJANGO_DB_SSL_MODE
+            # could contain a pasted secret. The accepted modes are named instead.
+            raise ImproperlyConfigured(
+                'DJANGO_DB_SSL_MODE must be one of {0}. Certificate '
+                'verification cannot be disabled.'.format(', '.join(_MYSQL_SSL_MODES))
+            )
+        if supported and mode not in supported:
+            raise ImproperlyConfigured(
+                'The installed mysqlclient does not support SSL mode {0}; '
+                'supported modes: {1}.'.format(mode, ', '.join(sorted(supported)))
+            )
+    else:
+        # Prefer VERIFY_IDENTITY (chain + hostname) when the driver offers it.
+        mode = (
+            'VERIFY_IDENTITY'
+            if (not supported or 'VERIFY_IDENTITY' in supported)
+            else 'VERIFY_CA'
+        )
+
+    if not ssl_ca and ssl_mode:
+        for folder in ('cert', 'certs'):
+            candidate = BASE_DIR / folder / ('ca.' + 'pem')
+            if candidate.is_file():
+                ssl_ca = str(candidate)
+                break
+
+    if not ssl_ca:
+        raise ImproperlyConfigured(
+            'DJANGO_DB_SSL_CA must point to the CA certificate file '
+            '(for Aiven: the downloaded ca.pem) when database SSL is enabled.'
+        )
+
+    ca_path = Path(ssl_ca).expanduser()
+    if not ca_path.is_absolute():
+        ca_path = (BASE_DIR / ca_path).resolve()
+
+    if not ca_path.is_file():
+        raise ImproperlyConfigured(
+            'DJANGO_DB_SSL_CA does not point to a readable file: {0}'.format(ca_path)
+        )
+
+    return {
+        'ssl_mode': mode,
+        'ssl': {'ca': str(ca_path)},
+    }
+
 
 def _database_from_url(url):
     """Translate a DATABASE_URL into a Django DATABASES['default'] entry."""
@@ -394,7 +509,7 @@ def _database_from_url(url):
     }
 
     if engine == 'django.db.backends.mysql':
-        config['OPTIONS'] = dict(_MYSQL_OPTIONS)
+        config['OPTIONS'] = dict(_MYSQL_OPTIONS, **resolve_mysql_ssl_options())
 
     return config
 
@@ -415,6 +530,13 @@ else:
             }
         }
     else:
+        # SSL is only meaningful for the MySQL/MariaDB backends. For any other
+        # engine resolve_mysql_ssl_options() is skipped so a stray
+        # DJANGO_DB_SSL_* variable can never change SQLite/Postgres behaviour.
+        _MYSQL_SSL = (
+            resolve_mysql_ssl_options()
+            if _DB_ENGINE == 'django.db.backends.mysql' else {}
+        )
         DATABASES = {
             'default': {
                 'ENGINE': _DB_ENGINE,
@@ -424,7 +546,7 @@ else:
                 'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1'),
                 'PORT': os.getenv('DJANGO_DB_PORT', '3306'),
                 'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
-                'OPTIONS': dict(_MYSQL_OPTIONS) if _DB_ENGINE == 'django.db.backends.mysql' else {},
+                'OPTIONS': dict(_MYSQL_OPTIONS, **_MYSQL_SSL) if _DB_ENGINE == 'django.db.backends.mysql' else {},
             }
         }
 

@@ -1,6 +1,8 @@
 from datetime import date as date_type, timedelta, time as datetime_time
 from decimal import Decimal
+import os
 import re
+import tempfile
 from pathlib import Path
 
 from django.conf import settings
@@ -38,6 +40,7 @@ from .rate_limit import (
 # The production configuration gates (P0-B / P0-C) are evaluated while Django
 # imports settings, so they are pure functions that the tests can call directly.
 from lamo.settings import _DEV_SECRET_KEY, resolve_cache_config, resolve_secret_key
+from lamo.settings import _mysql_driver_ssl_modes, resolve_mysql_ssl_options
 
 
 def _future_date_str(days_ahead=30):
@@ -1283,6 +1286,232 @@ class DatabaseConfigurationTest(SimpleTestCase):
         for var in ('DATABASE_URL', 'DJANGO_DB_NAME', 'DJANGO_DB_USER',
                     'DJANGO_DB_PASSWORD', 'DJANGO_DB_HOST', 'DJANGO_DB_PORT'):
             self.assertIn(var, example, var)
+
+
+class DatabaseSslConfigurationTest(SimpleTestCase):
+    """Optional DJANGO_DB_SSL_* support: opt-in, verifying, and leak-free.
+
+    The contract under test:
+      * no SSL variables -> the pre-existing local MySQL OPTIONS are untouched;
+      * a valid CA path  -> mysqlclient SSL options are produced;
+      * missing CA / bad mode -> a clear ImproperlyConfigured, never a silent
+        downgrade to an unverified connection;
+      * no credential ever reaches an error message or a log record.
+    """
+
+    SECRET = 'Sup3r-Secr3t-Pa55w0rd-N3ver-In-Logs'
+
+    def _temp_ca(self):
+        """A real (dummy) PEM on disk so CA-path validation can pass."""
+        handle, path = tempfile.mkstemp(suffix='.pem')
+        os.close(handle)
+        self.addCleanup(os.unlink, path)
+        Path(path).write_text(
+            '-----BEGIN CERTIFICATE-----\n'
+            'ZmFrZSBjZXJ0aWZpY2F0ZSBmb3IgdGVzdGluZyBvbmx5\n'
+            '-----END CERTIFICATE-----\n',
+            encoding='utf-8',
+        )
+        return path
+
+    def test_no_ssl_variables_returns_empty_options(self):
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '', 'DJANGO_DB_SSL_CA': ''}):
+            self.assertEqual(resolve_mysql_ssl_options(), {})
+
+    def test_empty_string_values_are_treated_as_unset(self):
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '   ', 'DJANGO_DB_SSL_CA': '  '}):
+            self.assertEqual(resolve_mysql_ssl_options(), {})
+
+    def test_no_ssl_variables_leave_settings_mysql_options_untouched(self):
+        # settings.py imported this module with neither SSL variable set, so
+        # the live MySQL OPTIONS must still be exactly the original pair.
+        if os.environ.get('DJANGO_DB_SSL_MODE') or os.environ.get('DJANGO_DB_SSL_CA'):
+            self.skipTest('DJANGO_DB_SSL_* exported in the ambient environment')
+        from lamo import settings as project_settings
+        options = project_settings.DATABASES['default']['OPTIONS']
+        self.assertEqual(options, project_settings._MYSQL_OPTIONS)
+        self.assertEqual(set(options), {'charset', 'init_command'})
+        self.assertNotIn('ssl', options)
+        self.assertNotIn('ssl_mode', options)
+
+    def test_valid_ca_path_with_explicit_verify_identity(self):
+        ca = self._temp_ca()
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY',
+                                     'DJANGO_DB_SSL_CA': ca}):
+            options = resolve_mysql_ssl_options()
+        self.assertEqual(options['ssl_mode'], 'VERIFY_IDENTITY')
+        self.assertEqual(options['ssl'], {'ca': ca})
+        self.assertEqual(set(options), {'ssl_mode', 'ssl'})
+
+    def test_mode_is_case_insensitive(self):
+        ca = self._temp_ca()
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'verify_identity',
+                                     'DJANGO_DB_SSL_CA': ca}):
+            self.assertEqual(resolve_mysql_ssl_options()['ssl_mode'], 'VERIFY_IDENTITY')
+
+    def test_missing_mode_defaults_to_verify_identity_when_driver_supports_it(self):
+        ca = self._temp_ca()
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '', 'DJANGO_DB_SSL_CA': ca}):
+            options = resolve_mysql_ssl_options()
+        # mysqlclient 2.2.8 documents VERIFY_IDENTITY, so it must be preferred.
+        self.assertIn('VERIFY_IDENTITY', _mysql_driver_ssl_modes())
+        self.assertEqual(options['ssl_mode'], 'VERIFY_IDENTITY')
+        self.assertEqual(options['ssl'], {'ca': ca})
+
+    def test_ssl_options_merge_on_top_of_existing_mysql_options(self):
+        from lamo import settings as project_settings
+        ca = self._temp_ca()
+        merged = dict(project_settings._MYSQL_OPTIONS,
+                      **resolve_mysql_ssl_options('VERIFY_CA', ca))
+        self.assertEqual(merged['charset'], 'utf8mb4')
+        self.assertEqual(merged['init_command'], "SET sql_mode='STRICT_TRANS_TABLES'")
+        self.assertEqual(merged['ssl_mode'], 'VERIFY_CA')
+        self.assertEqual(merged['ssl']['ca'], ca)
+
+    def test_ssl_mode_without_ca_fails_clearly(self):
+        with patch.object(Path, 'is_file', autospec=True, return_value=False):
+            with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY',
+                                         'DJANGO_DB_SSL_CA': ''}):
+                with self.assertRaises(ImproperlyConfigured) as ctx:
+                    resolve_mysql_ssl_options()
+            message = str(ctx.exception)
+            self.assertIn('DJANGO_DB_SSL_CA', message)
+            self.assertIn('ca.pem', message)
+
+    def test_relative_ca_path_resolved_against_base_dir(self):
+        # Place test cert directly under BASE_DIR so relative path works across drives
+        test_cert = settings.BASE_DIR / 'test_tmp_ca.pem'
+        test_cert.write_text('-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n', encoding='utf-8')
+        self.addCleanup(lambda: test_cert.unlink(missing_ok=True))
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY',
+                                     'DJANGO_DB_SSL_CA': 'test_tmp_ca.pem'}):
+            options = resolve_mysql_ssl_options()
+        self.assertEqual(options['ssl_mode'], 'VERIFY_IDENTITY')
+        self.assertEqual(options['ssl'], {'ca': str(test_cert.resolve())})
+
+    def test_automatic_ca_discovery_when_cert_file_exists(self):
+        # Aiven ca.pem is present in lamo/cert/ca.pem
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY',
+                                     'DJANGO_DB_SSL_CA': ''}):
+            options = resolve_mysql_ssl_options()
+        self.assertEqual(options['ssl_mode'], 'VERIFY_IDENTITY')
+        self.assertTrue(options['ssl']['ca'].endswith('ca.pem'))
+        self.assertTrue(Path(options['ssl']['ca']).is_file())
+
+    def test_nonexistent_ca_file_fails_clearly(self):
+        missing = str(Path(tempfile.gettempdir()) / 'lamo-definitely-missing-ca.pem')
+        self.assertFalse(Path(missing).exists())
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_CA',
+                                     'DJANGO_DB_SSL_CA': missing}):
+            with self.assertRaises(ImproperlyConfigured) as ctx:
+                resolve_mysql_ssl_options()
+        message = str(ctx.exception)
+        self.assertIn('DJANGO_DB_SSL_CA', message)
+        self.assertIn('readable file', message)
+
+    def test_ca_path_that_is_a_directory_fails_clearly(self):
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_CA',
+                                     'DJANGO_DB_SSL_CA': tempfile.gettempdir()}):
+            with self.assertRaises(ImproperlyConfigured) as ctx:
+                resolve_mysql_ssl_options()
+        self.assertIn('readable file', str(ctx.exception))
+
+    def test_unrecognized_ssl_mode_is_rejected(self):
+        ca = self._temp_ca()
+        for bad in ('VERIFY_ALWAYS', 'VERIFY_HOST', 'not-a-mode', 'OPTIONAL'):
+            with self.subTest(mode=bad):
+                with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': bad,
+                                             'DJANGO_DB_SSL_CA': ca}):
+                    with self.assertRaises(ImproperlyConfigured) as ctx:
+                        resolve_mysql_ssl_options()
+                message = str(ctx.exception)
+                self.assertIn('DJANGO_DB_SSL_MODE', message)
+                self.assertIn('VERIFY_IDENTITY', message)
+
+    def test_unverifying_modes_are_rejected_rather_than_silently_accepted(self):
+        # DISABLED / PREFERRED / REQUIRED encrypt but do not verify, so they
+        # must be refused: the task requires verification to never be disabled.
+        ca = self._temp_ca()
+        for bad in ('DISABLED', 'PREFERRED', 'REQUIRED'):
+            with self.subTest(mode=bad):
+                with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': bad,
+                                             'DJANGO_DB_SSL_CA': ca}):
+                    with self.assertRaises(ImproperlyConfigured) as ctx:
+                        resolve_mysql_ssl_options()
+                self.assertIn('verification cannot be disabled', str(ctx.exception))
+
+    def test_allowed_modes_are_exactly_the_verifying_ones(self):
+        from lamo import settings as project_settings
+        self.assertEqual(set(project_settings._MYSQL_SSL_MODES),
+                         {'VERIFY_IDENTITY', 'VERIFY_CA'})
+
+    def test_mode_value_is_never_echoed_back_in_the_error(self):
+        # A pasted secret in DJANGO_DB_SSL_MODE must not be reflected anywhere.
+        ca = self._temp_ca()
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': self.SECRET,
+                                     'DJANGO_DB_SSL_CA': ca}):
+            with self.assertRaises(ImproperlyConfigured) as ctx:
+                resolve_mysql_ssl_options()
+        self.assertNotIn(self.SECRET, str(ctx.exception))
+
+    def test_errors_never_contain_the_db_password(self):
+        # The ambient password (never printed by this suite) must not appear
+        # in any message the SSL resolver can raise.
+        ca = self._temp_ca()
+        password = os.environ.get('DJANGO_DB_PASSWORD', '')
+        failures = [
+            {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY', 'DJANGO_DB_SSL_CA': 'nonexistent_test_file.pem'},
+            {'DJANGO_DB_SSL_MODE': self.SECRET, 'DJANGO_DB_SSL_CA': ca},
+            {'DJANGO_DB_SSL_MODE': 'VERIFY_CA',
+             'DJANGO_DB_SSL_CA': str(Path(tempfile.gettempdir()) / 'nope.pem')},
+        ]
+        for env in failures:
+            with self.subTest(mode=env['DJANGO_DB_SSL_MODE']):
+                with patch.dict(os.environ, env):
+                    with self.assertRaises(ImproperlyConfigured) as ctx:
+                        resolve_mysql_ssl_options()
+                message = str(ctx.exception)
+                self.assertNotIn(self.SECRET, message)
+                if password:
+                    self.assertNotIn(password, message)
+                self.assertNotIn('PASSWORD=', message)
+
+    def test_resolver_emits_no_log_records(self):
+        ca = self._temp_ca()
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': 'VERIFY_IDENTITY',
+                                     'DJANGO_DB_SSL_CA': ca,
+                                     'DJANGO_DB_PASSWORD': self.SECRET}):
+            # assertNoLogs fails the test if ANY record (even DEBUG) is emitted,
+            # which is exactly the guarantee we want: nothing can be logged.
+            with self.assertNoLogs(level='DEBUG'):
+                resolve_mysql_ssl_options()
+                # The failure paths must be silent too.
+                with self.assertRaises(ImproperlyConfigured):
+                    resolve_mysql_ssl_options('DISABLED', ca)
+                with patch.object(Path, 'is_file', autospec=True, return_value=False):
+                    with self.assertRaises(ImproperlyConfigured):
+                        resolve_mysql_ssl_options('VERIFY_IDENTITY', '')
+
+    def test_settings_source_has_no_hardcoded_ssl_credentials(self):
+        source = Path(settings.BASE_DIR, 'lamo', 'settings.py').read_text(encoding='utf-8')
+        self.assertIn('DJANGO_DB_SSL_MODE', source)
+        self.assertIn('DJANGO_DB_SSL_CA', source)
+        self.assertNotRegex(source, r'["\'][^"\']*\.pem["\']')
+        self.assertNotRegex(source, r'PASSWORD["\']?\s*[:=]\s*["\'][^"\']+["\']')
+
+    def test_env_example_documents_the_ssl_variables(self):
+        example = Path(settings.BASE_DIR.parent, '.env.example').read_text(encoding='utf-8')
+        for var in ('DJANGO_DB_SSL_MODE', 'DJANGO_DB_SSL_CA'):
+            self.assertIn(var, example, var)
+        self.assertRegex(example, r'(?m)^DJANGO_DB_SSL_MODE=$')
+        self.assertRegex(example, r'(?m)^DJANGO_DB_SSL_CA=$')
+
+    def test_installed_driver_reports_identity_verification(self):
+        # Guard rail: the design assumes mysqlclient can verify identity.
+        supported = _mysql_driver_ssl_modes()
+        self.assertIn('VERIFY_IDENTITY', supported)
+        self.assertIn('VERIFY_CA', supported)
+
 
 class WorkerListMatchesBookingValidationTest(TestCase):
     """P1-6: the worker list must not offer anyone book_service would reject."""
