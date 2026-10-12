@@ -553,6 +553,11 @@ else:
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 
+# Email sending mode
+USE_RESEND = os.getenv('USE_RESEND', 'False').lower() in ('true', '1', 'yes')
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+RESEND_SENDER = os.getenv('RESEND_SENDER', '')
+
 # The backend/host/port can be overridden from the environment, which makes
 # it easy to use the console backend while developing or the locmem backend
 # while testing. Defaults are unchanged (Gmail SMTP over TLS).
@@ -574,9 +579,7 @@ EMAIL_TIMEOUT = int(os.getenv('DJANGO_EMAIL_TIMEOUT', '10'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')
 
-USE_RESEND = os.getenv('USE_RESEND', 'True').lower() in ('true', '1', 'yes')
-RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
-RESEND_SENDER = os.getenv('RESEND_SENDER', '')
+
 
 
 # Password validation

@@ -146,7 +146,7 @@ def send_email_safely(
         )
         return False
 
-    try:
+    # Resend integration block
     # If Resend integration is enabled, use the HTTPS API instead of SMTP.
     if getattr(settings, 'USE_RESEND', False):
         # Validate required configuration.
