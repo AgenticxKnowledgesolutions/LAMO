@@ -35,9 +35,17 @@ dependency and no model change.
 
 import logging
 import re
+import os
 
 from django.conf import settings
 from django.core.mail import send_mail
+
+# Optional import of requests – only needed when USE_RESEND is enabled.
+try:
+    import requests
+except ImportError:  # pragma: no cover
+    requests = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +146,56 @@ def send_email_safely(
         )
         return False
 
+    try:
+    # If Resend integration is enabled, use the HTTPS API instead of SMTP.
+    if getattr(settings, 'USE_RESEND', False):
+        # Validate required configuration.
+        api_key = getattr(settings, 'RESEND_API_KEY', None)
+        sender = getattr(settings, 'RESEND_SENDER', None)
+        if not api_key or not sender:
+            logger.error(
+                'email_send_failed purpose=%s recipients=%s exc_type=%s detail=%s',
+                purpose,
+                _recipients_label(recipient_list),
+                'MissingConfig',
+                _scrub('RESEND_API_KEY or RESEND_SENDER not set'),
+            )
+            return False
+        if requests is None:
+            logger.error(
+                'email_send_failed purpose=%s recipients=%s exc_type=%s detail=%s',
+                purpose,
+                _recipients_label(recipient_list),
+                'ImportError',
+                _scrub('requests library not available'),
+            )
+            return False
+        payload = {
+            'from': sender,
+            'to': list(recipient_list),
+            'subject': subject,
+            'html': message,
+        }
+        try:
+            response = requests.post(
+                'https://api.resend.com/emails',
+                json=payload,
+                headers={'Authorization': f'Bearer {api_key}'},
+                timeout=10,
+            )
+            response.raise_for_status()
+        except Exception as exc:  # pragma: no cover
+            logger.error(
+                'email_send_failed purpose=%s recipients=%s exc_type=%s detail=%s',
+                purpose,
+                _recipients_label(recipient_list),
+                type(exc).__name__,
+                _scrub(str(exc)),
+            )
+            return False
+        logger.info('email_sent purpose=%s recipients=%s', purpose, _recipients_label(recipient_list))
+        return True
+    # Fallback to Django's SMTP backend.
     try:
         send_mail(
             subject=subject,
