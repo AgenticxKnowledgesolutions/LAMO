@@ -25,6 +25,12 @@ os.environ.setdefault('DJANGO_SECRET_KEY', 'test-only-secret-key-not-for-product
 os.environ['DJANGO_ENV'] = 'development'
 # Never point the suite at a developer's real Redis instance.
 os.environ.pop('DJANGO_CACHE_URL', None)
+# Never point the suite at a real Cloudinary account: a developer's exported
+# credentials would otherwise activate remote uploads for every test.
+os.environ.pop('CLOUDINARY_CLOUD_NAME', None)
+os.environ.pop('CLOUDINARY_API_KEY', None)
+os.environ.pop('CLOUDINARY_API_SECRET', None)
+os.environ.pop('CLOUDINARY_URL', None)
 
 from .settings import *  # noqa: E402,F401,F403
 
@@ -54,5 +60,12 @@ PASSWORD_HASHERS = [
 
 # Never touch a real SMTP server while testing.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+# Never touch the real Cloudinary account while testing: the prefix-routing
+# storage backend activates only when all three credentials are set, so
+# blanking them pins every upload to local disk for the whole suite.
+CLOUDINARY_CLOUD_NAME = ''
+CLOUDINARY_API_KEY = ''
+CLOUDINARY_API_SECRET = ''
 
 DEBUG = False

@@ -15,6 +15,13 @@ mysqlclient==2.2.8
 # --- Image handling (Service.image, WorkerProfile.profile_image, ...) ---
 pillow==12.3.0
 
+# --- Persistent media (public images on Cloudinary, proofs stay local) ---
+# The default storage backend (lamoapp.cloudinary_storage) routes the public
+# image prefixes (services/, workers/, users/) to Cloudinary and keeps
+# everything else - always including worker_proofs/ - on local disk. The SDK
+# is imported lazily, so the app still boots without it when unconfigured.
+cloudinary==1.46.3
+
 # --- Shared cache (rate limits) ---
 # django.core.cache.backends.redis.RedisCache is built into Django 4.2 and
 # speaks to a real Redis server through the redis-py client. It is REQUIRED

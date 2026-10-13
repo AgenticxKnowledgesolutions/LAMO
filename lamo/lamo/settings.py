@@ -579,6 +579,16 @@ EMAIL_TIMEOUT = int(os.getenv('DJANGO_EMAIL_TIMEOUT', '10'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')
 
+# ------------------------------------------------------------------
+# Envelope / From address (configuration only - never a credential)
+# ------------------------------------------------------------------
+# When Resend is the transport (USE_RESEND=True) e-mail is sent through the
+# Resend HTTPS API and the real sender is RESEND_SENDER, so this value is only
+# the From used by Django's SMTP fallback and by admin/error mail. It is
+# overridable per deployment and carries no secret.
+DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+SERVER_EMAIL = os.getenv('DJANGO_SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
 
 
 
@@ -626,6 +636,34 @@ STATICFILES_DIRS = [
     path for path in [BASE_DIR / 'static'] if path.exists()
 ]
 
+# ============================================================
+# MEDIA / UPLOADS (Cloudinary for public images, local disk for proofs)
+# ============================================================
+# Render's local disk is ephemeral: uploads vanish on every deploy/restart.
+# Public images (Service.image, ServiceRequest.image,
+# WorkerProfile.profile_image, UserProfile.profile_image) are therefore
+# stored on Cloudinary - a persistent CDN - while private worker proof
+# documents (media/worker_proofs/) ALWAYS stay on local disk and are only
+# served through the admin-authenticated proof-download endpoint.
+#
+# Zero-migration design: the routing lives in the *default* storage backend
+# (lamoapp.cloudinary_storage.PrefixCloudinaryStorage), which delegates each
+# file by its upload prefix. The model definitions are untouched, so
+# `makemigrations --check` stays clean.
+#
+# Cloudinary is OPT-IN: it activates only when all three CLOUDINARY_*
+# credentials below are non-blank. Otherwise every upload - including the
+# public prefixes - is stored locally under MEDIA_ROOT, so a fresh checkout,
+# CI and the test suite behave exactly as before (no network, no secrets).
+CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
+CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY', '').strip()
+CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET', '').strip()
+# Whitespace separated; must stay in sync with the upload_to= prefixes of
+# the four public ImageFields. worker_proofs/ must NEVER be added here.
+CLOUDINARY_PUBLIC_PREFIXES = tuple(
+    os.getenv('CLOUDINARY_PUBLIC_PREFIXES', 'services/ workers/ users/').split()
+)
+
 MEDIA_URL = '/media/'
 # Overridable so a Render persistent disk (or any mount point) can back the
 # uploads without editing code. Default is unchanged: <project>/media.
@@ -636,11 +674,12 @@ MEDIA_ROOT = Path(
 # ============================================================
 # STORAGE (WhiteNoise static files)
 # ============================================================
-# Django 4.2 consolidated the storage settings into STORAGES. Only the
-# `staticfiles` backend is changed here; `default` stays Django's
-# FileSystemStorage so uploaded images keep landing in MEDIA_ROOT exactly as
-# before (media routing in urls.py is untouched).
-#
+# Django 4.2 consolidated the storage settings into STORAGES. `staticfiles`
+# stays WhiteNoise; `default` is the prefix-routing Cloudinary backend below
+# (public image prefixes -> Cloudinary when configured, everything else -
+# always including worker_proofs/ - stays on local disk). Deconstruction is
+# identical to plain FileSystemStorage, so `makemigrations --check` stays
+# clean and media routing in urls.py is untouched.
 # CompressedStaticFilesStorage (NOT the Manifest variant) is deliberate:
 # ManifestStaticFilesStorage refuses to render `{% static %}` until
 # `collectstatic` has produced a manifest, which would break `manage.py check`
@@ -648,7 +687,7 @@ MEDIA_ROOT = Path(
 # compresses and caches these files when serving them.
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'lamoapp.cloudinary_storage.PrefixCloudinaryStorage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',

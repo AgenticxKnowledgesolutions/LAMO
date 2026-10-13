@@ -49,6 +49,12 @@ services:
         value: "False"
       - key: DJANGO_LOG_LEVEL
         value: INFO
+      # Public images (services/, workers/, users/) persist on Cloudinary via
+      # the prefix-routing default storage backend - Render's disk is
+      # ephemeral. DJANGO_SERVE_MEDIA only serves the local-disk fallback
+      # (and never worker_proofs/, blocked unconditionally in urls.py).
+      - key: DJANGO_SERVE_MEDIA
+        value: "True"
 
       # ---- Secrets: enter the real values in the Render dashboard ----
       # Generate with: python -c "import secrets; print(secrets.token_urlsafe(50))"
@@ -70,6 +76,15 @@ services:
       - key: EMAIL_HOST_USER
         sync: false
       - key: EMAIL_HOST_PASSWORD
+        sync: false
+      # Persistent media: public images (services/, workers/, users/) are
+      # stored on Cloudinary; worker_proofs/ always stays on local disk.
+      # CLOUDINARY_API_SECRET is the credential - never commit it.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
         sync: false
       # Optional: leave blank to disable AI and fall back to local matching.
       - key: GOOGLE_API_KEY

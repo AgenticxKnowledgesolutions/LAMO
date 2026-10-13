@@ -5231,6 +5231,205 @@ class AdminSearchTest(TestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertIn(reverse('dashboard'), response['Location'])
 
+
+class BookingEmailResendRoutingTest(TestCase):
+    """Booking/transactional e-mail must go through the Resend API when
+    USE_RESEND=True, never through Django's (dummy) mail backend.
+
+    Regression guard for the production defect where settings.py swaps
+    EMAIL_BACKEND to ``django.core.mail.backends.dummy.EmailBackend`` as soon as
+    USE_RESEND is on: the booking views used to call ``send_mail`` directly, so
+    with Resend enabled every booking e-mail was silently discarded. They now
+    call ``send_email_safely``, which posts to the Resend HTTPS API.
+    """
+
+    RESEND_SETTINGS = {
+        'USE_RESEND': True,
+        'RESEND_API_KEY': 're_test_dummy_key_not_a_secret',
+        'RESEND_SENDER': 'LAMO <no-reply@lamo.test>',
+    }
+
+    def setUp(self):
+        from django.core import mail
+        mail.outbox = []
+        self.addCleanup(setattr, mail, 'outbox', [])
+        self.customer = _make_user('resend_customer')
+        self.service = Service.objects.create(
+            name='ResendPlumb', description='d', price=Decimal('500.00'), is_active=True
+        )
+        self.worker = _make_worker('resend_worker', self.service)
+
+    def _booking(self, status='PENDING', **kwargs):
+        defaults = dict(
+            customer=self.customer,
+            worker=self.worker,
+            service=self.service,
+            booking_type='One Time',
+            date=_future_date_str(10),
+            time='10:00 AM',
+            location='Kochi',
+            phone='9876543210',
+            estimated_cost=Decimal('500.00'),
+        )
+        defaults.update(kwargs)
+        return Booking.objects.create(status=status, **defaults)
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_accept_booking_uses_resend_api_not_dummy_backend(self):
+        """Accepting a booking must POST to the Resend API, not the dummy backend."""
+        from unittest.mock import patch
+        booking = self._booking(status='PENDING')
+        self.client.login(username=self.worker.user.username, password='Password123!')
+
+        with patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            response = self.client.post(
+                reverse('worker_accept_booking', args=[booking.id])
+            )
+
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'ACCEPTED')
+        # The whole point: the Resend HTTPS API was actually invoked.
+        self.assertTrue(mock_post.called, 'booking-accepted e-mail did not use the Resend API')
+        args, kwargs = mock_post.call_args
+        self.assertEqual(args[0], 'https://api.resend.com/emails')
+        payload = kwargs['json']
+        self.assertEqual(payload['to'], [self.customer.email])
+        self.assertEqual(payload['from'], 'LAMO <no-reply@lamo.test>')
+        self.assertIn(f'Booking #{booking.id}', payload['subject'])
+        # It must NOT have landed in Django's (dummy) mail backend.
+        from django.core import mail
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_reject_booking_uses_resend_api(self):
+        from unittest.mock import patch
+        booking = self._booking(status='PENDING')
+        self.client.login(username=self.worker.user.username, password='Password123!')
+
+        with patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            self.client.post(reverse('worker_reject_booking', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'REJECTED')
+        self.assertTrue(mock_post.called, 'booking-rejected e-mail did not use the Resend API')
+        self.assertEqual(mock_post.call_args.kwargs['json']['to'], [self.customer.email])
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_cancel_booking_uses_resend_api(self):
+        from unittest.mock import patch
+        booking = self._booking(status='ACCEPTED')
+        self.client.login(username=self.customer.username, password='Password123!')
+
+        with patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            self.client.post(reverse('cancel_booking', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'CANCELLED')
+        self.assertTrue(mock_post.called, 'booking-cancelled e-mail did not use the Resend API')
+        self.assertEqual(
+            mock_post.call_args.kwargs['json']['to'], [self.worker.user.email]
+        )
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_completion_request_uses_resend_api(self):
+        from unittest.mock import patch
+        booking = self._booking(status='IN_PROGRESS')
+        self.client.login(username=self.worker.user.username, password='Password123!')
+
+        with patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            self.client.post(reverse('worker_request_completion', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'COMPLETION_REQUESTED')
+        self.assertTrue(mock_post.called, 'completion-request e-mail did not use the Resend API')
+        self.assertEqual(
+            mock_post.call_args.kwargs['json']['to'], [self.customer.email]
+        )
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_confirm_completion_uses_resend_api(self):
+        from unittest.mock import patch
+        booking = self._booking(status='COMPLETION_REQUESTED')
+        self.client.login(username=self.customer.username, password='Password123!')
+
+        with patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_post.return_value.raise_for_status.return_value = None
+            self.client.post(reverse('confirm_completion', args=[booking.id]))
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'COMPLETED')
+        self.assertTrue(mock_post.called, 'completion-confirmed e-mail did not use the Resend API')
+        self.assertEqual(
+            mock_post.call_args.kwargs['json']['to'], [self.worker.user.email]
+        )
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_resend_failure_is_logged_without_leaking_secrets(self):
+        """A Resend outage must be logged (tagged), and the API key/token must
+        never reach the log - send_email_safely scrubs the exception text."""
+        from unittest.mock import patch
+        booking = self._booking(status='PENDING')
+        self.client.login(username=self.worker.user.username, password='Password123!')
+
+        leaky = (
+            'Resend rejected request: api_key=re_test_dummy_key_not_a_secret '
+            'token=abcdef1234567890abcdef1234567890'
+        )
+        with patch('lamoapp.email_utils.requests.post', side_effect=Exception(leaky)):
+            with self.assertLogs('lamoapp.email_utils', level='ERROR') as captured:
+                response = self.client.post(
+                    reverse('worker_accept_booking', args=[booking.id])
+                )
+
+        # The booking still transitions - a mail outage must not break the flow.
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'ACCEPTED')
+
+        log_text = '\n'.join(captured.output)
+        self.assertIn('email_send_failed', log_text)
+        self.assertIn('purpose=booking_accepted', log_text)
+        # Neither the key nor the token may appear verbatim.
+        self.assertNotIn('re_test_dummy_key_not_a_secret', log_text)
+        self.assertNotIn('abcdef1234567890abcdef1234567890', log_text)
+
+    def test_no_view_calls_raw_send_mail_for_booking_email(self):
+        """Source-level guard: the booking/transactional views must not call the
+        raw ``send_mail`` (which the dummy backend would swallow under Resend)."""
+        source = Path(settings.BASE_DIR, 'lamoapp', 'views.py').read_text(encoding='utf-8')
+        self.assertNotIn(
+            'from django.core.mail import send_mail',
+            source,
+            'views.py still imports send_mail - booking e-mail would bypass Resend',
+        )
+        self.assertNotIn(
+            'send_mail(',
+            source,
+            'a raw send_mail( call remains in views.py - it is discarded under Resend',
+        )
+
+    @override_settings(**RESEND_SETTINGS)
+    def test_resend_missing_config_is_logged_not_silent(self):
+        """If USE_RESEND is on but the key/sender are blank, send_email_safely
+        must log MissingConfig and return False instead of pretending success."""
+        from lamoapp.email_utils import send_email_safely
+        with self.settings(RESEND_API_KEY='', RESEND_SENDER=''):
+            with self.assertLogs('lamoapp.email_utils', level='ERROR') as captured:
+                sent = send_email_safely(
+                    subject='x', message='y',
+                    recipient_list=['a@b.test'], purpose='booking_accepted',
+                )
+        self.assertFalse(sent)
+        log_text = '\n'.join(captured.output)
+        self.assertIn('email_send_failed', log_text)
+        self.assertIn('MissingConfig', log_text)
+
+
 class AdminPaymentsPageTest(TestCase):
     """Admins can review and verify manually reported payments."""
 
@@ -6160,3 +6359,277 @@ class BookingLocationUnicodeTest(TestCase):
             settings.BASE_DIR, 'templates', 'user', 'book_service.html'
         ).read_text(encoding='utf-8')
         self.assertIn('accept-charset="UTF-8"', html)
+
+
+class PrefixCloudinaryStorageTest(TestCase):
+    """Default storage routes public images to Cloudinary, proofs stay local.
+
+    All Cloudinary SDK calls are mocked - no network, no credentials. The
+    dummy values below are syntactically-shaped placeholders, never real
+    secrets.
+    """
+
+    CLOUDINARY_SETTINGS = {
+        'CLOUDINARY_CLOUD_NAME': 'test-cloud',
+        'CLOUDINARY_API_KEY': '123456789012345',
+        'CLOUDINARY_API_SECRET': 'test-secret-not-a-real-credential',
+    }
+
+    def _storage(self):
+        from django.core.files.storage import default_storage
+        return default_storage
+
+    def _tiny_gif(self, name='tiny.gif'):
+        # 1x1 GIF: Pillow-valid so ImageField validation passes.
+        return SimpleUploadedFile(
+            name,
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,'
+            b'\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;',
+            content_type='image/gif',
+        )
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_public_prefixes_route_to_cloudinary(self):
+        """services/, workers/, users/ upload via the Cloudinary API."""
+        import sys
+        from unittest.mock import MagicMock, patch
+        from django.test.utils import override_settings as _override
+
+        storage = self._storage()
+        self.assertEqual(
+            storage.__class__.__name__, 'PrefixCloudinaryStorage',
+        )
+        fake_sdk = MagicMock()
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            with tempfile.TemporaryDirectory() as tmp:
+                with _override(MEDIA_ROOT=tmp):
+                    for prefix in ('services/', 'workers/', 'users/'):
+                        name = storage.save(
+                            prefix + 'pic.gif', self._tiny_gif(),
+                        )
+                        # Django joins upload_to with os.sep (backslash on
+                        # Windows); compare separator-insensitively.
+                        self.assertTrue(
+                            name.replace('\\', '/').startswith(prefix)
+                        )
+        # One SDK upload per public prefix; never overwrite in place.
+        self.assertEqual(fake_sdk.uploader.upload.call_count, 3)
+        for call in fake_sdk.uploader.upload.call_args_list:
+            _, kwargs = call
+            self.assertFalse(kwargs.get('overwrite', True))
+            self.assertTrue(kwargs.get('unique_filename', False))
+        # The secret may only reach cloudinary.config(), never uploader.
+        for call in fake_sdk.uploader.upload.call_args_list:
+            self.assertNotIn(
+                'test-secret-not-a-real-credential', repr(call),
+            )
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_proof_prefix_always_stays_local(self):
+        """worker_proofs/ never touches the Cloudinary SDK."""
+        import sys
+        from unittest.mock import MagicMock, patch
+        from django.test.utils import override_settings as _override
+
+        storage = self._storage()
+        fake_sdk = MagicMock()
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            with tempfile.TemporaryDirectory() as tmp:
+                with _override(MEDIA_ROOT=tmp):
+                    name = storage.save(
+                        'worker_proofs/proof.pdf',
+                        SimpleUploadedFile(
+                            'proof.pdf', b'%PDF-1.4 ok',
+                            content_type='application/pdf',
+                        ),
+                    )
+                    self.assertTrue(
+                        os.path.exists(os.path.join(tmp, name))
+                    )
+        fake_sdk.uploader.upload.assert_not_called()
+        fake_sdk.api.resource.assert_not_called()
+
+    def test_unconfigured_stays_local_without_sdk(self):
+        """No credentials -> everything local, cloudinary never imported."""
+        import sys
+        from django.test.utils import override_settings as _override
+
+        # settings_test.py already blanks the credentials; assert locally.
+        self.assertFalse(settings.CLOUDINARY_CLOUD_NAME)
+        self.assertFalse(settings.CLOUDINARY_API_KEY)
+        self.assertFalse(settings.CLOUDINARY_API_SECRET)
+        storage = self._storage()
+        with tempfile.TemporaryDirectory() as tmp:
+            with _override(MEDIA_ROOT=tmp):
+                name = storage.save('services/local.gif', self._tiny_gif())
+                self.assertTrue(os.path.exists(os.path.join(tmp, name)))
+                self.assertTrue(
+                    storage.url(name).startswith(settings.MEDIA_URL)
+                )
+        self.assertNotIn('cloudinary', sys.modules)
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_partial_credentials_stay_local(self):
+        """A missing secret disables Cloudinary (fail-closed to disk)."""
+        from django.test.utils import override_settings as _override
+
+        storage = self._storage()
+        with tempfile.TemporaryDirectory() as tmp:
+            with _override(MEDIA_ROOT=tmp, CLOUDINARY_API_SECRET=''):
+                name = storage.save('users/me.gif', self._tiny_gif())
+                self.assertTrue(os.path.exists(os.path.join(tmp, name)))
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_public_id_strips_extension_and_normalises(self):
+        from lamoapp.cloudinary_storage import _public_id_for
+        self.assertEqual(
+            _public_id_for('services/plumbing.jpg'), 'services/plumbing',
+        )
+        self.assertEqual(
+            _public_id_for('\\workers\\photo.PNG'), 'workers/photo',
+        )
+        self.assertEqual(
+            _public_id_for('/users/avatar.webp'), 'users/avatar',
+        )
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_url_returns_https_cloudinary_url(self):
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        storage = self._storage()
+        fake_sdk = MagicMock()
+        fake_sdk.utils.cloudinary_url.return_value = (
+            'https://res.cloudinary.com/test-cloud/image/upload/'
+            'services/pic', {},
+        )
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            url = storage.url('services/pic.gif')
+        self.assertTrue(url.startswith('https://res.cloudinary.com/'))
+        self.assertIn('services/pic', url)
+        self.assertNotIn('.gif.gif', url)
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_cloudinary_path_raises_not_local_path(self):
+        """path() on a remote object raises; it must never forge a path."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        storage = self._storage()
+        fake_sdk = MagicMock()
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            with self.assertRaises(NotImplementedError):
+                storage.path('services/pic.gif')
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_upload_failure_logs_without_secrets(self):
+        """An SDK outage is logged tagged, with the secret scrubbed."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        storage = self._storage()
+        fake_sdk = MagicMock()
+        fake_sdk.uploader.upload.side_effect = Exception(
+            'boom api_secret=test-secret-not-a-real-credential'
+        )
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            with self.assertLogs(
+                'lamoapp.cloudinary_storage', level='ERROR',
+            ) as captured:
+                with self.assertRaises(Exception):
+                    storage.save('services/fail.gif', self._tiny_gif())
+        log_text = '\n'.join(captured.output)
+        self.assertIn('cloudinary_upload_failed', log_text)
+        self.assertNotIn('test-secret-not-a-real-credential', log_text)
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_delete_calls_destroy_with_invalidate(self):
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        storage = self._storage()
+        fake_sdk = MagicMock()
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            storage.delete('workers/gone.gif')
+        _, kwargs = fake_sdk.uploader.destroy.call_args
+        self.assertTrue(kwargs.get('invalidate', False))
+        self.assertEqual(kwargs.get('resource_type'), 'image')
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_service_image_end_to_end_uses_cloudinary(self):
+        """Saving a Service with an image goes through the SDK path."""
+        import sys
+        from unittest.mock import MagicMock, patch
+        from django.test.utils import override_settings as _override
+
+        fake_sdk = MagicMock()
+        with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+            with tempfile.TemporaryDirectory() as tmp:
+                with _override(MEDIA_ROOT=tmp):
+                    service = Service.objects.create(
+                        name='CloudSvc', description='d',
+                        price=Decimal('500.00'), is_active=True,
+                        image=self._tiny_gif('svc.gif'),
+                    )
+        self.assertTrue(fake_sdk.uploader.upload.called)
+        self.assertTrue(
+            service.image.name.replace('\\', '/').startswith('services/')
+        )
+        self.assertNotIn('cloudinary', service.image.name)
+
+    @override_settings(**CLOUDINARY_SETTINGS)
+    def test_proof_download_still_serves_local_file(self):
+        """Admin proof download works unchanged with the router active."""
+        from django.test.utils import override_settings as _override
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with _override(MEDIA_ROOT=tmp):
+                admin = _make_user('cloud_admin', role='ADMIN')
+                worker_user = _make_user('cloud_worker', role='WORKER')
+                profile = WorkerProfile.objects.create(
+                    user=worker_user,
+                    phone='9876543210',
+                    service=None,
+                    proof_type='aadhaar',
+                    proof_document=SimpleUploadedFile(
+                        'proof.pdf', b'%PDF-1.4 proof-bytes',
+                        content_type='application/pdf',
+                    ),
+                )
+                self.client.force_login(admin)
+                response = self.client.get(
+                    reverse('worker_proof_document', args=[profile.pk])
+                )
+                body = b''.join(response.streaming_content)
+                # Release the file handle before the temp dir is torn down:
+                # Windows cannot delete an open file (WinError 32).
+                response.close()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            response['Content-Disposition'].startswith('attachment;')
+        )
+        self.assertIn(b'proof-bytes', body)
+
+    def test_deconstruct_matches_filesystem_storage(self):
+        """No migration churn: same deconstruct args as FileSystemStorage.
+
+        The class *path* legitimately differs (that is the point), but the
+        args/kwargs are identical and - crucially - no model field passes a
+        ``storage=`` kwarg, so field deconstruction output is unchanged and
+        ``makemigrations --check`` stays clean (asserted in CI).
+        """
+        from django.core.files.storage import FileSystemStorage
+
+        from lamoapp.cloudinary_storage import PrefixCloudinaryStorage
+        ours = PrefixCloudinaryStorage().deconstruct()
+        plain = FileSystemStorage().deconstruct()
+        self.assertEqual(ours[1:], plain[1:])
+
+    def test_test_settings_blank_cloudinary_credentials(self):
+        """The suite never points at a real Cloudinary account."""
+        import lamo.settings_test as st
+        self.assertEqual(st.CLOUDINARY_CLOUD_NAME, '')
+        self.assertEqual(st.CLOUDINARY_API_KEY, '')
+        self.assertEqual(st.CLOUDINARY_API_SECRET, '')
+

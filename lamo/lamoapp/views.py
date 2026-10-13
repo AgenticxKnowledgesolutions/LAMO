@@ -70,7 +70,6 @@ from .forms import ServiceForm, UserProfileForm, WorkerProfileForm
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, date, time as datetime_time, timedelta
@@ -1657,30 +1656,26 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
                 )
             )
 
-    # Send email confirmation
-    try:
-        send_mail(
-            subject=f'Recurring Booking Confirmed - Series #{series.id}',
-            message=(
-                f'Hi {request.user.username},\n\n'
-                f'Your recurring booking has been submitted successfully.\n\n'
-                f'Series ID: #{series.id}\n'
-                f'Service: {service.name}\n'
-                f'Worker: {worker.user.get_full_name() or worker.user.username}\n'
-                f'Frequency: {frequency}\n'
-                f'Start Date: {start_date_str}\n'
-                f'End Date: {end_date_str}\n'
-                f'Time: {time}\n'
-                f'Total Occurrences: {len(bookings_created)}\n\n'
-                f'The worker will review your request and accept bookings.\n\n'
-                f'Thanks for choosing LAMO!'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[request.user.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Send email confirmation (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Recurring Booking Confirmed - Series #{series.id}',
+        message=(
+            f'Hi {request.user.username},\n\n'
+            f'Your recurring booking has been submitted successfully.\n\n'
+            f'Series ID: #{series.id}\n'
+            f'Service: {service.name}\n'
+            f'Worker: {worker.user.get_full_name() or worker.user.username}\n'
+            f'Frequency: {frequency}\n'
+            f'Start Date: {start_date_str}\n'
+            f'End Date: {end_date_str}\n'
+            f'Time: {time}\n'
+            f'Total Occurrences: {len(bookings_created)}\n\n'
+            f'The worker will review your request and accept bookings.\n\n'
+            f'Thanks for choosing LAMO!'
+        ),
+        recipient_list=[request.user.email],
+        purpose='booking_recurring_confirmation',
+    )
 
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     messages.success(
@@ -1960,28 +1955,25 @@ def book_service(request):
                     message=f'New booking #{booking.id}: {service.name} booked by {request.user.get_full_name() or request.user.username}.'
                 )
 
-        try:
-            send_mail(
-                subject=f'Booking Confirmed - #{booking.id}',
-                message=(
-                    f'Hi {request.user.username},\n\n'
-                    f'Great! Your booking request has been submitted successfully.\n\n'
-                    f'Here are the details:\n'
-                    f'  Booking ID: #{booking.id}\n'
-                    f'  Service: {service.name}\n'
-                    f'  Worker: {worker.user.get_full_name() or worker.user.username}\n'
-                    f'  District: {district}\n'
-                    f'  Date: {date}\n'
-                    f'  Time: {time}\n\n'
-                    f'The worker will review your request and accept it shortly. We\'ll notify you once it\'s confirmed.\n\n'
-                    f'Thanks for choosing LAMO!'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[request.user.email],
-                fail_silently=True,
-            )
-        except Exception:
-            pass
+        # Booking request confirmation (Resend-aware; failures are logged, never raised)
+        send_email_safely(
+            subject=f'Booking Confirmed - #{booking.id}',
+            message=(
+                f'Hi {request.user.username},\n\n'
+                f'Great! Your booking request has been submitted successfully.\n\n'
+                f'Here are the details:\n'
+                f'  Booking ID: #{booking.id}\n'
+                f'  Service: {service.name}\n'
+                f'  Worker: {worker.user.get_full_name() or worker.user.username}\n'
+                f'  District: {district}\n'
+                f'  Date: {date}\n'
+                f'  Time: {time}\n\n'
+                f'The worker will review your request and accept it shortly. We\'ll notify you once it\'s confirmed.\n\n'
+                f'Thanks for choosing LAMO!'
+            ),
+            recipient_list=[request.user.email],
+            purpose='booking_request',
+        )
 
         messages.success(request, 'Booking submitted successfully!')
 
@@ -2276,24 +2268,21 @@ def worker_accept_booking(request, booking_id):
         message=f'Good news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.'
     )
 
-    try:
-        send_mail(
-            subject=f'Good News! Your Booking #{booking.id} is Confirmed',
-            message=(
-                f'Hi {booking.customer.username},\n\n'
-                f'Great news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.\n\n'
-                f'Booking Details:\n'
-                f'  Date: {booking.date}\n'
-                f'  Time: {booking.time}\n\n'
-                f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.customer.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Booking accepted (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Good News! Your Booking #{booking.id} is Confirmed',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Great news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.\n\n'
+            f'Booking Details:\n'
+            f'  Date: {booking.date}\n'
+            f'  Time: {booking.time}\n\n'
+            f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='booking_accepted',
+    )
 
     admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
     for admin in admins:
@@ -2350,22 +2339,19 @@ def worker_reject_booking(request, booking_id):
         message=f'Your {booking.service.name} booking has been declined by the worker.'
     )
 
-    try:
-        send_mail(
-            subject=f'Update on Booking #{booking.id}',
-            message=(
-                f'Hi {booking.customer.username},\n\n'
-                f'Unfortunately, your {booking.service.name} booking on {booking.date} has been declined by the worker.\n\n'
-                f'Don\'t worry! You can browse and book another available worker on our platform.\n\n'
-                f'If you need any assistance, we\'re here to help.\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.customer.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Booking rejected (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Update on Booking #{booking.id}',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Unfortunately, your {booking.service.name} booking on {booking.date} has been declined by the worker.\n\n'
+            f'Don\'t worry! You can browse and book another available worker on our platform.\n\n'
+            f'If you need any assistance, we\'re here to help.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='booking_rejected',
+    )
 
     messages.success(request, 'Booking rejected.')
     return redirect('worker_dashboard')
@@ -2504,26 +2490,22 @@ def worker_accept_emergency(request, booking_id):
         messages.warning(request, 'This emergency request has already been accepted by another worker.')
         return redirect('worker_dashboard')
 
-    # Send email to customer
-    try:
-        send_mail(
-            subject=f'Worker Assigned - Emergency Request #{booking.id}',
-            message=(
-                f'Hi {booking.customer.username},\n\n'
-                f'Great news! We\'ve found a worker for your emergency {booking.service.name} request.\n\n'
-                f'Worker Details:\n'
-                f'  Name: {request.user.get_full_name() or request.user.username}\n'
-                f'  Location: {booking.location}\n\n'
-                f'The worker will contact you shortly. Please keep your phone reachable.\n\n'
-                f'Thanks for trusting LAMO in your time of need!\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.customer.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Send email to customer (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Worker Assigned - Emergency Request #{booking.id}',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Great news! We\'ve found a worker for your emergency {booking.service.name} request.\n\n'
+            f'Worker Details:\n'
+            f'  Name: {request.user.get_full_name() or request.user.username}\n'
+            f'  Location: {booking.location}\n\n'
+            f'The worker will contact you shortly. Please keep your phone reachable.\n\n'
+            f'Thanks for trusting LAMO in your time of need!\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='emergency_worker_assigned',
+    )
 
     messages.success(request, f'Emergency request accepted! You have been assigned to this booking.')
     return redirect('worker_dashboard')
@@ -4579,13 +4561,21 @@ def proof_download(request, pk):
     if not proof or not proof.name:
         raise Http404('Proof document not found.')
 
-    # File path comes from the model field only (never from the request).
-    file_path = proof.path
-    if not os.path.exists(file_path):
-        raise Http404('Proof document file not found.')
+    # File object comes from the model field only (never from the request).
+    # Storage-agnostic open(): proofs always route to local disk (the
+    # worker_proofs/ prefix is never a Cloudinary prefix), but open() keeps
+    # this endpoint correct even if the default backend changes.
+    try:
+        file_handle = proof.open('rb')
+    except FileNotFoundError:
+        raise Http404('Proof document file not found.') from None
+    except NotImplementedError:
+        # A Cloudinary-backed name has no local path - and a proof must
+        # never be Cloudinary-backed. Treat it as missing, never redirect.
+        raise Http404('Proof document file not found.') from None
 
     response = FileResponse(
-        open(file_path, 'rb'),
+        file_handle,
         content_type='application/octet-stream',
     )
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(
@@ -6377,21 +6367,18 @@ def confirm_completion(request, booking_id):
             )
         )
 
-        try:
-            send_mail(
-                subject=f'Job Completed - Booking #{booking.id}',
-                message=(
-                    f'Hi {booking.worker.user.username},\n\n'
-                    f'Congratulations! The customer has confirmed that your {booking.service.name} work for Booking #{booking.id} is complete.\n\n'
-                    f'Payment will be processed shortly. Thank you for your excellent service!\n\n'
-                    f'Best regards,\nTeam LAMO'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[booking.worker.user.email],
-                fail_silently=True,
-            )
-        except Exception:
-            pass
+        # Job completed, worker notified (Resend-aware; failures logged, never raised)
+        send_email_safely(
+            subject=f'Job Completed - Booking #{booking.id}',
+            message=(
+                f'Hi {booking.worker.user.username},\n\n'
+                f'Congratulations! The customer has confirmed that your {booking.service.name} work for Booking #{booking.id} is complete.\n\n'
+                f'Payment will be processed shortly. Thank you for your excellent service!\n\n'
+                f'Best regards,\nTeam LAMO'
+            ),
+            recipient_list=[booking.worker.user.email],
+            purpose='job_completed_worker_notified',
+        )
 
 
     # ==========================================
@@ -6554,22 +6541,19 @@ def worker_request_completion(request, booking_id):
         )
     )
 
-    try:
-        send_mail(
-            subject=f'Job Completed - Please Verify Booking #{booking.id}',
-            message=(
-                f'Hi {booking.customer.username},\n\n'
-                f'The worker has completed your {booking.service.name} job and marked it as done.\n\n'
-                f'Please take a moment to verify the work. Once confirmed, the booking will be finalized.\n\n'
-                f'Thank you for choosing LAMO!\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.customer.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Worker requested completion, customer notified (Resend-aware; failures logged, never raised)
+    send_email_safely(
+        subject=f'Job Completed - Please Verify Booking #{booking.id}',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'The worker has completed your {booking.service.name} job and marked it as done.\n\n'
+            f'Please take a moment to verify the work. Once confirmed, the booking will be finalized.\n\n'
+            f'Thank you for choosing LAMO!\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='job_completion_requested',
+    )
 
 
     # ==========================================
@@ -7263,22 +7247,18 @@ def cancel_booking(request, booking_id):
             message=f"Booking #{booking.id} ({booking.service.name}) was cancelled by customer {request.user.username}."
         )
 
-    # Send email to worker
-    try:
-        send_mail(
-            subject=f'Booking #{booking.id} Cancelled',
-            message=(
-                f'Hi {booking.worker.user.username},\n\n'
-                f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n\n'
-                f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.worker.user.email],
-            fail_silently=True,
-        )
-    except Exception:
-        pass
+    # Send email to worker (Resend-aware; failures logged, never raised)
+    send_email_safely(
+        subject=f'Booking #{booking.id} Cancelled',
+        message=(
+            f'Hi {booking.worker.user.username},\n\n'
+            f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n\n'
+            f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.worker.user.email],
+        purpose='booking_cancelled',
+    )
 
     messages.success(request, f"Booking #{booking.id} has been cancelled successfully.")
     return redirect('my_bookings')
@@ -7369,23 +7349,20 @@ def update_complaint_status(request, complaint_id):
                     message=f"A complaint against you for Booking #{complaint.booking.id} has been updated to '{status}'. Admin remark: {admin_remark or 'No remarks'}."
                 )
 
-            try:
-                send_mail(
-                    subject=f'Complaint #{complaint.id} - Status Update',
-                    message=(
-                        f'Hi {complaint.customer.username},\n\n'
-                        f'We wanted to let you know that your complaint regarding Booking #{complaint.booking.id} has been updated.\n\n'
-                        f'Status: {status}\n'
-                        f'Admin Remark: {admin_remark or "No remarks"}\n\n'
-                        f'If you have any further concerns, please don\'t hesitate to reach out.\n\n'
-                        f'Best regards,\nTeam LAMO'
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[complaint.customer.email],
-                    fail_silently=True,
-                )
-            except Exception:
-                pass
+            # Complaint status update (Resend-aware; failures logged, never raised)
+            send_email_safely(
+                subject=f'Complaint #{complaint.id} - Status Update',
+                message=(
+                    f'Hi {complaint.customer.username},\n\n'
+                    f'We wanted to let you know that your complaint regarding Booking #{complaint.booking.id} has been updated.\n\n'
+                    f'Status: {status}\n'
+                    f'Admin Remark: {admin_remark or "No remarks"}\n\n'
+                    f'If you have any further concerns, please don\'t hesitate to reach out.\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[complaint.customer.email],
+                purpose='complaint_status_update',
+            )
         else:
             messages.error(request, 'Invalid complaint status.')
 
