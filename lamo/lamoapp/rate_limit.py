@@ -138,13 +138,34 @@ def register_failure(key, threshold, lockout_seconds):
 
 
 def register_attempt_within_window(key, maximum, window_seconds):
-    """Count an event inside a fixed window (used for OTP resends).
+    """Count an event inside a FIXED window (used for OTP resends / AI / etc.).
 
     Returns ``(allowed, minutes_remaining)``.
+
+    The window is created on the FIRST event and then left alone: neither the
+    counter's TTL nor the recorded deadline is refreshed by later events.
+    Refreshing them turned this into a *sliding* window, so a client that kept
+    hitting the endpoint never let the counter expire - once the limit was hit,
+    every retry pushed the reset a full window further out and the caller could
+    be locked out forever. A fixed window expires ``window_seconds`` after the
+    first event, which is what the callers (OTP resend, AI quota, emergency and
+    contact abuse limits) actually expect.
     """
-    count = int(cache.get(key, 0) or 0) + 1
-    cache.set(key, count, window_seconds)
-    _record_expiry(key, window_seconds)
+    existing = cache.get(key)
+
+    if existing is None:
+        # First event opens the window and starts its clock.
+        cache.set(key, 1, window_seconds)
+        _record_expiry(key, window_seconds)
+        return True, 0
+
+    try:
+        count = cache.incr(key)
+    except ValueError:
+        # Key expired between get() and incr(): start a fresh window.
+        cache.set(key, 1, window_seconds)
+        _record_expiry(key, window_seconds)
+        return True, 0
 
     if count > maximum:
         return False, minutes_remaining(key)

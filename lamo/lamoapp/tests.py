@@ -34,7 +34,9 @@ from .rate_limit import (
     emergency_account_key,
     emergency_ip_key,
     is_rate_limited,
+    lockout_seconds_remaining,
     login_key,
+    register_attempt_within_window,
     register_failure,
 )
 # The production configuration gates (P0-B / P0-C) are evaluated while Django
@@ -1925,6 +1927,28 @@ class ForgotPasswordIsServerSideTest(RateLimitBypassTests):
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.password_reset_token_hash)
 
+    def test_duplicate_email_does_not_500(self):
+        """CustomUser.email is not unique, so .get() could match several rows.
+
+        Before the fix, ``CustomUser.objects.get(email__iexact=...)`` raised
+        MultipleObjectsReturned (uncaught) and this public page returned 500.
+        The ambiguous address must be answered exactly like an unknown one.
+        """
+        CustomUser.objects.create_user(
+            username='dup_email_user',
+            email=self.user.email,
+            password='Password123!',
+            role='USER',
+        )
+
+        response = self._request_reset(self.user.email)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'If an account with that email exists, a password reset link has been sent.',
+        )
+
     def test_legitimate_reset_token_still_works(self):
         token = self.user.generate_password_reset_token()
         response = self.client.get(
@@ -2365,7 +2389,11 @@ class ContactEnquiryFailureLoggingTest(TestCase):
         self.assertIn('email_sent', log_text)
         self.assertIn('purpose=contact_enquiry', log_text)
 
-    @override_settings(EMAIL_HOST_USER='')
+    @override_settings(
+        EMAIL_HOST_USER='',
+        CONTACT_NOTIFICATION_EMAIL='',
+        DEFAULT_FROM_EMAIL='',
+    )
     def test_missing_admin_mailbox_is_flagged_not_silent(self):
         from lamoapp.models import ContactEnquiry
 
@@ -2377,6 +2405,25 @@ class ContactEnquiryFailureLoggingTest(TestCase):
         log_text = '\n'.join(captured.output)
         self.assertIn('contact_enquiry_notification_skipped', log_text)
         self.assertIn('no_admin_mailbox_configured', log_text)
+
+    @override_settings(
+        EMAIL_HOST_USER='',
+        CONTACT_NOTIFICATION_EMAIL='inbox@lamo.test',
+    )
+    def test_contact_notification_sent_without_email_host_user(self):
+        """A Resend deployment (no EMAIL_HOST_USER) still notifies the admin.
+
+        Previously the contact-form notification was gated on EMAIL_HOST_USER
+        alone, so switching to Resend silently dropped every enquiry e-mail.
+        The recipient now resolves from CONTACT_NOTIFICATION_EMAIL.
+        """
+        with self.assertLogs('lamoapp.email_utils', level='INFO') as captured:
+            response = self._post_enquiry()
+
+        self.assertEqual(response.status_code, 200)
+        log_text = '\n'.join(captured.output)
+        self.assertIn('email_sent', log_text)
+        self.assertIn('purpose=contact_enquiry', log_text)
 
 class ReviewRaceConditionTest(TestCase):
     """P1-9: the database is the final authority for one-review-per-booking."""
@@ -3822,6 +3869,34 @@ class RateLimiterStillFunctionsTest(SimpleTestCase):
             allowed, retry_after = consume_ai_quota(key, 2, 60)
             self.assertFalse(allowed)
             self.assertGreaterEqual(retry_after, 1)
+        finally:
+            clear(key)
+
+    def test_window_is_fixed_not_sliding(self):
+        """Repeated attempts must NOT push the window's expiry further out.
+
+        The window used to be refreshed on every attempt (a sliding window), so
+        a caller who kept retrying could never let the counter expire - once
+        the limit was reached it stayed locked out indefinitely. The window is
+        now fixed at ``window_seconds`` from the FIRST attempt, so retrying
+        does not extend it.
+        """
+        key = 'test-ratelimit:fixed-window'
+        try:
+            # Trip the limit, then keep hammering it.
+            for _ in range(5):
+                register_attempt_within_window(key, 2, 60)
+
+            remaining_after_hammering = lockout_seconds_remaining(key)
+
+            # Hammering more must not extend the deadline.
+            for _ in range(5):
+                register_attempt_within_window(key, 2, 60)
+
+            self.assertEqual(
+                lockout_seconds_remaining(key),
+                remaining_after_hammering,
+            )
         finally:
             clear(key)
 
@@ -6633,3 +6708,87 @@ class PrefixCloudinaryStorageTest(TestCase):
         self.assertEqual(st.CLOUDINARY_API_KEY, '')
         self.assertEqual(st.CLOUDINARY_API_SECRET, '')
 
+class AdminServiceCreateFlowTest(TestCase):
+    """The admin "Add Service" flow (service_create) must work end to end.
+
+    Regression coverage for the production audit: Service.name is unique, so a
+    duplicate submission must surface as a friendly form error (HTTP 200) and
+    never as an unhandled IntegrityError (HTTP 500).
+    """
+
+    def setUp(self):
+        self.admin = _make_user('svc_admin', role='ADMIN')
+        self.client.login(username='svc_admin', password='Password123!')
+
+    def test_admin_can_open_the_add_service_form(self):
+        response = self.client.get(reverse('service_create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_admin_can_create_a_service(self):
+        response = self.client.post(reverse('service_create'), {
+            'name': 'Plumbing',
+            'description': 'Pipe and tap work',
+            'price': '500',
+            'is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Service.objects.filter(name='Plumbing').exists())
+
+    def test_duplicate_name_is_a_form_error_not_a_500(self):
+        Service.objects.create(
+            name='Plumbing', description='x', price=Decimal('10.00'), is_active=True,
+        )
+        response = self.client.post(reverse('service_create'), {
+            'name': 'Plumbing',
+            'description': 'duplicate',
+            'price': '100',
+            'is_active': 'on',
+        })
+        # ModelForm re-renders with a validation error instead of raising.
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Service.objects.filter(name='Plumbing').count(), 1)
+        self.assertTrue(response.context['form'].errors)
+
+    def test_non_numeric_price_is_a_form_error_not_a_500(self):
+        response = self.client.post(reverse('service_create'), {
+            'name': 'Electrical',
+            'description': 'Wiring',
+            'price': 'not-a-number',
+            'is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Service.objects.filter(name='Electrical').exists())
+
+    def test_missing_name_is_a_form_error_not_a_500(self):
+        response = self.client.post(reverse('service_create'), {
+            'name': '',
+            'description': 'No name',
+            'price': '10',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].errors)
+
+    def test_worker_cannot_create_a_service(self):
+        worker_user = _make_user('svc_worker', role='WORKER')
+        self.client.logout()
+        self.client.login(username=worker_user.username, password='Password123!')
+        response = self.client.post(reverse('service_create'), {
+            'name': 'ShouldNotExist',
+            'description': 'x',
+            'price': '10',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Service.objects.filter(name='ShouldNotExist').exists())
+
+    def test_user_cannot_create_a_service(self):
+        customer = _make_user('svc_customer', role='USER')
+        self.client.logout()
+        self.client.login(username=customer.username, password='Password123!')
+        response = self.client.post(reverse('service_create'), {
+            'name': 'AlsoNot',
+            'description': 'x',
+            'price': '10',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Service.objects.filter(name='AlsoNot').exists())

@@ -198,8 +198,8 @@ class PrefixCloudinaryStorage(FileSystemStorage):
 
     def get_available_name(self, name, max_length=None):
         if _routes_to_cloudinary(name):
-            # Uniqueness is enforced server-side via ``unique_filename``;
-            # returning the name keeps the stored DB value stable.
+            # Returning the name keeps the stored DB value stable and
+            # matches Cloudinary's public_id.
             return name
         return super().get_available_name(name, max_length=max_length)
 
@@ -232,11 +232,19 @@ class PrefixCloudinaryStorage(FileSystemStorage):
         if not _routes_to_cloudinary(name):
             return super().url(name)
         cloudinary = _configure_cloudinary()
+        normalised = str(name).replace('\\', '/').lstrip('/')
+        _root, ext = os.path.splitext(normalised)
+        format_opt = ext.lstrip('.').lower() if ext else None
+        options = {
+            'resource_type': 'image',
+            'secure': True,
+            'force_version': False,
+        }
+        if format_opt:
+            options['format'] = format_opt
         url, _options = cloudinary.utils.cloudinary_url(
             _public_id_for(name),
-            resource_type='image',
-            secure=True,
-            force_version=False,
+            **options
         )
         return url
 

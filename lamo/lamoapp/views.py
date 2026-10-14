@@ -89,6 +89,30 @@ from .ai_utils import (
 logger = logging.getLogger(__name__)
 
 
+def _safe_coord(value):
+    """Parse a client-supplied latitude/longitude, or return ``None``.
+
+    Coordinates arrive as free-form strings (form fields, JSON body, or the
+    literal ``'undefined'`` the browser's Geolocation API produces on failure).
+    Calling ``float()`` on any of those directly raised ``ValueError`` and
+    turned a bad POST into an HTTP 500. Anything that is not a real number is
+    treated as "no coordinates" instead.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in ('undefined', 'null', 'none', 'nan'):
+        return None
+    try:
+        number = float(text)
+    except (TypeError, ValueError):
+        return None
+    # Reject NaN/inf: they are not valid coordinates and break distance math.
+    if number != number or number in (float('inf'), float('-inf')):
+        return None
+    return number
+
+
 def custom_404_view(request, exception=None):
     """Friendly 404 page (wired up via handler404 in lamo/urls.py)."""
     return render(request, '404.html', status=404)
@@ -560,8 +584,8 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
 
     service = get_object_or_404(Service, id=service_id, is_active=True)
 
-    lat_val = float(latitude) if latitude and latitude != 'undefined' else None
-    lng_val = float(longitude) if longitude and longitude != 'undefined' else None
+    lat_val = _safe_coord(latitude)
+    lng_val = _safe_coord(longitude)
 
     if lat_val is not None and lng_val is not None and district:
         location_district = _validate_location_in_district(lat_val, lng_val, district)
@@ -746,6 +770,13 @@ def home(request):
     # prevents a splash <-> home redirect loop and stops the splash
     # from replaying on internal navigation or a homepage refresh.
     # ---------------------------------------------------------
+
+    # Admins have no business on the public homepage; send them
+    # directly to the admin dashboard so they don't see the
+    # customer-facing splash / service listing.
+    if request.user.is_authenticated and getattr(request.user, 'role', None) == 'ADMIN':
+        return redirect('admin_dashboard')
+
     if not request.session.get('lamo_splash_shown'):
         request.session['lamo_splash_shown'] = True
         return render(request, 'splash.html')
@@ -1133,7 +1164,16 @@ def contact(request):
             # log line, nothing to alert on. Failures are now recorded with
             # send_email_safely() (operation tag + exception class, no message
             # body, no recipient address, no credentials).
-            if settings.EMAIL_HOST_USER:
+            #
+            # The recipient comes from settings.CONTACT_NOTIFICATION_EMAIL,
+            # which resolves to CONTACT_NOTIFICATION_EMAIL, then EMAIL_HOST_USER
+            # (SMTP), then DEFAULT_FROM_EMAIL. Gating on EMAIL_HOST_USER alone
+            # silently disabled this notification whenever Resend was the
+            # transport, because Resend setups do not set it.
+            admin_mailbox = getattr(
+                settings, 'CONTACT_NOTIFICATION_EMAIL', ''
+            ) or settings.DEFAULT_FROM_EMAIL
+            if admin_mailbox:
                 full_message = (
                     f"New Contact Enquiry\n"
                     f"{'='*40}\n\n"
@@ -1150,7 +1190,7 @@ def contact(request):
                 send_email_safely(
                     subject=f'LAMO Contact Enquiry #{enquiry.id}: {subject}',
                     message=full_message,
-                    recipient_list=[settings.EMAIL_HOST_USER],
+                    recipient_list=[admin_mailbox],
                     purpose='contact_enquiry',
                 )
             else:
@@ -1518,8 +1558,8 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     if worker.work_status != 'AVAILABLE':
         return respond_error('This worker is currently unavailable. Please choose another worker.')
 
-    lat_val = float(latitude) if latitude else None
-    lng_val = float(longitude) if longitude else None
+    lat_val = _safe_coord(latitude)
+    lng_val = _safe_coord(longitude)
 
     if lat_val is not None and lng_val is not None:
         location_district = _validate_location_in_district(lat_val, lng_val, worker.district)
@@ -1595,8 +1635,8 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
             start_time=start_t,
             end_time=end_t,
             location=location,
-            latitude=float(latitude) if latitude else None,
-            longitude=float(longitude) if longitude else None,
+            latitude=lat_val,
+            longitude=lng_val,
             description=description,
             phone=phone,
             start_date=start_date,
@@ -1618,8 +1658,8 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
                 location=location,
                 description=description,
                 phone=phone,
-                latitude=float(latitude) if latitude else None,
-                longitude=float(longitude) if longitude else None,
+                latitude=lat_val,
+                longitude=lng_val,
                 district=worker.district,
                 estimated_cost=service.price,
                 status='PENDING',
@@ -1924,8 +1964,8 @@ def book_service(request):
             if existing_booking:
                 return respond_error('This worker is already booked for the selected time.')
 
-            lat_val = float(latitude) if latitude else None
-            lng_val = float(longitude) if longitude else None
+            lat_val = _safe_coord(latitude)
+            lng_val = _safe_coord(longitude)
 
             if lat_val is not None and lng_val is not None:
                 location_district = _validate_location_in_district(lat_val, lng_val, district)
@@ -3612,9 +3652,16 @@ def forgot_password_view(request, token=None):
 
         try:
             user = CustomUser.objects.get(email__iexact=email)
-        except CustomUser.DoesNotExist:
+        except (CustomUser.DoesNotExist, CustomUser.MultipleObjectsReturned):
             # Count the failure even for non-existing emails so the response
             # stays identical and the address cannot be enumerated.
+            #
+            # MultipleObjectsReturned is caught too: CustomUser.email is NOT
+            # unique (it inherits AbstractUser), so a duplicate address - two
+            # admin/superuser accounts, or a race in registration - made
+            # .get() raise and turned this public page into an HTTP 500. The
+            # ambiguous address is answered exactly like an unknown one, which
+            # also avoids revealing that the address is shared.
             register_failure(fp_key, FORGOT_PASSWORD_MAX_ATTEMPTS, FORGOT_PASSWORD_LOCKOUT_SECONDS)
             register_failure(fp_ip_key, FORGOT_PASSWORD_MAX_ATTEMPTS * 5, FORGOT_PASSWORD_LOCKOUT_SECONDS)
             messages.success(
@@ -4734,7 +4781,7 @@ def service_update(request, pk):
                 'Service updated successfully.'
             )
 
-            return redirect('admin_dashboard')
+            return redirect('service_list')
 
     else:
 
@@ -4821,6 +4868,8 @@ def service_delete(request, pk):
     )
 
     return redirect('service_list')
+
+
 @login_required
 def service_list(request):
 
@@ -6396,9 +6445,8 @@ def confirm_completion(request, booking_id):
     # ==========================================
 
     return redirect('my_bookings')
-@login_required
 
-@login_required
+
 @login_required
 def worker_start_job(request, booking_id):
 
@@ -7044,13 +7092,17 @@ def admin_booking_details(request):
     # RENDER
     # =====================================================
 
+    paginator = Paginator(bookings, 25)
+    bookings_page = paginator.get_page(request.GET.get('page', 1))
+
     return render(
         request,
         'admin/booking_details.html',
         {
-            'bookings': bookings,
+            'bookings': bookings_page,
             'selected_status': status,
             'search': search,
+            'total_count': paginator.count,
         }
     )
 
@@ -7189,6 +7241,13 @@ def admin_reviews_complaints(request):
     ).count()
 
     # ---------------------------------------------------------
+    # PAGINATION
+    # ---------------------------------------------------------
+
+    reviews = Paginator(reviews, 25).get_page(request.GET.get('page', 1))
+    complaints = Paginator(complaints, 25).get_page(request.GET.get('page', 1))
+
+    # ---------------------------------------------------------
     # CONTEXT
     # ---------------------------------------------------------
 
@@ -7211,7 +7270,6 @@ def admin_reviews_complaints(request):
     )
 
 
-@login_required
 @login_required
 def cancel_booking(request, booking_id):
     if request.method != 'POST':
@@ -7282,8 +7340,11 @@ def admin_contact_enquiries(request):
     read_count = ContactEnquiry.objects.filter(status='READ').count()
     resolved_count = ContactEnquiry.objects.filter(status='RESOLVED').count()
 
+    paginator = Paginator(enquiries, 25)
+    enquiries_page = paginator.get_page(request.GET.get('page', 1))
+
     return render(request, 'admin/contact_enquiries.html', {
-        'enquiries': enquiries,
+        'enquiries': enquiries_page,
         'selected_status': selected_status,
         'total_count': total_count,
         'new_count': new_count,

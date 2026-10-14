@@ -589,6 +589,17 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')
 DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 SERVER_EMAIL = os.getenv('DJANGO_SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
+# Mailbox that receives internal notifications (e.g. the contact form).
+# Falls back to EMAIL_HOST_USER (SMTP setups) and then to DEFAULT_FROM_EMAIL,
+# so it is always populated - including under Resend, where EMAIL_HOST_USER
+# is typically empty and the old EMAIL_HOST_USER-only check silently skipped
+# every contact-form notification.
+CONTACT_NOTIFICATION_EMAIL = (
+    os.getenv('CONTACT_NOTIFICATION_EMAIL', '').strip()
+    or EMAIL_HOST_USER
+    or DEFAULT_FROM_EMAIL
+)
+
 
 
 
@@ -658,6 +669,15 @@ STATICFILES_DIRS = [
 CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
 CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY', '').strip()
 CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET', '').strip()
+
+_CLOUDINARY_URL = os.getenv('CLOUDINARY_URL', '').strip()
+if _CLOUDINARY_URL and not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET):
+    _parsed_cld = urlparse(_CLOUDINARY_URL)
+    if _parsed_cld.scheme.lower() == 'cloudinary':
+        CLOUDINARY_API_KEY = unquote(_parsed_cld.username or '').strip()
+        CLOUDINARY_API_SECRET = unquote(_parsed_cld.password or '').strip()
+        CLOUDINARY_CLOUD_NAME = (_parsed_cld.hostname or '').strip()
+
 # Whitespace separated; must stay in sync with the upload_to= prefixes of
 # the four public ImageFields. worker_proofs/ must NEVER be added here.
 CLOUDINARY_PUBLIC_PREFIXES = tuple(
@@ -752,10 +772,47 @@ CSRF_TRUSTED_ORIGINS = [
 # ============================================================
 # Optional work in the views (mail, AI, geocoding) is wrapped in
 # `except Exception: pass`, so failures used to disappear without a trace.
-# Errors are now written to logs/lamo.log (rotated) as well as the console.
+# Errors are written to the console (stdout) and, when a writable logs/
+# directory is available, also to logs/lamo.log (rotated).
+#
+# Render's disk is READ-ONLY / ephemeral: creating a directory or opening a
+# file handler there raises at import time and would crash the whole process
+# before it can serve a single request. Both operations are therefore
+# best-effort - the console handler (stdout, which Render captures) is always
+# attached, so nothing is ever lost on a read-only filesystem.
 
 LOG_DIR = BASE_DIR / 'logs'
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Build the handler set defensively. Never let logging configuration raise.
+_LOG_HANDLERS = {
+    'console': {
+        'class': 'logging.StreamHandler',
+        'formatter': 'simple',
+    },
+}
+_LOG_TARGETS = ['console']
+
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    # Prove the directory is actually writable before wiring a file handler;
+    # a read-only mount can create nothing, and RotatingFileHandler would then
+    # raise during logging setup.
+    _probe = LOG_DIR / '.write-test'
+    with open(_probe, 'w', encoding='utf-8'):
+        pass
+    _probe.unlink(missing_ok=True)
+    _LOG_HANDLERS['file'] = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': str(LOG_DIR / 'lamo.log'),
+        'maxBytes': 5 * 1024 * 1024,  # 5 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+        'encoding': 'utf-8',
+    }
+    _LOG_TARGETS.append('file')
+except OSError:
+    # Read-only or missing directory (Render): stdout only. This is expected.
+    pass
 
 LOGGING = {
     'version': 1,
@@ -770,37 +827,24 @@ LOGGING = {
             'style': '{',
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': str(LOG_DIR / 'lamo.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-    },
+    'handlers': _LOG_HANDLERS,
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': _LOG_TARGETS,
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': _LOG_TARGETS,
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console', 'file'],
+            'handlers': _LOG_TARGETS,
             'level': 'ERROR',
             'propagate': False,
         },
         'lamoapp': {
-            'handlers': ['console', 'file'],
+            'handlers': _LOG_TARGETS,
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,
         },
