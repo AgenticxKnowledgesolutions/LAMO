@@ -1219,6 +1219,18 @@ def contact(request):
     return render(request, 'contact.html')
 
 
+def terms_view(request):
+    return render(request, 'legal/terms.html')
+
+
+def privacy_view(request):
+    return render(request, 'legal/privacy.html')
+
+
+terms = terms_view
+privacy = privacy_view
+
+
 def _get_or_create_review(booking, customer, rating, comment):
     """Create the single review for *booking*, race-safe.
 
@@ -1465,7 +1477,7 @@ def _is_valid_booking_transition(current_status, new_status):
         'COMPLETED': [],  # Terminal state
         'REJECTED': [],  # Terminal state
         'CANCELLED': [],  # Terminal state
-        'EMERGENCY_PENDING': ['ACCEPTED'],  # Emergency bookings can be accepted
+        'EMERGENCY_PENDING': ['ACCEPTED', 'CANCELLED'],  # Emergency bookings can be accepted or cancelled
     }
     return new_status in valid_transitions.get(current_status, [])
 
@@ -2243,7 +2255,7 @@ def booking_messages(request, booking_id):
         'booking_messages.html',
         {
             'booking': booking,
-            'messages': thread,
+            'chat_messages': thread,
         }
     )
 
@@ -7407,17 +7419,18 @@ def cancel_booking(request, booking_id):
         )
 
     # Send email to worker (Resend-aware; failures logged, never raised)
-    send_email_safely(
-        subject=f'Booking #{booking.id} Cancelled',
-        message=(
-            f'Hi {booking.worker.user.username},\n\n'
-            f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n\n'
-            f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.worker.user.email],
-        purpose='booking_cancelled',
-    )
+    if booking.worker and booking.worker.user:
+        send_email_safely(
+            subject=f'Booking #{booking.id} Cancelled',
+            message=(
+                f'Hi {booking.worker.user.username},\n\n'
+                f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n\n'
+                f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
+                f'Best regards,\nTeam LAMO'
+            ),
+            recipient_list=[booking.worker.user.email],
+            purpose='booking_cancelled',
+        )
 
     messages.success(request, f"Booking #{booking.id} has been cancelled successfully.")
     return redirect('my_bookings')

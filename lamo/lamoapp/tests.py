@@ -355,6 +355,41 @@ class BookingLifecycleTest(TestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, 'CANCELLED')
 
+    def test_cancel_booking_without_worker_succeeds(self):
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=None,
+            service=self.service,
+            date='2026-09-02',
+            time='11:00',
+            location='Ernakulam',
+            phone='9876543210',
+            status='PENDING'
+        )
+        self.client.login(username="customer1", password="Password123!")
+        response = self.client.post(reverse('cancel_booking', args=[booking.id]))
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'CANCELLED')
+
+    def test_cancel_emergency_pending_booking_succeeds(self):
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=None,
+            service=self.service,
+            date='2026-09-02',
+            time='11:00',
+            location='Ernakulam',
+            phone='9876543210',
+            status='EMERGENCY_PENDING',
+            booking_type='Emergency'
+        )
+        self.client.login(username="customer1", password="Password123!")
+        response = self.client.post(reverse('cancel_booking', args=[booking.id]))
+        self.assertEqual(response.status_code, 302)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'CANCELLED')
+
     def test_customer_payment_report_does_not_mark_booking_paid(self):
         booking = Booking.objects.create(
             customer=self.customer,
@@ -909,6 +944,21 @@ class BookingMessagingTest(TestCase):
 
         self.assertContains(response, 'Only in the first thread.')
         self.assertNotContains(response, 'Only in the other thread.')
+
+    def test_chat_thread_does_not_pollute_base_html_flash_messages(self):
+        BookingMessage.objects.create(
+            booking=self.booking,
+            sender=self.customer,
+            message='Test message should not become a toast.',
+        )
+        self.client.force_login(self.customer)
+        response = self.client.get(reverse('booking_messages', args=[self.booking.id]))
+        self.assertEqual(response.status_code, 200)
+        # Verify that chat_messages contains the thread
+        self.assertIn('chat_messages', response.context)
+        # Verify that base.html toast converter does not receive the chat message as a flash alert
+        content = response.content.decode()
+        self.assertNotIn("message: 'Test message should not become a toast.'", content)
 
 
 class WorkerDashboardChatPopupTest(TestCase):
@@ -7175,4 +7225,46 @@ class AdminServiceCreateFlowTest(TestCase):
         self.assertEqual(second.description, 'second')
         self.assertEqual(second.price, Decimal('22.00'))
         self.assertFalse(second.is_active)
+
+
+class LegalPagesTest(TestCase):
+    """Verifies that Terms & Conditions and Privacy Policy pages are accessible,
+    properly routed, linked in the base footer, and contain mandatory legal disclosures.
+    """
+
+    def test_terms_url_resolves_and_renders(self):
+        url = reverse('terms')
+        self.assertEqual(url, '/terms/')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'legal/terms.html')
+        content = response.content.decode('utf-8')
+        self.assertIn('Terms &amp; Conditions', content)
+        self.assertIn('Platform Nature &amp; Scope', content)
+        self.assertIn('Cancellation &amp; Refund Policy', content)
+        self.assertIn('Worker Liability &amp; Disclaimers', content)
+        self.assertIn('Data Protection &amp; Confidentiality', content)
+
+    def test_privacy_url_resolves_and_renders(self):
+        url = reverse('privacy')
+        self.assertEqual(url, '/privacy/')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'legal/privacy.html')
+        content = response.content.decode('utf-8')
+        self.assertIn('Privacy Policy', content)
+        self.assertIn('Information We Collect', content)
+        self.assertIn('Third-Party Data Sharing', content)
+        self.assertIn('Data Retention &amp; Deletion', content)
+        self.assertIn('Grievance Redressal', content)
+
+    def test_footer_contains_terms_and_privacy_links(self):
+        session = self.client.session
+        session['lamo_splash_shown'] = True
+        session.save()
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('href="/terms/"', content)
+        self.assertIn('href="/privacy/"', content)
 

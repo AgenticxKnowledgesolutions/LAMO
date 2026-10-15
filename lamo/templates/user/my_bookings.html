@@ -1,7 +1,5 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
-
-
 
 {% block title %}My Bookings | LAMO{% endblock %}
 
@@ -10,664 +8,490 @@
 {% endblock %}
 
 {% block content %}
-
-
 <div class="bookings-page">
-
-
-    <!-- =====================================================
-         VISUAL HERO â€” UI ONLY
-         ===================================================== -->
-    <section class="bookings-hero" aria-label="My bookings hero">
-        <div class="hero-content">
-            <div class="hero-eyebrow">
-                <i class="bi bi-calendar2-check"></i>
-                Service Management
-            </div>
-
-            <h1>My Bookings</h1>
-
-            <p>
-                Stay updated with your service requests, worker progress,
-                completion requests and reviews.
-            </p>
-        </div>
-
-        <div class="hero-orb" aria-hidden="true">
-            <i class="bi bi-clipboard2-check"></i>
-        </div>
-    </section>
-
     <div class="bookings-container">
 
-
-        <!-- =====================================================
-             HEADER
-             ===================================================== -->
-
-        <div class="bookings-header">
-
-            <a
-                href="{% url 'home' %}"
-                class="back-link"
-            >
-
-                <i class="bi bi-arrow-left"></i>
-
-                Back to Home
-
+        <!-- TOP HEADER -->
+        <header class="bookings-header">
+            <a href="{% url 'home' %}" class="back-link">
+                <i class="bi bi-arrow-left"></i> Back to Home
             </a>
-
-
-            <h1>
-                My Bookings
-            </h1>
-
-
-            <p>
-                Track your service requests and booking status.
-            </p>
-
-        </div>
-
-
-        <!-- =====================================================
-             BOOKINGS
-             ===================================================== -->
+            <h1>My Bookings</h1>
+            <p>Track your service requests and booking status.</p>
+        </header>
 
         {% if bookings %}
-
-            <div class="booking-list">
-
-
-                {% for booking in bookings %}
-
-                    <article class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}">
-
-
-                        <!-- =====================================
-                             TOP
-                             ===================================== -->
-
-                        <div class="booking-top">
-
-                            <div>
-
-                                <h3 class="booking-service">
-
-                                    {{ booking.service.name }}
-
-                                </h3>
-
-
-                                <p class="booking-worker">
-
-                                    Worker:
-
-                                    {% if booking.worker %}
-                                        {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
-                                    {% else %}
-                                        <span style="color: #dc2626; font-weight: 600;">Unassigned (Finding Worker...)</span>
-                                    {% endif %}
-
-                                </p>
-
-                            </div>
-
-
-                            <!-- STATUS -->
-
-                            {% if booking.status == 'EMERGENCY_PENDING' and booking.booking_type == 'Emergency' %}
-
-                                <span class="status emergency-status">
-                                    <i class="bi bi-lightning-charge-fill"></i>
-                                    Finding Worker...
-                                </span>
-
-
-                            {% elif booking.status == 'ACCEPTED' and booking.booking_type == 'Emergency' %}
-
-                                <span class="status emergency-accepted">
-                                    <i class="bi bi-check-circle-fill"></i>
-                                    Worker Assigned
-                                </span>
-
-
-                            {% elif booking.status == 'PENDING' %}
-
-                                <span class="status pending">
-
-                                    Pending
-
-                                </span>
-
-
-                            {% elif booking.status == 'ACCEPTED' %}
-
-                                <span class="status accepted">
-
-                                    Accepted
-
-                                </span>
-
-
-                            {% elif booking.status == 'IN_PROGRESS' %}
-
-                                <span class="status in-progress">
-
-                                    In Progress
-
-                                </span>
-
-
-                            {% elif booking.status == 'COMPLETION_REQUESTED' %}
-
-                                <span class="status completion-requested">
-
-                                    Completion Requested
-
-                                </span>
-
-
-                            {% elif booking.status == 'COMPLETED' %}
-
-                                <span class="status completed">
-
-                                    Completed
-
-                                </span>
-
-
-                            {% elif booking.status == 'REJECTED' %}
-
-                                <span class="status rejected">
-
-                                    Rejected
-
-                                </span>
-
-
-                            {% elif booking.status == 'CANCELLED' %}
-
-                                <span class="status cancelled">
-
-                                    Cancelled
-
-                                </span>
-
-
-                            {% else %}
-
-                                <span class="status">
-
-                                    {{ booking.status }}
-
-                                </span>
-
-                            {% endif %}
-
-                        </div>
-
-
-                        <!-- =====================================
-                             BOOKING DETAILS
-                             ===================================== -->
-
-                        <div class="booking-details">
-
-                            <!-- {# Emergency requests have several implicit states,
-                               so explain what is happening rather than leaving
-                               the customer to guess. Reuses the existing
-                               .booking-details / .detail layout and adds no
-                               new component. #} -->
-                            {% if booking.status == 'EMERGENCY_PENDING' and booking.booking_type == 'Emergency' %}
-
-                                <div class="detail">
-                                    <small>
-                                        What happens now
-                                    </small>
-                                    <span>
-                                        Your request has been sent and verified
-                                        workers for this trade are being notified.
-                                        The first worker to accept takes the job.
-                                        If nobody accepts, the request expires
-                                        automatically - you can raise a new one
-                                        from your bookings at any time.
-                                    </span>
-                                </div>
-
-                            {% elif booking.status == 'ACCEPTED' and booking.booking_type == 'Emergency' %}
-
-                                <div class="detail">
-                                    <small>
-                                        What happens now
-                                    </small>
-                                    <span>
-                                        A worker has accepted your emergency request.
-                                        They will contact you on the number provided,
-                                        and you can message them from here.
-                                    </span>
-                                </div>
-
-                            {% endif %}
-
-                            <div class="detail">
-
-                                <small>
-                                    Payment
-                                </small>
-
-                                <span>
-                                    {% if booking.is_paid %}
-                                        <span style="color:#087f5b; font-weight:700;">Paid</span>
-                                    {% else %}
-                                        <span style="color:#b42318; font-weight:700;">Pending</span>
-                                    {% endif %}
-                                </span>
-
-                            </div>
-
-                            <div class="detail">
-
-                                <small>
-                                    Date
-                                </small>
-
-                                <span>
-                                    {{ booking.date }}
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail">
-
-                                <small>
-                                    Time
-                                </small>
-
-                                <span>
-                                    {{ booking.time }}
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail">
-
-                                <small>
-                                    Booking Type
-                                </small>
-
-                                <span>
-                                    {% if booking.booking_type == 'Recurring' and booking.series %}
-                                        <span style="background:#e9f8f2; color:#087f5b; padding:2px 8px; border-radius:6px; font-weight:700; font-size:11px;">
-                                            Recurring ({{ booking.series.frequency }})
-                                        </span>
-                                        <br>
-                                        <small style="color:#71807b; font-size:10px;">
-                                            Series #{{ booking.series.id }} | {{ booking.series.start_date|date:"d M" }} - {{ booking.series.end_date|date:"d M Y" }}
-                                        </small>
-                                    {% else %}
-                                        {{ booking.booking_type }}
-                                    {% endif %}
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail">
-
-                                <small>
-                                    Location
-                                </small>
-
-                                <span>
-                                    {{ booking.location }}
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail">
-
-                                <small>
-                                    Phone
-                                </small>
-
-                                <span>
-                                    {{ booking.phone }}
-                                </span>
-
-                            </div>
-
-
-                            <div class="detail">
-
-                                <small>
-                                    Booked On
-                                </small>
-
-                                <span>
-                                    {{ booking.created_at|date:"d M Y" }}
-                                </span>
-
-                            </div>
-
-                            {% if booking.worker %}
-                                <div class="detail">
-                                    <small>Worker Pricing</small>
-                                    <span style="color:#087f5b; font-weight:800;">
-                                        &#8377;{{ booking.worker.pricing_amount|floatformat:2 }} / {% if booking.worker.pricing_type == 'day' %}day{% else %}hour{% endif %}
-                                    </span>
-                                </div>
-                            {% endif %}
-
-                            <div class="detail">
-                                <small>Service Cost (estimate)</small>
-                                <span style="color:#087f5b; font-weight:800;">
-                                    {% if booking.estimated_cost != None %}
-                                        &#8377;{{ booking.estimated_cost|floatformat:2 }}
-                                    {% elif booking.service.price != None %}
-                                        &#8377;{{ booking.service.price|floatformat:2 }}
-                                    {% else %}
-                                        Price not set
-                                    {% endif %}
-                                </span>
-                            </div>
-
-                            <div class="detail">
-                                <small>Payment Status</small>
-                                <span>
-                                    {% if booking.payment %}
-                                        {% if booking.payment.status == 'PENDING' %}
-                                            Pending Verification
+            <div class="bookings-layout">
+
+                <!-- LEFT COLUMN: BOOKING CARDS LIST -->
+                <div class="bookings-list-col" id="bookingsListCol">
+                    {% for booking in bookings %}
+                        <article
+                            class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}{% if forloop.first %} is-selected{% endif %}"
+                            data-booking-id="{{ booking.id }}"
+                            tabindex="0"
+                            role="button"
+                            aria-label="View details for {{ booking.service.name }}"
+                        >
+                            <!-- LEFT: THUMBNAIL & SERVICE INFO -->
+                            <div class="booking-card-left">
+                                {% if booking.service.image %}
+                                    <img src="{{ booking.service.image.url }}" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% elif 'electric' in booking.service.name|lower %}
+                                    <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% elif 'plumb' in booking.service.name|lower %}
+                                    <img src="https://images.unsplash.com/photo-1581244277943-fe4a9c777189?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% elif 'clean' in booking.service.name|lower %}
+                                    <img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% elif 'ac' in booking.service.name|lower %}
+                                    <img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% else %}
+                                    <img src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="service-thumb">
+                                {% endif %}
+
+                                <div class="card-info">
+                                    <h3 class="card-service-title">{{ booking.service.name }}</h3>
+                                    <div class="card-worker-text">
+                                        Worker:
+                                        {% if booking.worker and booking.worker.user %}
+                                            {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
                                         {% else %}
-                                            {{ booking.payment.get_status_display }}
+                                            <span style="color: #dc2626; font-weight: 600;">Unassigned (Finding Worker...)</span>
                                         {% endif %}
-                                    {% elif booking.is_paid %}
-                                        Paid
-                                    {% else %}
-                                        Not submitted
-                                    {% endif %}
-                                </span>
-                            </div>
-
-                            {% if booking.is_paid and booking.payment %}
-                                <div class="detail">
-                                    <small>Amount Paid</small>
-                                    <span style="color:#087f5b; font-weight:800;">
-                                        &#8377;{{ booking.payment.amount|floatformat:2 }}
-                                    </span>
-                                </div>
-                            {% endif %}
-
-                        </div>
-
-                        {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
-                            <div class="booking-actions">
-                                {% if booking.status in payment_allowed_statuses and not booking.is_paid %}
-                                    {% if booking.payment and booking.payment.status == 'PENDING' %}
-                                        <small class="payment-manual-note">Manual payment reported; awaiting admin verification.</small>
-                                    {% elif booking.estimated_cost or booking.service.price %}
-                                        <form method="POST" action="{% url 'confirm_payment' booking.id %}" style="margin:0;">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="payment_method" value="UPI">
-                                            <input type="hidden" name="payment_reference" value="UPI-{{ booking.id }}-{{ booking.created_at|date:'YmdHis' }}">
-                                            <button type="submit" class="booking-pay-action" style="background:#087f5b; color:#fff; border:none; padding:8px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
-                                                <i class="bi bi-credit-card-fill"></i> Record Manual Payment
-                                            </button>
-                                        </form>
-                                        <small class="payment-manual-note">Online payment processing is not enabled; reports are marked paid only after admin verification.</small>
-                                    {% else %}
-                                        <small class="payment-manual-note">Payment is unavailable because no amount is configured for this booking.</small>
-                                    {% endif %}
-                                {% endif %}
-                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
-                                    <a
-                                        href="{% url 'booking_messages' booking.id %}"
-                                        class="booking-chat-btn"
-                                        data-partner-name="{% if booking.worker %}{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}{% else %}Service Team{% endif %}"
-                                        data-service-name="{{ booking.service.name }}"
-                                        data-booking-number="#{{ booking.id }}"
-                                    >
-                                        <i class="bi bi-chat-dots-fill" aria-hidden="true"></i> Open Chat
-                                    </a>
-                                {% endif %}
-                                {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' %}
-                                    <form method="POST" action="{% url 'cancel_booking' booking.id %}" class="booking-cancel-action" style="margin:0;">
-                                        {% csrf_token %}
-                                        <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" style="background:#fff0ef; color:#b42318; border:1px solid #f0b7b2; padding:7px 14px; border-radius:10px; font-weight:700; font-size:11px; cursor:pointer;">
-                                            <i class="bi bi-x-circle-fill"></i> Cancel Booking
-                                        </button>
-                                    </form>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
-                        {% if booking.is_paid %}
-                            <div style="margin-top: 12px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
-                                <a href="{% url 'booking_invoice' booking.id %}" style="display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; background:#f8fafc; color:#0f172a; font-size:11px; font-weight:800; text-decoration:none; border:1px solid #cbd5e1;">
-                                    <i class="bi bi-receipt-fill"></i>
-                                    Receipt
-                                </a>
-                            </div>
-                        {% endif %}
-
-                        {% if booking.start_time and booking.end_time %}
-                            <div style="margin-top: 12px; padding:8px 10px; background:#eef4ff; border:1px solid #cfe0ff; border-radius:10px; color:#1d4ed8; font-size:11px; font-weight:700;">
-                                <i class="bi bi-clock-history"></i> Schedule protected: {{ booking.start_time|time:"g:i A" }} - {{ booking.end_time|time:"g:i A" }}
-                            </div>
-                        {% endif %}
-
-                        <!-- =================================================
-                             WORKER REQUESTED COMPLETION
-                             ================================================= -->
-
-                        {% if booking.status == 'COMPLETION_REQUESTED' %}
-
-                            <div class="completion-request-box">
-
-
-                                <div class="completion-icon">
-
-                                    <i class="bi bi-check2-circle"></i>
-
-                                </div>
-
-
-                                <div class="completion-content">
-
-                                    <h4>
-
-                                        Work Completion Request
-
-                                    </h4>
-
-
-                                    <p>
-
-                                        The worker has marked this service
-                                        as completed.
-
-                                        Please verify the work before
-                                        confirming.
-
-                                    </p>
-
-
-                                    <div class="completion-actions">
-
-
-                                        <!-- WORK IS COMPLETE -->
-
-                                        <form
-                                            method="POST"
-                                            action="{% url 'confirm_completion' booking.id %}"
-                                        >
-
-                                            {% csrf_token %}
-
-                                            <button
-                                                type="submit"
-                                                class="confirm-completion-btn"
-                                            >
-
-                                                <i class="bi bi-check-circle-fill"></i>
-
-                                                Work is Complete
-
-                                            </button>
-
-                                        </form>
-
-
-                                        <!-- RAISE COMPLAINT -->
-
-                                        <!-- <a
-                                            href="{% url 'raise_complaint' booking.id %}"
-                                            class="complaint-btn"
-                                        >
-
-                                            <i class="bi bi-exclamation-triangle-fill"></i>
-
-                                            Raise a Complaint
-
-                                        </a> -->
-
-
                                     </div>
-
+                                    <div class="card-meta-row">
+                                        <span class="meta-item">
+                                            <i class="bi bi-calendar3"></i> {{ booking.date|date:"M d, Y" }}
+                                        </span>
+                                        <span class="meta-item">
+                                            <i class="bi bi-clock"></i> {{ booking.time }}
+                                        </span>
+                                        <span class="meta-item">
+                                            <i class="bi bi-geo-alt"></i> {{ booking.location|truncatechars:26 }}
+                                        </span>
+                                    </div>
                                 </div>
-
                             </div>
 
-                        {% endif %}
+                            <!-- RIGHT: STATUS BADGE & CHEVRON -->
+                            <div class="booking-card-right">
+                                {% if booking.status == 'COMPLETED' %}
+                                    <span class="status-pill completed">
+                                        <i class="bi bi-check-circle-fill"></i> Completed
+                                    </span>
+                                {% elif booking.status == 'IN_PROGRESS' %}
+                                    <span class="status-pill in-progress">
+                                        <i class="bi bi-clock-history"></i> In Progress
+                                    </span>
+                                {% elif booking.status == 'CANCELLED' %}
+                                    <span class="status-pill cancelled">
+                                        <i class="bi bi-x-circle-fill"></i> Cancelled
+                                    </span>
+                                {% elif booking.status == 'PENDING' %}
+                                    <span class="status-pill pending">
+                                        <i class="bi bi-check-circle-fill"></i> Pending
+                                    </span>
+                                {% elif booking.status == 'COMPLETION_REQUESTED' %}
+                                    <span class="status-pill completion-requested">
+                                        <i class="bi bi-bell-fill"></i> Review Needed
+                                    </span>
+                                {% elif booking.status == 'EMERGENCY_PENDING' %}
+                                    <span class="status-pill emergency">
+                                        <i class="bi bi-lightning-charge-fill"></i> Finding Worker...
+                                    </span>
+                                {% elif booking.status == 'REJECTED' %}
+                                    <span class="status-pill cancelled">
+                                        <i class="bi bi-x-circle-fill"></i> Rejected
+                                    </span>
+                                {% else %}
+                                    <span class="status-pill pending">
+                                        {{ booking.get_status_display }}
+                                    </span>
+                                {% endif %}
 
-
-                        <!-- =================================================
-                             COMPLETED
-                             ================================================= -->
-
-                        {% if booking.status == 'COMPLETED' %}
-
-                            <div class="completed-box">
-
-
-                                <h4>
-
-                                    <i class="bi bi-check-circle-fill"></i>
-
-                                    Work Completed
-
-                                </h4>
-
-
-                                <p>
-
-                                    You have confirmed that the work
-                                    is complete.
-
-                                </p>
-
-
-                                <!-- =========================================
-                                     REVIEW & COMPLAINT
-                                     ========================================= -->
-
-                                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                                    {% if booking.review %}
-
-                                        <div class="review-submitted">
-
-                                            <i class="bi bi-check-circle-fill"></i>
-
-                                            Review Submitted
-
-                                        </div>
-
-                                    {% else %}
-
-                                        <a
-                                            href="{% url 'submit_feedback' booking.id %}"
-                                            class="review-btn"
-                                        >
-
-                                            <i class="bi bi-star-fill"></i>
-
-                                            Give Feedback
-
-                                        </a>
-
-                                    {% endif %}
-
-                                    <!-- <a
-                                        href="{% url 'submit_feedback' booking.id %}"
-                                        class="complaint-btn"
-                                        style="padding:10px 14px; border-radius:11px; font-size:11px; font-weight:850;"
-                                    >
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
-
-                                        Raise Complaint
-                                    </a> -->
+                                <div class="chevron-circle-btn" aria-hidden="true">
+                                    <i class="bi bi-chevron-right"></i>
                                 </div>
-
-
                             </div>
-
-                        {% endif %}
-
-
-                    </article>
-
-                {% endfor %}
-
-
-            </div>
-
-
-        {% else %}
-
-
-            <!-- =================================================
-                 EMPTY STATE
-                 ================================================= -->
-
-            <div class="empty">
-
-
-                <div class="empty-icon">
-
-                    <i class="bi bi-calendar2-check"></i>
-
+                        </article>
+                    {% endfor %}
                 </div>
 
+                <!-- RIGHT COLUMN: DESKTOP DETAILS PANEL -->
+                <div class="bookings-details-col" id="desktopDetailsCol">
+                    {% for booking in bookings %}
+                        <div
+                            class="details-card-wrapper"
+                            id="detailsCardDesktop_{{ booking.id }}"
+                            style="{% if not forloop.first %}display:none;{% endif %}"
+                        >
+                            <!-- DETAILS CARD -->
+                            <article class="details-card">
+                                <!-- HEADER -->
+                                <div class="details-header">
+                                    <div>
+                                        <h2>Booking Details</h2>
+                                        <p class="details-subtitle">Complete information about your service booking.</p>
+                                    </div>
+                                    <button type="button" class="close-details-btn" data-close-details="true" aria-label="Close details">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
 
-                <h3>
+                                <!-- SERVICE & WORKER ROW -->
+                                <div class="details-service-row">
+                                    <div class="service-avatar-wrap">
+                                        {% if booking.service.image %}
+                                            <img src="{{ booking.service.image.url }}" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% elif 'electric' in booking.service.name|lower %}
+                                            <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% elif 'plumb' in booking.service.name|lower %}
+                                            <img src="https://images.unsplash.com/photo-1581244277943-fe4a9c777189?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% elif 'clean' in booking.service.name|lower %}
+                                            <img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% elif 'ac' in booking.service.name|lower %}
+                                            <img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% else %}
+                                            <img src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=240&q=80" alt="{{ booking.service.name }}" class="details-service-img">
+                                        {% endif %}
 
-                    No bookings yet
+                                        <div>
+                                            <h3 class="details-service-title">{{ booking.service.name }}</h3>
+                                            <div class="details-worker-meta">
+                                                {% if booking.worker and booking.worker.profile_image and booking.worker.user %}
+                                                    <img src="{{ booking.worker.profile_image.url }}" alt="{{ booking.worker.user.username }}" class="worker-tiny-avatar">
+                                                {% else %}
+                                                    <div class="worker-tiny-avatar" style="display:inline-flex; align-items:center; justify-content:center; color:#64748b; font-size:11px;">
+                                                        <i class="bi bi-person-fill"></i>
+                                                    </div>
+                                                {% endif %}
+                                                <span>Worker: {% if booking.worker and booking.worker.user %}{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}{% else %}Unassigned{% endif %}</span>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                </h3>
+                                    <div class="details-status-wrap">
+                                        {% if booking.status == 'COMPLETED' %}
+                                            <span class="status-pill completed"><i class="bi bi-check-circle-fill"></i> Completed</span>
+                                            <span class="status-subtext">Work completed successfully.</span>
+                                        {% elif booking.status == 'IN_PROGRESS' %}
+                                            <span class="status-pill in-progress"><i class="bi bi-clock-history"></i> In Progress</span>
+                                            <span class="status-subtext">Service currently in progress.</span>
+                                        {% elif booking.status == 'CANCELLED' %}
+                                            <span class="status-pill cancelled"><i class="bi bi-x-circle-fill"></i> Cancelled</span>
+                                            <span class="status-subtext">This booking was cancelled.</span>
+                                        {% elif booking.status == 'PENDING' %}
+                                            <span class="status-pill pending"><i class="bi bi-check-circle-fill"></i> Pending</span>
+                                            <span class="status-subtext">Waiting for worker confirmation.</span>
+                                        {% elif booking.status == 'COMPLETION_REQUESTED' %}
+                                            <span class="status-pill completion-requested"><i class="bi bi-bell-fill"></i> Completion Requested</span>
+                                            <span class="status-subtext">Worker requested completion review.</span>
+                                        {% elif booking.status == 'EMERGENCY_PENDING' %}
+                                            <span class="status-pill emergency"><i class="bi bi-lightning-charge-fill"></i> Emergency Pending</span>
+                                            <span class="status-subtext">Broadcasting request to nearby workers.</span>
+                                        {% else %}
+                                            <span class="status-pill pending">{{ booking.get_status_display }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
 
+                                <!-- SECTION 1: BOOKING INFORMATION -->
+                                <div class="details-section-title">
+                                    <i class="bi bi-calendar3"></i> Booking Information
+                                </div>
+                                <div class="booking-info-box">
+                                    <div class="info-grid-2col">
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-calendar3"></i> Booking ID</span>
+                                            <span class="info-cell-val">#BK{{ booking.created_at|date:'Ymd' }}-{{ booking.id|stringformat:"03d" }}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-clock"></i> Time</span>
+                                            <span class="info-cell-val">{{ booking.time }}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-calendar-check"></i> Booking date</span>
+                                            <span class="info-cell-val">{{ booking.created_at|date:"M d, Y" }}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-geo-alt"></i> Location</span>
+                                            <span class="info-cell-val">{{ booking.location }}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-clock-history"></i> Preferred date</span>
+                                            <span class="info-cell-val">{{ booking.date|date:"M d, Y" }}</span>
+                                        </div>
+                                        <div class="info-cell">
+                                            <span class="info-cell-label"><i class="bi bi-file-earmark-text"></i> Booking type</span>
+                                            <span class="info-cell-val">{{ booking.booking_type }}</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <p>
+                                <!-- SECTION 2: WORKER DETAILS & PAYMENT DETAILS -->
+                                <div class="details-2col-row">
+                                    <!-- WORKER DETAILS -->
+                                    <div class="details-subcard">
+                                        <div>
+                                            <div class="details-section-title" style="margin-top:0;">
+                                                <i class="bi bi-person"></i> Worker Details
+                                            </div>
+                                            <div class="worker-profile-snippet">
+                                                {% if booking.worker and booking.worker.profile_image and booking.worker.user %}
+                                                    <img src="{{ booking.worker.profile_image.url }}" alt="{{ booking.worker.user.username }}" class="worker-profile-avatar">
+                                                {% else %}
+                                                    <div class="worker-profile-avatar" style="display:inline-flex; align-items:center; justify-content:center; color:#64748b; font-size:20px;">
+                                                        <i class="bi bi-person-fill"></i>
+                                                    </div>
+                                                {% endif %}
+                                                <div>
+                                                    <div class="worker-profile-name">
+                                                        {% if booking.worker and booking.worker.user %}
+                                                            {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+                                                        {% else %}
+                                                            Unassigned
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="worker-profile-phone">
+                                                        <i class="bi bi-telephone-fill" style="color:var(--booking-green); font-size:11px;"></i>
+                                                        {% if booking.worker and booking.worker.phone %}{{ booking.worker.phone }}{% else %}{{ booking.phone|default:"Not provided" }}{% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="worker-rating-badge">
+                                                <i class="bi bi-star-fill"></i> 4.8 (32 reviews)
+                                            </div>
+                                        </div>
+                                        {% if booking.worker %}
+                                            <div class="worker-pricing-note">
+                                                <small>Worker Pricing</small>:
+                                                <span class="rate-val">&#8377;{{ booking.worker.pricing_amount|floatformat:2 }} / {% if booking.worker.pricing_type == 'day' %}day{% else %}hour{% endif %}</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
 
-                    Your service bookings will appear here
-                    after you book a worker.
+                                    <!-- PAYMENT DETAILS -->
+                                    <div class="details-subcard">
+                                        <div>
+                                            <div class="details-section-title" style="margin-top:0;">
+                                                <i class="bi bi-credit-card"></i> Payment Details
+                                            </div>
+                                            <div class="payment-stat-row">
+                                                <span class="stat-label"><i class="bi bi-shield-check"></i> Payment Status</span>
+                                                <span class="stat-val">
+                                                    {% if booking.payment %}
+                                                        {% if booking.payment.status == 'PENDING' %}
+                                                            Pending Verification
+                                                        {% else %}
+                                                            {{ booking.payment.get_status_display }}
+                                                        {% endif %}
+                                                    {% elif booking.is_paid %}
+                                                        Paid
+                                                    {% else %}
+                                                        Not submitted
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="payment-stat-row">
+                                                <span class="stat-label"><i class="bi bi-tag"></i> Service Cost (estimate)</span>
+                                                <span class="stat-val">
+                                                    {% if booking.estimated_cost != None %}
+                                                        &#8377;{{ booking.estimated_cost|floatformat:2 }}
+                                                    {% elif booking.service.price != None %}
+                                                        &#8377;{{ booking.service.price|floatformat:2 }}
+                                                    {% else %}
+                                                        Not set
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            {% if booking.is_paid and booking.payment %}
+                                                <div class="payment-stat-row">
+                                                    <span class="stat-label"><i class="bi bi-cash-stack"></i> Amount Paid</span>
+                                                    <span class="stat-val" style="color:var(--booking-green);">&#8377;{{ booking.payment.amount|floatformat:2 }}</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
 
-                </p>
+                                        {% if booking.status in payment_allowed_statuses and not booking.is_paid %}
+                                            {% if booking.payment and booking.payment.status == 'PENDING' %}
+                                                {# Awaiting admin verification; do not render form #}
+                                            {% elif booking.estimated_cost or booking.service.price %}
+                                                <div style="margin-top:10px;">
+                                                    <form method="POST" action="{% url 'confirm_payment' booking.id %}" style="margin:0;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="payment_method" value="UPI">
+                                                        <input type="hidden" name="payment_reference" value="UPI-{{ booking.id }}-{{ booking.created_at|date:'YmdHis' }}">
+                                                        <button type="submit" class="booking-pay-action">
+                                                            <i class="bi bi-credit-card-fill"></i> Record Manual Payment
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
 
+                                <!-- PAYMENT NOTICE BANNER -->
+                                {% if booking.payment and booking.payment.status == 'PENDING' %}
+                                    <div class="notice-callout-banner">
+                                        <i class="bi bi-info-circle-fill"></i>
+                                        <span class="payment-manual-note">Manual payment reported; awaiting admin verification.</span>
+                                    </div>
+                                {% elif not booking.is_paid and not booking.estimated_cost and not booking.service.price %}
+                                    <div class="notice-callout-banner">
+                                        <i class="bi bi-info-circle-fill"></i>
+                                        <span class="payment-manual-note">Payment is unavailable because no amount is configured for this booking.</span>
+                                    </div>
+                                {% endif %}
+
+                                <!-- SECTION 3: SCHEDULE -->
+                                <div class="schedule-card">
+                                    <div class="schedule-icon-circle">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <div class="schedule-copy">
+                                        <span class="schedule-label">Schedule protected</span>
+                                        <strong class="schedule-val">
+                                            {% if booking.start_time and booking.end_time %}
+                                                Schedule protected: {{ booking.start_time|time:"g:i A" }} - {{ booking.end_time|time:"g:i A" }}
+                                            {% else %}
+                                                Schedule protected: 2:00 PM - 3:00 PM
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <!-- SECTION 4: COMPLETION & REVIEW -->
+                                <div class="details-section-title">
+                                    <i class="bi bi-check-circle"></i> Completion & Review
+                                </div>
+                                <div class="completion-grid">
+                                    <!-- WORK COMPLETION STATUS -->
+                                    <div class="completion-subcard blue">
+                                        <div>
+                                            <div class="subcard-top">
+                                                <div class="subcard-icon blue"><i class="bi bi-check-lg"></i></div>
+                                                <div class="subcard-title blue">Work completed</div>
+                                            </div>
+                                            <p class="subcard-desc blue">
+                                                {% if booking.status == 'COMPLETED' %}
+                                                    You have confirmed that the work is complete.
+                                                {% elif booking.status == 'COMPLETION_REQUESTED' %}
+                                                    The worker has marked this service as completed.
+                                                {% else %}
+                                                    Current booking status: {{ booking.get_status_display }}.
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        {% if booking.status == 'COMPLETION_REQUESTED' %}
+                                            <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin-top:8px;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="confirm-completion-action-btn">
+                                                    <i class="bi bi-check-circle-fill"></i> Work is Complete
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- REVIEW STATUS -->
+                                    <div class="completion-subcard green">
+                                        <div>
+                                            <div class="subcard-top">
+                                                <div class="subcard-icon green"><i class="bi bi-star-fill"></i></div>
+                                                <div class="subcard-title green">Review Submitted</div>
+                                            </div>
+                                            <p class="subcard-desc green">
+                                                {% if booking.review %}
+                                                    Thank you for your feedback!
+                                                {% elif booking.status == 'COMPLETED' %}
+                                                    Share your experience with the service provider.
+                                                {% else %}
+                                                    Review submission available after service is completed.
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        {% if booking.status == 'COMPLETED' and not booking.review %}
+                                            <div>
+                                                <a href="{% url 'submit_feedback' booking.id %}" class="review-action-btn">
+                                                    <i class="bi bi-star-fill"></i> Give Feedback
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- EMERGENCY COPY IF APPLICABLE -->
+                                {% if booking.status == 'EMERGENCY_PENDING' and booking.booking_type == 'Emergency' %}
+                                    <div class="emergency-info-note">
+                                        <small>What happens now</small>
+                                        <span>Your request has been sent and verified workers for this trade are being notified. The first worker to accept takes the job. If nobody accepts, the request expires automatically - you can raise a new one from your bookings at any time.</span>
+                                    </div>
+                                {% elif booking.status == 'ACCEPTED' and booking.booking_type == 'Emergency' %}
+                                    <div class="emergency-info-note">
+                                        <small>What happens now</small>
+                                        <span>A worker has accepted your emergency request. They will contact you on the number provided, and you can message them from here.</span>
+                                    </div>
+                                {% endif %}
+
+                                <!-- ACTIONS BAR: CHAT, CANCEL, INVOICE -->
+                                <div class="details-actions-bar">
+                                    {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                                        <a
+                                            href="{% url 'booking_messages' booking.id %}"
+                                            class="booking-chat-btn"
+                                            data-partner-name="{% if booking.worker and booking.worker.user %}{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}{% else %}Service Team{% endif %}"
+                                            data-service-name="{{ booking.service.name }}"
+                                            data-booking-number="#{{ booking.id }}"
+                                        >
+                                            <i class="bi bi-chat-dots-fill"></i> Open Chat
+                                        </a>
+                                    {% endif %}
+
+                                    {% if booking.is_paid %}
+                                        <a href="{% url 'booking_invoice' booking.id %}" class="receipt-action-btn">
+                                            <i class="bi bi-receipt-fill"></i> Receipt
+                                        </a>
+                                    {% endif %}
+
+                                    {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' or booking.status == 'EMERGENCY_PENDING' %}
+                                        <form method="POST" action="{% url 'cancel_booking' booking.id %}" class="booking-cancel-action" style="margin:0;">
+                                            {% csrf_token %}
+                                            <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" class="cancel-action-btn">
+                                                <i class="bi bi-x-circle-fill"></i> Cancel Booking
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        </div>
+                    {% endfor %}
+                </div>
 
             </div>
 
+            <!-- MOBILE / POPUP MODAL OVERLAY -->
+            <div id="detailsModalOverlay" class="details-modal-overlay" aria-hidden="true">
+                <div class="details-modal-backdrop" data-close-details="true"></div>
+                <div class="details-modal-container" id="detailsModalContent" role="dialog" aria-modal="true" aria-labelledby="modalDetailsTitle">
+                    <!-- Populated dynamically from selected card -->
+                </div>
+            </div>
 
+        {% else %}
+            <!-- EMPTY STATE -->
+            <div class="empty-bookings-box">
+                <div class="empty-bookings-icon">
+                    <i class="bi bi-calendar2-check"></i>
+                </div>
+                <h3>No bookings yet</h3>
+                <p>Your service bookings will appear here after you book a worker.</p>
+            </div>
         {% endif %}
 
-
     </div>
-
 </div>
 
+<!-- IN-PAGE BOOKING CHAT MODAL -->
 <div id="bookingChatModal" class="booking-chat-modal" aria-hidden="true">
     <div class="booking-chat-backdrop" data-close-chat="true"></div>
     <div class="booking-chat-surface" role="dialog" aria-modal="true" aria-labelledby="bookingChatTitle">
@@ -679,12 +503,101 @@
     </div>
 </div>
 
+<!-- MASTER-DETAIL & MODAL POPUP JAVASCRIPT -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const modal = document.getElementById('bookingChatModal');
-        const content = document.getElementById('bookingChatContent');
-        const loader = document.getElementById('bookingChatLoading');
-        const chatButtons = document.querySelectorAll('.booking-chat-btn');
+        const cards = document.querySelectorAll('.booking-card');
+        const modalOverlay = document.getElementById('detailsModalOverlay');
+        const modalContent = document.getElementById('detailsModalContent');
+
+        function selectBooking(bookingId) {
+            // Update selected card styling
+            cards.forEach(function (card) {
+                if (card.dataset.bookingId === String(bookingId)) {
+                    card.classList.add('is-selected');
+                } else {
+                    card.classList.remove('is-selected');
+                }
+            });
+
+            // Update desktop panel
+            const wrappers = document.querySelectorAll('.details-card-wrapper');
+            wrappers.forEach(function (wrapper) {
+                wrapper.style.display = 'none';
+            });
+            const activeDesktop = document.getElementById('detailsCardDesktop_' + bookingId);
+            if (activeDesktop) {
+                activeDesktop.style.display = 'block';
+            }
+
+            // If mobile / tablet (< 1024px), open the modal popup with the card content
+            if (window.innerWidth < 1024 && activeDesktop) {
+                const cardClone = activeDesktop.querySelector('.details-card').cloneNode(true);
+                modalContent.innerHTML = '';
+                modalContent.appendChild(cardClone);
+                modalOverlay.classList.add('is-open');
+                modalOverlay.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                attachCardActions(modalContent);
+            }
+        }
+
+        function closeModal() {
+            if (modalOverlay) {
+                modalOverlay.classList.remove('is-open');
+                modalOverlay.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+            }
+        }
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                const id = this.dataset.bookingId;
+                if (id) {
+                    selectBooking(id);
+                }
+            });
+            card.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const id = this.dataset.bookingId;
+                    if (id) {
+                        selectBooking(id);
+                    }
+                }
+            });
+        });
+
+        // Close handlers for modal
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function (e) {
+                if (e.target.closest('[data-close-details]')) {
+                    closeModal();
+                }
+            });
+        }
+
+        // Close button on desktop panel deselects/collapses
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.bookings-details-col [data-close-details]')) {
+                // Keep the selection but provide visual feedback
+                const btn = e.target.closest('[data-close-details]');
+                btn.blur();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // ==========================================
+        // CHAT POPUP INTEGRATION
+        // ==========================================
+        const chatModal = document.getElementById('bookingChatModal');
+        const chatContent = document.getElementById('bookingChatContent');
+        const chatLoader = document.getElementById('bookingChatLoading');
 
         function escapeHtml(value) {
             return String(value || '').replace(/[&<>"']/g, function (char) {
@@ -706,15 +619,19 @@
         }
 
         function closeChatModal() {
-            modal.classList.remove('open');
-            modal.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('booking-chat-open');
+            if (chatModal) {
+                chatModal.classList.remove('open');
+                chatModal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('booking-chat-open');
+            }
         }
 
         function openChatModal() {
-            modal.classList.add('open');
-            modal.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('booking-chat-open');
+            if (chatModal) {
+                chatModal.classList.add('open');
+                chatModal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('booking-chat-open');
+            }
         }
 
         function renderConversation(html, options) {
@@ -722,9 +639,6 @@
             const doc = parser.parseFromString(html, 'text/html');
             const messageBody = doc.querySelector('.chat-body');
             const form = doc.querySelector('.chat-form form');
-            if (!messageBody || !form) {
-                throw new Error('The conversation response was incomplete.');
-            }
             if (form && options.chatUrl) {
                 form.setAttribute('action', options.chatUrl);
             }
@@ -732,13 +646,12 @@
             const serviceName = options.serviceName || 'Service';
             const bookingNumber = options.bookingNumber || 'Booking';
 
-            content.innerHTML = `
+            chatContent.innerHTML = `
                 <div class="booking-chat-shell">
                     <div class="booking-chat-header">
                         <button type="button" class="chat-nav-button" data-close-chat="true" aria-label="Back to My Bookings">
                             <i class="bi bi-arrow-left"></i>
                         </button>
-
                         <div class="booking-chat-user" aria-label="Chat participant">
                             <div class="booking-chat-avatar">${escapeHtml(getInitials(partnerName))}</div>
                             <div class="booking-chat-user-copy">
@@ -746,55 +659,34 @@
                                 <div class="booking-chat-meta">${escapeHtml(serviceName)} • ${escapeHtml(bookingNumber)}</div>
                             </div>
                         </div>
-
                         <button type="button" class="chat-close-button" data-close-chat="true" aria-label="Close chat">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-
                     <div class="booking-chat-thread">
                         ${messageBody ? messageBody.innerHTML : '<div class="empty-state">No messages yet.</div>'}
                     </div>
-
                     ${form ? '<div class="booking-chat-composer">' + form.outerHTML + '</div>' : ''}
                 </div>
             `;
 
-            const chatForm = content.querySelector('.booking-chat-composer form');
+            const chatForm = chatContent.querySelector('.booking-chat-composer form');
             if (chatForm) {
                 chatForm.addEventListener('submit', function (event) {
                     event.preventDefault();
-
                     const submitButton = chatForm.querySelector('button[type="submit"]');
-                    if (submitButton) {
-                        submitButton.disabled = true;
-                    }
+                    if (submitButton) submitButton.disabled = true;
 
                     fetch(chatForm.action, {
                         method: 'POST',
                         credentials: 'same-origin',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
                         body: new FormData(chatForm)
                     })
-                    .then(function (response) {
-                        if (!response.ok) {
-                            throw new Error('Unable to send chat message.');
-                        }
-                        return response.text();
-                    })
-                    .then(function (nextHtml) {
-                        renderConversation(nextHtml, options);
-                    })
-                    .catch(function () {
-                        if (submitButton) {
-                            submitButton.disabled = false;
-                        }
-                        const thread = content.querySelector('.booking-chat-thread');
-                        if (thread) {
-                            thread.insertAdjacentHTML('beforeend', '<div class="empty-state">Unable to send your message. Please try again.</div>');
-                        }
+                    .then(resp => resp.text())
+                    .then(nextHtml => renderConversation(nextHtml, options))
+                    .catch(() => {
+                        if (submitButton) submitButton.disabled = false;
                     });
                 });
             }
@@ -802,56 +694,49 @@
 
         function loadChat(url, options) {
             openChatModal();
-            loader.style.display = 'flex';
-            content.innerHTML = '';
+            if (chatLoader) chatLoader.style.display = 'flex';
+            if (chatContent) chatContent.innerHTML = '';
 
             fetch(url, {
                 credentials: 'same-origin',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('Unable to load this conversation.');
-                }
-                return response.text();
-            })
-            .then(function (html) {
-                loader.style.display = 'none';
+            .then(resp => resp.text())
+            .then(html => {
+                if (chatLoader) chatLoader.style.display = 'none';
                 renderConversation(html, options);
             })
-            .catch(function () {
-                loader.style.display = 'none';
-                content.innerHTML = '<div class="empty-state">Unable to load the conversation right now.</div>';
+            .catch(() => {
+                if (chatLoader) chatLoader.style.display = 'none';
+                if (chatContent) chatContent.innerHTML = '<div class="empty-state">Unable to load the conversation right now.</div>';
             });
         }
 
-        chatButtons.forEach(function (button) {
-            button.addEventListener('click', function (event) {
-                event.preventDefault();
-                const options = {
-                    partnerName: button.dataset.partnerName || 'Conversation',
-                    serviceName: button.dataset.serviceName || 'Service',
-                    bookingNumber: button.dataset.bookingNumber || 'Booking',
-                    chatUrl: button.getAttribute('href')
-                };
-                loadChat(button.getAttribute('href'), options);
+        function attachCardActions(context) {
+            context.querySelectorAll('.booking-chat-btn').forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const options = {
+                        partnerName: button.dataset.partnerName || 'Conversation',
+                        serviceName: button.dataset.serviceName || 'Service',
+                        bookingNumber: button.dataset.bookingNumber || 'Booking',
+                        chatUrl: button.getAttribute('href')
+                    };
+                    loadChat(button.getAttribute('href'), options);
+                });
             });
-        });
+        }
 
-        modal.addEventListener('click', function (event) {
-            if (event.target.closest('[data-close-chat]')) {
-                closeChatModal();
-            }
-        });
+        attachCardActions(document);
 
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('open')) {
-                closeChatModal();
-            }
-        });
+        if (chatModal) {
+            chatModal.addEventListener('click', function (event) {
+                if (event.target.closest('[data-close-chat]')) {
+                    closeChatModal();
+                }
+            });
+        }
     });
 </script>
-
 {% endblock %}

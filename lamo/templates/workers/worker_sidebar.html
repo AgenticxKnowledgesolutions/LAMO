@@ -210,27 +210,36 @@
         ========================= */
 
         .sidebar-link.active {
-            color: var(--green);
+            color: #ffffff;
 
-            background: var(--green-light);
+            background: #087f5b;
 
             font-weight: 750;
+
+            box-shadow: 0 4px 12px rgba(8, 127, 91, 0.22);
+        }
+
+
+        .sidebar-link.active i {
+            color: #ffffff;
+        }
+
+
+        .sidebar-link.active:hover {
+            color: #ffffff;
+
+            background: var(--green-dark);
+        }
+
+
+        .sidebar-link.active:focus-visible {
+            outline: 2px solid var(--green);
+            outline-offset: 2px;
         }
 
 
         .sidebar-link.active::before {
-            content: "";
-
-            position: absolute;
-
-            left: 0;
-
-            width: 4px;
-            height: 23px;
-
-            border-radius: 0 5px 5px 0;
-
-            background: var(--green);
+            display: none;
         }
 
 
@@ -664,10 +673,6 @@
 
             <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo">
 
-            <span class="brand-text">
-                LAMO
-            </span>
-
         </div>
 
 
@@ -929,19 +934,21 @@
              PAGE CONTENT
              ================================================= -->
 
-        {% if messages %}
-            {% for message in messages %}
-                {% if 'error' in message.tags %}
-                    <div class="alert alert-danger" role="alert">{{ message }}</div>
-                {% elif 'warning' in message.tags %}
-                    <div class="alert alert-warning" role="alert">{{ message }}</div>
-                {% elif 'success' in message.tags %}
-                    <div class="alert alert-success" role="alert">{{ message }}</div>
-                {% else %}
-                    <div class="alert alert-info" role="alert">{{ message }}</div>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
+        {% block worker_messages %}
+            {% if messages %}
+                {% for message in messages %}
+                    {% if 'error' in message.tags %}
+                        <div class="alert alert-danger" role="alert">{{ message }}</div>
+                    {% elif 'warning' in message.tags %}
+                        <div class="alert alert-warning" role="alert">{{ message }}</div>
+                    {% elif 'success' in message.tags %}
+                        <div class="alert alert-success" role="alert">{{ message }}</div>
+                    {% else %}
+                        <div class="alert alert-info" role="alert">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endblock %}
 
         {% block worker_content %}
 

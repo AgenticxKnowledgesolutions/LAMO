@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Terms &amp; Conditions | LAMO{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/legal.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Legal Hero -->
+<section class="legal-hero">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="legal-hero-badge">
+                    <i class="bi bi-shield-check"></i> Legal &amp; Governance
+                </div>
+                <h1 class="legal-hero-title">Terms &amp; Conditions</h1>
+                <p class="legal-hero-subtitle">
+                    Please read these Terms and Conditions carefully before using the LAMO platform. By registering, booking services, or offering labor services through LAMO, you agree to be bound by these terms.
+                </p>
+                <div class="legal-hero-meta">
+                    <div class="legal-hero-meta-item">
+                        <i class="bi bi-calendar3"></i> Effective Date: October 15, 2026
+                    </div>
+                    <div class="legal-hero-meta-item">
+                        <i class="bi bi-arrow-repeat"></i> Version: 1.0 (Public Release)
+                    </div>
+                    <div class="legal-hero-meta-item">
+                        <i class="bi bi-geo-alt"></i> Jurisdiction: Kerala, India
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Legal Content Body -->
+<section class="legal-page-body">
+    <div class="container legal-container">
+        <div class="row">
+            <!-- Sidebar Table of Contents -->
+            <div class="col-lg-4">
+                <aside class="legal-sidebar">
+                    <div class="legal-sidebar-title">
+                        <i class="bi bi-list-nested"></i> Table of Contents
+                    </div>
+                    <ul class="legal-toc-list">
+                        <li><a href="#section-1" class="legal-toc-link">1. Platform Nature &amp; Scope</a></li>
+                        <li><a href="#section-2" class="legal-toc-link">2. User Accounts &amp; Verification</a></li>
+                        <li><a href="#section-3" class="legal-toc-link">3. Service Bookings &amp; Quotes</a></li>
+                        <li><a href="#section-4" class="legal-toc-link">4. Cancellation &amp; Refund Policy</a></li>
+                        <li><a href="#section-5" class="legal-toc-link">5. Worker Liability &amp; Disclaimers</a></li>
+                        <li><a href="#section-6" class="legal-toc-link">6. Code of Conduct &amp; Safety</a></li>
+                        <li><a href="#section-7" class="legal-toc-link">7. Payment Terms &amp; Invoicing</a></li>
+                        <li><a href="#section-8" class="legal-toc-link">8. Reviews &amp; Feedback Integrity</a></li>
+                        <li><a href="#section-9" class="legal-toc-link">9. Data Protection Disclosures</a></li>
+                        <li><a href="#section-10" class="legal-toc-link">10. Termination &amp; Dispute Resolution</a></li>
+                    </ul>
+                </aside>
+            </div>
+
+            <!-- Main Legal Clauses -->
+            <div class="col-lg-8">
+                <!-- Section 1 -->
+                <article class="legal-card" id="section-1">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">1</span>
+                        Platform Nature &amp; Scope of Services
+                    </h2>
+                    <p class="legal-text">
+                        LAMO ("Platform", "we", "our", or "us") operates as an on-demand technology marketplace connecting customers seeking skilled labor, maintenance, and home repair services ("Customers") with independent tradespeople, technicians, and specialized service professionals ("Workers").
+                    </p>
+                    <p class="legal-text">
+                        LAMO does not directly employ workers or deliver physical maintenance services. We act strictly as a communication, scheduling, and verified matching intermediary. All physical trade work is executed independently by the assigned Worker.
+                    </p>
+                </article>
+
+                <!-- Section 2 -->
+                <article class="legal-card" id="section-2">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">2</span>
+                        User Accounts, Authentication &amp; Verification
+                    </h2>
+                    <p class="legal-text">
+                        To access booking or worker features, users must complete registration and email/OTP verification. You agree to:
+                    </p>
+                    <ul class="legal-list">
+                        <li>Provide accurate, truthful, and up-to-date contact details, addresses, and phone numbers.</li>
+                        <li>Maintain the confidentiality of your login credentials and one-time password (OTP) codes.</li>
+                        <li>Workers must provide valid identification, skill credentials, and background documentation upon onboarding. Falsification of trade qualifications is grounds for permanent deactivation.</li>
+                    </ul>
+                    <div class="legal-callout">
+                        <div class="legal-callout-title">
+                            <i class="bi bi-info-circle-fill"></i> Multi-Role Notice
+                        </div>
+                        <p>A single email address cannot hold both active Customer and Worker permissions simultaneously to preserve audit clarity and prevent transactional conflict of interest.</p>
+                    </div>
+                </article>
+
+                <!-- Section 3 -->
+                <article class="legal-card" id="section-3">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">3</span>
+                        Service Bookings, Emergency Requests &amp; Recurring Series
+                    </h2>
+                    <p class="legal-text">
+                        When submitting a booking request, the Customer specifies the preferred date, time window, address, and job requirements.
+                    </p>
+                    <ul class="legal-list">
+                        <li><strong>Standard Bookings:</strong> Confirmed upon worker acceptance. An estimated service cost is displayed on the booking details panel.</li>
+                        <li><strong>Emergency Requests:</strong> Dispatched with accelerated priority to nearby active workers. Additional surcharge or urgent minimum call-out fees may apply.</li>
+                        <li><strong>Recurring Booking Series:</strong> Automated periodic service bookings (weekly/monthly). Customers may pause, resume, or cancel active series at any time through the Series Dashboard.</li>
+                    </ul>
+                </article>
+
+                <!-- Section 4 -->
+                <article class="legal-card" id="section-4">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">4</span>
+                        Cancellation &amp; Refund Policy
+                    </h2>
+                    <p class="legal-text">
+                        We maintain fair cancellation rules designed to respect both customer convenience and worker livelihood.
+                    </p>
+                    <div class="legal-subheading">Customer Cancellations:</div>
+                    <ul class="legal-list">
+                        <li><strong>Before Worker Acceptance / Departure:</strong> Cancellations made while the booking is still in "REQUESTED" or "PENDING" status incur zero cancellation fee.</li>
+                        <li><strong>After Dispatch:</strong> If a booking is cancelled after a worker has been dispatched and is en route, a nominal nominal mobilization charge (call-out fee) may be assessed to reimburse the worker's travel expenses.</li>
+                        <li><strong>Emergency Requests:</strong> Due to immediate dispatch protocols, emergency bookings cancelled more than 10 minutes post-acceptance may be subject to standard travel compensation fees.</li>
+                    </ul>
+                    <div class="legal-subheading">Worker or Platform Cancellations:</div>
+                    <p class="legal-text">
+                        If an assigned Worker cancels due to unforeseen emergency, LAMO will automatically attempt reassignment to another verified worker. If no alternative worker is available, the booking is cancelled without penalty, and any advance payment is credited or refunded immediately.
+                    </p>
+                    <div class="legal-callout legal-callout-warning">
+                        <div class="legal-callout-title">
+                            <i class="bi bi-cash-coin"></i> Refund Processing Window
+                        </div>
+                        <p>Approved refunds for verified disputes or cancellations are processed within 3 to 7 business days back to the original method of payment.</p>
+                    </div>
+                </article>
+
+                <!-- Section 5 -->
+                <article class="legal-card" id="section-5">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">5</span>
+                        Worker Liability &amp; Disclaimers
+                    </h2>
+                    <p class="legal-text">
+                        <strong>Independent Contractor Status:</strong> Service workers operating via LAMO are independent contractors and not agents, partners, or employees of LAMO. LAMO does not supervise the physical trade methods employed at customer premises.
+                    </p>
+                    <div class="legal-callout legal-callout-danger">
+                        <div class="legal-callout-title">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Limitation of Liability
+                        </div>
+                        <p>
+                            To the maximum extent permitted by applicable law, LAMO shall not be held liable for indirect, incidental, punitive, or consequential damages resulting from worker performance, material defects, or delays. The worker performing the service is directly responsible for adhering to professional trade standards.
+                        </p>
+                    </div>
+                    <p class="legal-text">
+                        <strong>Customer Recourse:</strong> LAMO provides an integrated dispute resolution mechanism via the <em>"Raise Complaint"</em> feature. In the event of substandard workmanship or property damage, our administrative team reviews evidence submitted and may mediate between parties or suspend offending workers.
+                    </p>
+                </article>
+
+                <!-- Section 6 -->
+                <article class="legal-card" id="section-6">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">6</span>
+                        Code of Conduct, Non-Discrimination &amp; Safety
+                    </h2>
+                    <p class="legal-text">
+                        All users (Customers and Workers alike) must maintain a safe, respectful, and harassment-free environment.
+                    </p>
+                    <ul class="legal-list">
+                        <li>Workers must inspect work sites for hazards and follow standard electrical, plumbing, and structural safety codes.</li>
+                        <li>Customers must provide safe access to the designated service area and disclose any known hazards (e.g., exposed wiring, gas leaks, structural fragility).</li>
+                        <li>Zero tolerance for verbal abuse, harassment, discrimination, or unlawful conduct. Violations result in immediate ban and legal reporting where applicable.</li>
+                    </ul>
+                </article>
+
+                <!-- Section 7 -->
+                <article class="legal-card" id="section-7">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">7</span>
+                        Payment Terms &amp; Invoicing
+                    </h2>
+                    <p class="legal-text">
+                        All service fees, material expenses, and applicable taxes are recorded against the booking.
+                    </p>
+                    <ul class="legal-list">
+                        <li><strong>Manual / Direct Settlements:</strong> When paying in cash or direct UPI, customers can record the manual payment transaction ID via the Booking Details screen for verification.</li>
+                        <li><strong>Digital Receipts:</strong> Once verified, an official tax-compliant PDF/HTML invoice is generated and accessible under the Customer and Worker dashboards.</li>
+                        <li><strong>No Cash Surcharges:</strong> Workers are prohibited from demanding unauthorized cash sums exceeding the agreed quote without submitting updated job requirements.</li>
+                    </ul>
+                </article>
+
+                <!-- Section 8 -->
+                <article class="legal-card" id="section-8">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">8</span>
+                        Reviews &amp; Feedback Integrity
+                    </h2>
+                    <p class="legal-text">
+                        Customers can submit ratings and written reviews only following verified job completion. Each booking allows exactly one review to prevent duplicate or falsified feedback. Defamatory, fraudulent, or retaliatory reviews will be removed following administrative investigation.
+                    </p>
+                </article>
+
+                <!-- Section 9 -->
+                <article class="legal-card" id="section-9">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">9</span>
+                        Data Protection &amp; Confidentiality
+                    </h2>
+                    <p class="legal-text">
+                        Your use of LAMO is governed by our <a href="{% url 'privacy' %}">Privacy Policy</a>. Phone numbers, service coordinates, and contact details are shared only between matched customers and workers for the explicit duration and purpose of completing the active booking.
+                    </p>
+                </article>
+
+                <!-- Section 10 -->
+                <article class="legal-card" id="section-10">
+                    <h2 class="legal-card-title">
+                        <span class="section-number">10</span>
+                        Governing Law, Jurisdiction &amp; Inquiries
+                    </h2>
+                    <p class="legal-text">
+                        These Terms and Conditions shall be governed by and construed in accordance with the laws of India. Any legal dispute or claim arising out of or related to the platform shall be subject to the exclusive jurisdiction of the competent courts in Kollam, Kerala.
+                    </p>
+                    <div class="legal-contact-box">
+                        <h4>Questions regarding our Terms?</h4>
+                        <p><strong>Support Team:</strong> support@lamo.in</p>
+                        <p><strong>Grievance Officer:</strong> grievance@lamo.in</p>
+                        <p><strong>Operating Address:</strong> LAMO Technologies, Kollam, Kerala, India 691001</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

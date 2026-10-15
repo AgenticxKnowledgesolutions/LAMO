@@ -2,6 +2,10 @@
 
 {% block title %}My Jobs | LAMO{% endblock %}
 
+{# This page renders Django messages itself as .lamo-message popups below. #}
+{# Override the sidebar's static alert block so each message is shown once. #}
+{% block worker_messages %}{% endblock %}
+
 {% block worker_content %}
 
 <style>

@@ -16,6 +16,8 @@ urlpatterns = [
     path('worker-dashboard/', views.worker_dashboard, name='worker_dashboard'),
     path('about/', views.about, name='about'),
     path('contact/', views.contact, name='contact'),
+    path('terms/', views.terms_view, name='terms'),
+    path('privacy/', views.privacy_view, name='privacy'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),

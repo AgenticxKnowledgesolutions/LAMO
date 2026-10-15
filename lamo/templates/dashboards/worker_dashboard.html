@@ -421,6 +421,26 @@ Worker Dashboard | LAMO
                     <div><i class="bi bi-calendar3"></i><span><small>Member since</small>{{ worker_profile.created_at|date:"M Y" }}</span></div>
                 </div>
 
+                <!-- CURRENT LOCATION UPDATE
+                     Reuses the existing worker_manage_dashboard 'update_location'
+                     action and workers-worker_manage_dashboard.js. Location is only
+                     sent when the worker explicitly clicks the button below. -->
+                <form method="POST" action="{% url 'worker_manage_dashboard' %}" id="workerLocationForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_location">
+                    <input type="hidden" name="latitude" id="workerLatitudeInput">
+                    <input type="hidden" name="longitude" id="workerLongitudeInput">
+                    <button type="button" id="workerUpdateLocationBtn" class="profile-location-btn">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        {% if worker_profile.latitude and worker_profile.longitude %}
+                            Update Current Location
+                        {% else %}
+                            Set Current Location
+                        {% endif %}
+                    </button>
+                    <div id="workerLocationStatus" class="profile-location-status"></div>
+                </form>
+
                 <a class="profile-edit-link" href="{% url 'edit_worker_profile' %}">Edit Profile</a>
                 {% else %}
                 <div class="empty-box"><strong>Profile not available</strong></div>
@@ -570,6 +590,7 @@ Worker Dashboard | LAMO
 
 {% block extra_js %}
 <script src="{% static 'js/worker-dashboard-chat.js' %}?v=20261011"></script>
+<script src="{% static 'js/workers-worker_manage_dashboard.js' %}"></script>
 <script>
 (function () {
     var toggle = document.getElementById('dashNotifToggle');
