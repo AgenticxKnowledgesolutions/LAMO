@@ -4155,6 +4155,95 @@ class RegisterJsInlineHandlerTest(SimpleTestCase):
         self.assertIn('togglePassword(', template)
         self.assertIn('toggleOtherService(', template)
 
+
+class RegisterLiveValidationTest(SimpleTestCase):
+    """register.html shows validation messages while the user types.
+
+    The checks live in ``accounts-register.js`` (``liveValidationMessage``)
+    and render into the ``<small class="field-error" id="<field>Error">``
+    slots register.html places inside each field's *existing* wrapper -
+    inside it, never beside it, because the step entrance animation
+    staggers ``.input-group:nth-child(...)`` and a new sibling would
+    silently change those delays.
+    """
+
+    ROOT = Path(__file__).resolve().parent
+    JS = ROOT / 'static' / 'js' / 'accounts-register.js'
+    CSS = ROOT / 'static' / 'css' / 'accounts-register.css'
+    TEMPLATE = ROOT.parent / 'templates' / 'accounts' / 'register.html'
+
+    LIVE_FIELDS = (
+        'username', 'email', 'password', 'confirm_password', 'phone',
+        'service', 'custom_service', 'district', 'address',
+        'experience_years', 'availability', 'pricing_amount',
+        'proof_type', 'proof_document',
+    )
+
+    MESSAGES = (
+        # Required fields
+        'Username is required.',
+        'Email is required.',
+        'Password is required.',
+        # Password rules
+        'Password must contain at least 8 characters.',
+        'This password is entirely numeric.',
+        'Passwords do not match.',
+        # Email / phone format
+        'Please enter a valid email address.',
+        'Please enter a valid 10-digit Indian mobile number.',
+    )
+
+    def test_template_has_an_error_slot_for_every_live_field(self):
+        template = self.TEMPLATE.read_text(encoding='utf-8')
+        for field in self.LIVE_FIELDS:
+            with self.subTest(field=field):
+                self.assertIn('id="{}Error"'.format(field), template)
+        # One slot per field - no duplicates.
+        self.assertEqual(
+            template.count('class="field-error"'),
+            len(self.LIVE_FIELDS),
+        )
+
+    def test_error_slots_sit_inside_the_fields_wrapper(self):
+        template = self.TEMPLATE.read_text(encoding='utf-8')
+        for field in ('username', 'email', 'password', 'phone', 'address'):
+            with self.subTest(field=field):
+                start = template.index('id="{}"'.format(field))
+                end = template.index('id="{}Error"'.format(field))
+                self.assertNotIn('</div>', template[start:end])
+
+    def test_js_validates_while_typing_not_only_on_submit(self):
+        source = self.JS.read_text(encoding='utf-8')
+        self.assertIn("addEventListener('input'", source)
+        self.assertIn("addEventListener('change'", source)
+        self.assertIn("addEventListener('blur'", source)
+        self.assertIn('liveValidationMessage', source)
+
+    def test_live_messages_match_the_existing_wording(self):
+        source = self.JS.read_text(encoding='utf-8')
+        for message in self.MESSAGES:
+            with self.subTest(message=message):
+                self.assertIn(message, source)
+
+    def test_css_styles_the_inline_error_state(self):
+        css = self.CSS.read_text(encoding='utf-8')
+        self.assertIn('.field-error {', css)
+        self.assertIn('.field-error.show', css)
+        self.assertIn('.input-group.has-error', css)
+        self.assertIn('.lamo-input.invalid', css)
+
+
+class RegisterLiveValidationRenderTest(TestCase):
+    """Editing the template must not break the registration page itself."""
+
+    def test_register_page_renders_with_every_live_error_slot(self):
+        response = self.client.get(reverse('register'))
+        self.assertEqual(response.status_code, 200)
+        for field in RegisterLiveValidationTest.LIVE_FIELDS:
+            with self.subTest(field=field):
+                self.assertContains(response, 'id="{}Error"'.format(field))
+
+
 class _RateLimitIsolationMixin:
     """Rate-limit counters live in the (process-wide) cache, not the database.
 

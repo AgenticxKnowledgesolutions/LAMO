@@ -1224,6 +1224,60 @@ footer,
 
 
 /* =====================================================
+   LIVE VALIDATION
+   Inline messages appear while the user types. They stay
+   hidden until a check fails, so the resting layout,
+   spacing and colours of the page are exactly what they
+   were before this feature existed.
+===================================================== */
+
+.field-error {
+
+    display: none;
+
+    margin-top: 5px;
+
+    color: #dc2626;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    line-height: 1.35;
+}
+
+.field-error.show {
+    display: block;
+}
+
+/* The password eye button is centred on the whole group
+   (top: 50%), so a message must never grow the group or
+   the button would slide. The message sits below the
+   group instead, and the group reserves room for it only
+   while the message is visible (has-error is toggled by
+   accounts-register.js). */
+.input-group > .field-error {
+
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+}
+
+.input-group.has-error {
+    margin-bottom: 40px;
+}
+
+.lamo-input.invalid,
+.worker-input.invalid,
+.worker-select.invalid,
+.worker-textarea.invalid,
+.worker-file.invalid {
+
+    border-color: #dc2626;
+}
+
+
+/* =====================================================
    MOBILE
 ===================================================== */
 

@@ -740,6 +740,124 @@ document.addEventListener(
         );
 
 
+        /* ==========================================
+           LIVE VALIDATION
+           Messages appear while the user types (and
+           on blur), instead of only after Create
+           Account is clicked. Nothing runs on page
+           load, so an untouched form stays silent.
+           Wording mirrors the server-side messages,
+           and these checks never block submission -
+           the view stays the final authority.
+        ========================================== */
+
+        const liveFieldIds = [
+            'username',
+            'email',
+            'password',
+            'confirm_password',
+            'phone',
+            'service',
+            'custom_service',
+            'district',
+            'address',
+            'experience_years',
+            'availability',
+            'pricing_amount',
+            'proof_type',
+            'proof_document'
+        ];
+
+
+        function showFieldError(field, message) {
+
+            const slot = document.getElementById(field.id + 'Error');
+            const group = field.parentElement;
+
+            if (message) {
+
+                if (slot) {
+                    slot.textContent = message;
+                    slot.classList.add('show');
+                }
+
+                if (
+                    group &&
+                    group.classList &&
+                    group.classList.contains('input-group')
+                ) {
+                    group.classList.add('has-error');
+                }
+
+                field.classList.add('invalid');
+                field.setAttribute('aria-invalid', 'true');
+
+            } else {
+
+                if (slot) {
+                    slot.textContent = '';
+                    slot.classList.remove('show');
+                }
+
+                if (group && group.classList) {
+                    group.classList.remove('has-error');
+                }
+
+                field.classList.remove('invalid');
+                field.removeAttribute('aria-invalid');
+
+            }
+        }
+
+
+        function refreshLiveField(field) {
+
+            if (!field) return;
+
+            showFieldError(
+                field,
+                liveValidationMessage(field)
+            );
+        }
+
+
+        liveFieldIds.forEach(function (fieldId) {
+
+            const field = document.getElementById(fieldId);
+
+            if (!field) return;
+
+
+            function refresh() {
+
+                field.dataset.touched = 'true';
+
+                refreshLiveField(field);
+
+
+                /* The confirmation slot depends on the password, and the
+                   custom service only matters while "Other" is selected,
+                   so those two are refreshed together with them. */
+                if (fieldId === 'password') {
+                    refreshLiveField(
+                        document.getElementById('confirm_password')
+                    );
+                }
+
+                if (fieldId === 'service') {
+                    refreshLiveField(
+                        document.getElementById('custom_service')
+                    );
+                }
+            }
+
+            field.addEventListener('input', refresh);
+            field.addEventListener('change', refresh);
+            field.addEventListener('blur', refresh);
+
+        });
+
+
     }
 );
 
@@ -827,3 +945,185 @@ function togglePassword(
 ========================================== */
 window.togglePassword = togglePassword;
 window.toggleOtherService = toggleOtherService;
+
+
+/* ==========================================
+   LIVE VALIDATION CHECKS
+   Pure helpers used by the LIVE VALIDATION
+   block inside the DOMContentLoaded callback
+   above. They are declared at the top level
+   of the file so they can be unit-tested
+   outside the browser (function declarations
+   hoist, so the callback can already call
+   them). Every message matches the wording
+   register_view and the step buttons already
+   use, so the user sees one consistent
+   message whether the problem is caught
+   here, at the button, or on the server.
+========================================== */
+
+const LIVE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LIVE_PHONE_PATTERN = /^[6-9][0-9]{9}$/;
+
+
+function liveValidationMessage(field) {
+
+    const id = field.id;
+    const raw = field.value || '';
+    const value = raw.trim();
+
+
+    /* PASSWORD - length first, then "all digits", exactly
+       like the server (len < 8, then validate_password). */
+    if (id === 'password') {
+
+        if (!raw) return 'Password is required.';
+
+        if (raw.length < 8) {
+            return 'Password must contain at least 8 characters.';
+        }
+
+        if (/^\d+$/.test(raw)) return 'This password is entirely numeric.';
+
+        return '';
+    }
+
+
+    /* CONFIRM PASSWORD - a mismatch shows as soon as the user
+       types something that differs; an untouched empty field
+       stays silent until it has been blurred once. */
+    if (id === 'confirm_password') {
+
+        const passwordField = document.getElementById('password');
+        const password = passwordField ? passwordField.value : '';
+
+        if (!raw) {
+            return field.dataset.touched && password
+                ? 'Passwords do not match.'
+                : '';
+        }
+
+        return raw !== password
+            ? 'Passwords do not match.'
+            : '';
+    }
+
+
+    if (id === 'email') {
+
+        if (!value) return 'Email is required.';
+
+        return LIVE_EMAIL_PATTERN.test(value)
+            ? ''
+            : 'Please enter a valid email address.';
+    }
+
+
+    if (id === 'username') {
+        return value ? '' : 'Username is required.';
+    }
+
+
+    /* PHONE - same rule as register_view: [6-9] followed by
+       nine digits (an empty value fails it too). */
+    if (id === 'phone') {
+
+        return LIVE_PHONE_PATTERN.test(value)
+            ? ''
+            : 'Please enter a valid 10-digit Indian mobile number.';
+    }
+
+
+    if (id === 'service') {
+        return value ? '' : 'Please select your service.';
+    }
+
+
+    if (id === 'custom_service') {
+
+        const serviceField = document.getElementById('service');
+
+        if (!serviceField || serviceField.value !== 'other') return '';
+
+        return value.length >= 2
+            ? ''
+            : 'Please enter your custom service name.';
+    }
+
+
+    if (id === 'district') {
+        return value ? '' : 'Please select your district.';
+    }
+
+
+    if (id === 'availability') {
+        return value ? '' : 'Please select your availability.';
+    }
+
+
+    if (id === 'proof_type') {
+        return value
+            ? ''
+            : 'Please select a valid proof type (Aadhaar, PAN, or Voter ID).';
+    }
+
+
+    if (id === 'address') {
+
+        if (!value) return 'Please enter your address.';
+
+        return value.length >= 10
+            ? ''
+            : 'Please enter a complete address.';
+    }
+
+
+    if (id === 'experience_years') {
+
+        if (value === '') return 'Please enter your experience.';
+
+        const experience = Number(value);
+
+        if (!Number.isInteger(experience)) {
+            return 'Please enter a valid experience.';
+        }
+
+        if (experience < 0) return 'Experience cannot be negative.';
+
+        if (experience > 60) return 'Experience cannot exceed 60 years.';
+
+        return '';
+    }
+
+
+    if (id === 'pricing_amount') {
+
+        if (value === '') return 'Please enter your pricing amount.';
+
+        const amount = Number(value);
+
+        if (!Number.isFinite(amount)) {
+            return 'Please enter a valid pricing amount.';
+        }
+
+        if (amount <= 0) {
+            return 'Please enter a pricing amount greater than ₹0.';
+        }
+
+        if (amount > 100000) {
+            return 'Pricing amount seems too high. Please enter a valid amount.';
+        }
+
+        return '';
+    }
+
+
+    if (id === 'proof_document') {
+        return field.files && field.files.length
+            ? ''
+            : 'Please upload your proof document.';
+    }
+
+
+    return '';
+}
