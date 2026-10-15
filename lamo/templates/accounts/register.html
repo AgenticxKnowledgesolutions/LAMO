@@ -134,20 +134,9 @@ Register | LAMO
                 </div>
 
 
-                <!-- DJANGO MESSAGES -->
-
-                {% if messages %}
-
-                    {% for message in messages %}
-
-                        <div class="alert alert-{{ message.tags }}">
-                            {{ message }}
-                        </div>
-
-                    {% endfor %}
-
-                {% endif %}
-
+                <!-- DJANGO MESSAGES (inline copy removed: base.html already
+                     shows every Django message once as a toast; rendering
+                     them here too displayed each error twice) -->
 
                 <form
                     method="POST"

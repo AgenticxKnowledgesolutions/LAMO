@@ -37,13 +37,6 @@ services:
       # ---- Not secret: safe to keep in this file ----
       - key: DJANGO_ENV
         value: production
-      # Must list BOTH the custom domain and the onrender.com hostname.
-      # Add the generated <service>.onrender.com host in the dashboard if it
-      # differs, e.g. DJANGO_ALLOWED_HOSTS=lamo.agenticx.in,lamo.onrender.com
-      - key: DJANGO_ALLOWED_HOSTS
-        value: lamo.agenticx.in
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: https://lamo.agenticx.in
       # Off by default; DEBUG is hard-forbidden in production by settings.py.
       - key: DJANGO_DEBUG
         value: "False"
@@ -89,3 +82,13 @@ services:
       # Optional: leave blank to disable AI and fall back to local matching.
       - key: GOOGLE_API_KEY
         sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        value: lamo.agenticx.co.in,lamo-qucn.onrender.com
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://lamo.agenticx.co.in,https://lamo-qucn.onrender.com
+      - key: USE_RESEND
+        value: "True"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_SENDER
+        value: "LAMO <noreply@mail.agenticx.co.in>"

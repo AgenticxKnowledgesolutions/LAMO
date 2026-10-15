@@ -6436,6 +6436,133 @@ class BookingLocationUnicodeTest(TestCase):
         self.assertIn('accept-charset="UTF-8"', html)
 
 
+class PasswordValidationTest(TestCase):
+    """Registration + reset must enforce AUTH_PASSWORD_VALIDATORS.
+
+    Previously only a length>=8 check ran, so 'password123' or
+    '12345678' were accepted. validate_password() is now applied in
+    register_view (USER + WORKER share the path) and
+    forgot_password_view reset branch, after the existing
+    confirmation/length checks.
+    """
+
+    def _user_payload(self, username, password, confirm=None):
+        return {
+            'username': username, 'email': username + '@t.com',
+            'password': password,
+            'confirm_password': password if confirm is None else confirm,
+            'role': 'USER',
+        }
+
+    def test_valid_password_registers_and_starts_otp_flow(self):
+        response = self.client.post(
+            reverse('register'), self._user_payload('pwdok1', 'Password123!')
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('verify_otp'))
+        user = CustomUser.objects.get(username='pwdok1')
+        self.assertTrue(user.check_password('Password123!'))
+        self.assertIsNotNone(user.email_verification_otp)
+
+    def test_short_password_rejected(self):
+        response = self.client.post(
+            reverse('register'), self._user_payload('pwdshort1', 'Ab1!')
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CustomUser.objects.filter(username='pwdshort1').exists()
+        )
+
+    def test_common_password_rejected(self):
+        response = self.client.post(
+            reverse('register'), self._user_payload('pwdcommon1', 'password123')
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CustomUser.objects.filter(username='pwdcommon1').exists()
+        )
+        self.assertContains(response, 'This password is too common.')
+
+    def test_numeric_only_password_rejected(self):
+        response = self.client.post(
+            reverse('register'), self._user_payload('pwdnum1', '12345678')
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CustomUser.objects.filter(username='pwdnum1').exists()
+        )
+        self.assertContains(response, 'This password is entirely numeric.')
+
+    def test_confirmation_mismatch_still_rejected(self):
+        response = self.client.post(
+            reverse('register'),
+            self._user_payload('pwdmis1', 'Password123!', confirm='Other123!x'),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CustomUser.objects.filter(username='pwdmis1').exists()
+        )
+        self.assertContains(response, 'Passwords do not match.')
+
+    def test_worker_weak_password_rejected_before_file_checks(self):
+        service = Service.objects.create(
+            name='PwdValSvc', description='d',
+            price=Decimal('500.00'), is_active=True,
+        )
+        proof = SimpleUploadedFile(
+            'ok.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
+        )
+        response = self.client.post(reverse('register'), {
+            'username': 'pwdworker1', 'email': 'pwdworker1@t.com',
+            'password': 'password123', 'confirm_password': 'password123',
+            'role': 'WORKER',
+            'phone': '9876543221',
+            'service': str(service.id),
+            'experience_years': '5',
+            'district': 'Ernakulam',
+            'availability': 'Full Time',
+            'pricing_type': 'hour',
+            'pricing_amount': '500',
+            'address': 'Kakkanad, Kochi, Kerala',
+            'proof_type': 'aadhaar',
+            'proof_document': proof,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            CustomUser.objects.filter(username='pwdworker1').exists()
+        )
+
+    def test_password_reset_accepts_valid_password(self):
+        user = _make_user('pwdresetok')
+        token = user.generate_password_reset_token()
+        old_hash = user.password
+        response = self.client.post(
+            reverse('forgot_password') + '?uid=%s&token=%s' % (user.pk, token),
+            {'password': 'NewPass123!x', 'confirm_password': 'NewPass123!x'},
+        )
+        self.assertEqual(response.status_code, 302)
+        user.refresh_from_db()
+        self.assertNotEqual(user.password, old_hash)
+        self.assertTrue(user.check_password('NewPass123!x'))
+
+    def test_password_reset_rejects_common_password_without_saving(self):
+        user = _make_user('pwdresetbad')
+        token = user.generate_password_reset_token()
+        old_hash = user.password
+        response = self.client.post(
+            reverse('forgot_password') + '?uid=%s&token=%s' % (user.pk, token),
+            {'password': 'password123', 'confirm_password': 'password123'},
+        )
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertEqual(user.password, old_hash)
+        self.assertFalse(user.check_password('password123'))
+        self.assertContains(response, 'This password is too common.')
+        self.assertTrue(response.context['reset_mode'])
+        self.assertEqual(str(response.context['uid']), str(user.pk))
+        self.assertEqual(response.context['token'], token)
+
+
 class PrefixCloudinaryStorageTest(TestCase):
     """Default storage routes public images to Cloudinary, proofs stay local.
 
@@ -6792,3 +6919,171 @@ class AdminServiceCreateFlowTest(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Service.objects.filter(name='AlsoNot').exists())
+
+    # ------------------------------------------------------------------
+    # Regression coverage for the production "Admin -> Add Service fails"
+    # defect. Root cause: a bare ``import cloudinary`` does not expose
+    # ``cloudinary.uploader`` (SDK 1.x), so any submission carrying an
+    # image raised AttributeError inside form.save() -> HTTP 500.
+    # ------------------------------------------------------------------
+
+    def _tiny_gif(self, name='tiny.gif'):
+        # 1x1 GIF: Pillow-valid so ImageField validation passes.
+        return SimpleUploadedFile(
+            name,
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,'
+            b'\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;',
+            content_type='image/gif',
+        )
+
+    def test_configure_cloudinary_exposes_uploader_submodule(self):
+        """The storage layer must expose ``cloudinary.uploader`` after config.
+
+        With the submodule left un-imported (bare ``import cloudinary``),
+        ``cloudinary.uploader.upload`` raises AttributeError and every
+        image-bearing Add Service POST 500s. The submodule is popped first
+        so a previously-imported copy can never mask the regression, and
+        every ``cloudinary*`` entry is restored afterwards: other tests
+        assert the suite never leaves the SDK imported when unconfigured.
+        """
+        import sys
+
+        from lamoapp.cloudinary_storage import _configure_cloudinary
+
+        def _sdk_keys():
+            return [
+                k for k in sys.modules
+                if k == 'cloudinary' or k.startswith('cloudinary.')
+            ]
+
+        before = {k: sys.modules[k] for k in _sdk_keys()}
+        saved_attr = None
+        try:
+            import cloudinary
+
+            saved_attr = cloudinary.__dict__.pop('uploader', None)
+            sys.modules.pop('cloudinary.uploader', None)
+            configured = _configure_cloudinary()
+            self.assertTrue(
+                hasattr(configured, 'uploader'),
+                '_configure_cloudinary() must expose cloudinary.uploader - '
+                'otherwise every image upload dies inside form.save()',
+            )
+        finally:
+            if saved_attr is not None and 'cloudinary' in before:
+                before['cloudinary'].__dict__['uploader'] = saved_attr
+            for key in _sdk_keys():
+                if key not in before:
+                    del sys.modules[key]
+            sys.modules.update(before)
+
+    def test_admin_can_add_a_service_with_an_image(self):
+        """An image-bearing submission reaches the SDK and saves cleanly."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        # Shared dummy-shaped settings - never real credentials (see
+        # PrefixCloudinaryStorageTest.CLOUDINARY_SETTINGS).
+        with override_settings(**PrefixCloudinaryStorageTest.CLOUDINARY_SETTINGS):
+            fake_sdk = MagicMock()
+            with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+                response = self.client.post(reverse('service_create'), {
+                    'name': 'Painting',
+                    'description': 'Wall and ceiling painting',
+                    'price': '750',
+                    'is_active': 'on',
+                    'image': self._tiny_gif('paint.gif'),
+                })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(fake_sdk.uploader.upload.called)
+        service = Service.objects.get(name='Painting')
+        # Django joins upload_to with os.sep (backslash on Windows).
+        self.assertTrue(
+            service.image.name.replace('\\', '/').startswith('services/')
+        )
+
+    def test_storage_failure_is_a_friendly_error_not_a_500(self):
+        """A Cloudinary outage re-renders with a message instead of a 500."""
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        fake_sdk = MagicMock()
+        fake_sdk.uploader.upload.side_effect = Exception(
+            'boom api_secret=test-secret-not-a-real-credential'
+        )
+        with override_settings(**PrefixCloudinaryStorageTest.CLOUDINARY_SETTINGS):
+            with patch.dict(sys.modules, {'cloudinary': fake_sdk}):
+                response = self.client.post(reverse('service_create'), {
+                    'name': 'BrokenUpload',
+                    'description': 'Never saved',
+                    'price': '10',
+                    'is_active': 'on',
+                    'image': self._tiny_gif('broken.gif'),
+                })
+        # Friendly re-render of the form page - never an unhandled 500.
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Service.objects.filter(name='BrokenUpload').exists())
+        self.assertContains(response, 'Could not save the service')
+        # The raw exception (and any echoed secret) must not reach the page.
+        self.assertNotContains(response, 'test-secret-not-a-real-credential')
+
+    def test_created_service_persists_expected_fields(self):
+        """Every submitted field lands on the saved Service row."""
+        response = self.client.post(reverse('service_create'), {
+            'name': 'AC Repair',
+            'description': 'Split and window AC service',
+            'price': '1299.50',
+            'is_active': 'on',
+            'is_featured': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        service = Service.objects.get(name='AC Repair')
+        self.assertEqual(service.description, 'Split and window AC service')
+        self.assertEqual(service.price, Decimal('1299.50'))
+        self.assertTrue(service.is_active)
+        self.assertTrue(service.is_featured)
+
+    def test_non_image_upload_is_a_form_error_not_a_500(self):
+        """A non-image payload is rejected by validation, not a crash."""
+        response = self.client.post(reverse('service_create'), {
+            'name': 'NotAnImage',
+            'description': 'x',
+            'price': '10',
+            'is_active': 'on',
+            'image': SimpleUploadedFile(
+                'payload.txt', b'definitely not an image',
+                content_type='text/plain',
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Service.objects.filter(name='NotAnImage').exists())
+        self.assertTrue(response.context['form'].errors)
+
+    def test_existing_services_are_unchanged_by_a_new_creation(self):
+        """Adding one service never mutates the services already listed."""
+        first = Service.objects.create(
+            name='Old One', description='first',
+            price=Decimal('11.00'), is_active=True,
+        )
+        second = Service.objects.create(
+            name='Old Two', description='second',
+            price=Decimal('22.00'), is_active=False,
+        )
+        response = self.client.post(reverse('service_create'), {
+            'name': 'Brand New',
+            'description': 'third',
+            'price': '33',
+            'is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Service.objects.count(), 3)
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(first.description, 'first')
+        self.assertEqual(first.price, Decimal('11.00'))
+        self.assertTrue(first.is_active)
+        self.assertEqual(second.description, 'second')
+        self.assertEqual(second.price, Decimal('22.00'))
+        self.assertFalse(second.is_active)
+

@@ -69,6 +69,7 @@ from .rate_limit import (
 from .forms import ServiceForm, UserProfileForm, WorkerProfileForm
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.utils import timezone
@@ -774,7 +775,11 @@ def home(request):
     # Admins have no business on the public homepage; send them
     # directly to the admin dashboard so they don't see the
     # customer-facing splash / service listing.
-    if request.user.is_authenticated and getattr(request.user, 'role', None) == 'ADMIN':
+    if request.user.is_authenticated and (
+        getattr(request.user, 'role', None) == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    ):
         return redirect('admin_dashboard')
 
     if not request.session.get('lamo_splash_shown'):
@@ -2554,13 +2559,41 @@ def worker_accept_emergency(request, booking_id):
 @login_required
 def service_create(request):
 
-    if request.user.role != 'ADMIN':
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
         messages.error(request, 'You are not authorized to access this page.')
         return redirect('dashboard')
+    if request.user.role != 'ADMIN':
+        request.user.role = 'ADMIN'
+        request.user.save(update_fields=['role'])
     if request.method == 'POST':
         form = ServiceForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            try:
+                # Storage (Cloudinary) or DB failures must surface as a
+                # friendly re-render, never an unhandled HTTP 500 from the
+                # admin Add Service flow. The storage layer logs the scrubbed
+                # detail; only the exception type is recorded here so a
+                # credential-bearing SDK message can never reach this log.
+                with transaction.atomic():
+                    form.save()
+            except Exception as exc:
+                logger.error(
+                    'service_create_save_failed user=%s exc_type=%s',
+                    getattr(request.user, 'pk', None), type(exc).__name__,
+                )
+                messages.error(
+                    request,
+                    'Could not save the service. If you attached an image, '
+                    'it may have failed to upload - please try again.',
+                )
+                return render(request, 'lamo_service/service_form.html', {
+                    'form': form, 'title': 'Add Service',
+                })
             messages.success(request, 'Service created successfully.')
             return redirect('service_list')
     else:
@@ -2695,6 +2728,18 @@ def register_view(request):
                 request,
                 'Password must contain at least 8 characters.'
             )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
 
             return render(
                 request,
@@ -3592,6 +3637,18 @@ def forgot_password_view(request, token=None):
                 'token': token,
             })
 
+        try:
+            validate_password(password, user=reset_user)
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
         # Re-verify the token once more right before saving (extra safety)
         if not reset_user.is_reset_token_valid(token):
             messages.error(
@@ -3773,9 +3830,23 @@ def login_view(request):
         if user is not None:
 
             # ==================================================
+            # ADMIN / SUPERUSER GUARANTEE (No OTP, Always ADMIN)
+            # ==================================================
+            is_admin_account = (
+                user.role == 'ADMIN'
+                or getattr(user, 'is_superuser', False)
+                or getattr(user, 'is_staff', False)
+            )
+            if is_admin_account:
+                if user.role != 'ADMIN' or not user.is_email_verified:
+                    user.role = 'ADMIN'
+                    user.is_email_verified = True
+                    user.save(update_fields=['role', 'is_email_verified'])
+
+            # ==================================================
             # EMAIL VERIFICATION CHECK (User & Worker only)
             # ==================================================
-            if user.role in ['USER', 'WORKER'] and not user.is_email_verified:
+            if not is_admin_account and user.role in ['USER', 'WORKER'] and not user.is_email_verified:
                 # The credentials were correct, so clear the brute-force
                 # counter before anything else.
                 clear(rl_key)
@@ -3857,16 +3928,18 @@ def login_view(request):
             # now sits in the session between two requests. Anything unsafe falls
             # through to the normal role-based destination, so behaviour is
             # unchanged for anyone who did not arrive via a ?next= link.
-            pending_next = request.session.pop('registration_next', None)
-            safe_next = _safe_internal_path(request, pending_next, '')
-            if safe_next:
-                return redirect(safe_next)
+            # Admins always go straight to the admin dashboard.
+            if not is_admin_account:
+                pending_next = request.session.pop('registration_next', None)
+                safe_next = _safe_internal_path(request, pending_next, '')
+                if safe_next:
+                    return redirect(safe_next)
 
             # ==================================================
             # ROLE BASED REDIRECTION
             # ==================================================
 
-            if user.role == 'ADMIN':
+            if is_admin_account or user.role == 'ADMIN':
 
                 return redirect(
                     'admin_dashboard'
@@ -3953,7 +4026,11 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    if request.user.role == 'ADMIN':
+    if (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    ):
         return redirect('admin_dashboard')
 
     elif request.user.role == 'USER':
@@ -4230,8 +4307,19 @@ def admin_dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    if request.user.role != 'ADMIN':
+    is_admin_user = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+
+    if not is_admin_user:
         return redirect('dashboard')
+
+    if request.user.role != 'ADMIN':
+        request.user.role = 'ADMIN'
+        request.user.is_email_verified = True
+        request.user.save(update_fields=['role', 'is_email_verified'])
 
     from django.db.models import Count, Avg
 
@@ -4755,9 +4843,17 @@ def admin_suspend_worker(request, worker_id):
 @login_required
 def service_update(request, pk):
 
-    if request.user.role != 'ADMIN':
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
         messages.error(request, 'You are not authorized to access this page.')
         return redirect('dashboard')
+    if request.user.role != 'ADMIN':
+        request.user.role = 'ADMIN'
+        request.user.save(update_fields=['role'])
 
     service = get_object_or_404(
         Service,
@@ -4811,7 +4907,12 @@ def service_delete(request, pk):
         return redirect('service_list')
 
     # Only ADMIN can delete services
-    if request.user.role != 'ADMIN':
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
         messages.error(
             request,
             'You are not authorized to delete services.'

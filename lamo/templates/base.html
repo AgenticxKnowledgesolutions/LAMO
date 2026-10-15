@@ -883,8 +883,10 @@
 <script>
 function showToast(type, title, message, duration = 4000) {
     const container = document.getElementById('toastContainer');
+    if (!container) { return; }
     const toast = document.createElement('div');
     toast.className = 'toast toast-' + type;
+    toast.setAttribute('role', 'status');
 
     const icons = {
         success: 'bi-check-lg',
@@ -893,14 +895,37 @@ function showToast(type, title, message, duration = 4000) {
         info: 'bi-info-lg'
     };
 
-    toast.innerHTML = `
-        <div class="toast-icon"><i class="bi ${icons[type] || icons.info}"></i></div>
-        <div class="toast-content">
-            <div class="toast-title">${title}</div>
-            <div class="toast-message">${message}</div>
-        </div>
-        <button class="toast-close" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
-    `;
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'toast-icon';
+    const icon = document.createElement('i');
+    icon.className = 'bi ' + (icons[type] || icons.info);
+    icon.setAttribute('aria-hidden', 'true');
+    iconWrap.appendChild(icon);
+
+    const content = document.createElement('div');
+    content.className = 'toast-content';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'toast-title';
+    titleEl.textContent = title;
+    const messageEl = document.createElement('div');
+    messageEl.className = 'toast-message';
+    messageEl.textContent = message;
+    content.appendChild(titleEl);
+    content.appendChild(messageEl);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.setAttribute('type', 'button');
+    closeBtn.setAttribute('aria-label', 'Dismiss notification');
+    const closeIcon = document.createElement('i');
+    closeIcon.className = 'bi bi-x';
+    closeIcon.setAttribute('aria-hidden', 'true');
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', function() { toast.remove(); });
+
+    toast.appendChild(iconWrap);
+    toast.appendChild(content);
+    toast.appendChild(closeBtn);
 
     container.appendChild(toast);
 

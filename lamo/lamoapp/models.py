@@ -1,11 +1,37 @@
 import hashlib
 import secrets
 import string
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from django.urls import reverse
+
+
+class CustomUserManager(UserManager):
+    """Manager that keeps ``role`` in step with Django's superuser flags.
+
+    ``createsuperuser`` (and ``create_superuser()``) only sets ``is_staff`` and
+    ``is_superuser``; it knows nothing about ``CustomUser.role``, which would
+    otherwise fall back to its ``'USER'`` default. Every access check in this
+    project branches on ``role`` - not on ``is_superuser`` - so such an account
+    was a real superuser that the app treated as an ordinary customer and sent
+    to the customer home page after login.
+
+    A superuser is therefore always given ``role='ADMIN'``. ``is_email_verified``
+    is set too: admin logins skip the OTP step, so an unverified flag on an
+    admin account only leaves a stale state behind the login form.
+    """
+
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault('role', 'ADMIN')
+        extra_fields.setdefault('is_email_verified', True)
+        return super().create_superuser(username, email, password, **extra_fields)
+
+    async def acreate_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault('role', 'ADMIN')
+        extra_fields.setdefault('is_email_verified', True)
+        return await super().acreate_superuser(username, email, password, **extra_fields)
 
 
 class CustomUser(AbstractUser):
@@ -21,6 +47,12 @@ class CustomUser(AbstractUser):
         choices=ROLE_CHOICES,
         default='USER'
     )
+
+    # Replaces AbstractUser's stock manager so `createsuperuser` assigns
+    # role='ADMIN' (see CustomUserManager). Everything the default manager did
+    # - create_user, get_by_natural_key, OTP flows, etc. - is inherited
+    # unchanged, so no existing behaviour is altered.
+    objects = CustomUserManager()
 
     is_email_verified = models.BooleanField(default=False)
     email_verification_otp = models.CharField(max_length=6, blank=True, null=True)

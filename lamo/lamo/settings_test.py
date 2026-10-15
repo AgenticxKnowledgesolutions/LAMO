@@ -60,6 +60,7 @@ PASSWORD_HASHERS = [
 
 # Never touch a real SMTP server while testing.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+USE_RESEND = False
 
 # Never touch the real Cloudinary account while testing: the prefix-routing
 # storage backend activates only when all three credentials are set, so

@@ -133,6 +133,21 @@ def _configure_cloudinary():
     """
     import cloudinary
 
+    # A bare ``import cloudinary`` does NOT expose ``cloudinary.uploader``
+    # (SDK 1.x): ``cloudinary.uploader.upload`` then raised AttributeError
+    # ("module 'cloudinary' has no attribute 'uploader'") and every admin
+    # Add Service save that carried an image died as an HTTP 500 inside
+    # form.save(). Import the submodules explicitly, tolerating a
+    # substituted non-package stand-in for ``sys.modules['cloudinary']``
+    # (the test suite mocks the SDK that way - the stand-in still resolves
+    # uploader/api/utils through normal attribute access).
+    try:
+        import cloudinary.uploader
+        import cloudinary.api
+        import cloudinary.utils
+    except ImportError:
+        pass
+
     cloud_name, api_key, api_secret = _cloudinary_credentials()
     cloudinary.config(
         cloud_name=cloud_name,
