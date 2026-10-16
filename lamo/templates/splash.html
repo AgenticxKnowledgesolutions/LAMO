@@ -55,15 +55,18 @@
     }
 
     /* =========================================================
-       3. VIDEO STAGE (ORIGINAL COMPOSITION, NO CROPPING/ZOOM)
+       3. RESPONSIVE VIDEO STAGE (FITS SCREEN WITHOUT CROPPING)
        ========================================================= */
     .splash-video-stage {
-      position: relative;
-      width: 100%;
-      height: 100%;
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
       z-index: 1;
     }
 
@@ -198,15 +201,16 @@
       var skipBtn = document.getElementById("skipButton");
       var transitioned = false;
 
-      // URL definitions
+      // Video sources
       var desktopSrc = "{% static 'video/splash.mp4' %}";
       var mobileSrc = "{% static 'video/splash-2.mp4' %}";
 
-      // Detect mobile screen: width <= 768px or mobile portrait
+      // Detect mobile screen: width <= 768px or portrait phone/tablet
       var isMobile = (window.innerWidth <= 768) || 
-                     (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+                     (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) ||
+                     (window.matchMedia && window.matchMedia("(orientation: portrait) and (max-width: 900px)").matches);
 
-      // Select single video based on screen size (avoid loading both simultaneously)
+      // Select single video based on screen size (avoids loading both simultaneously)
       var activeSrc = isMobile ? mobileSrc : desktopSrc;
 
       /*
