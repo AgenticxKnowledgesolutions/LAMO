@@ -1864,19 +1864,21 @@
   content: "";
   position: absolute;
   top: 0;
-  left: 15%;
-  width: 70%;
+  left: 10%;
+  width: 80%;
   height: 3px;
   border-radius: 0 0 10px 10px;
-  background: linear-gradient(90deg, transparent, #16a34a, #087f5b, transparent);
+  background: linear-gradient(90deg, transparent, #087f5b, #0ca678, #20c997, #38d9a9, #0ca678, transparent);
+  background-size: 200% 100%;
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform .4s ease;
+  transition: transform .35s ease;
   z-index: 5;
 }
 
 .modern-service-card:hover::before {
   transform: scaleX(1);
+  animation: lamoStreak 3.5s linear infinite;
 }
 
 .modern-service-card:hover {

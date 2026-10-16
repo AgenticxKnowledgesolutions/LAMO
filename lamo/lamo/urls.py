@@ -58,7 +58,8 @@ if settings.DEBUG or os.getenv('DJANGO_SERVE_MEDIA', 'False').lower() in ('true'
     )
 
 
-# Friendly error pages (templates/404.html and templates/500.html).
+# Friendly error pages (templates/403.html, templates/404.html and templates/500.html).
 # Only used when DEBUG=False; Django shows its own debug page otherwise.
+handler403 = 'lamoapp.views.custom_403_view'
 handler404 = 'lamoapp.views.custom_404_view'
 handler500 = 'lamoapp.views.custom_500_view'

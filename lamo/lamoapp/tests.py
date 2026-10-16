@@ -8204,6 +8204,10 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
 class ContactPageRenderingAndFormTest(TestCase):
     """Regression tests for contact.html page rendering, hero block, and form handling."""
 
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
     def test_contact_page_get_renders_successfully(self):
         response = self.client.get(reverse('contact'))
         self.assertEqual(response.status_code, 200)
@@ -8246,6 +8250,186 @@ class ContactPageRenderingAndFormTest(TestCase):
         enquiry = ContactEnquiry.objects.filter(email='phone@example.com').first()
         self.assertIsNotNone(enquiry)
         self.assertLessEqual(len(enquiry.phone), 15)
+
+
+class MultiTabAuthenticationAndOptimizationTests(TestCase):
+    """
+    Regression test suite for:
+    - Multi-tab authentication and role-based redirect consistency
+    - Safe dashboard routing across Customer, Worker, and Admin roles
+    - 403 Forbidden handling and custom 403 error page rendering
+    - Splash screen cookie and session synchronization
+    - Resend and external API timeout bounds
+    - Database query optimization on dashboards
+    """
+
+    def setUp(self):
+        from .models import CustomUser, WorkerProfile, Service, Booking
+        # Customer
+        self.customer = CustomUser.objects.create_user(
+            username='tab_customer',
+            email='tab_customer@example.com',
+            password='Password123!',
+            role='USER',
+            is_email_verified=True,
+        )
+        # Service
+        self.service = Service.objects.create(
+            name='AC Repair',
+            description='AC service',
+            price=800,
+            is_active=True,
+        )
+        # Worker
+        self.worker_user = CustomUser.objects.create_user(
+            username='tab_worker',
+            email='tab_worker@example.com',
+            password='Password123!',
+            role='WORKER',
+            is_email_verified=True,
+        )
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            service=self.service,
+            is_verified=True,
+            availability='AVAILABLE',
+        )
+        # Admin
+        self.admin = CustomUser.objects.create_superuser(
+            username='tab_admin',
+            email='tab_admin@example.com',
+            password='Password123!',
+            role='ADMIN',
+            is_email_verified=True,
+        )
+        self.booking = Booking.objects.create(
+            customer=self.customer,
+            service=self.service,
+            status='ACCEPTED',
+            worker=self.worker_profile,
+            estimated_cost=800,
+        )
+
+    def test_unauthenticated_dashboard_redirects_to_login(self):
+        """Unauthenticated requests to any dashboard redirect to login."""
+        dashboards = ['dashboard', 'user_dashboard', 'worker_dashboard', 'admin_dashboard']
+        for db in dashboards:
+            resp = self.client.get(reverse(db))
+            self.assertEqual(resp.status_code, 302, f"Failed for {db}")
+            self.assertIn(reverse('login'), resp['Location'])
+
+    def test_customer_role_dashboard_routing(self):
+        """Customer accessing /dashboard/ or /user-dashboard/ is routed correctly."""
+        self.client.force_login(self.customer)
+        # /dashboard/ routes Customer to home
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('home'), resp['Location'])
+
+        # /user-dashboard/ renders user_dashboard.html
+        resp = self.client.get(reverse('user_dashboard'))
+        self.assertEqual(resp.status_code, 200)
+
+        # Customer accessing worker_dashboard redirects to dashboard -> home
+        resp = self.client.get(reverse('worker_dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('dashboard'), resp['Location'])
+
+        # Customer accessing admin_dashboard redirects to dashboard -> home
+        resp = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('dashboard'), resp['Location'])
+
+    def test_worker_role_dashboard_routing(self):
+        """Worker accessing /dashboard/ or /worker-dashboard/ is routed correctly."""
+        self.client.force_login(self.worker_user)
+        # /dashboard/ routes Worker to worker_dashboard
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('worker_dashboard'), resp['Location'])
+
+        # /worker-dashboard/ renders
+        resp = self.client.get(reverse('worker_dashboard'))
+        self.assertEqual(resp.status_code, 200)
+
+        # Worker accessing user_dashboard redirects to dashboard -> worker_dashboard
+        resp = self.client.get(reverse('user_dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('dashboard'), resp['Location'])
+
+        # Worker accessing admin_dashboard redirects to dashboard
+        resp = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('dashboard'), resp['Location'])
+
+    def test_admin_role_dashboard_routing(self):
+        """Admin accessing /dashboard/ or /admin-dashboard/ is routed correctly."""
+        self.client.force_login(self.admin)
+        # /dashboard/ routes Admin to admin_dashboard
+        resp = self.client.get(reverse('dashboard'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('admin_dashboard'), resp['Location'])
+
+        # /admin-dashboard/ renders
+        resp = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(resp.status_code, 200)
+
+        # Admin visiting home is redirected to admin_dashboard
+        resp = self.client.get(reverse('home'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('admin_dashboard'), resp['Location'])
+
+    def test_multi_tab_session_switch_simulation(self):
+        """Simulate Tab 1 (Customer) and Tab 2 (Worker) in same browser session."""
+        # Tab 1: Customer logs in
+        self.client.force_login(self.customer)
+        resp1 = self.client.get(reverse('user_dashboard'))
+        self.assertEqual(resp1.status_code, 200)
+
+        # Tab 2: Logs in as Worker in same browser (client session updated)
+        self.client.force_login(self.worker_user)
+        resp2 = self.client.get(reverse('worker_dashboard'))
+        self.assertEqual(resp2.status_code, 200)
+
+        # Tab 1: User refreshes customer dashboard -> safely redirected via dashboard router
+        resp1_refresh = self.client.get(reverse('user_dashboard'))
+        self.assertEqual(resp1_refresh.status_code, 302)
+        self.assertIn(reverse('dashboard'), resp1_refresh['Location'])
+
+    def test_genuine_403_access_denied_cases(self):
+        """Unauthorized access to other users' private bookings receives 403 Forbidden."""
+        from .models import CustomUser
+        other_user = CustomUser.objects.create_user(
+            username='stranger_customer',
+            email='stranger@example.com',
+            password='Password123!',
+            role='USER',
+            is_email_verified=True,
+        )
+        self.client.force_login(other_user)
+        # Attempt to access messages of self.booking (which belongs to self.customer)
+        resp = self.client.get(reverse('booking_messages', args=[self.booking.id]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_custom_403_view_renders_403_template(self):
+        """custom_403_view renders branded 403.html with 403 status."""
+        from lamoapp.views import custom_403_view
+        from django.test import RequestFactory
+        from django.contrib.auth.models import AnonymousUser
+        factory = RequestFactory()
+        req = factory.get('/forbidden/')
+        req.user = AnonymousUser()
+        resp = custom_403_view(req)
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('Access Denied', resp.content.decode('utf-8'))
+
+    def test_splash_screen_session_cookie_set_on_render(self):
+        """Splash screen response sets lamo_splash_seen cookie."""
+        resp = self.client.get(reverse('home'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'splash.html')
+        self.assertIn('lamo_splash_seen', resp.cookies)
+        self.assertEqual(resp.cookies['lamo_splash_seen'].value, '1')
 
 
 

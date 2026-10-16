@@ -457,6 +457,28 @@
             z-index: 900;
         }
 
+        .mobile-header::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #087f5b 15%, 
+                #0ca678 35%, 
+                #20c997 50%, 
+                #38d9a9 65%, 
+                #0ca678 85%, 
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: lamoStreak 4.5s linear infinite;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
 
         .mobile-menu {
             width: 39px;
@@ -643,6 +665,7 @@
          Child templates override the extra_css block to load their
          own stylesheet. Without this block Django silently discards it.
     ====================================================== -->
+    <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
     {% block extra_css %}{% endblock %}
 
 </head>

@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied | LAMO</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <style>
+        .error-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            background: #f8fafc;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        .error-card {
+            max-width: 520px;
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .08);
+            padding: 44px 36px;
+            text-align: center;
+        }
+        .error-code {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1;
+            color: #d97706;
+            letter-spacing: -2px;
+        }
+        .error-title {
+            margin: 14px 0 10px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .error-text {
+            margin: 0 0 26px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #475467;
+        }
+        .error-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .error-btn {
+            display: inline-block;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            background: #087f5b;
+            color: #ffffff;
+            border: 1px solid #087f5b;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .error-btn.secondary {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #e2e8f0;
+        }
+        .error-btn:hover {
+            opacity: .9;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-page">
+        <div class="error-card">
+            <div class="error-code">403</div>
+            <h1 class="error-title">Access Denied</h1>
+            <p class="error-text">
+                You do not have permission to access this resource or page.
+                If you recently switched accounts in another tab, please return to your dashboard or log in with the appropriate account.
+            </p>
+            <div class="error-actions">
+                <a class="error-btn" href="{% url 'dashboard' %}">Go to Dashboard</a>
+                <a class="error-btn secondary" href="{% url 'home' %}">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

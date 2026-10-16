@@ -112,7 +112,7 @@ def _call_gemini_api(prompt_text):
             method="POST"
         )
 
-        with urllib.request.urlopen(req, timeout=15) as response:
+        with urllib.request.urlopen(req, timeout=6) as response:
             res_body = response.read().decode("utf-8")
             res_json = json.loads(res_body)
 
@@ -518,7 +518,7 @@ def geocode_place(place_name, district=None, state='Kerala'):
 
     try:
         request = urllib.request.Request(url, headers={'User-Agent': settings.GEOCODING_USER_AGENT})
-        with urllib.request.urlopen(request, timeout=8) as response:
+        with urllib.request.urlopen(request, timeout=4) as response:
             data = json.loads(response.read().decode('utf-8'))
             if not data:
                 return None, None

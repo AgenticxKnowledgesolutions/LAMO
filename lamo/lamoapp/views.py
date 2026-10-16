@@ -114,6 +114,11 @@ def _safe_coord(value):
     return number
 
 
+def custom_403_view(request, exception=None):
+    """Friendly 403 Forbidden page (wired up via handler403 in lamo/urls.py)."""
+    return render(request, '403.html', status=403)
+
+
 def custom_404_view(request, exception=None):
     """Friendly 404 page (wired up via handler404 in lamo/urls.py)."""
     return render(request, '404.html', status=404)
@@ -762,11 +767,12 @@ def home(request):
     # One-time animated splash screen (templates/splash.html).
     #
     # The first request in a new browsing session renders the
-    # splash screen and stores a flag on the session. splash.html
+    # splash screen and stores a flag on the session and sets a
+    # browser session cookie 'lamo_splash_seen'. splash.html
     # redirects back to this same URL ({% url 'home' %}) after its
-    # 3s animation, by which point the flag is already set, so the
-    # real homepage renders on that second hit. This is what
-    # prevents a splash <-> home redirect loop and stops the splash
+    # animation (or user tap/keypress skip), by which point the flag
+    # is already set, so the real homepage renders on that second hit.
+    # This prevents a splash <-> home redirect loop and stops the splash
     # from replaying on internal navigation or a homepage refresh.
     # ---------------------------------------------------------
 
@@ -780,21 +786,33 @@ def home(request):
     ):
         return redirect('admin_dashboard')
 
-    # If transitioning from the splash screen, ensure the flag is recorded
-    if request.GET.get('from_splash'):
+    is_from_splash = bool(request.GET.get('from_splash'))
+    if is_from_splash:
         request.session['lamo_splash_shown'] = True
+        if not request.user.is_authenticated:
+            request.session.set_expiry(0)
 
     query = request.GET.get('q', '').strip()
 
+    # Determine if this session has already seen the splash screen.
+    # The flag can be in the Django session (e.g. from tests or prior view hits)
+    # or in the browser session cookie 'lamo_splash_seen'.
+    has_seen_splash = (
+        bool(request.session.get('lamo_splash_shown'))
+        or request.COOKIES.get('lamo_splash_seen') == '1'
+        or is_from_splash
+    )
+
     # Show splash screen on first visit in a new browser session
     # (Skip if user is already searching with ?q=)
-    if not query and not request.session.get('lamo_splash_shown'):
+    if not query and not has_seen_splash:
         request.session['lamo_splash_shown'] = True
-        # For unauthenticated visitors, make session cookie expire on browser close
-        # so fresh browser sessions consistently see the splash screen.
         if not request.user.is_authenticated:
             request.session.set_expiry(0)
-        return render(request, 'splash.html')
+        response = render(request, 'splash.html')
+        response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
+        return response
+
     services = Service.objects.filter(is_active=True)
     if query:
         services = services.filter(
@@ -813,12 +831,15 @@ def home(request):
         .order_by('-created_at')[:6]
     )
 
-    return render(request, 'home.html', {
+    response = render(request, 'home.html', {
         'services': home_services,
         'has_more_services': has_more_services,
         'query': query,
         'reviews': reviews,
     })
+    if request.COOKIES.get('lamo_splash_seen') != '1':
+        response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
+    return response
 
 
 def send_otp_email(user):
@@ -4446,27 +4467,41 @@ def admin_dashboard(request):
     users = CustomUser.objects.filter(role='USER')
     workers = CustomUser.objects.filter(role='WORKER')
 
-    total_bookings = Booking.objects.count()
-    pending_bookings = Booking.objects.filter(status__in=['PENDING', 'EMERGENCY_PENDING']).count()
-    completed_bookings = Booking.objects.filter(status='COMPLETED').count()
-    active_bookings = Booking.objects.filter(status__in=['ACCEPTED', 'IN_PROGRESS']).count()
+    booking_stats = Booking.objects.aggregate(
+        total=Count('id'),
+        pending=Count('id', filter=Q(status='PENDING')),
+        emergency=Count('id', filter=Q(status='EMERGENCY_PENDING')),
+        accepted=Count('id', filter=Q(status='ACCEPTED')),
+        in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
+        completed=Count('id', filter=Q(status='COMPLETED')),
+        cancelled=Count('id', filter=Q(status='CANCELLED')),
+        revenue=Sum('estimated_cost', filter=Q(is_paid=True)),
+    )
+    total_bookings = booking_stats['total'] or 0
+    pending_bookings = (booking_stats['pending'] or 0) + (booking_stats['emergency'] or 0)
+    completed_bookings = booking_stats['completed'] or 0
+    active_bookings = (booking_stats['accepted'] or 0) + (booking_stats['in_progress'] or 0)
+    total_revenue = booking_stats['revenue'] or 0
 
-    total_complaints = Complaint.objects.count()
-    open_complaints = Complaint.objects.filter(status='OPEN').count()
+    booking_status_data = {
+        'Pending': booking_stats['pending'] or 0,
+        'Emergency': booking_stats['emergency'] or 0,
+        'Accepted': booking_stats['accepted'] or 0,
+        'In Progress': booking_stats['in_progress'] or 0,
+        'Completed': booking_stats['completed'] or 0,
+        'Cancelled': booking_stats['cancelled'] or 0,
+    }
 
-    total_revenue = Booking.objects.filter(is_paid=True).aggregate(total=Sum('estimated_cost'))['total'] or 0
+    complaint_stats = Complaint.objects.aggregate(
+        total=Count('id'),
+        open=Count('id', filter=Q(status='OPEN')),
+    )
+    total_complaints = complaint_stats['total'] or 0
+    open_complaints = complaint_stats['open'] or 0
+
     avg_rating = Review.objects.all().aggregate(avg=Avg('rating'))['avg'] or 0
 
     recent_bookings = Booking.objects.select_related('customer', 'worker__user', 'service').order_by('-created_at')[:10]
-
-    booking_status_data = {
-        'Pending': Booking.objects.filter(status='PENDING').count(),
-        'Emergency': Booking.objects.filter(status='EMERGENCY_PENDING').count(),
-        'Accepted': Booking.objects.filter(status='ACCEPTED').count(),
-        'In Progress': Booking.objects.filter(status='IN_PROGRESS').count(),
-        'Completed': Booking.objects.filter(status='COMPLETED').count(),
-        'Cancelled': Booking.objects.filter(status='CANCELLED').count(),
-    }
 
     top_workers = WorkerProfile.objects.annotate(
         total_jobs=Count('bookings'),
@@ -4516,11 +4551,12 @@ def worker_dashboard(request):
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(worker=worker_profile)
 
-    total_jobs = Booking.objects.filter(worker=worker_profile).count()
-    pending_jobs_count = Booking.objects.filter(
-        worker=worker_profile,
-        status='PENDING'
-    ).count()
+    job_stats = Booking.objects.filter(worker=worker_profile).aggregate(
+        total=Count('id'),
+        pending=Count('id', filter=Q(status='PENDING')),
+    )
+    total_jobs = job_stats['total'] or 0
+    pending_jobs_count = job_stats['pending'] or 0
 
     pending_bookings = Booking.objects.filter(
         worker=worker_profile,

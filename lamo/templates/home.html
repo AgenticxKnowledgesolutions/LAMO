@@ -5,9 +5,9 @@
 LAMO | Labour Management System - Our Services
 {% endblock %}
 
-  {% block extra_js %}
-    <script src="{% static 'js/home.js' %}" defer></script>
-  {% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/home.js' %}" defer></script>
+{% endblock %}
 
 
 {% block extra_css %}
@@ -19,42 +19,37 @@ LAMO | Labour Management System - Our Services
       {% if 'error' in message.tags %}toast-error
       {% elif 'warning' in message.tags %}toast-warning
       {% elif 'success' in message.tags %}toast-success
-      {% else %}toast-info{% endif %}"
-      role="alert"
-      aria-live="polite">
+      {% else %}toast-info{% endif %}" role="alert" aria-live="polite">
 
     <div class="toast-icon">
       {% if 'error' in message.tags %}
-        <i class="bi bi-x-circle-fill"></i>
+      <i class="bi bi-x-circle-fill"></i>
       {% elif 'warning' in message.tags %}
-        <i class="bi bi-exclamation-triangle-fill"></i>
+      <i class="bi bi-exclamation-triangle-fill"></i>
       {% elif 'success' in message.tags %}
-        <i class="bi bi-check-circle-fill"></i>
+      <i class="bi bi-check-circle-fill"></i>
       {% else %}
-        <i class="bi bi-info-circle-fill"></i>
+      <i class="bi bi-info-circle-fill"></i>
       {% endif %}
     </div>
 
     <div class="toast-content">
       <div class="toast-title">
         {% if 'error' in message.tags %}
-          Something went wrong
+        Something went wrong
         {% elif 'warning' in message.tags %}
-          Attention
+        Attention
         {% elif 'success' in message.tags %}
-          Success
+        Success
         {% else %}
-          Information
+        Information
         {% endif %}
       </div>
 
       <div class="toast-message">{{ message }}</div>
     </div>
 
-    <button type="button"
-            class="toast-close"
-            onclick="closeLamoToast(this)"
-            aria-label="Close notification">
+    <button type="button" class="toast-close" onclick="closeLamoToast(this)" aria-label="Close notification">
       <i class="bi bi-x-lg"></i>
     </button>
 
@@ -66,9 +61,9 @@ LAMO | Labour Management System - Our Services
 
 
 {% endblock %}
-  {% block page_css %}
-    <link rel="stylesheet" href="{% static 'css/home.css' %}">
-  {% endblock %}
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
+{% endblock %}
 
 
 {% block hero %}
@@ -148,13 +143,13 @@ LAMO | Labour Management System - Our Services
 
           <h1 class="hero-title">
             {% if user.is_authenticated %}
-              Welcome back, {{ user.username }}!
-              <br>
-              <span>Find the perfect service</span>
+            Welcome back, {{ user.username }}!
+            <br>
+            <span>Find the perfect service</span>
             {% else %}
-              Our Services,
-              <br>
-              <span>Your Solutions</span>
+            Our Services,
+            <br>
+            <span>Your Solutions</span>
             {% endif %}
           </h1>
 
@@ -213,91 +208,80 @@ LAMO | Labour Management System - Our Services
     <div class="services-heading text-center" data-aos="fade-up">
       <span class="services-eyebrow"><i class="bi bi-grid-3x3-gap-fill"></i> WHAT WE OFFER</span>
       <h2>Find the Right Service<br><span style="color:var(--primary);">for Your Need</span></h2>
-      <p>From everyday home repairs to professional services, find trusted workers for almost every task in one place.</p>
-      
-      <form
-        method="GET"
-        action="{% url 'home' %}#services"
-        id="homeSearchForm"
-        style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;"
-      >
-        <input
-          type="text"
-          name="q"
-          id="homeSearchInput"
-          value="{{ query|default:'' }}"
+      <p>From everyday home repairs to professional services, find trusted workers for almost every task in one place.
+      </p>
+
+      <form method="GET" action="{% url 'home' %}#services" id="homeSearchForm"
+        style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;">
+        <input type="text" name="q" id="homeSearchInput" value="{{ query|default:'' }}"
           placeholder="Search services by name or description..."
-          style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;"
-        >
-        <button
-          type="submit"
-          id="homeSearchButton"
-          style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;"
-        >
+          style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;">
+        <button type="submit" id="homeSearchButton"
+          style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;">
           Search
         </button>
-        <button
-          type="button"
-          id="homeSearchClear"
-          style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center;"
-        >
+        <button type="button" id="homeSearchClear"
+          style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center;">
           Clear
         </button>
       </form>
     </div>
 
     {% if services %}
-      <div class="services-grid">
-        {% for service in services %}
-          <div class="modern-service-card" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
-            <div class="modern-service-image">
-              {% if service.image %}
-                <img src="{{ service.image.url }}" alt="{{ service.name }}" class="service-db-image">
-              {% else %}
-                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e7f7ef,#f7fbf9);">
-                  <i class="bi bi-tools" style="font-size:55px;color:#087f5b;"></i>
-                </div>
-              {% endif %}
-              <div class="service-type-badge"><i class="bi bi-tools"></i> Service</div>
-              {% if service.is_featured %}<div class="featured-badge"><i class="bi bi-star-fill"></i> Featured</div>{% endif %}
-            </div>
-
-            <div class="modern-service-content">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;">{{ service.name }}</h3>
-                {% if service.price %}<span style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{ service.price }}</span>{% endif %}
-              </div>
-              <p class="modern-service-desc">{{ service.description }}</p>
-              <div class="service-card-footer">
-                <div class="service-availability"><span></span> Available</div>
-                {% if user.is_authenticated %}
-                  <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
-                    View Service <i class="bi bi-arrow-right"></i>
-                  </a>
-                {% else %}
-                  <a href="{% url 'register' %}?next={% url 'service_detail' service.id %}" class="modern-book-btn">
-                    View Service <i class="bi bi-arrow-right"></i>
-                  </a>
-                {% endif %}
-              </div>
-            </div>
+    <div class="services-grid">
+      {% for service in services %}
+      <div class="modern-service-card" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
+        <div class="modern-service-image">
+          {% if service.image %}
+          <img src="{{ service.image.url }}" alt="{{ service.name }}" class="service-db-image">
+          {% else %}
+          <div
+            style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e7f7ef,#f7fbf9);">
+            <i class="bi bi-tools" style="font-size:55px;color:#087f5b;"></i>
           </div>
-        {% endfor %}
+          {% endif %}
+          <div class="service-type-badge"><i class="bi bi-tools"></i> Service</div>
+          {% if service.is_featured %}<div class="featured-badge"><i class="bi bi-star-fill"></i> Featured</div>{% endif %}
+        </div>
+
+        <div class="modern-service-content">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">{{ service.name }}</h3>
+            {% if service.price %}<span
+              style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{
+              service.price }}</span>{% endif %}
+          </div>
+          <p class="modern-service-desc">{{ service.description }}</p>
+          <div class="service-card-footer">
+            <div class="service-availability"><span></span> Available</div>
+            {% if user.is_authenticated %}
+            <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
+              View Service <i class="bi bi-arrow-right"></i>
+            </a>
+            {% else %}
+            <a href="{% url 'register' %}?next={% url 'service_detail' service.id %}" class="modern-book-btn">
+              View Service <i class="bi bi-arrow-right"></i>
+            </a>
+            {% endif %}
+          </div>
+        </div>
       </div>
+      {% endfor %}
+    </div>
     {% else %}
-      <div class="services-empty" data-aos="fade-up">
-        <div class="services-empty-icon"><i class="bi bi-tools"></i></div>
-        <h4>No services available yet</h4>
-        <p>Our team is adding new services. Please check back soon.</p>
-      </div>
+    <div class="services-empty" data-aos="fade-up">
+      <div class="services-empty-icon"><i class="bi bi-tools"></i></div>
+      <h4>No services available yet</h4>
+      <p>Our team is adding new services. Please check back soon.</p>
+    </div>
     {% endif %}
 
     {% if has_more_services or services %}
-      <div class="services-more" data-aos="fade-up">
-        <a href="{% url 'service_page' %}" class="services-more-btn">
-          Explore All Services <i class="bi bi-arrow-right"></i>
-        </a>
-      </div>
+    <div class="services-more" data-aos="fade-up">
+      <a href="{% url 'service_page' %}" class="services-more-btn">
+        Explore All Services <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
     {% endif %}
   </div>
 </section>
@@ -884,65 +868,64 @@ LAMO | Labour Management System - Our Services
 
       {% if reviews %}
 
-        {% for review in reviews %}
+      {% for review in reviews %}
 
-          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
-            <div class="testimonial-card">
-              <div class="quote-icon">
-                <i class="bi bi-quote"></i>
+      <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
+        <div class="testimonial-card">
+          <div class="quote-icon">
+            <i class="bi bi-quote"></i>
+          </div>
+          <p class="testimonial-text">
+            "{% if review.comment %}{{ review.comment }}{% else %}Great service experience with LAMO!{% endif %}"
+          </p>
+          <div class="testimonial-author">
+            <div class="author-info">
+              <div class="author-avatar">
+                {{ review.customer.username|first|upper }}
               </div>
-              <p class="testimonial-text">
-                "{% if review.comment %}{{ review.comment }}{% else %}Great service experience with LAMO!{% endif %}"
-              </p>
-              <div class="testimonial-author">
-                <div class="author-info">
-                  <div class="author-avatar">
-                    {{ review.customer.username|first|upper }}
-                  </div>
-                  <div>
+              <div>
 
-                    <h5 class="author-name">
-                      {{ review.customer.get_full_name|default:review.customer.username }}
-                    </h5>
+                <h5 class="author-name">
+                  {{ review.customer.get_full_name|default:review.customer.username }}
+                </h5>
 
-                    <p class="author-role">
-                      {% if review.booking.service %}{{ review.booking.service.name }}{% else %}Customer{% endif %}
-                    </p>
-
-                  </div>
-
-                </div>
-
-
-                <div class="stars">
-
-                  {% for i in "12345" %}
-                    {% if forloop.counter <= review.rating %}
-                      <i class="bi bi-star-fill"></i>
-                    {% else %}
-                      <i class="bi bi-star"></i>
-                    {% endif %}
-                  {% endfor %}
-
-                </div>
+                <p class="author-role">
+                  {% if review.booking.service %}{{ review.booking.service.name }}{% else %}Customer{% endif %}
+                </p>
 
               </div>
 
             </div>
 
+
+            <div class="stars">
+
+              {% for i in "12345" %}
+              {% if forloop.counter <= review.rating %} <i class="bi bi-star-fill"></i>
+                {% else %}
+                <i class="bi bi-star"></i>
+                {% endif %}
+                {% endfor %}
+
+            </div>
+
           </div>
 
-        {% endfor %}
+        </div>
+
+      </div>
+
+      {% endfor %}
 
       {% else %}
 
-        <div class="col-12 text-center" data-aos="fade-up">
-          <div class="empty-reviews-state">
-            <i class="bi bi-chat-quote" style="font-size:48px;color:#087f5b;opacity:0.5;"></i>
-            <h4 class="mt-3" style="color:#17231f;">No reviews yet</h4>
-            <p class="text-muted">Be the first to share your experience with LAMO.</p>
-          </div>
+      <div class="col-12 text-center" data-aos="fade-up">
+        <div class="empty-reviews-state">
+          <i class="bi bi-chat-quote" style="font-size:48px;color:#087f5b;opacity:0.5;"></i>
+          <h4 class="mt-3" style="color:#17231f;">No reviews yet</h4>
+          <p class="text-muted">Be the first to share your experience with LAMO.</p>
         </div>
+      </div>
 
       {% endif %}
 
@@ -997,12 +980,12 @@ LAMO | Labour Management System - Our Services
 
             </div>
 
-            +91 98765 43210
+            +91 9496852094
 
           </li>
 
 
-          <li>
+          <!-- <li>
 
             <div class="contact-icon">
 
@@ -1012,7 +995,7 @@ LAMO | Labour Management System - Our Services
 
             support@lamo.com
 
-          </li>
+          </li> -->
 
 
           <li>
@@ -1023,8 +1006,7 @@ LAMO | Labour Management System - Our Services
 
             </div>
 
-            123, Green Street, Coimbatore,
-            Tamil Nadu - 641001
+            3rd Floor, Raj Plaza, Town Limit, Kollam
 
           </li>
 
@@ -1108,15 +1090,15 @@ LAMO | Labour Management System - Our Services
 
               </div> -->
 
-            </div>
-
-          </form>
-
-        </div>
-
-      </div>
-
     </div>
+
+    </form>
+
+  </div>
+
+  </div>
+
+  </div>
 
   </div>
 
@@ -1127,25 +1109,11 @@ LAMO | Labour Management System - Our Services
      AUTOMATIC LOGIN POPUP
      ========================================================= -->
 
-<div
-  id="lamoLoginOverlay"
-  class="lamo-login-overlay"
-  aria-hidden="true"
->
+<div id="lamoLoginOverlay" class="lamo-login-overlay" aria-hidden="true">
 
-  <div
-    class="lamo-login-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="lamoLoginTitle"
-  >
+  <div class="lamo-login-modal" role="dialog" aria-modal="true" aria-labelledby="lamoLoginTitle">
 
-    <button
-      type="button"
-      class="lamo-login-close"
-      id="lamoLoginClose"
-      aria-label="Close login"
-    >
+    <button type="button" class="lamo-login-close" id="lamoLoginClose" aria-label="Close login">
       <i class="bi bi-x-lg"></i>
     </button>
 
@@ -1161,10 +1129,7 @@ LAMO | Labour Management System - Our Services
     </div>
 
 
-    <h2
-      id="lamoLoginTitle"
-      class="lamo-login-title"
-    >
+    <h2 id="lamoLoginTitle" class="lamo-login-title">
       Welcome Back 👋
     </h2>
 
@@ -1174,12 +1139,7 @@ LAMO | Labour Management System - Our Services
     </p>
 
 
-    <form
-      method="POST"
-      action="{% url 'login' %}"
-      class="lamo-login-form"
-      id="lamoAutoLoginForm"
-    >
+    <form method="POST" action="{% url 'login' %}" class="lamo-login-form" id="lamoAutoLoginForm">
 
       {% csrf_token %}
 
@@ -1194,15 +1154,8 @@ LAMO | Labour Management System - Our Services
 
           <i class="bi bi-envelope"></i>
 
-          <input
-            type="text"
-            name="username"
-            id="lamoLoginEmail"
-            class="lamo-login-input"
-            placeholder="Enter your username"
-            autocomplete="username"
-            required
-          >
+          <input type="text" name="username" id="lamoLoginEmail" class="lamo-login-input"
+            placeholder="Enter your username" autocomplete="username" required>
 
         </div>
 
@@ -1219,22 +1172,10 @@ LAMO | Labour Management System - Our Services
 
           <i class="bi bi-lock"></i>
 
-          <input
-            type="password"
-            name="password"
-            id="lamoLoginPassword"
-            class="lamo-login-input"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-            required
-          >
+          <input type="password" name="password" id="lamoLoginPassword" class="lamo-login-input"
+            placeholder="Enter your password" autocomplete="current-password" required>
 
-          <button
-            type="button"
-            class="lamo-password-toggle"
-            id="lamoPasswordToggle"
-            aria-label="Show password"
-          >
+          <button type="button" class="lamo-password-toggle" id="lamoPasswordToggle" aria-label="Show password">
             <i class="bi bi-eye"></i>
           </button>
 
@@ -1243,18 +1184,12 @@ LAMO | Labour Management System - Our Services
       </div>
 
 
-      <div
-        id="lamoLoginError"
-        class="lamo-login-error"
-      >
+      <div id="lamoLoginError" class="lamo-login-error">
         Please enter your username and password.
       </div>
 
 
-      <button
-        type="submit"
-        class="lamo-login-submit"
-      >
+      <button type="submit" class="lamo-login-submit">
         Login
         <i class="bi bi-arrow-right ms-1"></i>
       </button>
@@ -1278,11 +1213,11 @@ LAMO | Labour Management System - Our Services
 
 
 <script>
-/* =========================================================
-   LAMO LOGIN POPUP + AI ASSISTANT
-   ========================================================= */
+  /* =========================================================
+     LAMO LOGIN POPUP + AI ASSISTANT
+     ========================================================= */
 
-document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
 
 
     /* =====================================================
@@ -1290,22 +1225,22 @@ document.addEventListener("DOMContentLoaded", function () {
        ===================================================== */
 
     const overlay =
-        document.getElementById("lamoLoginOverlay");
+      document.getElementById("lamoLoginOverlay");
 
     const closeBtn =
-        document.getElementById("lamoLoginClose");
+      document.getElementById("lamoLoginClose");
 
     const passwordInput =
-        document.getElementById("lamoLoginPassword");
+      document.getElementById("lamoLoginPassword");
 
     const passwordToggle =
-        document.getElementById("lamoPasswordToggle");
+      document.getElementById("lamoPasswordToggle");
 
     const form =
-        document.getElementById("lamoAutoLoginForm");
+      document.getElementById("lamoAutoLoginForm");
 
     const errorBox =
-        document.getElementById("lamoLoginError");
+      document.getElementById("lamoLoginError");
 
 
     /* -----------------------------------------------------
@@ -1314,34 +1249,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function openLoginPopup() {
 
-        if (!overlay) {
-            return;
+      if (!overlay) {
+        return;
+      }
+
+      overlay.classList.add("show");
+
+      overlay.setAttribute(
+        "aria-hidden",
+        "false"
+      );
+
+      document.body.style.overflow =
+        "hidden";
+
+      setTimeout(function () {
+
+        const emailInput =
+          document.getElementById(
+            "lamoLoginEmail"
+          );
+
+        if (emailInput) {
+
+          emailInput.focus();
+
         }
 
-        overlay.classList.add("show");
-
-        overlay.setAttribute(
-            "aria-hidden",
-            "false"
-        );
-
-        document.body.style.overflow =
-            "hidden";
-
-        setTimeout(function () {
-
-            const emailInput =
-                document.getElementById(
-                    "lamoLoginEmail"
-                );
-
-            if (emailInput) {
-
-                emailInput.focus();
-
-            }
-
-        }, 350);
+      }, 350);
     }
 
 
@@ -1351,25 +1286,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function closeLoginPopup() {
 
-        if (!overlay) {
-            return;
+      if (!overlay) {
+        return;
+      }
+
+      overlay.classList.remove("show");
+
+      overlay.setAttribute(
+        "aria-hidden",
+        "true"
+      );
+
+      document.body.style.overflow = "";
+
+      try {
+        if (window.sessionStorage) {
+          sessionStorage.setItem("lamo_login_popup_dismissed", "true");
+          sessionStorage.setItem("lamo_login_popup_shown", "true");
         }
-
-        overlay.classList.remove("show");
-
-        overlay.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-        document.body.style.overflow = "";
-
-        try {
-            if (window.sessionStorage) {
-                sessionStorage.setItem("lamo_login_popup_dismissed", "true");
-                sessionStorage.setItem("lamo_login_popup_shown", "true");
-            }
-        } catch (e) {}
+      } catch (e) { }
     }
 
 
@@ -1385,64 +1320,63 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (overlay) {
 
-        (function () {
+      (function () {
 
-            // Clean up any stale legacy localStorage key so returning visitors are not blocked
+        // Clean up any stale legacy localStorage key so returning visitors are not blocked
+        try {
+          if (window.localStorage && localStorage.getItem("lamo_login_popup_shown")) {
+            localStorage.removeItem("lamo_login_popup_shown");
+          }
+        } catch (e) { }
+
+        var isFromSplash = false;
+
+        // 1. Check sessionStorage flag from splash transition
+        try {
+          if (window.sessionStorage && sessionStorage.getItem("lamo_from_splash") === "true") {
+            isFromSplash = true;
+            sessionStorage.removeItem("lamo_from_splash");
+          }
+        } catch (e) { }
+
+        // 2. Check URL query param (?from_splash=1) and clean it from the address bar
+        try {
+          var urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get("from_splash") === "1") {
+            isFromSplash = true;
+            urlParams.delete("from_splash");
+            var cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+            window.history.replaceState({}, "", cleanUrl);
+          }
+        } catch (e) { }
+
+        // 3. Check if already shown or dismissed in this browsing session
+        var popupShown = window.__lamo_popup_shown || false;
+        try {
+          if (window.sessionStorage) {
+            popupShown = popupShown ||
+              sessionStorage.getItem("lamo_login_popup_shown") === "true" ||
+              sessionStorage.getItem("lamo_login_popup_dismissed") === "true";
+          }
+        } catch (e) { }
+
+        if (!popupShown) {
+          window.__lamo_popup_shown = true;
+          // If arriving from splash, smooth 450ms entrance delay; otherwise 1500ms
+          var delay = isFromSplash ? 450 : 1500;
+
+          setTimeout(function () {
+            openLoginPopup();
+
             try {
-                if (window.localStorage && localStorage.getItem("lamo_login_popup_shown")) {
-                    localStorage.removeItem("lamo_login_popup_shown");
-                }
-            } catch (e) {}
+              if (window.sessionStorage) {
+                sessionStorage.setItem("lamo_login_popup_shown", "true");
+              }
+            } catch (e) { }
+          }, delay);
+        }
 
-            var isFromSplash = false;
-
-            // 1. Check sessionStorage flag from splash transition
-            try {
-                if (window.sessionStorage && sessionStorage.getItem("lamo_from_splash") === "true") {
-                    isFromSplash = true;
-                    sessionStorage.removeItem("lamo_from_splash");
-                }
-            } catch (e) {}
-
-            // 2. Check URL query param (?from_splash=1) and clean it from the address bar
-            try {
-                var urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get("from_splash") === "1") {
-                    isFromSplash = true;
-                    urlParams.delete("from_splash");
-                    var cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
-                    window.history.replaceState({}, "", cleanUrl);
-                }
-            } catch (e) {}
-
-            // 3. Check if already shown or dismissed in this browsing session
-            var popupShown = false;
-            try {
-                if (window.sessionStorage) {
-                    popupShown = sessionStorage.getItem("lamo_login_popup_shown") === "true" ||
-                                 sessionStorage.getItem("lamo_login_popup_dismissed") === "true";
-                }
-            } catch (e) {
-                // If sessionStorage is unavailable or throws, allow popup to proceed once
-                popupShown = false;
-            }
-
-            if (!popupShown) {
-                // If arriving from splash, smooth 450ms entrance delay; otherwise 1500ms
-                var delay = isFromSplash ? 450 : 1500;
-
-                setTimeout(function () {
-                    openLoginPopup();
-
-                    try {
-                        if (window.sessionStorage) {
-                            sessionStorage.setItem("lamo_login_popup_shown", "true");
-                        }
-                    } catch (e) {}
-                }, delay);
-            }
-
-        })();
+      })();
 
     }
 
@@ -1457,34 +1391,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
     (function () {
 
-        var searchInput = document.getElementById("homeSearchInput");
-        var clearButton = document.getElementById("homeSearchClear");
+      var searchInput = document.getElementById("homeSearchInput");
+      var clearButton = document.getElementById("homeSearchClear");
 
-        if (!clearButton) return;
+      if (!clearButton) return;
 
-        clearButton.addEventListener("click", function (event) {
+      clearButton.addEventListener("click", function (event) {
 
-            event.preventDefault();
+        event.preventDefault();
 
-            if (searchInput) {
-                searchInput.value = "";
-            }
+        if (searchInput) {
+          searchInput.value = "";
+        }
 
-            // Remove ?q= from URL without reloading
-            try {
-                var url = new URL(window.location.href);
-                url.searchParams.delete("q");
-                window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-            } catch (e) {
-                // ignore
-            }
+        // Remove ?q= from URL without reloading
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.delete("q");
+          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+        } catch (e) {
+          // ignore
+        }
 
-            // Focus the search input for convenience
-            if (searchInput) {
-                searchInput.focus();
-            }
+        // Focus the search input for convenience
+        if (searchInput) {
+          searchInput.focus();
+        }
 
-        });
+      });
 
     })();
 
@@ -1495,10 +1429,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (closeBtn) {
 
-        closeBtn.addEventListener(
-            "click",
-            closeLoginPopup
-        );
+      closeBtn.addEventListener(
+        "click",
+        closeLoginPopup
+      );
 
     }
 
@@ -1509,20 +1443,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (overlay) {
 
-        overlay.addEventListener(
-            "click",
-            function (event) {
+      overlay.addEventListener(
+        "click",
+        function (event) {
 
-                if (
-                    event.target === overlay
-                ) {
+          if (
+            event.target === overlay
+          ) {
 
-                    closeLoginPopup();
+            closeLoginPopup();
 
-                }
+          }
 
-            }
-        );
+        }
+      );
 
     }
 
@@ -1532,20 +1466,20 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     document.addEventListener(
-        "keydown",
-        function (event) {
+      "keydown",
+      function (event) {
 
-            if (
-                event.key === "Escape" &&
-                overlay &&
-                overlay.classList.contains("show")
-            ) {
+        if (
+          event.key === "Escape" &&
+          overlay &&
+          overlay.classList.contains("show")
+        ) {
 
-                closeLoginPopup();
-
-            }
+          closeLoginPopup();
 
         }
+
+      }
     );
 
 
@@ -1554,37 +1488,37 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     if (
-        passwordToggle &&
-        passwordInput
+      passwordToggle &&
+      passwordInput
     ) {
 
-        passwordToggle.addEventListener(
-            "click",
-            function () {
+      passwordToggle.addEventListener(
+        "click",
+        function () {
 
-                const isPassword =
-                    passwordInput.type ===
-                    "password";
+          const isPassword =
+            passwordInput.type ===
+            "password";
 
-                passwordInput.type =
-                    isPassword
-                        ? "text"
-                        : "password";
+          passwordInput.type =
+            isPassword
+              ? "text"
+              : "password";
 
-                passwordToggle.innerHTML =
-                    isPassword
-                        ? '<i class="bi bi-eye-slash"></i>'
-                        : '<i class="bi bi-eye"></i>';
+          passwordToggle.innerHTML =
+            isPassword
+              ? '<i class="bi bi-eye-slash"></i>'
+              : '<i class="bi bi-eye"></i>';
 
-                passwordToggle.setAttribute(
-                    "aria-label",
-                    isPassword
-                        ? "Hide password"
-                        : "Show password"
-                );
+          passwordToggle.setAttribute(
+            "aria-label",
+            isPassword
+              ? "Hide password"
+              : "Show password"
+          );
 
-            }
-        );
+        }
+      );
 
     }
 
@@ -1595,53 +1529,53 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (form) {
 
-        form.addEventListener(
-            "submit",
-            function (event) {
+      form.addEventListener(
+        "submit",
+        function (event) {
 
-                const emailInput =
-                    document.getElementById(
-                        "lamoLoginEmail"
-                    );
+          const emailInput =
+            document.getElementById(
+              "lamoLoginEmail"
+            );
 
-                const username =
-                    emailInput
-                        ? emailInput.value.trim()
-                        : "";
+          const username =
+            emailInput
+              ? emailInput.value.trim()
+              : "";
 
-                const password =
-                    passwordInput
-                        ? passwordInput.value.trim()
-                        : "";
+          const password =
+            passwordInput
+              ? passwordInput.value.trim()
+              : "";
 
-                if (
-                    !username ||
-                    !password
-                ) {
+          if (
+            !username ||
+            !password
+          ) {
 
-                    event.preventDefault();
+            event.preventDefault();
 
-                    if (errorBox) {
+            if (errorBox) {
 
-                        errorBox.classList.add(
-                            "show"
-                        );
-
-                    }
-
-                    return;
-                }
-
-                if (errorBox) {
-
-                    errorBox.classList.remove(
-                        "show"
-                    );
-
-                }
+              errorBox.classList.add(
+                "show"
+              );
 
             }
-        );
+
+            return;
+          }
+
+          if (errorBox) {
+
+            errorBox.classList.remove(
+              "show"
+            );
+
+          }
+
+        }
+      );
 
     }
 
@@ -1651,19 +1585,19 @@ document.addEventListener("DOMContentLoaded", function () {
        ===================================================== */
 
     const aiInput =
-        document.getElementById(
-            "aiMessage"
-        );
+      document.getElementById(
+        "aiMessage"
+      );
 
     const aiSendButton =
-        document.getElementById(
-            "aiSend"
-        );
+      document.getElementById(
+        "aiSend"
+      );
 
     const aiMessages =
-        document.getElementById(
-            "aiMessages"
-        );
+      document.getElementById(
+        "aiMessages"
+      );
 
 
     /* -----------------------------------------------------
@@ -1671,16 +1605,16 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     if (
-        !aiInput ||
-        !aiSendButton ||
-        !aiMessages
+      !aiInput ||
+      !aiSendButton ||
+      !aiMessages
     ) {
 
-        console.log(
-            "AI Assistant elements not found."
-        );
+      console.log(
+        "AI Assistant elements not found."
+      );
 
-        return;
+      return;
 
     }
 
@@ -1691,47 +1625,47 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getCookie(name) {
 
-        let cookieValue = null;
+      let cookieValue = null;
 
-        if (
-            document.cookie &&
-            document.cookie !== ""
+      if (
+        document.cookie &&
+        document.cookie !== ""
+      ) {
+
+        const cookies =
+          document.cookie.split(";");
+
+        for (
+          let cookie of cookies
         ) {
 
-            const cookies =
-                document.cookie.split(";");
+          cookie =
+            cookie.trim();
 
-            for (
-                let cookie of cookies
-            ) {
+          if (
+            cookie.substring(
+              0,
+              name.length + 1
+            ) ===
+            name + "="
+          ) {
 
-                cookie =
-                    cookie.trim();
+            cookieValue =
+              decodeURIComponent(
+                cookie.substring(
+                  name.length + 1
+                )
+              );
 
-                if (
-                    cookie.substring(
-                        0,
-                        name.length + 1
-                    ) ===
-                    name + "="
-                ) {
+            break;
 
-                    cookieValue =
-                        decodeURIComponent(
-                            cookie.substring(
-                                name.length + 1
-                            )
-                        );
-
-                    break;
-
-                }
-
-            }
+          }
 
         }
 
-        return cookieValue;
+      }
+
+      return cookieValue;
     }
 
 
@@ -1741,35 +1675,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getCsrfToken() {
 
-        const meta =
-            document.querySelector(
-                'meta[name="csrf-token"]'
-            );
+      const meta =
+        document.querySelector(
+          'meta[name="csrf-token"]'
+        );
 
-        if (meta && meta.content) {
+      if (meta && meta.content) {
 
-            return meta.content;
+        return meta.content;
 
-        }
+      }
 
-        const input =
-            document.querySelector(
-                'input[name="csrfmiddlewaretoken"]'
-            );
+      const input =
+        document.querySelector(
+          'input[name="csrfmiddlewaretoken"]'
+        );
 
-        if (input && input.value) {
+      if (input && input.value) {
 
-            return input.value;
+        return input.value;
 
-        }
+      }
 
-        return getCookie("csrftoken") || "";
+      return getCookie("csrftoken") || "";
 
     }
 
 
     const csrftoken =
-        getCsrfToken();
+      getCsrfToken();
 
 
     /* -----------------------------------------------------
@@ -1777,29 +1711,29 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     function addMessage(
-        message,
-        sender
+      message,
+      sender
     ) {
 
-        const messageDiv =
-            document.createElement(
-                "div"
-            );
-
-        messageDiv.classList.add(
-            "ai-message",
-            sender
+      const messageDiv =
+        document.createElement(
+          "div"
         );
 
-        messageDiv.textContent =
-            message;
+      messageDiv.classList.add(
+        "ai-message",
+        sender
+      );
 
-        aiMessages.appendChild(
-            messageDiv
-        );
+      messageDiv.textContent =
+        message;
 
-        aiMessages.scrollTop =
-            aiMessages.scrollHeight;
+      aiMessages.appendChild(
+        messageDiv
+      );
+
+      aiMessages.scrollTop =
+        aiMessages.scrollHeight;
     }
 
 
@@ -1809,25 +1743,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function addBotHTML(html) {
 
-        const messageDiv =
-            document.createElement(
-                "div"
-            );
-
-        messageDiv.classList.add(
-            "ai-message",
-            "bot"
+      const messageDiv =
+        document.createElement(
+          "div"
         );
 
-        messageDiv.innerHTML =
-            html;
+      messageDiv.classList.add(
+        "ai-message",
+        "bot"
+      );
 
-        aiMessages.appendChild(
-            messageDiv
-        );
+      messageDiv.innerHTML =
+        html;
 
-        aiMessages.scrollTop =
-            aiMessages.scrollHeight;
+      aiMessages.appendChild(
+        messageDiv
+      );
+
+      aiMessages.scrollTop =
+        aiMessages.scrollHeight;
     }
 
 
@@ -1837,26 +1771,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function addLoading() {
 
-        const loading =
-            document.createElement(
-                "div"
-            );
-
-        loading.id =
-            "aiLoading";
-
-        loading.className =
-            "ai-message bot";
-
-        loading.textContent =
-            "Thinking...";
-
-        aiMessages.appendChild(
-            loading
+      const loading =
+        document.createElement(
+          "div"
         );
 
-        aiMessages.scrollTop =
-            aiMessages.scrollHeight;
+      loading.id =
+        "aiLoading";
+
+      loading.className =
+        "ai-message bot";
+
+      loading.textContent =
+        "Thinking...";
+
+      aiMessages.appendChild(
+        loading
+      );
+
+      aiMessages.scrollTop =
+        aiMessages.scrollHeight;
     }
 
 
@@ -1866,16 +1800,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function removeLoading() {
 
-        const loading =
-            document.getElementById(
-                "aiLoading"
-            );
+      const loading =
+        document.getElementById(
+          "aiLoading"
+        );
 
-        if (loading) {
+      if (loading) {
 
-            loading.remove();
+        loading.remove();
 
-        }
+      }
 
     }
 
@@ -1886,18 +1820,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getDistrict() {
 
-        const districtInput =
-            document.getElementById(
-                "district"
-            );
+      const districtInput =
+        document.getElementById(
+          "district"
+        );
 
-        if (districtInput) {
+      if (districtInput) {
 
-            return districtInput.value.trim();
+        return districtInput.value.trim();
 
-        }
+      }
 
-        return "";
+      return "";
 
     }
 
@@ -1908,15 +1842,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function escapeHtml(text) {
 
-        const div =
-            document.createElement(
-                "div"
-            );
+      const div =
+        document.createElement(
+          "div"
+        );
 
-        div.textContent =
-            text || "";
+      div.textContent =
+        text || "";
 
-        return div.innerHTML;
+      return div.innerHTML;
     }
 
 
@@ -1926,135 +1860,135 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showServiceResult(data) {
 
-        const service =
-            data.service;
+      const service =
+        data.service;
 
-        const workers =
-            data.workers || [];
+      const workers =
+        data.workers || [];
 
 
-        let html = "";
+      let html = "";
 
+
+      html +=
+        "<strong>Sure! I found the right service for you. 😊</strong><br><br>";
+
+      html +=
+        "<strong>" +
+        escapeHtml(service.name) +
+        "</strong>";
+
+
+      if (service.description) {
 
         html +=
-            "<strong>Sure! I found the right service for you. 😊</strong><br><br>";
+          "<br>" +
+          escapeHtml(
+            service.description
+          );
+
+      }
+
+
+      if (service.price) {
 
         html +=
-            "<strong>" +
-            escapeHtml(service.name) +
-            "</strong>";
+          "<br>💰 Price: ₹" +
+          escapeHtml(
+            service.price
+          );
+
+      }
 
 
-        if (service.description) {
+      html +=
+        "<br><br>";
+
+
+      /* -------------------------------------------------
+         NO WORKERS
+         ------------------------------------------------- */
+
+      if (workers.length === 0) {
+
+        html +=
+          "I couldn't find any available workers for this service right now. 😔";
+
+      }
+
+
+      /* -------------------------------------------------
+         WORKERS
+         ------------------------------------------------- */
+
+      else {
+
+        html +=
+          "<strong>Available workers:</strong><br><br>";
+
+
+        workers.forEach(
+          function (worker) {
 
             html +=
-                "<br>" +
+              "👤 <strong>" +
+              escapeHtml(
+                worker.name
+              ) +
+              "</strong><br>";
+
+
+            if (
+              worker.district
+            ) {
+
+              html +=
+                "📍 " +
                 escapeHtml(
-                    service.description
-                );
+                  worker.district
+                ) +
+                "<br>";
 
-        }
+            }
 
 
-        if (service.price) {
+            if (
+              worker.experience !==
+              undefined
+            ) {
 
-            html +=
-                "<br>💰 Price: ₹" +
+              html +=
+                "💼 " +
                 escapeHtml(
-                    service.price
-                );
+                  String(
+                    worker.experience
+                  )
+                ) +
+                " years experience<br>";
 
-        }
+            }
 
-
-        html +=
-            "<br><br>";
-
-
-        /* -------------------------------------------------
-           NO WORKERS
-           ------------------------------------------------- */
-
-        if (workers.length === 0) {
 
             html +=
-                "I couldn't find any available workers for this service right now. 😔";
+              "⭐ " +
+              escapeHtml(
+                String(
+                  worker.rating
+                )
+              ) +
+              "<br>";
 
-        }
-
-
-        /* -------------------------------------------------
-           WORKERS
-           ------------------------------------------------- */
-
-        else {
 
             html +=
-                "<strong>Available workers:</strong><br><br>";
+              "<hr>";
+
+          }
+        );
+
+      }
 
 
-            workers.forEach(
-                function (worker) {
-
-                    html +=
-                        "👤 <strong>" +
-                        escapeHtml(
-                            worker.name
-                        ) +
-                        "</strong><br>";
-
-
-                    if (
-                        worker.district
-                    ) {
-
-                        html +=
-                            "📍 " +
-                            escapeHtml(
-                                worker.district
-                            ) +
-                            "<br>";
-
-                    }
-
-
-                    if (
-                        worker.experience !==
-                        undefined
-                    ) {
-
-                        html +=
-                            "💼 " +
-                            escapeHtml(
-                                String(
-                                    worker.experience
-                                )
-                            ) +
-                            " years experience<br>";
-
-                    }
-
-
-                    html +=
-                        "⭐ " +
-                        escapeHtml(
-                            String(
-                                worker.rating
-                            )
-                        ) +
-                        "<br>";
-
-
-                    html +=
-                        "<hr>";
-
-                }
-            );
-
-        }
-
-
-        addBotHTML(html);
+      addBotHTML(html);
 
     }
 
@@ -2065,240 +1999,240 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function sendAIMessage() {
 
-        const message =
-            aiInput.value.trim();
+      const message =
+        aiInput.value.trim();
 
 
-        /* -------------------------------------------------
-           EMPTY
-           ------------------------------------------------- */
+      /* -------------------------------------------------
+         EMPTY
+         ------------------------------------------------- */
 
-        if (!message) {
+      if (!message) {
 
-            return;
+        return;
 
-        }
+      }
 
 
-        /* -------------------------------------------------
-           SHOW USER MESSAGE
-           ------------------------------------------------- */
+      /* -------------------------------------------------
+         SHOW USER MESSAGE
+         ------------------------------------------------- */
 
-        addMessage(
-            message,
-            "user"
+      addMessage(
+        message,
+        "user"
+      );
+
+
+      aiInput.value = "";
+
+
+      /* -------------------------------------------------
+         DISABLE SEND
+         ------------------------------------------------- */
+
+      aiSendButton.disabled =
+        true;
+
+
+      addLoading();
+
+
+      try {
+
+        console.log(
+          "Sending AI request..."
         );
 
 
-        aiInput.value = "";
+        const response =
+          await fetch(
+            "{% url 'ai_service_assistant' %}",
+            {
+
+              method: "POST",
+
+              headers: {
+
+                "Content-Type":
+                  "application/json",
+
+                "X-CSRFToken":
+                  csrftoken,
+
+                "X-Requested-With":
+                  "XMLHttpRequest"
+
+              },
+
+              body:
+                JSON.stringify({
+
+                  message:
+                    message,
+
+                  district:
+                    getDistrict()
+
+                })
+
+            }
+          );
+
+
+        console.log(
+          "AI HTTP STATUS:",
+          response.status
+        );
 
 
         /* -------------------------------------------------
-           DISABLE SEND
+           HTTP ERROR
            ------------------------------------------------- */
 
-        aiSendButton.disabled =
-            true;
+        if (!response.ok) {
 
-
-        addLoading();
-
-
-        try {
-
-            console.log(
-                "Sending AI request..."
-            );
-
-
-            const response =
-                await fetch(
-                    "{% url 'ai_service_assistant' %}",
-                    {
-
-                        method: "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json",
-
-                            "X-CSRFToken":
-                                csrftoken,
-
-                            "X-Requested-With":
-                                "XMLHttpRequest"
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                message:
-                                    message,
-
-                                district:
-                                    getDistrict()
-
-                            })
-
-                    }
-                );
-
-
-            console.log(
-                "AI HTTP STATUS:",
-                response.status
-            );
-
-
-            /* -------------------------------------------------
-               HTTP ERROR
-               ------------------------------------------------- */
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "HTTP Error " +
-                    response.status
-                );
-
-            }
-
-
-            /* -------------------------------------------------
-               READ JSON
-               ------------------------------------------------- */
-
-            const data =
-                await response.json();
-
-
-            console.log(
-                "AI RESPONSE:",
-                data
-            );
-
-
-            removeLoading();
-
-
-            /* -------------------------------------------------
-               SUCCESS
-               ------------------------------------------------- */
-
-            if (data.success) {
-
-
-                /* ---------------------------------------------
-                   NORMAL CHAT
-                   --------------------------------------------- */
-
-                if (
-                    data.type ===
-                    "chat"
-                ) {
-
-                    addMessage(
-                        data.message,
-                        "bot"
-                    );
-
-                }
-
-
-                /* ---------------------------------------------
-                   LOGIN REQUIRED
-                   --------------------------------------------- */
-
-                else if (
-                    data.type ===
-                    "login_required"
-                ) {
-
-                    addMessage(
-                        data.message,
-                        "bot"
-                    );
-
-                }
-
-
-                /* ---------------------------------------------
-                   SERVICE MATCH
-                   --------------------------------------------- */
-
-                else if (
-                    data.type ===
-                    "service_match"
-                ) {
-
-                    showServiceResult(
-                        data
-                    );
-
-                }
-
-
-                /* ---------------------------------------------
-                   OTHER SUCCESS
-                   --------------------------------------------- */
-
-                else {
-
-                    addMessage(
-                        data.message ||
-                        "Done.",
-                        "bot"
-                    );
-
-                }
-
-            }
-
-
-            /* -------------------------------------------------
-               BACKEND ERROR
-               ------------------------------------------------- */
-
-            else {
-
-                addMessage(
-                    data.message ||
-                    "Sorry, something went wrong.",
-                    "bot"
-                );
-
-            }
+          throw new Error(
+            "HTTP Error " +
+            response.status
+          );
 
         }
 
-        catch (error) {
 
-            console.error(
-                "AI Assistant Error:",
-                error
-            );
+        /* -------------------------------------------------
+           READ JSON
+           ------------------------------------------------- */
+
+        const data =
+          await response.json();
 
 
-            removeLoading();
+        console.log(
+          "AI RESPONSE:",
+          data
+        );
 
+
+        removeLoading();
+
+
+        /* -------------------------------------------------
+           SUCCESS
+           ------------------------------------------------- */
+
+        if (data.success) {
+
+
+          /* ---------------------------------------------
+             NORMAL CHAT
+             --------------------------------------------- */
+
+          if (
+            data.type ===
+            "chat"
+          ) {
 
             addMessage(
-                "Sorry, I couldn't connect to the AI assistant. Please try again.",
-                "bot"
+              data.message,
+              "bot"
             );
 
+          }
+
+
+          /* ---------------------------------------------
+             LOGIN REQUIRED
+             --------------------------------------------- */
+
+          else if (
+            data.type ===
+            "login_required"
+          ) {
+
+            addMessage(
+              data.message,
+              "bot"
+            );
+
+          }
+
+
+          /* ---------------------------------------------
+             SERVICE MATCH
+             --------------------------------------------- */
+
+          else if (
+            data.type ===
+            "service_match"
+          ) {
+
+            showServiceResult(
+              data
+            );
+
+          }
+
+
+          /* ---------------------------------------------
+             OTHER SUCCESS
+             --------------------------------------------- */
+
+          else {
+
+            addMessage(
+              data.message ||
+              "Done.",
+              "bot"
+            );
+
+          }
+
         }
 
-        finally {
 
-            aiSendButton.disabled =
-                false;
+        /* -------------------------------------------------
+           BACKEND ERROR
+           ------------------------------------------------- */
 
-            aiInput.focus();
+        else {
+
+          addMessage(
+            data.message ||
+            "Sorry, something went wrong.",
+            "bot"
+          );
 
         }
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "AI Assistant Error:",
+          error
+        );
+
+
+        removeLoading();
+
+
+        addMessage(
+          "Sorry, I couldn't connect to the AI assistant. Please try again.",
+          "bot"
+        );
+
+      }
+
+      finally {
+
+        aiSendButton.disabled =
+          false;
+
+        aiInput.focus();
+
+      }
 
     }
 
@@ -2308,8 +2242,8 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     aiSendButton.addEventListener(
-        "click",
-        sendAIMessage
+      "click",
+      sendAIMessage
     );
 
 
@@ -2318,25 +2252,25 @@ document.addEventListener("DOMContentLoaded", function () {
        ----------------------------------------------------- */
 
     aiInput.addEventListener(
-        "keydown",
-        function (event) {
+      "keydown",
+      function (event) {
 
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
 
-                event.preventDefault();
+          event.preventDefault();
 
-                sendAIMessage();
-
-            }
+          sendAIMessage();
 
         }
+
+      }
     );
 
 
-});
+  });
 </script>
 
 

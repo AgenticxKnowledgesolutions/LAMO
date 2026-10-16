@@ -24,7 +24,7 @@ services:
       python -m pip install -r requirements.txt &&
       cd lamo &&
       python manage.py collectstatic --noinput
-    startCommand: cd lamo && gunicorn lamo.wsgi --log-file -
+    startCommand: cd lamo && gunicorn lamo.wsgi --workers 2 --threads 4 --worker-class gthread --log-file -
 
     # Render's default health check. `/` is the public home page.
     # HTTPS redirection is safe here: Render terminates TLS and sets
