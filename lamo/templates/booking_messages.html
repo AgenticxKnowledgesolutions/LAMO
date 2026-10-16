@@ -6,36 +6,72 @@
 {% block extra_css %}
 
 <style>
-  body { background: #f5f9f7; }
-  .chat-page { max-width: 980px; margin: 30px auto; padding: 0 16px 40px; }
+  body { background: #f3f7f5; }
+  .chat-page { max-width: 880px; margin: 30px auto; padding: 0 16px 40px; }
   .chat-shell {
-    background: #fff; border: 1px solid #e6efe9; border-radius: 22px;
-    box-shadow: 0 12px 36px rgba(8, 127, 91, 0.08); overflow: hidden;
+    background: #fff; border: 1.5px solid #e2ece7; border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(8, 127, 91, 0.08); overflow: hidden;
+    display: flex; flex-direction: column; min-height: 600px;
   }
   .chat-header {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 22px 26px; border-bottom: 1px solid #edf3f0; background: linear-gradient(135deg, #f6fffb, #eefaf6);
+    padding: 20px 26px; border-bottom: 1px solid #edf3f0; background: #ffffff;
   }
-  .chat-header h1 { margin:0; font-size:28px; color:#17231f; }
-  .chat-header a { text-decoration:none; color:#087f5b; font-weight:700; }
-  .chat-body { display:flex; flex-direction:column; gap:18px; padding:22px 20px 18px; min-height:420px; background:#fbfefc; }
-  .msg-row { display:flex; }
+  .chat-header h1 { margin:0; font-size:24px; font-weight:800; color:#0f172a; }
+  .chat-header a {
+    text-decoration:none; color:#087f5b; font-weight:700; font-size:13.5px;
+    display:inline-flex; align-items:center; gap:6px; padding:8px 16px;
+    border-radius:20px; background:#e6f4ea; transition:all 0.2s ease;
+  }
+  .chat-header a:hover { background:#d1fae5; transform:translateX(-2px); }
+  .chat-body {
+    display:flex; flex-direction:column; gap:14px; padding:24px;
+    flex:1; overflow-y:auto; background:#f8fafc;
+  }
+  .msg-row { display:flex; width:100%; }
   .msg-row.me { justify-content:flex-end; }
   .msg-bubble {
-    max-width:75%; padding:12px 14px; border-radius:16px; line-height:1.5;
-    border:1px solid #e6efe9; background:#fff; color:#17231f;
+    max-width:75%; padding:12px 18px; border-radius:18px 18px 18px 4px; line-height:1.5;
+    border:1px solid #e2e8f0; background:#fff; color:#1e293b; font-size:14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03); word-break: break-word;
   }
-  .msg-row.me .msg-bubble { background:#e8f8f2; border-color:#d4f1e5; }
-  .msg-meta { font-size:11px; color:#6f7d78; margin-top:6px; }
-  .chat-form { padding: 0 20px 24px; }
-  .chat-form form { display:flex; gap:10px; }
+  .msg-row.me .msg-bubble {
+    background: linear-gradient(135deg, #087f5b 0%, #0ca678 100%);
+    border:none; color:#fff; border-radius:18px 18px 4px 18px;
+    box-shadow: 0 4px 14px rgba(8, 127, 91, 0.22);
+  }
+  .msg-meta { font-size:11px; color:#94a3b8; margin-top:5px; }
+  .msg-row.me .msg-meta { color: rgba(255, 255, 255, 0.85); text-align:right; }
+  .chat-form { padding: 16px 22px; border-top:1px solid #e2e8f0; background:#fff; }
+  .chat-form form { display:flex; align-items:center; gap:12px; margin:0; }
   .chat-form textarea {
-    width:100%; min-height:70px; resize:vertical; border:1px solid #dfeae6; border-radius:12px; padding:12px 14px; font:inherit;
+    flex:1; height:48px; min-height:48px; max-height:120px; resize:none;
+    border:1.5px solid #cbd5e1; border-radius:24px; padding:12px 18px;
+    font:inherit; font-size:13.5px; background:#f8fafc; outline:none; transition:all 0.2s;
+  }
+  .chat-form textarea:focus {
+    border-color:#087f5b; background:#fff; box-shadow:0 0 0 3px rgba(8, 127, 91, 0.12);
   }
   .chat-form button {
-    border:none; background:#087f5b; color:#fff; border-radius:12px; padding:0 18px; font-weight:800; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    height:48px; padding:0 24px; border:none; background:#087f5b; color:#fff;
+    border-radius:24px; font-weight:750; font-size:14px; cursor:pointer;
+    box-shadow:0 4px 12px rgba(8, 127, 91, 0.25); transition:all 0.2s ease;
   }
-  .empty-state { padding:24px; color:#71807b; text-align:center; }
+  .chat-form button:hover { background:#06694a; transform:translateY(-1px); }
+  .empty-state { padding:60px 20px; color:#94a3b8; text-align:center; font-size:14px; margin:auto; }
+
+  @media (max-width: 600px) {
+    .chat-page { margin: 12px auto; padding: 0 10px 24px; }
+    .chat-header { flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 18px; }
+    .chat-header h1 { font-size: 20px; }
+    .chat-body { padding: 16px 12px; }
+    .msg-bubble { max-width: 88%; font-size: 13.5px; }
+    .chat-form { padding: 12px 14px; }
+    .chat-form form { flex-direction: column; align-items: stretch; gap: 8px; }
+    .chat-form textarea { height: 44px; min-height: 44px; }
+    .chat-form button { width: 100%; height: 44px; }
+  }
 </style>
 {% endblock %}
 
@@ -59,13 +95,13 @@
         </div>
       </div>
       {% if request.user.role == 'WORKER' %}
-        <a href="{% url 'worker_jobs' %}">Back to jobs</a>
+        <a href="{% url 'worker_jobs' %}"><i class="bi bi-arrow-left"></i> Back to jobs</a>
       {% else %}
-        <a href="{% url 'my_bookings' %}">Back to bookings</a>
+        <a href="{% url 'my_bookings' %}"><i class="bi bi-arrow-left"></i> Back to bookings</a>
       {% endif %}
     </div>
 
-    <div class="chat-body">
+    <div class="chat-body" id="pageChatBody">
       {% if chat_messages %}
         {% for message in chat_messages %}
           <div class="msg-row {% if message.sender == request.user %}me{% endif %}">
@@ -83,12 +119,33 @@
     </div>
 
     <div class="chat-form">
-      <form method="post">
+      <form method="post" id="pageChatForm">
         {% csrf_token %}
-        <textarea name="message" placeholder="Type your message here..." required></textarea>
-        <button type="submit">Send</button>
+        <textarea name="message" placeholder="Type your message here..." required rows="1"></textarea>
+        <button type="submit">Send <i class="bi bi-send-fill" style="margin-left:4px;"></i></button>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const chatBody = document.getElementById('pageChatBody');
+    if (chatBody) {
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+    const form = document.getElementById('pageChatForm');
+    const textarea = form ? form.querySelector('textarea') : null;
+    if (form && textarea) {
+      textarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (textarea.value.trim().length > 0) {
+            form.submit();
+          }
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

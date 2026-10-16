@@ -69,6 +69,11 @@
                                         <span class="meta-item">
                                             <i class="bi bi-geo-alt"></i> {{ booking.location|truncatechars:26 }}
                                         </span>
+                                        {% if booking.status == 'PENDING' %}
+                                            <span class="card-timer-chip" data-created-at="{{ booking.created_at|date:'c' }}">
+                                                <i class="bi bi-stopwatch"></i> <span class="timer-countdown">30m</span>
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -87,9 +92,17 @@
                                     <span class="status-pill cancelled">
                                         <i class="bi bi-x-circle-fill"></i> Cancelled
                                     </span>
+                                {% elif booking.status == 'EXPIRED' %}
+                                    <span class="status-pill cancelled">
+                                        <i class="bi bi-clock-history"></i> Expired
+                                    </span>
+                                {% elif booking.status == 'DISPUTED' %}
+                                    <span class="status-pill emergency">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Disputed
+                                    </span>
                                 {% elif booking.status == 'PENDING' %}
                                     <span class="status-pill pending">
-                                        <i class="bi bi-check-circle-fill"></i> Pending
+                                        <i class="bi bi-hourglass-split"></i> Pending
                                     </span>
                                 {% elif booking.status == 'ACCEPTED' %}
                                     <span class="status-pill accepted">
@@ -97,7 +110,7 @@
                                     </span>
                                 {% elif booking.status == 'COMPLETION_REQUESTED' %}
                                     <span class="status-pill completion-req">
-                                        <i class="bi bi-hourglass-split"></i> Completion Pending
+                                        <i class="bi bi-hourglass-split"></i> Verify &amp; Pay
                                     </span>
                                 {% elif booking.status == 'EMERGENCY_PENDING' %}
                                     <span class="status-pill emergency">
@@ -105,7 +118,7 @@
                                     </span>
                                 {% elif booking.status == 'REJECTED' %}
                                     <span class="status-pill cancelled">
-                                        <i class="bi bi-x-circle-fill"></i> Rejected
+                                        <i class="bi bi-x-circle-fill"></i> Declined
                                     </span>
                                 {% else %}
                                     <span class="status-pill pending">
@@ -195,14 +208,20 @@
                                     {% elif booking.status == 'CANCELLED' %}
                                         <span class="status-pill cancelled"><i class="bi bi-x-circle-fill"></i> Cancelled</span>
                                         <span class="status-subtext">This booking has been cancelled.</span>
+                                    {% elif booking.status == 'EXPIRED' %}
+                                        <span class="status-pill cancelled"><i class="bi bi-clock-history"></i> Expired</span>
+                                        <span class="status-subtext">Worker did not respond in 30 mins.</span>
+                                    {% elif booking.status == 'DISPUTED' %}
+                                        <span class="status-pill emergency"><i class="bi bi-exclamation-triangle-fill"></i> Disputed</span>
+                                        <span class="status-subtext">Under admin review.</span>
                                     {% elif booking.status == 'PENDING' %}
-                                        <span class="status-pill pending"><i class="bi bi-check-circle-fill"></i> Pending</span>
-                                        <span class="status-subtext">Awaiting confirmation.</span>
+                                        <span class="status-pill pending"><i class="bi bi-hourglass-split"></i> Awaiting Worker</span>
+                                        <span class="status-subtext">30-min response window active.</span>
                                     {% elif booking.status == 'ACCEPTED' %}
                                         <span class="status-pill accepted"><i class="bi bi-check-circle-fill"></i> Accepted</span>
                                         <span class="status-subtext">Booking accepted by worker.</span>
                                     {% elif booking.status == 'COMPLETION_REQUESTED' %}
-                                        <span class="status-pill completion-req"><i class="bi bi-hourglass-split"></i> Awaiting Your Confirmation</span>
+                                        <span class="status-pill completion-req"><i class="bi bi-hourglass-split"></i> Verify &amp; Pay</span>
                                         <span class="status-subtext">Worker marked job as done.</span>
                                     {% elif booking.status == 'EMERGENCY_PENDING' %}
                                         <span class="status-pill emergency"><i class="bi bi-lightning-charge-fill"></i> Emergency Pending</span>
@@ -212,6 +231,81 @@
                                     {% endif %}
                                 </div>
                             </div>
+
+                            <!-- STEP-BY-STEP LIFECYCLE TIMELINE -->
+                            <div class="booking-lifecycle-timeline">
+                                <div class="timeline-step {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}step-active{% endif %}">
+                                    <div class="step-dot"><i class="bi bi-check2"></i></div>
+                                    <div class="step-label">Requested</div>
+                                </div>
+                                <div class="timeline-line {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}line-active{% endif %}"></div>
+                                <div class="timeline-step {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}step-active{% endif %}">
+                                    <div class="step-dot"><i class="bi bi-person-check"></i></div>
+                                    <div class="step-label">Accepted</div>
+                                </div>
+                                <div class="timeline-line {% if booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}line-active{% endif %}"></div>
+                                <div class="timeline-step {% if booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}step-active{% endif %}">
+                                    <div class="step-dot"><i class="bi bi-tools"></i></div>
+                                    <div class="step-label">In Progress</div>
+                                </div>
+                                <div class="timeline-line {% if booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}line-active{% endif %}"></div>
+                                <div class="timeline-step {% if booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}step-active{% endif %}">
+                                    <div class="step-dot"><i class="bi bi-clipboard-check"></i></div>
+                                    <div class="step-label">Completion</div>
+                                </div>
+                            </div>
+
+                            <!-- PENDING 30-MINUTE RESPONSE COUNTDOWN BANNER -->
+                            {% if booking.status == 'PENDING' %}
+                                <div class="pending-timer-banner" data-created-at="{{ booking.created_at|date:'c' }}">
+                                    <div class="timer-banner-icon"><i class="bi bi-stopwatch"></i></div>
+                                    <div class="timer-banner-text">
+                                        <div class="timer-banner-title">Worker Response Timer</div>
+                                        <div>Worker has 30 minutes to accept. Time remaining: <strong class="timer-countdown-val">30m 00s</strong>. If expired, you can choose another worker.</div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- EXPIRED STATE: CLEAR MESSAGE & PREFILLED RE-BOOKING ACTION -->
+                            {% if booking.status == 'EXPIRED' %}
+                                <div class="expired-alert-banner">
+                                    <div class="expired-banner-icon"><i class="bi bi-clock-history"></i></div>
+                                    <div class="expired-banner-content">
+                                        <div class="expired-banner-title">Booking Request Expired</div>
+                                        <p>The worker did not respond within the 30-minute window. You can easily pick another available worker with your booking details prefilled.</p>
+                                        <a href="{% url 'service_workers' booking.service.id %}?district={{ booking.district|default:booking.worker.district|urlencode }}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
+                                            <i class="bi bi-people-fill"></i> Select Another Worker
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- REJECTED STATE: REASON & PREFILLED RE-BOOKING ACTION -->
+                            {% if booking.status == 'REJECTED' %}
+                                <div class="expired-alert-banner">
+                                    <div class="expired-banner-icon" style="background:#fee2e2; color:#dc2626;"><i class="bi bi-x-octagon-fill"></i></div>
+                                    <div class="expired-banner-content">
+                                        <div class="expired-banner-title" style="color:#991b1b;">Booking Declined by Worker</div>
+                                        <p>{{ booking.cancellation_reason|default:"The worker was unavailable for the requested schedule." }}</p>
+                                        <a href="{% url 'service_workers' booking.service.id %}?district={{ booking.district|default:booking.worker.district|urlencode }}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
+                                            <i class="bi bi-people-fill"></i> Select Another Worker
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- ARRIVAL VERIFICATION OTP FOR ACCEPTED BOOKINGS -->
+                            {% if booking.status == 'ACCEPTED' and booking.arrival_otp %}
+                                <div class="arrival-otp-card">
+                                    <div class="otp-card-badge">
+                                        <i class="bi bi-shield-check"></i> Doorstep Verification
+                                    </div>
+                                    <div class="otp-code-highlight">{{ booking.arrival_otp }}</div>
+                                    <p class="otp-instruction-text">
+                                        Share this <strong>6-digit arrival code</strong> with your service professional when they arrive at your location to begin the job.
+                                    </p>
+                                </div>
+                            {% endif %}
 
                             <!-- SECTION 1: BOOKING INFORMATION -->
                             <div class="details-section-title">
@@ -385,30 +479,55 @@
                             <div class="details-section-title">
                                 <i class="bi bi-check-circle-fill"></i> Completion &amp; Review
                             </div>
+
+                            {% if booking.status == 'COMPLETION_REQUESTED' %}
+                                <!-- WORKER SUBMITTED COMPLETION & FINAL AMOUNT -->
+                                <div class="completion-amount-review-card">
+                                    <div class="amount-review-header">
+                                        <div class="review-tag"><i class="bi bi-receipt"></i> Worker Completed Job</div>
+                                        <div class="review-sum">&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</div>
+                                    </div>
+                                    <p class="amount-review-desc">The worker has submitted this final service amount. Please verify the completed work and confirm or submit a dispute below.</p>
+                                    <div class="amount-review-actions-wrap">
+                                        <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0; flex:1;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-confirm-amount-complete">
+                                                <i class="bi bi-check2-circle"></i> Confirm Completion &amp; Pay
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn-open-dispute" onclick="openDisputeModal({{ booking.id }})">
+                                            <i class="bi bi-exclamation-octagon"></i> Dispute Amount
+                                        </button>
+                                    </div>
+                                </div>
+                            {% elif booking.status == 'DISPUTED' %}
+                                <div class="dispute-status-card">
+                                    <div class="dispute-status-title"><i class="bi bi-exclamation-triangle-fill"></i> Dispute Under Admin Investigation</div>
+                                    <p class="dispute-status-reason"><strong>Reason:</strong> {{ booking.dispute_reason }}</p>
+                                    <small class="dispute-status-note">Our administration team is investigating this issue with the service provider and will contact you directly to resolve any discrepancies.</small>
+                                </div>
+                            {% endif %}
+
                             <div class="completion-review-grid">
                                 <!-- WORK COMPLETED CARD -->
                                 <div class="completion-subcard blue">
                                     <div class="subcard-header">
                                         <div class="subcard-icon blue"><i class="bi bi-check-circle-fill"></i></div>
-                                        <div class="subcard-title blue">Work completed</div>
+                                        <div class="subcard-title blue">Work Status</div>
                                     </div>
                                     <p class="subcard-desc blue">
                                         {% if booking.status == 'COMPLETED' %}
-                                            You have confirmed that the work is complete.
+                                            Work confirmed and completed successfully.
                                         {% elif booking.status == 'COMPLETION_REQUESTED' %}
-                                            Worker reported completion. Please review and confirm.
+                                            Worker reported completion. Awaiting your approval.
+                                        {% elif booking.status == 'IN_PROGRESS' %}
+                                            Job is currently in progress.
+                                        {% elif booking.status == 'DISPUTED' %}
+                                            Dispute lodged. Resolution pending.
                                         {% else %}
-                                            Confirmation available once the worker finishes work.
+                                            Work confirmation will be available after service begins.
                                         {% endif %}
                                     </p>
-                                    {% if booking.status == 'COMPLETION_REQUESTED' %}
-                                        <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0;">
-                                            {% csrf_token %}
-                                            <button type="submit" class="confirm-complete-btn">
-                                                <i class="bi bi-check2-circle"></i> Work is Complete
-                                            </button>
-                                        </form>
-                                    {% endif %}
                                 </div>
 
                                 <!-- REVIEW CARD -->
@@ -416,13 +535,13 @@
                                     <div>
                                         <div class="subcard-header">
                                             <div class="subcard-icon green"><i class="bi bi-star-fill"></i></div>
-                                            <div class="subcard-title green">Review Submitted</div>
+                                            <div class="subcard-title green">Review &amp; Rating</div>
                                         </div>
                                         <p class="subcard-desc green">
                                             {% if booking.review %}
-                                                Thank you for your feedback!
+                                                Thank you for your rating!
                                             {% elif booking.status == 'COMPLETED' %}
-                                                Share your experience with the service provider.
+                                                Share your review and rating with the community.
                                             {% else %}
                                                 Review submission available after service is completed.
                                             {% endif %}
@@ -451,9 +570,9 @@
                                 </div>
                             {% endif %}
 
-                            <!-- ACTIONS BAR: CHAT, INVOICE, CANCEL -->
+                            <!-- ACTIONS BAR: CHAT, INVOICE, NO-SHOW, CANCEL -->
                             <div class="details-actions-bar">
-                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}
                                     <a
                                         href="{% url 'booking_messages' booking.id %}"
                                         class="booking-chat-btn"
@@ -471,13 +590,24 @@
                                     </a>
                                 {% endif %}
 
+                                {% if booking.status == 'ACCEPTED' %}
+                                    <button
+                                        type="button"
+                                        class="report-no-show-action-btn"
+                                        onclick="openNoShowModal({{ booking.id }})"
+                                    >
+                                        <i class="bi bi-person-x"></i> Report Worker No-Show
+                                    </button>
+                                {% endif %}
+
                                 {% if booking.status == 'PENDING' or booking.status == 'ACCEPTED' or booking.status == 'EMERGENCY_PENDING' %}
-                                    <form method="POST" action="{% url 'cancel_booking' booking.id %}" class="booking-cancel-action" style="margin:0;">
-                                        {% csrf_token %}
-                                        <button type="submit" onclick="return confirm('Are you sure you want to cancel this booking?');" class="cancel-action-btn">
-                                            <i class="bi bi-x-circle-fill"></i> Cancel Booking
-                                        </button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        class="cancel-action-btn"
+                                        onclick="openCancelModal({{ booking.id }})"
+                                    >
+                                        <i class="bi bi-x-circle-fill"></i> Cancel Booking
+                                    </button>
                                 {% endif %}
                             </div>
                         </div>
@@ -663,6 +793,17 @@
             if (form && options.chatUrl) {
                 form.setAttribute('action', options.chatUrl);
             }
+            if (form) {
+                const sendBtn = form.querySelector('button[type="submit"]');
+                if (sendBtn && !sendBtn.querySelector('i')) {
+                    sendBtn.innerHTML = 'Send <i class="bi bi-send-fill" style="margin-left:5px;"></i>';
+                }
+                const txt = form.querySelector('textarea');
+                if (txt) {
+                    txt.setAttribute('rows', '1');
+                    txt.setAttribute('autocomplete', 'off');
+                }
+            }
             const partnerName = options.partnerName || 'Conversation';
             const serviceName = options.serviceName || 'Service';
             const bookingNumber = options.bookingNumber || 'Booking';
@@ -684,17 +825,36 @@
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-                    <div class="booking-chat-thread">
-                        ${messageBody ? messageBody.innerHTML : '<div class="empty-state">No messages yet.</div>'}
+                    <div class="booking-chat-thread" id="chatThread">
+                        ${messageBody ? messageBody.innerHTML : '<div class="empty-state">No messages yet. Send a message to start chatting.</div>'}
                     </div>
                     ${form ? '<div class="booking-chat-composer">' + form.outerHTML + '</div>' : ''}
                 </div>
             `;
 
+            // Auto-scroll to bottom of conversation
+            const thread = document.getElementById('chatThread');
+            if (thread) {
+                thread.scrollTop = thread.scrollHeight;
+            }
+
             const chatForm = chatContent.querySelector('.booking-chat-composer form');
-            if (chatForm) {
+            const textarea = chatContent.querySelector('.booking-chat-composer textarea');
+            if (chatForm && textarea) {
+                // Submit on Enter key (Shift+Enter for newline)
+                textarea.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (textarea.value.trim().length > 0) {
+                            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                        }
+                    }
+                });
+
                 chatForm.addEventListener('submit', function (event) {
                     event.preventDefault();
+                    if (!textarea.value.trim()) return;
+
                     const submitButton = chatForm.querySelector('button[type="submit"]');
                     if (submitButton) submitButton.disabled = true;
 
@@ -705,7 +865,11 @@
                         body: new FormData(chatForm)
                     })
                     .then(resp => resp.text())
-                    .then(nextHtml => renderConversation(nextHtml, options))
+                    .then(nextHtml => {
+                        renderConversation(nextHtml, options);
+                        const nextTextarea = chatContent.querySelector('.booking-chat-composer textarea');
+                        if (nextTextarea) nextTextarea.focus();
+                    })
                     .catch(() => {
                         if (submitButton) submitButton.disabled = false;
                     });
@@ -758,6 +922,175 @@
                 }
             });
         }
-    });
+<!-- CANCEL BOOKING MODAL -->
+<div id="cancelBookingModal" class="lamo-modal-overlay" aria-hidden="true" style="display:none;">
+    <div class="lamo-modal-backdrop" onclick="closeCancelModal()"></div>
+    <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="cancelModalTitle">
+        <div class="lamo-modal-header">
+            <h3 id="cancelModalTitle"><i class="bi bi-x-circle-fill" style="color:#ef4444;"></i> Cancel Booking</h3>
+            <button type="button" class="lamo-modal-close" onclick="closeCancelModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <form method="POST" id="cancelBookingForm" action="">
+            {% csrf_token %}
+            <div class="lamo-modal-body">
+                <p class="modal-instruction">Please select or provide a reason for cancelling this booking request:</p>
+                <div class="quick-reasons-row">
+                    <button type="button" class="quick-reason-pill" onclick="setCancelReason(this, 'Change of plans / No longer required')">Change of plans</button>
+                    <button type="button" class="quick-reason-pill" onclick="setCancelReason(this, 'Found another service provider')">Found alternative</button>
+                    <button type="button" class="quick-reason-pill" onclick="setCancelReason(this, 'Selected wrong date or time slot')">Wrong date/time</button>
+                    <button type="button" class="quick-reason-pill" onclick="setCancelReason(this, 'Emergency personal reason')">Personal emergency</button>
+                </div>
+                <div class="form-group" style="margin-top:12px;">
+                    <label for="cancelReasonInput" class="modal-label">Cancellation Reason <span style="color:#ef4444;">*</span></label>
+                    <textarea id="cancelReasonInput" name="cancellation_reason" required rows="3" class="modal-textarea" placeholder="Explain why you are cancelling this booking..."></textarea>
+                </div>
+            </div>
+            <div class="lamo-modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeCancelModal()">Keep Booking</button>
+                <button type="submit" class="btn-modal-destructive">Confirm Cancellation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- DISPUTE BOOKING MODAL -->
+<div id="disputeBookingModal" class="lamo-modal-overlay" aria-hidden="true" style="display:none;">
+    <div class="lamo-modal-backdrop" onclick="closeDisputeModal()"></div>
+    <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="disputeModalTitle">
+        <div class="lamo-modal-header">
+            <h3 id="disputeModalTitle"><i class="bi bi-exclamation-octagon-fill" style="color:#f59e0b;"></i> Dispute Booking / Amount</h3>
+            <button type="button" class="lamo-modal-close" onclick="closeDisputeModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <form method="POST" id="disputeBookingForm" action="">
+            {% csrf_token %}
+            <div class="lamo-modal-body">
+                <p class="modal-instruction">If the worker submitted an incorrect amount or the job was not done to standard, explain below. An administrator will review your dispute.</p>
+                <div class="quick-reasons-row">
+                    <button type="button" class="quick-reason-pill" onclick="setDisputeReason(this, 'Charged higher than initial quote without agreement')">Price Discrepancy</button>
+                    <button type="button" class="quick-reason-pill" onclick="setDisputeReason(this, 'Work is incomplete or defective')">Incomplete Work</button>
+                    <button type="button" class="quick-reason-pill" onclick="setDisputeReason(this, 'Worker did not finish agreed tasks')">Tasks Unfinished</button>
+                </div>
+                <div class="form-group" style="margin-top:12px;">
+                    <label for="disputeReasonInput" class="modal-label">Dispute Details <span style="color:#ef4444;">*</span></label>
+                    <textarea id="disputeReasonInput" name="dispute_reason" required rows="3" class="modal-textarea" placeholder="Describe what went wrong and the expected correct amount..."></textarea>
+                </div>
+            </div>
+            <div class="lamo-modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeDisputeModal()">Back</button>
+                <button type="submit" class="btn-modal-warning">Submit Dispute</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- REPORT WORKER NO-SHOW MODAL -->
+<div id="reportWorkerNoShowModal" class="lamo-modal-overlay" aria-hidden="true" style="display:none;">
+    <div class="lamo-modal-backdrop" onclick="closeNoShowModal()"></div>
+    <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="noShowModalTitle">
+        <div class="lamo-modal-header">
+            <h3 id="noShowModalTitle"><i class="bi bi-person-x-fill" style="color:#ef4444;"></i> Report Worker No-Show</h3>
+            <button type="button" class="lamo-modal-close" onclick="closeNoShowModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <form method="POST" id="reportNoShowForm" action="">
+            {% csrf_token %}
+            <div class="lamo-modal-body">
+                <div class="modal-alert-box warning">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span>Worker no-shows can only be reported <strong>30 minutes after</strong> the scheduled service time. Our platform validates the schedule before processing.</span>
+                </div>
+                <div class="form-group" style="margin-top:12px;">
+                    <label for="noShowNotesInput" class="modal-label">Notes (optional)</label>
+                    <textarea id="noShowNotesInput" name="notes" rows="3" class="modal-textarea" placeholder="e.g. Worker was unreachable by call and did not arrive..."></textarea>
+                </div>
+            </div>
+            <div class="lamo-modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeNoShowModal()">Cancel</button>
+                <button type="submit" class="btn-modal-destructive">Submit No-Show Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Modal Helpers
+    function openCancelModal(bookingId) {
+        const modal = document.getElementById('cancelBookingModal');
+        const form = document.getElementById('cancelBookingForm');
+        form.action = `/booking/${bookingId}/cancel/`;
+        document.getElementById('cancelReasonInput').value = '';
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+    function closeCancelModal() {
+        const modal = document.getElementById('cancelBookingModal');
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    function setCancelReason(button, reason) {
+        document.getElementById('cancelReasonInput').value = reason;
+        document.querySelectorAll('#cancelBookingModal .quick-reason-pill').forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+    }
+
+    function openDisputeModal(bookingId) {
+        const modal = document.getElementById('disputeBookingModal');
+        const form = document.getElementById('disputeBookingForm');
+        form.action = `/booking/${bookingId}/dispute/`;
+        document.getElementById('disputeReasonInput').value = '';
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+    function closeDisputeModal() {
+        const modal = document.getElementById('disputeBookingModal');
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    function setDisputeReason(button, reason) {
+        document.getElementById('disputeReasonInput').value = reason;
+        document.querySelectorAll('#disputeBookingModal .quick-reason-pill').forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+    }
+
+    function openNoShowModal(bookingId) {
+        const modal = document.getElementById('reportWorkerNoShowModal');
+        const form = document.getElementById('reportNoShowForm');
+        form.action = `/booking/${bookingId}/report-no-show/`;
+        document.getElementById('noShowNotesInput').value = '';
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+    }
+    function closeNoShowModal() {
+        const modal = document.getElementById('reportWorkerNoShowModal');
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    // 30-Minute Response Countdown Timer
+    function updateCountdowns() {
+        const now = new Date().getTime();
+        document.querySelectorAll('[data-created-at]').forEach(function (el) {
+            const createdAtStr = el.getAttribute('data-created-at');
+            if (!createdAtStr) return;
+            const createdAt = new Date(createdAtStr).getTime();
+            const expiresAt = createdAt + (30 * 60 * 1000);
+            const remaining = expiresAt - now;
+
+            const countdownSpan = el.querySelector('.timer-countdown, .timer-countdown-val');
+            if (!countdownSpan) return;
+
+            if (remaining <= 0) {
+                countdownSpan.textContent = 'Expired';
+                countdownSpan.style.color = '#dc2626';
+            } else {
+                const totalSeconds = Math.floor(remaining / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                countdownSpan.textContent = `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
+            }
+        });
+    }
+
+    setInterval(updateCountdowns, 1000);
+    document.addEventListener('DOMContentLoaded', updateCountdowns);
 </script>
 {% endblock %}

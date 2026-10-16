@@ -7268,3 +7268,986 @@ class LegalPagesTest(TestCase):
         self.assertIn('href="/terms/"', content)
         self.assertIn('href="/privacy/"', content)
 
+
+class P1BookingLifecycleAndCancellationTests(TestCase):
+    """
+    Regression test suite for P1 Booking Lifecycle, Service Completion &
+    Payment Confirmation, and Cancellation & No-Show flows.
+    """
+
+    def setUp(self):
+        from .models import StrikeRecord
+        self.StrikeRecord = StrikeRecord
+        from .views import _is_valid_booking_transition, check_and_expire_pending_bookings
+        self._is_valid_booking_transition = _is_valid_booking_transition
+        self.check_and_expire_pending_bookings = check_and_expire_pending_bookings
+
+        # Create service
+        self.service = Service.objects.create(
+            name="Electrical Repair",
+            description="Professional electrical repairs and installations",
+            price=350.00,
+            is_active=True
+        )
+
+        # Create customer
+        self.customer = CustomUser.objects.create_user(
+            username="customer_p1",
+            email="cust_p1@example.com",
+            password="Password123!",
+            role="USER",
+            is_email_verified=True,
+            first_name="Anita",
+            last_name="Roy"
+        )
+
+        # Create worker user and profile
+        self.worker_user = CustomUser.objects.create_user(
+            username="worker_p1",
+            email="worker_p1@example.com",
+            password="Password123!",
+            role="WORKER",
+            is_email_verified=True,
+            first_name="Ramesh",
+            last_name="Kumar"
+        )
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            service=self.service,
+            district="Ernakulam",
+            work_status="AVAILABLE",
+            is_verified=True,
+            pricing_amount=Decimal("400.00")
+        )
+
+        # Booking defaults
+        self.booking_date = date_type.today() + timedelta(days=2)
+        self.booking_time = "14:00"
+        self.booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            date=self.booking_date,
+            time=self.booking_time,
+            location="123 Park Avenue, MG Road",
+            phone="9876543210",
+            status="PENDING",
+            estimated_cost=Decimal("350.00"),
+            latitude=12.9716,
+            longitude=77.5946
+        )
+
+    def test_status_transition_matrix(self):
+        # Valid forward transitions
+        self.assertTrue(self._is_valid_booking_transition('PENDING', 'ACCEPTED'))
+        self.assertTrue(self._is_valid_booking_transition('PENDING', 'REJECTED'))
+        self.assertTrue(self._is_valid_booking_transition('PENDING', 'CANCELLED'))
+        self.assertTrue(self._is_valid_booking_transition('PENDING', 'EXPIRED'))
+
+        self.assertTrue(self._is_valid_booking_transition('ACCEPTED', 'IN_PROGRESS'))
+        self.assertTrue(self._is_valid_booking_transition('ACCEPTED', 'CANCELLED'))
+
+        self.assertTrue(self._is_valid_booking_transition('IN_PROGRESS', 'COMPLETION_REQUESTED'))
+        self.assertTrue(self._is_valid_booking_transition('COMPLETION_REQUESTED', 'COMPLETED'))
+        self.assertTrue(self._is_valid_booking_transition('COMPLETION_REQUESTED', 'DISPUTED'))
+        self.assertTrue(self._is_valid_booking_transition('DISPUTED', 'COMPLETED'))
+        self.assertTrue(self._is_valid_booking_transition('DISPUTED', 'CANCELLED'))
+
+        # Terminal and invalid backward transitions
+        self.assertFalse(self._is_valid_booking_transition('COMPLETED', 'PENDING'))
+        self.assertFalse(self._is_valid_booking_transition('COMPLETED', 'ACCEPTED'))
+        self.assertFalse(self._is_valid_booking_transition('CANCELLED', 'IN_PROGRESS'))
+        self.assertFalse(self._is_valid_booking_transition('EXPIRED', 'ACCEPTED'))
+        self.assertFalse(self._is_valid_booking_transition('REJECTED', 'IN_PROGRESS'))
+
+    def test_30_min_response_timer_auto_expiry(self):
+        # Age the booking beyond 30 minutes
+        older_time = timezone.now() - timedelta(minutes=32)
+        Booking.objects.filter(id=self.booking.id).update(created_at=older_time)
+
+        # Trigger check and expiry
+        expired_bookings = self.check_and_expire_pending_bookings(booking=self.booking)
+        self.assertEqual(len(expired_bookings), 1)
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'EXPIRED')
+
+        # Check customer received notification
+        notif = Notification.objects.filter(recipient=self.customer).order_by('-created_at').first()
+        self.assertIsNotNone(notif)
+        self.assertIn('expired', notif.message.lower())
+
+    def test_book_service_prefill_parameters(self):
+        self.client.login(username="customer_p1", password="Password123!")
+        url = reverse('book_service') + f'?service={self.service.id}&date=2026-11-25&time=11:00&location=Lakeview%20Road&phone=9123456789'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('prefill_data', response.context)
+        self.assertEqual(response.context['prefill_data']['date'], '2026-11-25')
+        self.assertEqual(response.context['prefill_data']['time'], '11:00')
+        self.assertEqual(response.context['prefill_data']['location'], 'Lakeview Road')
+        self.assertEqual(response.context['prefill_data']['phone'], '9123456789')
+
+    def test_arrival_otp_generation_and_start_job_verification(self):
+        # Booking has auto-generated OTP
+        self.assertTrue(bool(self.booking.arrival_otp))
+        self.assertEqual(len(self.booking.arrival_otp), 4)
+
+        # Transition to ACCEPTED
+        self.booking.status = 'ACCEPTED'
+        self.booking.save()
+
+        # Worker logs in
+        self.client.login(username="worker_p1", password="Password123!")
+
+        # 1. Starting job without OTP or with wrong OTP fails
+        start_url = reverse('worker_start_job', args=[self.booking.id])
+        resp_bad = self.client.post(start_url, {'arrival_otp': '0000'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')
+        self.assertIsNone(self.booking.arrival_verified_at)
+
+        # 2. Starting job with correct OTP succeeds
+        resp_good = self.client.post(start_url, {'arrival_otp': self.booking.arrival_otp})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'IN_PROGRESS')
+        self.assertIsNotNone(self.booking.arrival_verified_at)
+
+    def test_worker_request_completion_and_customer_confirm(self):
+        self.booking.status = 'IN_PROGRESS'
+        self.booking.save()
+
+        # Worker submits completion request with final amount of ₹500
+        self.client.login(username="worker_p1", password="Password123!")
+        comp_url = reverse('worker_request_completion', args=[self.booking.id])
+        resp = self.client.post(comp_url, {'final_amount': '500.00'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETION_REQUESTED')
+        self.assertEqual(self.booking.final_amount, Decimal('500.00'))
+
+        # Customer logs in and confirms completion
+        self.client.login(username="customer_p1", password="Password123!")
+        confirm_url = reverse('confirm_completion', args=[self.booking.id])
+        resp_confirm = self.client.post(confirm_url)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETED')
+        self.assertEqual(self.booking.estimated_cost, Decimal('500.00'))
+
+    def test_customer_disputes_completion_amount_creates_complaint(self):
+        self.booking.status = 'COMPLETION_REQUESTED'
+        self.booking.final_amount = Decimal('800.00')
+        self.booking.save()
+
+        self.client.login(username="customer_p1", password="Password123!")
+        dispute_url = reverse('dispute_booking', args=[self.booking.id])
+        resp = self.client.post(dispute_url, {
+            'dispute_reason': 'Worker charged ₹800 instead of initial ₹350 without explanation.'
+        })
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'DISPUTED')
+        self.assertIn('800 instead of initial', self.booking.dispute_reason)
+
+        # Verify Complaint record created
+        complaint = Complaint.objects.filter(booking=self.booking).first()
+        self.assertIsNotNone(complaint)
+        self.assertEqual(complaint.customer, self.customer)
+        self.assertEqual(complaint.booking.worker, self.worker_profile)
+        self.assertEqual(complaint.severity, 'HIGH')
+
+    def test_customer_cancellation_stores_reason(self):
+        self.client.login(username="customer_p1", password="Password123!")
+        cancel_url = reverse('cancel_booking', args=[self.booking.id])
+        resp = self.client.post(cancel_url, {
+            'cancellation_reason': 'Need to reschedule for next week.'
+        })
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertEqual(self.booking.cancelled_by, 'CUSTOMER')
+        self.assertEqual(self.booking.cancellation_reason, 'Need to reschedule for next week.')
+
+    def test_worker_late_cancellation_logs_strike(self):
+        self.booking.status = 'ACCEPTED'
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        worker_cancel_url = reverse('worker_cancel_booking', args=[self.booking.id])
+        resp = self.client.post(worker_cancel_url, {
+            'cancellation_reason': 'Motorbike breakdown on highway.'
+        })
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertEqual(self.booking.cancelled_by, 'WORKER')
+        self.assertEqual(self.booking.cancellation_reason, 'Motorbike breakdown on highway.')
+
+        # Verify StrikeRecord
+        strike = self.StrikeRecord.objects.filter(worker=self.worker_profile, booking=self.booking).first()
+        self.assertIsNotNone(strike)
+        self.assertEqual(strike.strike_type, 'WORKER_LATE_CANCELLATION')
+        self.assertEqual(strike.status, 'PENDING_REVIEW')
+
+    def test_customer_report_worker_no_show_timing(self):
+        self.booking.status = 'ACCEPTED'
+        self.booking.save()
+
+        self.client.login(username="customer_p1", password="Password123!")
+        report_url = reverse('report_worker_no_show', args=[self.booking.id])
+
+        # 1. Booking scheduled in future (2 days ahead) - should be rejected
+        resp_premature = self.client.post(report_url, {'notes': 'Worker is not here!'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')
+
+        # 2. Set booking date to yesterday (well past scheduled time + 30 mins)
+        self.booking.date = date_type.today() - timedelta(days=1)
+        self.booking.save()
+
+        resp_valid = self.client.post(report_url, {'notes': 'Waited over an hour, worker did not arrive.'})
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertIsNotNone(self.booking.worker_no_show_reported_at)
+
+        # Strike logged
+        strike = self.StrikeRecord.objects.filter(worker=self.worker_profile, booking=self.booking).first()
+        self.assertIsNotNone(strike)
+        self.assertEqual(strike.strike_type, 'WORKER_NO_SHOW')
+
+    def test_worker_report_customer_no_show_gps_and_waiting_validation(self):
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today() - timedelta(days=1)
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        report_url = reverse('worker_report_customer_no_show', args=[self.booking.id])
+
+        # 1. Waiting less than 15 minutes rejected
+        resp_short_wait = self.client.post(report_url, {
+            'waiting_minutes': '5',
+            'latitude': '12.9716',
+            'longitude': '77.5946'
+        })
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')
+
+        # 2. GPS far away (> 1 km from 12.9716, 77.5946) rejected
+        resp_far_gps = self.client.post(report_url, {
+            'waiting_minutes': '20',
+            'latitude': '13.0827',  # Chennai, ~290km away
+            'longitude': '80.2707'
+        })
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')
+
+        # 3. Valid doorstep GPS (within 100 meters) and >= 15 min wait accepted
+        resp_valid = self.client.post(report_url, {
+            'waiting_minutes': '20',
+            'latitude': '12.9717',
+            'longitude': '77.5947',
+            'notes': 'Door bell unanswered, phone switched off.'
+        })
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertIsNotNone(self.booking.customer_no_show_reported_at)
+
+
+        # Strike logged for customer no show
+        strike = self.StrikeRecord.objects.filter(worker=self.worker_profile, booking=self.booking).first()
+        self.assertIsNotNone(strike)
+        self.assertEqual(strike.strike_type, 'CUSTOMER_NO_SHOW')
+
+
+# ==========================================================================
+# MULTILINGUAL AI ASSISTANT TESTS
+# Covers Malayalam, Manglish, English, spelling variations, mixed queries
+# ==========================================================================
+
+class MultilingualLanguageDetectionTest(TestCase):
+    """Unit tests for detect_user_language() in ai_utils."""
+
+    def _detect(self, text):
+        from lamoapp.ai_utils import detect_user_language
+        return detect_user_language(text)
+
+    # --- Malayalam script ---
+    def test_malayalam_cleaner_request(self):
+        self.assertEqual(self._detect('\u0d0e\u0d28\u0d3f\u0d15\u0d4d\u0d15\u0d4d \u0d12\u0d30\u0d41 \u0d15\u0d4d\u0d32\u0d40\u0d28\u0d31\u0d46 \u0d35\u0d47\u0d23\u0d02'), 'malayalam')
+
+    def test_malayalam_plumber_request(self):
+        self.assertEqual(self._detect('\u0d2a\u0d4d\u0d32\u0d02\u0d2c\u0d7c \u0d35\u0d47\u0d23\u0d02'), 'malayalam')
+
+    def test_malayalam_electrician_request(self):
+        self.assertEqual(self._detect('\u0d07\u0d32\u0d15\u0d4d\u0d1f\u0d4d\u0d30\u0d40\u0d37\u0d4d\u0d2f\u0d7b \u0d35\u0d47\u0d23\u0d02'), 'malayalam')
+
+    def test_malayalam_greeting(self):
+        self.assertEqual(self._detect('\u0d28\u0d2e\u0d38\u0d4d\u0d15\u0d3e\u0d30\u0d02'), 'malayalam')
+
+    def test_malayalam_how_are_you(self):
+        self.assertEqual(self._detect('\u0d38\u0d41\u0d16\u0d2e\u0d3e\u0d23\u0d4b'), 'malayalam')
+
+    def test_malayalam_carpenter(self):
+        self.assertEqual(self._detect('\u0d12\u0d30\u0d41 \u0d06\u0d36\u0d3e\u0d30\u0d3f \u0d35\u0d47\u0d23\u0d02'), 'malayalam')
+
+    def test_malayalam_painter(self):
+        self.assertEqual(self._detect('\u0d2a\u0d46\u0d2f\u0d3f\u0d28\u0d4d\u0d31\u0d31\u0d46 \u0d35\u0d47\u0d23\u0d02'), 'malayalam')
+
+    # --- Manglish ---
+    def test_manglish_electrician_request(self):
+        self.assertEqual(self._detect('Enik oru electrician venam'), 'manglish')
+
+    def test_manglish_plumber_request(self):
+        self.assertEqual(self._detect('Oru plumber venam'), 'manglish')
+
+    def test_manglish_cleaner_request(self):
+        self.assertEqual(self._detect('oru cleaner venam'), 'manglish')
+
+    def test_manglish_namaskaram(self):
+        self.assertEqual(self._detect('namaskaram'), 'manglish')
+
+    def test_manglish_sugamano(self):
+        self.assertEqual(self._detect('sugamano'), 'manglish')
+
+    def test_manglish_undo_suffix(self):
+        self.assertEqual(self._detect('plambur undo'), 'manglish')
+
+    def test_manglish_njan(self):
+        self.assertEqual(self._detect('njan oru electrician thedi'), 'manglish')
+
+    def test_manglish_mixed_english_words(self):
+        self.assertEqual(self._detect('Enik oru carpenter aavashyam'), 'manglish')
+
+    # --- English ---
+    def test_english_electrician(self):
+        self.assertEqual(self._detect('I need an electrician'), 'english')
+
+    def test_english_plumber(self):
+        self.assertEqual(self._detect('Can I get a plumber?'), 'english')
+
+    def test_english_greeting(self):
+        self.assertEqual(self._detect('Hello, how are you'), 'english')
+
+    def test_english_cleaner(self):
+        self.assertEqual(self._detect('I need a house cleaner'), 'english')
+
+    # --- Edge cases ---
+    def test_empty_string_returns_english(self):
+        self.assertEqual(self._detect(''), 'english')
+
+    def test_none_returns_english(self):
+        self.assertEqual(self._detect(None), 'english')
+
+
+class MultilingualServiceSynonymTest(TestCase):
+    """Unit tests for SERVICE_SYNONYM_MAP keyword resolution in match_service_and_workers."""
+
+    def setUp(self):
+        self.electrician_service = Service.objects.create(
+            name='Electrician', description='Wiring, fuse, electrical repairs',
+            price=500.00, is_active=True
+        )
+        self.plumber_service = Service.objects.create(
+            name='Plumbing', description='Pipe fitting, leak repair',
+            price=400.00, is_active=True
+        )
+        self.cleaner_service = Service.objects.create(
+            name='Cleaning', description='House cleaning service',
+            price=600.00, is_active=True
+        )
+        self.carpenter_service = Service.objects.create(
+            name='Carpentry', description='Wood and furniture work',
+            price=700.00, is_active=True
+        )
+        self.painter_service = Service.objects.create(
+            name='Painting', description='Wall painting and whitewash',
+            price=800.00, is_active=True
+        )
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_english_electrician(self, _):
+        res = match_service_and_workers('I need an electrician')
+        self.assertIsNotNone(res['service'])
+        self.assertIn('electric', res['service'].name.lower())
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_english_plumber(self, _):
+        res = match_service_and_workers('Can I get a plumber?')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_electrician_venam(self, _):
+        res = match_service_and_workers('Enik oru electrician venam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_plumber_venam(self, _):
+        res = match_service_and_workers('Oru plumber venam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_plambur_spelling(self, _):
+        res = match_service_and_workers('plambur undo')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_electrisian_spelling(self, _):
+        res = match_service_and_workers('electrisian venam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_currentkaran(self, _):
+        res = match_service_and_workers('currentkaran venam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_marapani_carpenter(self, _):
+        res = match_service_and_workers('marapani cheyyam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_veedu_clean(self, _):
+        res = match_service_and_workers('veedu clean cheyyam')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_cleaner_request(self, _):
+        res = match_service_and_workers('\u0d0e\u0d28\u0d3f\u0d15\u0d4d\u0d15\u0d4d \u0d12\u0d30\u0d41 \u0d15\u0d4d\u0d32\u0d40\u0d28\u0d31\u0d46 \u0d35\u0d47\u0d23\u0d02')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_plumber_request(self, _):
+        res = match_service_and_workers('\u0d2a\u0d4d\u0d32\u0d02\u0d2c\u0d7c \u0d35\u0d47\u0d23\u0d02')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_electrician_request(self, _):
+        res = match_service_and_workers('\u0d07\u0d32\u0d15\u0d4d\u0d1f\u0d4d\u0d30\u0d40\u0d37\u0d4d\u0d2f\u0d7b \u0d35\u0d47\u0d23\u0d02')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_carpenter_ashary(self, _):
+        res = match_service_and_workers('\u0d12\u0d30\u0d41 \u0d06\u0d36\u0d3e\u0d30\u0d3f \u0d35\u0d47\u0d23\u0d02')
+        self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_unrecognised_query_returns_none(self, _):
+        res = match_service_and_workers('xyzzy foo bar baz')
+        self.assertIsNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_stop_words_only_returns_none(self, _):
+        res = match_service_and_workers('enik oru venam')
+        self.assertIsNone(res['service'])
+
+
+class MultilingualGuestEndpointTest(TestCase):
+    """Integration tests: guest user branch replies in Malayalam/Manglish/English."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.addCleanup(cache.clear)
+        Service.objects.create(
+            name='Electrician', description='Electrical work', price=500, is_active=True
+        )
+        self.url = reverse('ai_service_assistant')
+        self.client.logout()
+
+    def _post_json(self, message):
+        import json
+        return self.client.post(
+            self.url,
+            data=json.dumps({'message': message}),
+            content_type='application/json',
+        )
+
+    # --- English greetings ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_english_hello_no_gemini_call(self, mock_gemini):
+        response = self._post_json('hello')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'chat')
+        mock_gemini.assert_not_called()
+
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_english_how_are_you_no_gemini_call(self, mock_gemini):
+        response = self._post_json('how are you')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        mock_gemini.assert_not_called()
+
+    # --- Manglish greetings ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_manglish_namaskaram_greeting(self, mock_gemini):
+        response = self._post_json('namaskaram')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'chat')
+        self.assertIn('Namaskaram', data['message'])
+        mock_gemini.assert_not_called()
+
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_manglish_sugamano(self, mock_gemini):
+        response = self._post_json('sugamano')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        mock_gemini.assert_not_called()
+
+    # --- Manglish service request -> login_required in Manglish ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_manglish_service_request_prompts_login(self, mock_gemini):
+        response = self._post_json('Enik oru electrician venam')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'login_required')
+        self.assertIn('Login', data['message'])
+        mock_gemini.assert_not_called()
+
+    # --- Malayalam service request -> login_required ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_malayalam_service_request_prompts_login(self, mock_gemini):
+        response = self._post_json('\u0d0e\u0d28\u0d3f\u0d15\u0d4d\u0d15\u0d4d \u0d12\u0d30\u0d41 \u0d15\u0d4d\u0d32\u0d40\u0d28\u0d31\u0d46 \u0d35\u0d47\u0d23\u0d02')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'login_required')
+        mock_gemini.assert_not_called()
+
+    # --- English service query shows service list ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_english_services_query(self, mock_gemini):
+        response = self._post_json('what services do you offer')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertIn('Electrician', data['message'])
+        mock_gemini.assert_not_called()
+
+    # --- No Gemini calls at all for guest ---
+    @patch('lamoapp.ai_utils._call_gemini_api')
+    def test_all_guest_paths_make_no_gemini_calls(self, mock_gemini):
+        for msg in (
+            'hello', 'namaskaram', 'sugamano', 'how are you',
+            'Enik oru electrician venam', 'what services',
+        ):
+            self._post_json(msg)
+        mock_gemini.assert_not_called()
+
+
+class MultilingualAuthenticatedEndpointTest(TestCase):
+    """Integration tests: logged-in user branch replies in user's language."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+        self.customer = _make_user('ml_customer')
+        self.electrician_service = Service.objects.create(
+            name='Electrician', description='Wiring repairs', price=500, is_active=True
+        )
+        self.plumber_service = Service.objects.create(
+            name='Plumbing', description='Pipe repair', price=400, is_active=True
+        )
+        self.cleaner_service = Service.objects.create(
+            name='Cleaning', description='House cleaning', price=600, is_active=True
+        )
+        self.url = reverse('ai_service_assistant')
+        self.client.login(username='ml_customer', password='Password123!')
+
+    def _post(self, message):
+        import json
+        return self.client.post(
+            self.url,
+            data=json.dumps({'message': message}),
+            content_type='application/json',
+        )
+
+    # --- Manglish greeting: Gemini unavailable -> Manglish fallback ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_namaskaram_greeting_fallback(self, mock_gemini):
+        response = self._post('namaskaram')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'chat')
+        self.assertIn('Namaskaram', data['message'])
+        mock_gemini.assert_called_once()
+
+    # --- Manglish greeting: Gemini returns a reply ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value='Namaskaram! \ud83d\udc4b Enthu sahayam venam?')
+    def test_manglish_greeting_gemini_response(self, mock_gemini):
+        response = self._post('namaskaram')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertIn('Namaskaram', data['message'])
+
+    # --- English service query ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_english_electrician_matches(self, _):
+        response = self._post('I need an electrician')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+        self.assertIn('electric', data['service']['name'].lower())
+
+    # --- Manglish service query ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_electrician_venam_matches(self, _):
+        response = self._post('Enik oru electrician venam')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Spelling variation: electrisian ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_electrisian_spelling_matches(self, _):
+        response = self._post('electrisian venam')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Spelling variation: plambur ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_plambur_matches(self, _):
+        response = self._post('plambur undo')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Manglish cleaner ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_veedu_clean_matches(self, _):
+        response = self._post('veedu clean cheyyam')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Malayalam plumber ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_plumber_matches(self, _):
+        import json
+        response = self.client.post(
+            self.url,
+            data=json.dumps({'message': '\u0d2a\u0d4d\u0d32\u0d02\u0d2c\u0d7c \u0d35\u0d47\u0d23\u0d02'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Malayalam cleaner ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_malayalam_cleaner_matches(self, _):
+        import json
+        response = self.client.post(
+            self.url,
+            data=json.dumps({'message': '\u0d0e\u0d28\u0d3f\u0d15\u0d4d\u0d15\u0d4d \u0d12\u0d30\u0d41 \u0d15\u0d4d\u0d32\u0d40\u0d28\u0d31\u0d46 \u0d35\u0d47\u0d23\u0d02'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['type'], 'service_match')
+
+    # --- Unrecognised query English ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_unrecognised_query_english_no_match(self, _):
+        response = self._post('xyzzy foo bar baz')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn("couldn't find", data['message'].lower())
+
+    # --- Unrecognised query Manglish ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_unrecognised_manglish_no_match_message(self, _):
+        response = self._post('enik oru venam')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('Sorry', data['message'])
+
+    # --- Rate limits still enforced ---
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_rate_limit_still_applies(self, _):
+        from lamoapp.rate_limit import AI_ASSISTANT_PER_MINUTE
+        for _ in range(AI_ASSISTANT_PER_MINUTE):
+            self._post('I need an electrician')
+        blocked = self._post('I need an electrician')
+        self.assertEqual(blocked.status_code, 429)
+
+    # --- API key never in URL (security regression) ---
+    def test_gemini_key_not_in_url(self):
+        from lamoapp.ai_utils import _call_gemini_api
+        REAL_KEY = 'AIzaSyD-EXAMPLE-abcdefghijklmnopqrstuvwxyz012345'
+        captured = {}
+        import json as _json, io
+
+        def fake_urlopen(req, timeout=None):
+            captured['url'] = req.full_url
+
+            class _R(io.BytesIO):
+                def __init__(self):
+                    super().__init__(_json.dumps({
+                        'candidates': [{'content': {'parts': [{'text': 'Electrician'}]}}]
+                    }).encode())
+                def __enter__(self): return self
+                def __exit__(self, *a): return False
+
+            return _R()
+
+        with override_settings(GOOGLE_API_KEY=REAL_KEY):
+            with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+                _call_gemini_api('test')
+
+        self.assertNotIn(REAL_KEY, captured.get('url', ''))
+        self.assertNotIn('key=', captured.get('url', ''))
+
+
+class MultilingualSpellingVariationTest(TestCase):
+    """Tests for common Manglish spelling variants of each service name."""
+
+    def setUp(self):
+        Service.objects.create(name='Electrician', description='Electrical', price=500, is_active=True)
+        Service.objects.create(name='Plumbing', description='Plumbing', price=400, is_active=True)
+        Service.objects.create(name='Carpentry', description='Wood work', price=700, is_active=True)
+        Service.objects.create(name='Cleaning', description='Cleaning', price=600, is_active=True)
+        Service.objects.create(name='Painting', description='Painting', price=800, is_active=True)
+
+    def _match(self, query):
+        with patch('lamoapp.ai_utils._call_gemini_api', return_value=None):
+            return match_service_and_workers(query)
+
+    def test_electrisian(self):
+        self.assertIsNotNone(self._match('electrisian venam')['service'])
+
+    def test_electrishen(self):
+        self.assertIsNotNone(self._match('electrishen')['service'])
+
+    def test_ilectrician(self):
+        self.assertIsNotNone(self._match('ilectrician')['service'])
+
+    def test_currentukaran(self):
+        self.assertIsNotNone(self._match('currentukaran')['service'])
+
+    def test_currentkaran(self):
+        self.assertIsNotNone(self._match('currentkaran')['service'])
+
+    def test_plamber(self):
+        self.assertIsNotNone(self._match('plamber venam')['service'])
+
+    def test_plambur(self):
+        self.assertIsNotNone(self._match('plambur undo')['service'])
+
+    def test_vellakkaran(self):
+        self.assertIsNotNone(self._match('vellakkaran venam')['service'])
+
+    def test_carpanter(self):
+        self.assertIsNotNone(self._match('carpanter')['service'])
+
+    def test_karpenter(self):
+        self.assertIsNotNone(self._match('karpenter')['service'])
+
+    def test_marapani(self):
+        self.assertIsNotNone(self._match('marapani')['service'])
+
+    def test_aasaari(self):
+        self.assertIsNotNone(self._match('aasaari')['service'])
+
+    def test_cleaningukari(self):
+        self.assertIsNotNone(self._match('cleaningukari venam')['service'])
+
+    def test_peyntar(self):
+        self.assertIsNotNone(self._match('peyntar venam')['service'])
+
+    def test_peynting(self):
+        self.assertIsNotNone(self._match('peynting')['service'])
+
+
+class SplashScreenAndLoginPopupFlowTest(TestCase):
+    """
+    Regression test suite for splash screen, splash-to-home transition,
+    and automatic session-scoped login popup behavior.
+    """
+
+    def setUp(self):
+        from .models import CustomUser, Service
+        self.user = CustomUser.objects.create_user(
+            username='flow_customer',
+            email='flow_customer@example.com',
+            password='TestPassword123!',
+            role='CUSTOMER'
+        )
+        self.admin_user = CustomUser.objects.create_superuser(
+            username='flow_admin',
+            email='flow_admin@example.com',
+            password='TestPassword123!'
+        )
+        Service.objects.create(name='Test Electrical', description='Wiring repair', price=500, is_active=True)
+
+    def test_fresh_browser_session_renders_splash_screen(self):
+        """A new, unauthenticated visitor on their first hit gets the splash screen."""
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'splash.html')
+        # Session flag is set
+        self.assertTrue(self.client.session.get('lamo_splash_shown'))
+        # Session cookie is set to expire on browser close (expiry == 0)
+        self.assertEqual(self.client.session.get_expiry_age(), self.client.session.get_expiry_date() and self.client.session.get_expiry_age() or 0)
+
+    def test_returning_visit_in_same_session_renders_home_page(self):
+        """A second hit in the same browsing session renders the actual homepage, preventing loops."""
+        # First hit triggers splash
+        first_resp = self.client.get(reverse('home'))
+        self.assertTemplateUsed(first_resp, 'splash.html')
+
+        # Second hit in the same session renders home.html
+        second_resp = self.client.get(reverse('home'))
+        self.assertEqual(second_resp.status_code, 200)
+        self.assertTemplateUsed(second_resp, 'home.html')
+
+    def test_splash_to_home_transition_via_query_param(self):
+        """Redirect from splash with from_splash=1 immediately serves home.html."""
+        response = self.client.get(reverse('home') + '?from_splash=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'home.html')
+        self.assertTrue(self.client.session.get('lamo_splash_shown'))
+
+    def test_search_query_bypasses_splash(self):
+        """Direct search from URL (?q=...) skips splash and shows results immediately."""
+        response = self.client.get(reverse('home') + '?q=Electrical')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'home.html')
+
+    def test_unauthenticated_user_receives_login_popup_markup_and_script(self):
+        """Unauthenticated user homepage includes modal markup and session-scoped script."""
+        session = self.client.session
+        session['lamo_splash_shown'] = True
+        session.save()
+
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Modal elements are present
+        self.assertIn('id="lamoLoginOverlay"', content)
+        self.assertIn('id="lamoAutoLoginForm"', content)
+        self.assertIn('id="lamoLoginClose"', content)
+
+        # Session-scoped script is present
+        self.assertIn('sessionStorage.getItem("lamo_login_popup_shown")', content)
+        self.assertIn('sessionStorage.getItem("lamo_from_splash")', content)
+        self.assertIn('sessionStorage.setItem("lamo_login_popup_dismissed"', content)
+
+    def test_authenticated_user_does_not_receive_login_popup_script(self):
+        """Authenticated users must never receive the automatic login popup trigger."""
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['lamo_splash_shown'] = True
+        session.save()
+
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # The unauthenticated login popup block should not be rendered
+        self.assertNotIn('sessionStorage.getItem("lamo_login_popup_shown")', content)
+        self.assertNotIn('sessionStorage.getItem("lamo_from_splash")', content)
+
+    def test_admin_redirected_to_admin_dashboard(self):
+        """Admin users bypass both splash screen and homepage."""
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('admin_dashboard'), response['Location'])
+
+    def test_splash_html_contains_session_transition_script(self):
+        """splash.html includes sessionStorage coordination and from_splash parameter."""
+        response = self.client.get(reverse('home'))
+        self.assertTemplateUsed(response, 'splash.html')
+        content = response.content.decode('utf-8')
+        self.assertIn('sessionStorage.setItem("lamo_from_splash", "true")', content)
+        self.assertIn('from_splash=1', content)
+
+    def test_home_html_handles_dismissal_and_storage_fallbacks(self):
+        """home.html contains clean-up of legacy localStorage and graceful error catching."""
+        session = self.client.session
+        session['lamo_splash_shown'] = True
+        session.save()
+
+        response = self.client.get(reverse('home'))
+        content = response.content.decode('utf-8')
+
+        # Legacy localStorage cleanup is present
+        self.assertIn('localStorage.removeItem("lamo_login_popup_shown")', content)
+        # Dismissal tracking is present
+        self.assertIn('sessionStorage.setItem("lamo_login_popup_dismissed", "true")', content)
+        # Try-catch wrappers for storage access
+        self.assertIn('try {', content)
+        self.assertIn('catch (e)', content)
+
+
+class ContactPageRenderingAndFormTest(TestCase):
+    """Regression tests for contact.html page rendering, hero block, and form handling."""
+
+    def test_contact_page_get_renders_successfully(self):
+        response = self.client.get(reverse('contact'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'contact.html')
+        self.assertTemplateUsed(response, 'base.html')
+        content = response.content.decode('utf-8')
+        self.assertIn("Let's Talk", content)
+        self.assertIn('Send Us a Message', content)
+        self.assertIn('name="email"', content)
+        self.assertIn('name="subject"', content)
+
+    def test_contact_validation_failure_preserves_form_values(self):
+        # Missing message triggers validation error
+        data = {
+            'name': 'Test User',
+            'email': 'user@example.com',
+            'phone': '9876543210',
+            'subject': 'Help needed',
+            'message': '',
+        }
+        response = self.client.post(reverse('contact'), data)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('Please fill in all required fields.', content)
+        # Preserved values
+        self.assertIn('value="Test User"', content)
+        self.assertIn('value="user@example.com"', content)
+
+    def test_contact_phone_longer_than_15_chars_does_not_crash(self):
+        from lamoapp.models import ContactEnquiry
+        data = {
+            'name': 'Phone Tester',
+            'email': 'phone@example.com',
+            'phone': '+91 98765 432101',  # 17 chars
+            'subject': 'Phone formatting test',
+            'message': 'Testing phone field max length safety.',
+        }
+        response = self.client.post(reverse('contact'), data)
+        self.assertEqual(response.status_code, 200)
+        enquiry = ContactEnquiry.objects.filter(email='phone@example.com').first()
+        self.assertIsNotNone(enquiry)
+        self.assertLessEqual(len(enquiry.phone), 15)
+
+
+
+
+

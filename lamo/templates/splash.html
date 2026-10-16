@@ -769,9 +769,17 @@
 
                 splash.classList.add("fade-out");
 
+                try {
+                    if (window.sessionStorage) {
+                        sessionStorage.setItem("lamo_splash_seen", "true");
+                        sessionStorage.setItem("lamo_from_splash", "true");
+                    }
+                } catch (e) {}
+
                 window.setTimeout(function () {
 
-                    window.location.replace(homepageUrl);
+                    const sep = homepageUrl.indexOf('?') === -1 ? '?' : '&';
+                    window.location.replace(homepageUrl + sep + "from_splash=1");
 
                 }, 250);
 

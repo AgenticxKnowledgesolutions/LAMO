@@ -236,7 +236,7 @@ Worker Dashboard | LAMO
                         <span class="badge-pending">Pending</span>
 
                         <div class="job-actions">
-                            <a href="{% url 'booking_messages' booking.id %}" class="btn-view">View</a>
+                            <a href="{% url 'worker_jobs' %}" class="btn-view">View</a>
                             <form method="POST" action="{% url 'worker_accept_booking' booking.id %}">
                                 {% csrf_token %}
                                 <button type="submit" class="btn-accept">Accept</button>

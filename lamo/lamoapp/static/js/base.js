@@ -20,10 +20,53 @@
 
 
     /* =====================================================
+       MOBILE DRAWER BACKDROP & ESCAPE CONTROLLER
+    ====================================================== */
+    document.addEventListener("DOMContentLoaded", function () {
+        const mainNav = document.getElementById("mainNav");
+        const backdrop = document.getElementById("mobileNavBackdrop");
+        if (!mainNav || !backdrop) return;
+
+        function closeNav() {
+            if (window.bootstrap && window.bootstrap.Collapse) {
+                const bsCollapse = window.bootstrap.Collapse.getInstance(mainNav);
+                if (bsCollapse) {
+                    bsCollapse.hide();
+                } else {
+                    mainNav.classList.remove("show");
+                    backdrop.classList.remove("show");
+                    document.body.style.overflow = "";
+                }
+            } else {
+                mainNav.classList.remove("show");
+                backdrop.classList.remove("show");
+                document.body.style.overflow = "";
+            }
+        }
+
+        mainNav.addEventListener("show.bs.collapse", function () {
+            backdrop.classList.add("show");
+            document.body.style.overflow = "hidden";
+        });
+
+        mainNav.addEventListener("hidden.bs.collapse", function () {
+            backdrop.classList.remove("show");
+            document.body.style.overflow = "";
+        });
+
+        backdrop.addEventListener("click", closeNav);
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && mainNav.classList.contains("show")) {
+                closeNav();
+            }
+        });
+    });
+
+    /* =====================================================
        WORKER NAVBAR SCROLL EFFECT
        Transparent at top -> white on scroll.
     ====================================================== */
-
     document.addEventListener(
       "DOMContentLoaded",
       function () {

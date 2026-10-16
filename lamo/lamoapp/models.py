@@ -342,6 +342,17 @@ class WorkerProfile(models.Model):
 
     is_verified = models.BooleanField(default=False)
 
+    strikes_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of confirmed strikes"
+    )
+
+    warning_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Admin warning and dispute notes"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -362,6 +373,8 @@ class Booking(models.Model):
         ('REJECTED', 'Rejected'),
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
+        ('EXPIRED', 'Expired'),
+        ('DISPUTED', 'Disputed'),
         ('EMERGENCY_PENDING', 'Emergency Pending'),
     )
     BOOKING_TYPE_CHOICES = (
@@ -460,10 +473,56 @@ class Booking(models.Model):
     )
 
     status = models.CharField(
-    max_length=30,
-    choices=STATUS_CHOICES,
-    default='PENDING'
-)
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default='PENDING'
+    )
+
+    arrival_otp = models.CharField(
+        max_length=6,
+        blank=True,
+        null=True,
+        help_text="6-digit OTP for worker arrival verification"
+    )
+
+    arrival_verified_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+
+    final_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Final service amount submitted by worker"
+    )
+
+    cancellation_reason = models.TextField(
+        blank=True,
+        default=''
+    )
+
+    cancelled_by = models.CharField(
+        max_length=30,
+        blank=True,
+        default=''
+    )
+
+    dispute_reason = models.TextField(
+        blank=True,
+        default=''
+    )
+
+    worker_no_show_reported_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+
+    customer_no_show_reported_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
 
     created_at = models.DateTimeField(
         auto_now_add=True
@@ -498,6 +557,22 @@ class Booking(models.Model):
                 name='booking_worker_date_status_idx',
             ),
         ]
+
+    def generate_arrival_otp(self):
+        """Generate and save a 4-digit arrival verification OTP if not already present."""
+        if not self.arrival_otp:
+            import secrets
+            self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
+            if self.pk:
+                self.save(update_fields=['arrival_otp'])
+        return self.arrival_otp
+
+    def save(self, *args, **kwargs):
+        if not self.arrival_otp:
+            import secrets
+            self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
+        super().save(*args, **kwargs)
+
 
     def __str__(self):
 
@@ -1030,3 +1105,88 @@ class ContactEnquiry(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.subject}"
+
+
+# ============================================================
+# STRIKE & NO-SHOW AUDIT RECORD
+# ============================================================
+
+class StrikeRecord(models.Model):
+    STRIKE_TYPE_CHOICES = (
+        ('WORKER_NO_SHOW', 'Worker No Show'),
+        ('WORKER_LATE_CANCELLATION', 'Worker Late Cancellation'),
+        ('CUSTOMER_NO_SHOW', 'Customer No Show'),
+        ('COMPLAINT_UPHELD', 'Complaint Upheld'),
+        ('OTHER', 'Other'),
+    )
+
+    STATUS_CHOICES = (
+        ('PENDING_REVIEW', 'Pending Admin Review'),
+        ('CONFIRMED', 'Confirmed Strike'),
+        ('DISMISSED', 'Dismissed / Forgiven'),
+    )
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='strike_records',
+        help_text="User (worker or customer) receiving the strike/warning report"
+    )
+
+    worker = models.ForeignKey(
+        WorkerProfile,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='strikes'
+    )
+
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='strikes'
+    )
+
+    strike_type = models.CharField(
+        max_length=40,
+        choices=STRIKE_TYPE_CHOICES
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING_REVIEW'
+    )
+
+    reason = models.TextField()
+
+    evidence = models.TextField(
+        blank=True,
+        default='',
+        help_text="Evidence such as GPS coordinates, waiting time, or customer notes"
+    )
+
+    admin_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Admin review findings before applying strike/suspension"
+    )
+
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_strikes'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Strike #{self.id} - {self.user.username} ({self.get_strike_type_display()}) [{self.status}]"

@@ -15,6 +15,7 @@ from .models import (
     WorkerLeave,
     WorkerProfile,
     UserProfile,
+    StrikeRecord,
 )
 
 
@@ -222,4 +223,12 @@ class ContactEnquiryAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'email', 'subject', 'status', 'created_at')
     list_filter = ('status', 'created_at')
     search_fields = ('name', 'email', 'subject', 'message')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(StrikeRecord)
+class StrikeRecordAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'strike_type', 'status', 'booking', 'created_at')
+    list_filter = ('strike_type', 'status', 'created_at')
+    search_fields = ('user__username', 'user__email', 'reason', 'evidence', 'admin_notes')
     readonly_fields = ('created_at', 'updated_at')

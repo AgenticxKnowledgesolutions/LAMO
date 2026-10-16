@@ -35,6 +35,8 @@ urlpatterns = [
     path('booking/<int:booking_id>/confirm-payment/', views.confirm_payment, name='confirm_payment'),
     path('booking/<int:booking_id>/messages/', views.booking_messages, name='booking_messages'),
     path('booking/<int:booking_id>/confirm-completion/', views.confirm_completion, name='confirm_completion'),
+    path('booking/<int:booking_id>/dispute/', views.dispute_booking, name='dispute_booking'),
+    path('booking/<int:booking_id>/report-no-show/', views.report_worker_no_show, name='report_worker_no_show'),
     # path('booking/<int:booking_id>/complaint/', views.raise_complaint, name='raise_complaint'),
     path('booking/<int:booking_id>/review/', views.submit_review, name='submit_review'),
 
@@ -79,6 +81,8 @@ urlpatterns = [
     path('worker/bookings/<int:booking_id>/reject/', views.worker_reject_booking, name='worker_reject_booking'),
     path('worker/booking/<int:booking_id>/start/', views.worker_start_job, name='worker_start_job'),
     path('worker/booking/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion'),
+    path('worker/booking/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking'),
+    path('worker/booking/<int:booking_id>/report-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show'),
     path('worker/emergency/<int:booking_id>/accept/', views.worker_accept_emergency, name='worker_accept_emergency'),
 
     # Notifications

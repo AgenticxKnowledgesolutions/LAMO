@@ -23,7 +23,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, FileResponse
 from django.utils.http import url_has_allowed_host_and_scheme
-from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment
+from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord
 from .email_utils import send_email_safely
 from .rate_limit import (
     AI_ASSISTANT_PER_HOUR,
@@ -654,9 +654,7 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
         )
         return redirect('service_workers', pk=service.id)
 
-    # STEP 7: WORKER MATCHING & BROADCAST NOTIFICATIONS (AFTER SAVE)
-    from datetime import date as date_type
-    today = date_type.today()
+    today = timezone.localdate()
 
     # Get IDs of workers who are currently on leave today
     try:
@@ -782,11 +780,21 @@ def home(request):
     ):
         return redirect('admin_dashboard')
 
-    if not request.session.get('lamo_splash_shown'):
+    # If transitioning from the splash screen, ensure the flag is recorded
+    if request.GET.get('from_splash'):
         request.session['lamo_splash_shown'] = True
-        return render(request, 'splash.html')
 
     query = request.GET.get('q', '').strip()
+
+    # Show splash screen on first visit in a new browser session
+    # (Skip if user is already searching with ?q=)
+    if not query and not request.session.get('lamo_splash_shown'):
+        request.session['lamo_splash_shown'] = True
+        # For unauthenticated visitors, make session cookie expire on browser close
+        # so fresh browser sessions consistently see the splash screen.
+        if not request.user.is_authenticated:
+            request.session.set_expiry(0)
+        return render(request, 'splash.html')
     services = Service.objects.filter(is_active=True)
     if query:
         services = services.filter(
@@ -1111,9 +1119,17 @@ def contact(request):
         subject = request.POST.get('subject', '').strip()
         message = request.POST.get('message', '').strip()
 
+        context = {
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'subject': subject,
+            'message': message,
+        }
+
         if not name or not email or not subject or not message:
             messages.error(request, 'Please fill in all required fields.')
-            return render(request, 'contact.html')
+            return render(request, 'contact.html', context)
 
         # Abuse guard. The form is reachable without an account and each accepted
         # submission stores a row AND sends an e-mail to the admin mailbox, so an
@@ -1134,7 +1150,7 @@ def contact(request):
                     'You have sent several messages recently. Please wait a '
                     'little before sending another one.',
                 )
-                return render(request, 'contact.html')
+                return render(request, 'contact.html', context)
 
         register_attempt_within_window(
             contact_ip_key, CONTACT_MAX_SUBMISSIONS, CONTACT_WINDOW_SECONDS
@@ -1148,13 +1164,14 @@ def contact(request):
         # newline is stripped before it is stored or mailed.
         subject = _sanitize_mail_header(subject)
         name = _sanitize_mail_header(name) or 'LAMO visitor'
+        clean_phone = phone[:15] if phone else None
 
         # Save the enquiry to the database for admin visibility
         try:
             enquiry = ContactEnquiry.objects.create(
                 name=name,
                 email=email,
-                phone=phone or None,
+                phone=clean_phone,
                 subject=subject,
                 message=message,
                 user=request.user if request.user.is_authenticated else None,
@@ -1163,18 +1180,6 @@ def contact(request):
             # Notify the admin team by e-mail. This is best-effort: the
             # enquiry is already persisted and visible in the admin panel, so a
             # mail failure must not lose the customer's message.
-            #
-            # It was previously `except Exception: pass`, which made a
-            # permanently broken SMTP configuration completely invisible - no
-            # log line, nothing to alert on. Failures are now recorded with
-            # send_email_safely() (operation tag + exception class, no message
-            # body, no recipient address, no credentials).
-            #
-            # The recipient comes from settings.CONTACT_NOTIFICATION_EMAIL,
-            # which resolves to CONTACT_NOTIFICATION_EMAIL, then EMAIL_HOST_USER
-            # (SMTP), then DEFAULT_FROM_EMAIL. Gating on EMAIL_HOST_USER alone
-            # silently disabled this notification whenever Resend was the
-            # transport, because Resend setups do not set it.
             admin_mailbox = getattr(
                 settings, 'CONTACT_NOTIFICATION_EMAIL', ''
             ) or settings.DEFAULT_FROM_EMAIL
@@ -1199,8 +1204,6 @@ def contact(request):
                     purpose='contact_enquiry',
                 )
             else:
-                # Worth flagging: the enquiry will only ever be visible in the
-                # admin panel, never by e-mail.
                 logger.warning(
                     'contact_enquiry_notification_skipped enquiry_id=%s '
                     'reason=no_admin_mailbox_configured',
@@ -1211,12 +1214,19 @@ def contact(request):
                 request,
                 'Your enquiry has been sent successfully. We will get back to you soon.'
             )
+            # Clear fields after successful submission
+            context = {}
         except Exception:
+            logger.exception('Failed to process contact enquiry')
             messages.error(request, 'Failed to send your enquiry. Please try again later.')
 
-        return render(request, 'contact.html')
+        return render(request, 'contact.html', context)
 
-    return render(request, 'contact.html')
+    initial_context = {}
+    if request.user.is_authenticated:
+        initial_context['name'] = request.user.get_full_name() or request.user.username
+        initial_context['email'] = request.user.email
+    return render(request, 'contact.html', initial_context)
 
 
 def terms_view(request):
@@ -1277,7 +1287,7 @@ def _get_or_create_review(booking, customer, rating, comment):
         raise
 
 
-def _get_or_create_complaint(booking, customer, subject, description):
+def _get_or_create_complaint(booking, customer, subject, description, severity='MEDIUM'):
     """Same race-safe pattern for complaints.
 
     ``Complaint`` has ``unique_together = ('booking', 'customer')``
@@ -1294,6 +1304,7 @@ def _get_or_create_complaint(booking, customer, subject, description):
                 customer=customer,
                 subject=subject,
                 description=description,
+                severity=severity,
                 status='OPEN',
             ), True
     except IntegrityError:
@@ -1470,16 +1481,87 @@ def _safe_post_login_redirect(request, raw_next):
 def _is_valid_booking_transition(current_status, new_status):
     """Check if a booking status transition is valid."""
     valid_transitions = {
-        'PENDING': ['ACCEPTED', 'REJECTED', 'CANCELLED'],
+        'PENDING': ['ACCEPTED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
         'ACCEPTED': ['IN_PROGRESS', 'CANCELLED'],
-        'IN_PROGRESS': ['COMPLETION_REQUESTED'],
-        'COMPLETION_REQUESTED': ['COMPLETED', 'IN_PROGRESS'],
+        'IN_PROGRESS': ['COMPLETION_REQUESTED', 'CANCELLED'],
+        'COMPLETION_REQUESTED': ['COMPLETED', 'DISPUTED', 'IN_PROGRESS'],
+        'DISPUTED': ['COMPLETED', 'CANCELLED'],
         'COMPLETED': [],  # Terminal state
         'REJECTED': [],  # Terminal state
         'CANCELLED': [],  # Terminal state
-        'EMERGENCY_PENDING': ['ACCEPTED', 'CANCELLED'],  # Emergency bookings can be accepted or cancelled
+        'EXPIRED': [],  # Terminal state
+        'EMERGENCY_PENDING': ['ACCEPTED', 'CANCELLED', 'EXPIRED'],  # Emergency bookings can be accepted or cancelled
     }
     return new_status in valid_transitions.get(current_status, [])
+
+
+def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
+    """Expire PENDING bookings whose 30-minute worker response window has lapsed.
+
+    Notifies customer and worker, updates booking status to EXPIRED, and records
+    the reason. Returns the list of expired bookings.
+    """
+    from datetime import timedelta
+    from django.utils import timezone as dj_timezone
+
+    expiry_threshold = dj_timezone.now() - timedelta(minutes=30)
+    qs = Booking.objects.filter(
+        status__in=['PENDING', 'EMERGENCY_PENDING'],
+        created_at__lt=expiry_threshold
+    )
+    if booking:
+        qs = qs.filter(id=booking.id)
+    elif customer:
+        qs = qs.filter(customer=customer)
+    elif worker:
+        qs = qs.filter(worker=worker)
+
+    expired_list = []
+    for candidate in qs.select_related('customer', 'service', 'worker__user'):
+        with transaction.atomic():
+            b = Booking.objects.select_for_update().filter(id=candidate.id).first()
+            if not b or b.status not in ('PENDING', 'EMERGENCY_PENDING'):
+                continue
+            b.status = 'EXPIRED'
+            b.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            b.cancelled_by = 'SYSTEM'
+            b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            expired_list.append(b)
+
+            # Notify customer
+            Notification.objects.create(
+                recipient=b.customer,
+                booking=b,
+                notification_type='BOOKING_UPDATE',
+                message=(
+                    f"Your booking request #{b.id} for {b.service.name} has expired because "
+                    f"the worker did not respond within 30 minutes. You can choose another worker or pick another time."
+                )
+            )
+
+            # Send email safely
+            send_email_safely(
+                subject=f"Booking Request #{b.id} Expired",
+                message=(
+                    f"Hi {b.customer.username},\n\n"
+                    f"Your booking request #{b.id} for {b.service.name} has expired because "
+                    f"it was not accepted within the 30-minute response window.\n\n"
+                    f"You can choose another available worker or reschedule your service on LAMO.\n\n"
+                    f"Best regards,\nTeam LAMO"
+                ),
+                recipient_list=[b.customer.email],
+                purpose='booking_expired',
+            )
+
+            # Also notify worker if one was assigned
+            if b.worker and b.worker.user:
+                Notification.objects.create(
+                    recipient=b.worker.user,
+                    booking=b,
+                    notification_type='BOOKING_UPDATE',
+                    message=f"Booking request #{b.id} for {b.service.name} has expired due to no response within 30 minutes."
+                )
+    return expired_list
 
 
 def _generate_recurring_dates(start_date, end_date, frequency, preferred_day):
@@ -1552,7 +1634,7 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
         return respond_error('Invalid end date format.')
 
     # Validate date range
-    if start_date < date_type.today():
+    if start_date < timezone.localdate():
         return respond_error('Start date cannot be in the past.')
     if end_date <= start_date:
         return respond_error('End date must be after start date.')
@@ -1800,12 +1882,20 @@ def book_service(request):
         map_tile_subdomains = getattr(settings, 'MAP_TILE_SUBDOMAINS', '')
         map_tile_max_zoom = getattr(settings, 'MAP_TILE_MAX_ZOOM', 20)
 
+        prefill_data = {
+            'date': request.GET.get('date', '').strip(),
+            'time': request.GET.get('time', '').strip(),
+            'location': request.GET.get('location', '').strip(),
+            'phone': request.GET.get('phone', '').strip(),
+        }
+
         return render(request, 'user/book_service.html', {
             'worker': worker,
             'service': service,
             'district': district,
             'district_lat': district_lat,
             'district_lng': district_lng,
+            'prefill_data': prefill_data,
             'map_tile_url': map_tile_url,
             'map_tile_attribution': map_tile_attribution,
             'map_tile_subdomains': map_tile_subdomains,
@@ -1923,13 +2013,13 @@ def book_service(request):
         if worker.work_status != 'AVAILABLE':
             return respond_error('This worker is currently unavailable. Please choose another worker.')
 
-        from datetime import datetime, date as date_type
+        from datetime import datetime
         try:
             booking_date = datetime.strptime(date, '%Y-%m-%d').date()
         except (ValueError, TypeError):
             return respond_error('Invalid date format.')
 
-        if booking_date < date_type.today():
+        if booking_date < timezone.localdate():
             return respond_error('Cannot book for past dates.')
 
         worker_on_leave = False
@@ -1999,6 +2089,7 @@ def book_service(request):
                 district=district,
                 estimated_cost=service.price, status='PENDING'
             )
+            booking.generate_arrival_otp()
 
             Notification.objects.create(
                 recipient=worker.user, booking=booking, notification_type='BOOKING',
@@ -2219,8 +2310,8 @@ def booking_messages(request, booking_id):
     if request.user not in allowed_users:
         return HttpResponseForbidden('You are not authorized to view this booking conversation.')
 
-    if booking.status not in {'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'COMPLETED'}:
-        return HttpResponseForbidden('Chat is available only for accepted bookings.')
+    if booking.status not in {'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'COMPLETED', 'DISPUTED'}:
+        return HttpResponseForbidden('Chat is available only for accepted, in-progress, completed, or disputed bookings.')
 
     if request.method == 'POST':
         text = request.POST.get('message', '').strip()
@@ -2285,6 +2376,19 @@ def worker_accept_booking(request, booking_id):
             messages.warning(request, 'This booking has already been processed.')
             return redirect('worker_dashboard')
 
+        # Check 30-minute response timer expiry
+        if booking.created_at and timezone.now() > booking.created_at + timedelta(minutes=30):
+            booking.status = 'EXPIRED'
+            booking.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            booking.cancelled_by = 'SYSTEM'
+            booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            Notification.objects.create(
+                recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
+                message=f'Your {booking.service.name} booking request #{booking.id} has expired because it was not accepted within 30 minutes.'
+            )
+            messages.error(request, 'This booking request has expired (30-minute response timer elapsed).')
+            return redirect('worker_dashboard')
+
         # Re-check worker leave status at acceptance time
         try:
             worker_on_leave = WorkerLeave.objects.filter(
@@ -2318,7 +2422,8 @@ def worker_accept_booking(request, booking_id):
             return redirect('worker_dashboard')
 
         booking.status = 'ACCEPTED'
-        booking.save(update_fields=['status', 'updated_at'])
+        booking.generate_arrival_otp()
+        booking.save(update_fields=['status', 'arrival_otp', 'updated_at'])
 
     Notification.objects.create(
         recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
@@ -2388,8 +2493,11 @@ def worker_reject_booking(request, booking_id):
         messages.warning(request, 'This booking has already been processed.')
         return redirect('worker_dashboard')
 
+    rejection_reason = request.POST.get('rejection_reason', '').strip() or request.GET.get('reason', '').strip() or 'Worker declined the booking request.'
     booking.status = 'REJECTED'
-    booking.save(update_fields=['status', 'updated_at'])
+    booking.cancellation_reason = rejection_reason
+    booking.cancelled_by = 'WORKER'
+    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
 
     Notification.objects.create(
         recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
@@ -2457,8 +2565,7 @@ def worker_accept_emergency(request, booking_id):
             # Stamping Booking.date is what makes the accepted job visible to
             # later has_worker_schedule_conflict() checks (they filter on
             # date=) and to WorkerLeave matching.
-            from datetime import date as date_type
-            today = date_type.today()
+            today = timezone.localdate()
 
             # Re-check worker leave status at acceptance time
             try:
@@ -4406,6 +4513,9 @@ def worker_dashboard(request):
         messages.error(request, 'Worker profile not found.')
         return redirect('dashboard')
 
+    # Automatically expire any pending bookings past 30-min window
+    check_and_expire_pending_bookings(worker=worker_profile)
+
     total_jobs = Booking.objects.filter(worker=worker_profile).count()
     pending_jobs_count = Booking.objects.filter(
         worker=worker_profile,
@@ -4755,6 +4865,15 @@ def delete_account_view(request):
     if not user.check_password(password):
         messages.error(request, 'Incorrect password. Account deletion cancelled.')
         return redirect('edit_profile')
+
+    active_bookings = Booking.objects.filter(
+        customer=user,
+        status__in=['ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'DISPUTED']
+    ).exists()
+    if active_bookings:
+        messages.error(request, 'Cannot delete account while you have active, in-progress, or disputed bookings.')
+        return redirect('edit_profile')
+
     logout(request)
     user.delete()
     messages.success(request, 'Your account has been permanently deleted.')
@@ -6167,6 +6286,9 @@ def worker_jobs(request):
         user=request.user
     )
 
+    # Automatically expire any pending bookings past 30-min window
+    check_and_expire_pending_bookings(worker=worker)
+
     # Get bookings assigned to this worker
     bookings = Booking.objects.filter(
         worker=worker
@@ -6389,6 +6511,9 @@ def my_bookings(request):
     if request.user.role == 'WORKER':
         return redirect('worker_jobs')
 
+    # Automatically expire any pending bookings past 30-min window
+    check_and_expire_pending_bookings(customer=request.user)
+
     bookings = (
         Booking.objects
         .filter(customer=request.user)
@@ -6503,11 +6628,15 @@ def confirm_completion(request, booking_id):
     # COMPLETION REQUESTED → COMPLETED
     # ==========================================
 
+    if booking.final_amount and booking.final_amount > 0:
+        booking.estimated_cost = booking.final_amount
+
     booking.status = 'COMPLETED'
 
     booking.save(
         update_fields=[
             'status',
+            'estimated_cost',
             'updated_at'
         ]
     )
@@ -6549,7 +6678,7 @@ def confirm_completion(request, booking_id):
 
     messages.success(
         request,
-        'Work confirmed successfully. You can now leave a review.'
+        'Work confirmed successfully. You can now record payment and leave a review.'
     )
 
 
@@ -6557,6 +6686,63 @@ def confirm_completion(request, booking_id):
     # BACK TO MY BOOKINGS
     # ==========================================
 
+    return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def dispute_booking(request, booking_id):
+    """Customer disputes the service completion or final amount."""
+    if request.user.role != 'USER':
+        messages.error(request, 'Only customers can dispute a booking.')
+        return redirect('dashboard')
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'worker__user', 'service'),
+        id=booking_id,
+        customer=request.user
+    )
+
+    if booking.status != 'COMPLETION_REQUESTED':
+        messages.error(request, 'Disputes can only be raised when completion is requested.')
+        return redirect('my_bookings')
+
+    dispute_reason = request.POST.get('dispute_reason', '').strip()
+    if not dispute_reason:
+        messages.error(request, 'Please provide a reason for disputing this booking.')
+        return redirect('my_bookings')
+
+    booking.status = 'DISPUTED'
+    booking.dispute_reason = dispute_reason
+    booking.save(update_fields=['status', 'dispute_reason', 'updated_at'])
+
+    # Create high-severity complaint for admin investigation
+    _get_or_create_complaint(
+        booking=booking,
+        customer=request.user,
+        subject=f"Dispute on Booking #{booking.id}: {booking.service.name}",
+        description=f"Customer disputed completion. Reason: {dispute_reason}",
+        severity='HIGH'
+    )
+
+    if booking.worker and booking.worker.user:
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"The customer has disputed completion on Booking #{booking.id}. Reason: {dispute_reason}"
+        )
+
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin in admins:
+        Notification.objects.create(
+            recipient=admin,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Dispute raised on Booking #{booking.id} ({booking.service.name}) by customer {request.user.username}."
+        )
+
+    messages.info(request, 'Your dispute has been submitted for admin review. Our support team will investigate.')
     return redirect('my_bookings')
 
 
@@ -6590,8 +6776,19 @@ def worker_start_job(request, booking_id):
         )
         return redirect('worker_dashboard')
 
+    # Arrival OTP verification: only enforced if booking has an arrival_otp set
+    arrival_otp = request.POST.get('arrival_otp', '').strip()
+    if booking.arrival_otp:
+        if not arrival_otp or arrival_otp != booking.arrival_otp:
+            messages.error(
+                request,
+                'Invalid Arrival OTP. Please ask the customer for their 6-digit verification code.'
+            )
+            return redirect('worker_jobs')
+
     booking.status = 'IN_PROGRESS'
-    booking.save(update_fields=['status'])
+    booking.arrival_verified_at = timezone.now()
+    booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
 
     # Notify customer that job has started
     Notification.objects.create(
@@ -6603,7 +6800,7 @@ def worker_start_job(request, booking_id):
 
     messages.success(
         request,
-        'Job started successfully.'
+        'Arrival verified! Job started successfully.'
     )
 
     return redirect('worker_dashboard')
@@ -6671,17 +6868,32 @@ def worker_request_completion(request, booking_id):
 
         return redirect('worker_jobs')
 
+    # Parse and validate final service amount
+    raw_amount = request.POST.get('final_amount', '').strip()
+    final_amount = None
+    if raw_amount:
+        try:
+            parsed = Decimal(raw_amount)
+            if parsed > 0:
+                final_amount = parsed
+        except (ValueError, TypeError, ArithmeticError):
+            final_amount = None
+
+    if not final_amount:
+        final_amount = booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
 
     # ==========================================
     # CHANGE STATUS
     # IN_PROGRESS → COMPLETION_REQUESTED
     # ==========================================
 
+    booking.final_amount = final_amount
     booking.status = 'COMPLETION_REQUESTED'
 
     booking.save(
         update_fields=[
             'status',
+            'final_amount',
             'updated_at'
         ]
     )
@@ -6697,8 +6909,8 @@ def worker_request_completion(request, booking_id):
         notification_type='BOOKING_UPDATE',
         message=(
             f'Your {booking.service.name} booking has been '
-            f'marked as completed by the worker. '
-            f'Please verify the work.'
+            f'marked as completed by the worker with final amount ₹{final_amount:.2f}. '
+            f'Please verify the work and confirm payment.'
         )
     )
 
@@ -6707,8 +6919,8 @@ def worker_request_completion(request, booking_id):
         subject=f'Job Completed - Please Verify Booking #{booking.id}',
         message=(
             f'Hi {booking.customer.username},\n\n'
-            f'The worker has completed your {booking.service.name} job and marked it as done.\n\n'
-            f'Please take a moment to verify the work. Once confirmed, the booking will be finalized.\n\n'
+            f'The worker has completed your {booking.service.name} job with final amount ₹{final_amount:.2f}.\n\n'
+            f'Please take a moment to verify the work and confirm in your LAMO dashboard, or submit a dispute if there are any issues.\n\n'
             f'Thank you for choosing LAMO!\n\n'
             f'Best regards,\nTeam LAMO'
         ),
@@ -6723,7 +6935,7 @@ def worker_request_completion(request, booking_id):
 
     messages.success(
         request,
-        'Completion request sent to the customer.'
+        f'Completion request submitted for ₹{final_amount:.2f}. The customer has been notified.'
     )
 
 
@@ -7396,8 +7608,17 @@ def cancel_booking(request, booking_id):
         messages.error(request, "This booking cannot be cancelled at its current status.")
         return redirect('my_bookings')
 
+    cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+    if 'cancellation_reason' in request.POST and not cancellation_reason:
+        messages.error(request, "Please provide a reason for cancelling this booking.")
+        return redirect('my_bookings')
+    if not cancellation_reason:
+        cancellation_reason = 'Cancelled by customer'
+
     booking.status = 'CANCELLED'
-    booking.save(update_fields=['status', 'updated_at'])
+    booking.cancellation_reason = cancellation_reason
+    booking.cancelled_by = 'CUSTOMER'
+    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
 
     # Notify worker
     if booking.worker and booking.worker.user:
@@ -7405,7 +7626,7 @@ def cancel_booking(request, booking_id):
             recipient=booking.worker.user,
             booking=booking,
             notification_type='BOOKING_UPDATE',
-            message=f"Booking #{booking.id} for {booking.service.name} was cancelled by the customer."
+            message=f"Booking #{booking.id} for {booking.service.name} was cancelled by the customer. Reason: {cancellation_reason}"
         )
 
     # Notify admins
@@ -7415,7 +7636,7 @@ def cancel_booking(request, booking_id):
             recipient=admin_user,
             booking=booking,
             notification_type='BOOKING_UPDATE',
-            message=f"Booking #{booking.id} ({booking.service.name}) was cancelled by customer {request.user.username}."
+            message=f"Booking #{booking.id} ({booking.service.name}) was cancelled by customer {request.user.username} (Reason: {cancellation_reason})."
         )
 
     # Send email to worker (Resend-aware; failures logged, never raised)
@@ -7424,7 +7645,8 @@ def cancel_booking(request, booking_id):
             subject=f'Booking #{booking.id} Cancelled',
             message=(
                 f'Hi {booking.worker.user.username},\n\n'
-                f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n\n'
+                f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n'
+                f'Reason: {cancellation_reason}\n\n'
                 f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
                 f'Best regards,\nTeam LAMO'
             ),
@@ -7434,6 +7656,260 @@ def cancel_booking(request, booking_id):
 
     messages.success(request, f"Booking #{booking.id} has been cancelled successfully.")
     return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def worker_cancel_booking(request, booking_id):
+    """Allow an assigned worker to cancel an ACCEPTED booking before start with mandatory reason."""
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+    booking = get_object_or_404(Booking, id=booking_id, worker=worker)
+
+    if booking.status != 'ACCEPTED':
+        messages.error(request, 'Only accepted bookings before work begins can be cancelled by a worker.')
+        return redirect('worker_jobs')
+
+    cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+    if not cancellation_reason:
+        messages.error(request, 'Please provide a reason for cancelling this booking.')
+        return redirect('worker_jobs')
+
+    booking.status = 'CANCELLED'
+    booking.cancellation_reason = cancellation_reason
+    booking.cancelled_by = 'WORKER'
+    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+
+    # Record worker cancellation for admin review
+    StrikeRecord.objects.create(
+        user=request.user,
+        worker=worker,
+        booking=booking,
+        strike_type='WORKER_LATE_CANCELLATION',
+        reason=cancellation_reason,
+        status='PENDING_REVIEW',
+        evidence=f"Worker cancelled confirmed booking #{booking.id} on date {booking.date}."
+    )
+
+    # Notify customer
+    Notification.objects.create(
+        recipient=booking.customer,
+        booking=booking,
+        notification_type='BOOKING_UPDATE',
+        message=f"The assigned worker had to cancel Booking #{booking.id} ({booking.service.name}). Reason: {cancellation_reason}. You can easily select another worker."
+    )
+
+    # Notify admin
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin_user in admins:
+        Notification.objects.create(
+            recipient=admin_user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Worker {request.user.username} cancelled confirmed Booking #{booking.id} ({cancellation_reason}). Logged for review."
+        )
+
+    send_email_safely(
+        subject=f'Booking #{booking.id} Cancelled by Worker',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'We regret to inform you that your worker had to cancel Booking #{booking.id} for {booking.service.name}.\n'
+            f'Reason: {cancellation_reason}\n\n'
+            f'You can choose another available worker right now from your bookings page.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='worker_booking_cancelled',
+    )
+
+    messages.info(request, f"Booking #{booking.id} has been cancelled. The customer was notified.")
+    return redirect('worker_jobs')
+
+
+@login_required
+@require_POST
+def report_worker_no_show(request, booking_id):
+    """Customer reports that worker failed to arrive (available 30 min after scheduled time)."""
+    if request.user.role != 'USER':
+        messages.error(request, 'Only customers can report a worker no-show.')
+        return redirect('dashboard')
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'worker__user', 'service'),
+        id=booking_id,
+        customer=request.user
+    )
+
+    if booking.status != 'ACCEPTED':
+        messages.error(request, 'Worker no-show can only be reported for confirmed/accepted bookings.')
+        return redirect('my_bookings')
+
+    if not booking.date:
+        messages.error(request, 'Cannot report no-show on booking without scheduled date.')
+        return redirect('my_bookings')
+
+    # Validate 30-minute waiting window server-side
+    from datetime import datetime as dt_cls, time as tm_cls
+    from django.utils import timezone as dj_tz
+    scheduled_time = booking.start_time or tm_cls(9, 0)
+    scheduled_dt = dj_tz.make_aware(dt_cls.combine(booking.date, scheduled_time))
+    allowed_time = scheduled_dt + timedelta(minutes=30)
+
+    if dj_tz.now() < allowed_time:
+        minutes_left = int((allowed_time - dj_tz.now()).total_seconds() / 60)
+        messages.error(
+            request,
+            f"Worker no-show report becomes available 30 minutes after scheduled time. "
+            f"Please wait another {max(1, minutes_left)} minute(s)."
+        )
+        return redirect('my_bookings')
+
+    notes = request.POST.get('notes', '').strip() or 'Worker did not show up at scheduled service time.'
+
+    booking.status = 'CANCELLED'
+    booking.cancellation_reason = f"Worker No-Show reported by customer: {notes}"
+    booking.cancelled_by = 'CUSTOMER_REPORTED_NO_SHOW'
+    booking.worker_no_show_reported_at = dj_tz.now()
+    booking.save(update_fields=[
+        'status', 'cancellation_reason', 'cancelled_by',
+        'worker_no_show_reported_at', 'updated_at'
+    ])
+
+    # Create strike record pending admin review
+    if booking.worker and booking.worker.user:
+        StrikeRecord.objects.create(
+            user=booking.worker.user,
+            worker=booking.worker,
+            booking=booking,
+            strike_type='WORKER_NO_SHOW',
+            reason=notes,
+            status='PENDING_REVIEW',
+            evidence=f"Customer reported worker no-show at {dj_tz.now().strftime('%Y-%m-%d %H:%M')}. Scheduled was {scheduled_dt.strftime('%Y-%m-%d %H:%M')}."
+        )
+
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Customer reported a no-show on Booking #{booking.id}. This report has been submitted for admin review."
+        )
+
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin_user in admins:
+        Notification.objects.create(
+            recipient=admin_user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"No-show report filed by customer {request.user.username} against worker #{booking.worker_id} for Booking #{booking.id}."
+        )
+
+    messages.success(request, f"Worker no-show report recorded. Booking #{booking.id} cancelled. You may now book another worker.")
+    return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def worker_report_customer_no_show(request, booking_id):
+    """Worker reports customer no-show with GPS location and 15-minute waiting evidence."""
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'service'),
+        id=booking_id,
+        worker=worker
+    )
+
+    if booking.status != 'ACCEPTED':
+        messages.error(request, 'Customer no-show can only be reported for accepted jobs prior to start.')
+        return redirect('worker_jobs')
+
+    if not booking.date:
+        messages.error(request, 'Invalid booking schedule.')
+        return redirect('worker_jobs')
+
+    from datetime import datetime as dt_cls, time as tm_cls
+    from django.utils import timezone as dj_tz
+    scheduled_time = booking.start_time or tm_cls(9, 0)
+    scheduled_dt = dj_tz.make_aware(dt_cls.combine(booking.date, scheduled_time))
+    allowed_time = scheduled_dt + timedelta(minutes=15)
+
+    if dj_tz.now() < allowed_time:
+        minutes_left = int((allowed_time - dj_tz.now()).total_seconds() / 60)
+        messages.error(
+            request,
+            f"Customer no-show requires at least 15 minutes waiting period past scheduled time. "
+            f"Please wait another {max(1, minutes_left)} minute(s)."
+        )
+        return redirect('worker_jobs')
+
+    notes = request.POST.get('notes', '').strip()
+    if not notes:
+        messages.error(request, 'Please provide details of your waiting attempt (e.g., door knocked, calls made).')
+        return redirect('worker_jobs')
+
+    worker_lat = _safe_coord(request.POST.get('latitude'))
+    worker_lng = _safe_coord(request.POST.get('longitude'))
+    evidence_parts = [f"Waiting notes: {notes}."]
+
+    # GPS verification if booking coordinates exist
+    if booking.latitude is not None and booking.longitude is not None:
+        if worker_lat is None or worker_lng is None:
+            messages.error(request, 'GPS location is required to verify arrival at customer premises.')
+            return redirect('worker_jobs')
+        dist_km = haversine_km(worker_lat, worker_lng, booking.latitude, booking.longitude)
+        if dist_km > 1.0:
+            messages.error(
+                request,
+                f"GPS verification failed: You appear to be {dist_km:.2f} km away from the customer address. "
+                f"You must be on-site (within 1 km) to report a customer no-show."
+            )
+            return redirect('worker_jobs')
+        evidence_parts.append(f"GPS verified on-site: {dist_km * 1000:.0f}m from target ({worker_lat:.5f}, {worker_lng:.5f}).")
+
+    booking.status = 'CANCELLED'
+    booking.cancellation_reason = f"Customer No-Show reported by worker: {notes}"
+    booking.cancelled_by = 'WORKER_REPORTED_NO_SHOW'
+    booking.customer_no_show_reported_at = dj_tz.now()
+    booking.save(update_fields=[
+        'status', 'cancellation_reason', 'cancelled_by',
+        'customer_no_show_reported_at', 'updated_at'
+    ])
+
+    evidence_str = " ".join(evidence_parts)
+    StrikeRecord.objects.create(
+        user=booking.customer,
+        worker=worker,
+        booking=booking,
+        strike_type='CUSTOMER_NO_SHOW',
+        reason=notes,
+        status='PENDING_REVIEW',
+        evidence=evidence_str
+    )
+
+    Notification.objects.create(
+        recipient=booking.customer,
+        booking=booking,
+        notification_type='BOOKING_UPDATE',
+        message=f"Your worker reported that you were unavailable at the scheduled time for Booking #{booking.id}. The booking was cancelled."
+    )
+
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin_user in admins:
+        Notification.objects.create(
+            recipient=admin_user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Customer no-show reported by worker {request.user.username} on Booking #{booking.id}. Evidence: {evidence_str}"
+        )
+
+    messages.info(request, f"Customer no-show report recorded with verified evidence. Booking #{booking.id} cancelled.")
+    return redirect('worker_jobs')
 
 
 @login_required
@@ -7728,95 +8204,98 @@ def ai_service_assistant(request):
     # ==================================================
     # GUEST USER
     # ==================================================
-    # ==================================================
-# GUEST USER
-# ==================================================
     if not request.user.is_authenticated:
 
+        from .ai_utils import detect_user_language
+        lang = detect_user_language(message)
         lower_message = message.lower().strip()
 
         # --------------------------------------------------
-        # GREETINGS
+        # GREETINGS (English, Malayalam, Manglish)
         # --------------------------------------------------
-        greetings = [
-            'hi',
-            'hello',
-            'hey',
-            'helo',
-            'hai',
-            'hii',
-            'good morning',
-            'good afternoon',
-            'good evening'
+        english_greetings = {
+            'hi', 'hello', 'hey', 'helo', 'hai', 'hii',
+            'good morning', 'good afternoon', 'good evening',
+        }
+        manglish_greetings = {
+            'namaskaram', 'namaskaarom', 'namaskaaram',
+            'sugamano', 'sukhamano', 'suhrutham',
+        }
+        # Malayalam script greetings - check via contains
+        malayalam_greeting_substrings = [
+            'നമസ്കാരം', 'സുഖമാണോ', 'ഹലോ',
         ]
 
-        if lower_message in greetings:
+        is_greeting = (
+            lower_message in english_greetings
+            or lower_message in manglish_greetings
+            or any(s in message for s in malayalam_greeting_substrings)
+        )
 
-            return JsonResponse({
-                'success': True,
-                'type': 'chat',
-                'message': (
-                    "Hello! 👋 "
-                    "How can I help you today?"
-                )
-            })
-
-        # --------------------------------------------------
-        # HOW ARE YOU
-        # --------------------------------------------------
-        elif 'how are you' in lower_message:
-
-            return JsonResponse({
-                'success': True,
-                'type': 'chat',
-                'message': (
-                    "I'm doing great! 😊 "
-                    "How can I help you with your "
-                    "home service needs?"
-                )
-            })
+        if is_greeting:
+            if lang == 'malayalam':
+                reply_text = "നമസ്കാരം! 👋 ഞാൻ LAMO അസിസ്റ്റന്റ് ആണ്. ലോഗിൻ ചെയ്ത് സേവനദാതാക്കളെ കണ്ടെത്തൂ."
+            elif lang == 'manglish':
+                reply_text = "Namaskaram! 👋 Njan LAMO assistant aanu. Login cheythu service providers-ne kandeth!"
+            else:
+                reply_text = "Hello! 👋 How can I help you today?"
+            return JsonResponse({'success': True, 'type': 'chat', 'message': reply_text})
 
         # --------------------------------------------------
-        # SERVICES
+        # HOW ARE YOU  (English, Manglish)
         # --------------------------------------------------
-        elif (
-            'service' in lower_message
-            or 'services' in lower_message
+        how_are_you_triggers = [
+            'how are you', 'sugamano', 'sukhamano', 'evide undayirunnu',
+        ]
+        malayalam_how_substrings = ['സുഖമാണോ', 'എന്തൊക്കെ']
+
+        if (
+            any(t in lower_message for t in how_are_you_triggers)
+            or any(s in message for s in malayalam_how_substrings)
         ):
+            if lang == 'malayalam':
+                reply_text = "ഞാൻ നന്നായിരിക്കുന്നു! 😊 നിങ്ങളുടെ ഹോം സർവ്വീസ് ആവശ്യം എന്താണ്?"
+            elif lang == 'manglish':
+                reply_text = "Njan nannayi und! 😊 Enthu home service venam?"
+            else:
+                reply_text = "I'm doing great! 😊 How can I help you with your home service needs?"
+            return JsonResponse({'success': True, 'type': 'chat', 'message': reply_text})
 
-            services = Service.objects.filter(
-                is_active=True
-            ).values_list(
-                'name',
-                flat=True
+        # --------------------------------------------------
+        # SERVICES LIST (English, Manglish, Malayalam)
+        # --------------------------------------------------
+        service_triggers = ['service', 'services', 'enthu service', 'enthu okke']
+        malayalam_service_substrings = ['സേവനം', 'സേവനങ്ങൾ']
+
+        if (
+            any(t in lower_message for t in service_triggers)
+            or any(s in message for s in malayalam_service_substrings)
+        ):
+            service_list = ", ".join(
+                Service.objects.filter(is_active=True).values_list('name', flat=True)
             )
-
-            service_list = ", ".join(services)
-
-            return JsonResponse({
-                'success': True,
-                'type': 'chat',
-                'message': (
-                    f"We currently offer services such as "
-                    f"{service_list}. "
-                    "Tell me what work you need help with. 😊"
-                )
-            })
+            if lang == 'malayalam':
+                reply_text = f"ഞങ്ങൾ ഇപ്പോൾ ലഭ്യമാക്കുന്ന സേവനങ്ങൾ: {service_list}. ഏത് സഹായം വേണം? 😊"
+            elif lang == 'manglish':
+                reply_text = f"Njangalude services: {service_list}. Enthu venam? 😊"
+            else:
+                reply_text = f"We currently offer: {service_list}. Tell me what you need! 😊"
+            return JsonResponse({'success': True, 'type': 'chat', 'message': reply_text})
 
         # --------------------------------------------------
-        # OTHER REQUESTS
+        # ALL OTHER REQUESTS — ask user to log in
         # --------------------------------------------------
+        if lang == 'malayalam':
+            login_msg = "😊 ഞാൻ ശരിയായ ഹോം സർവ്വീസ് കണ്ടെത്താൻ സഹായിക്കാം. ദയവായി ലോഗിൻ ചെയ്യൂ."
+        elif lang == 'manglish':
+            login_msg = "Okay 😊 Njangalkk correct service kaanikkam. Login cheyyanam."
         else:
+            login_msg = (
+                "Sure! 😊 I can help you find the right home service. "
+                "Please login to view available service providers and their details."
+            )
+        return JsonResponse({'success': True, 'type': 'login_required', 'message': login_msg})
 
-            return JsonResponse({
-                'success': True,
-                'type': 'login_required',
-                'message': (
-                    "Sure! 😊 I can help you find the right "
-                    "home service. Please login to view "
-                    "available service providers and their details."
-                )
-            })
     # ==================================================
     # LOGGED-IN USER
     # ==================================================
@@ -7824,39 +8303,40 @@ def ai_service_assistant(request):
 
         from .ai_utils import (
             chat_with_gemini,
+            detect_user_language,
             match_service_and_workers,
-            _safe_float
+            _safe_float,
         )
 
         # --------------------------------------------------
-        # GENERAL CHAT
+        # GENERAL CHAT — greetings (English + Manglish + Malayalam)
         # --------------------------------------------------
         lower_message = message.lower()
 
-        greetings = [
-            'hi',
-            'hello',
-            'hey',
-            'helo',
-            'hai',
-            'hii'
-        ]
+        english_greetings = {'hi', 'hello', 'hey', 'helo', 'hai', 'hii'}
+        manglish_greetings = {
+            'namaskaram', 'namaskaarom', 'namaskaaram',
+            'sugamano', 'sukhamano',
+        }
+        malayalam_greeting_substrings = ['നമസ്കാരം', 'ഹലോ', 'സുഖമാണോ']
 
-        if lower_message in greetings:
+        is_greeting = (
+            lower_message in english_greetings
+            or lower_message in manglish_greetings
+            or any(s in message for s in malayalam_greeting_substrings)
+        )
 
+        if is_greeting:
             reply = chat_with_gemini(message)
-
             if not reply:
-                reply = (
-                    "Hello! 👋 "
-                    "How can I help you today?"
-                )
-
-            return JsonResponse({
-                'success': True,
-                'type': 'chat',
-                'message': reply
-            })
+                lang = detect_user_language(message)
+                if lang == 'malayalam':
+                    reply = "നമസ്കാരം! 👋 ഞാൻ LAMO അസിസ്റ്റന്റ് ആണ്. ഇന്ന് എന്ത് സഹായം വേണം?"
+                elif lang == 'manglish':
+                    reply = "Namaskaram! 👋 Njan LAMO assistant aanu. Enthu sahayamanu vendathu?"
+                else:
+                    reply = "Hello! 👋 How can I help you today?"
+            return JsonResponse({'success': True, 'type': 'chat', 'message': reply})
 
         # --------------------------------------------------
         # SERVICE MATCHING
@@ -7872,13 +8352,14 @@ def ai_service_assistant(request):
         workers = res['workers']
 
         if not matched_service:
-            return JsonResponse({
-                'success': False,
-                'message': (
-                    "Sorry, I couldn't find a matching "
-                    "service for your request."
-                )
-            })
+            lang = detect_user_language(message)
+            if lang == 'malayalam':
+                no_match_msg = "ക്ഷമിക്കണം, നിങ്ങളുടെ അഭ്യർത്ഥനയ്ക്ക് ഒരു സേവനവും കണ്ടെത്താനായില്ല."
+            elif lang == 'manglish':
+                no_match_msg = "Sorry, ningalude request-inu matching service onnum kittiyilla."
+            else:
+                no_match_msg = "Sorry, I couldn't find a matching service for your request."
+            return JsonResponse({'success': False, 'message': no_match_msg})
 
         # --------------------------------------------------
         # WORKER DATA

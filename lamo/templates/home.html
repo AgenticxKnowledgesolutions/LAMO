@@ -1363,43 +1363,86 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         document.body.style.overflow = "";
+
+        try {
+            if (window.sessionStorage) {
+                sessionStorage.setItem("lamo_login_popup_dismissed", "true");
+                sessionStorage.setItem("lamo_login_popup_shown", "true");
+            }
+        } catch (e) {}
     }
 
 
     /* -----------------------------------------------------
-       SHOW LOGIN POPUP AFTER 3 SECONDS
-       Only on first visit (uses localStorage to remember)
+       AUTOMATIC LOGIN POPUP (SESSION-SCOPED)
+       Unauthenticated visitors only:
+       - If arriving from splash screen, open promptly (450ms)
+       - If opened directly, open after a short delay (1500ms)
+       - Dismissal is remembered for the current browsing session
     ----------------------------------------------------- */
 
     {% if not user.is_authenticated %}
 
     if (overlay) {
 
-        try {
+        (function () {
 
-            var popupShown = localStorage.getItem("lamo_login_popup_shown");
+            // Clean up any stale legacy localStorage key so returning visitors are not blocked
+            try {
+                if (window.localStorage && localStorage.getItem("lamo_login_popup_shown")) {
+                    localStorage.removeItem("lamo_login_popup_shown");
+                }
+            } catch (e) {}
 
-            if (!popupShown) {
+            var isFromSplash = false;
 
-                setTimeout(function () {
+            // 1. Check sessionStorage flag from splash transition
+            try {
+                if (window.sessionStorage && sessionStorage.getItem("lamo_from_splash") === "true") {
+                    isFromSplash = true;
+                    sessionStorage.removeItem("lamo_from_splash");
+                }
+            } catch (e) {}
 
-                    openLoginPopup();
+            // 2. Check URL query param (?from_splash=1) and clean it from the address bar
+            try {
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get("from_splash") === "1") {
+                    isFromSplash = true;
+                    urlParams.delete("from_splash");
+                    var cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                    window.history.replaceState({}, "", cleanUrl);
+                }
+            } catch (e) {}
 
-                    localStorage.setItem("lamo_login_popup_shown", "true");
-
-                }, 3000);
-
+            // 3. Check if already shown or dismissed in this browsing session
+            var popupShown = false;
+            try {
+                if (window.sessionStorage) {
+                    popupShown = sessionStorage.getItem("lamo_login_popup_shown") === "true" ||
+                                 sessionStorage.getItem("lamo_login_popup_dismissed") === "true";
+                }
+            } catch (e) {
+                // If sessionStorage is unavailable or throws, allow popup to proceed once
+                popupShown = false;
             }
 
-        } catch (e) {
+            if (!popupShown) {
+                // If arriving from splash, smooth 450ms entrance delay; otherwise 1500ms
+                var delay = isFromSplash ? 450 : 1500;
 
-            setTimeout(function () {
+                setTimeout(function () {
+                    openLoginPopup();
 
-                openLoginPopup();
+                    try {
+                        if (window.sessionStorage) {
+                            sessionStorage.setItem("lamo_login_popup_shown", "true");
+                        }
+                    } catch (e) {}
+                }, delay);
+            }
 
-            }, 3000);
-
-        }
+        })();
 
     }
 

@@ -146,43 +146,117 @@ def _call_gemini_api(prompt_text):
 # GENERAL AI CHAT
 # ==========================================================
 
+def detect_user_language(text):
+    """
+    Detects whether the user is typing in Malayalam script, Manglish (Malayalam in Latin script),
+    or English. Returns 'malayalam', 'manglish', or 'english'.
+    """
+    if not text:
+        return 'english'
+
+    # Check for Malayalam Unicode range (U+0D00 to U+0D7F)
+    malayalam_chars = sum(1 for c in text if '\u0D00' <= c <= '\u0D7F')
+    if malayalam_chars >= 2 or (len(text.strip()) > 0 and malayalam_chars / len(text.strip()) > 0.2):
+        return 'malayalam'
+
+    lower = text.lower()
+    manglish_markers = [
+        'venam', 'vnm', 'aavashyam', 'avashyam', 'undo', 'undoo', 'cheyyamo',
+        'cheyyanam', 'cheyyan', 'enthokke', 'enthoke', 'entha', 'endha', 'vishesham',
+        'visesham', 'sugam', 'sugamano', 'sukham', 'sukhamano', 'evide', 'engane',
+        'ippol', 'ippo', 'namaskaram', 'namaskaarom', 'sahayam', 'sahayikamo',
+        'kitti', 'kittumo', 'varumo', 'varan', 'aanu', 'anu', 'aano', 'ano',
+        'enik', 'enikk', 'enikku', 'njan', 'njn', 'oru', 'aarokke', 'aarkk',
+        'pattum', 'nannayi', 'nalla', 'athra', 'ithra', 'ningal', 'ningalkk',
+        'vannu', 'pokumo', 'poyikko'
+    ]
+
+    words = re.findall(r'[a-z]+', lower)
+    if any(w in manglish_markers for w in words):
+        return 'manglish'
+
+    return 'english'
+
+
+# Common Malayalam and Manglish service synonym maps
+SERVICE_SYNONYM_MAP = {
+    'electrician': [
+        'electrician', 'electrical', 'wiring', 'fuse', 'light', 'fan', 'switch', 'inverter',
+        'current', 'plug', 'current poyi', 'current illa', 'short circuit',
+        # Manglish
+        'electrisian', 'electrishen', 'ilectrician', 'ilectrishen', 'currentukaran',
+        'currentkaran', 'currentkaaran',
+        # Malayalam
+        'ഇലക്ട്രീഷ്യൻ', 'ഇലക്ട്രിഷ്യൻ', 'ഇലക്ട്രിക്കൽ', 'വയറിങ്', 'വയറിംഗ്', 'കറന്റ്', 'ലൈറ്റ്', 'ഫാൻ', 'സ്വിച്ച്'
+    ],
+    'plumber': [
+        'plumber', 'plumbing', 'pipe', 'leak', 'tap', 'water leak', 'flush', 'drain', 'basin',
+        'pipe potti', 'vellam leak', 'vellam chorum',
+        # Manglish
+        'plamber', 'plambur', 'plumberkaran', 'vellakkaran',
+        # Malayalam
+        'പ്ലംബർ', 'പ്ലമ്പർ', 'പൈപ്പ്', 'ടാപ്പ്', 'വെള്ളം ചോർച്ച', 'പൈപ്പ് പൊട്ടി', 'പ്ലംബിങ്', 'പ്ലംബിംഗ്'
+    ],
+    'carpenter': [
+        'carpenter', 'carpentry', 'wood', 'furniture', 'door', 'window', 'table', 'chair',
+        # Manglish
+        'carpanter', 'karpenter', 'marapani', 'aasaari', 'asari', 'wood work',
+        # Malayalam
+        'ആശാരി', 'തച്ചൻ', 'മരപ്പണി', 'ഫർണിച്ചർ', 'വാതിൽ', 'ജനൽ', 'കാർപെന്റർ'
+    ],
+    'cleaner': [
+        'cleaning', 'cleaner', 'house cleaning', 'wash', 'sweeping', 'mopping', 'maid',
+        # Manglish
+        'cleaners', 'veedu clean', 'veed clean', 'cleaningukari', 'kazhukan',
+        # Malayalam — 'ക്ലീന' is the shared stem covering both ക്ലീനർ (U+0D7C)
+        # and declined forms like ക്ലീനറെ (U+0D31 + vowel sign)
+        'ക്ലീന', 'ക്ലീനർ', 'ക്ലീനിങ്', 'വീട് വൃത്തിയാക്കൽ', 'വൃത്തിയാക്കാൻ', 'തുടക്കാൻ', 'അടിക്കാൻ'
+    ],
+    'painter': [
+        'painter', 'painting', 'wall paint', 'whitewash',
+        # Manglish
+        'peyntar', 'peynting', 'chumar paint', 'veed paint',
+        # Malayalam
+        'പെയിന്റർ', 'പെയിന്റിങ്', 'പെയിന്റിംഗ്', 'നിറം പൂശൽ', 'ചായം പൂശൽ'
+    ],
+    'mechanic': [
+        'mechanic', 'repair', 'ac repair', 'fridge repair', 'washing machine', 'appliance',
+        # Manglish
+        'mekkanik', 'reppeyr', 'vandi repair',
+        # Malayalam
+        'മെക്കാനിക്', 'റിപ്പയർ', 'യന്ത്രപ്പണി'
+    ],
+}
+
+
 def chat_with_gemini(user_message):
+    lang = detect_user_language(user_message)
 
     prompt = f"""
-You are the friendly AI assistant of LAMO,
-a home service marketplace.
-
-Talk naturally like a helpful human assistant.
+You are the friendly, intelligent AI assistant of LAMO, a home service marketplace in Kerala.
+You must communicate fluently in English, Malayalam (മലയാളം), and Manglish (Malayalam written using English letters).
 
 User message:
 "{user_message}"
 
+Detected language / style: {lang}
+
 Rules:
-
-1. If the user says hello, hi, hey, etc.,
-   greet them naturally.
-
-2. If the user asks "how are you",
-   respond naturally and positively.
-
-3. If the user asks what you can do,
-   explain that you can help them find home
-   service providers.
-
-4. If the user asks about LAMO,
-   explain that LAMO helps customers find
-   home service professionals.
-
-5. Keep replies short, friendly and natural.
-
-6. Do not invent worker names, prices,
-   ratings, bookings or other information.
-
-7. Do not pretend that a booking has been made.
-
-8. If the user wants to find a service provider,
-   tell them that you can help them find the
-   appropriate service.
+1. Respond in the EXACT SAME LANGUAGE and style used by the user:
+   - If the user writes in Malayalam script (മലയാളം), reply in natural, polite Malayalam.
+   - If the user writes in Manglish (Malayalam in English letters like "sugamano", "enik electrician venam"), reply in natural Manglish!
+   - If the user writes in English, reply in English.
+2. If the user greets (hello, hi, namaskaram, sugamano, etc.):
+   - In Malayalam: "നമസ്കാരം! 👋 ഞാൻ LAMO അസിസ്റ്റന്റ് ആണ്. ഇന്ന് എന്ത് സഹായമാണ് വേണ്ടത്?"
+   - In Manglish: "Namaskaram! 👋 Njan LAMO assistant aanu. Enthu sahayamanu vendathu?"
+   - In English: "Hello! 👋 I'm the LAMO assistant. How can I help you today?"
+3. If the user asks for a service or service workers:
+   - Politely tell them you can help find available service professionals on LAMO.
+4. If the user asks a question about services or details:
+   - Ask clarifying follow-up questions if needed (e.g., location, type of issue) in their language.
+5. Keep replies short, polite, helpful, and natural (1-3 sentences max).
+6. DO NOT invent fake worker names, phone numbers, prices, or ratings.
+7. DO NOT pretend a booking is confirmed.
 
 Return only the assistant's natural reply.
 """
@@ -210,13 +284,12 @@ def match_service_and_workers(user_query, district=None, customer_lat=None, cust
     matched_service = None
 
     prompt = (
-        "You are an AI assistant for a home "
-        "service marketplace called LAMO.\n\n"
+        "You are an AI assistant for a Kerala home service marketplace called LAMO.\n"
+        "Customers may express their requests in English, Malayalam script (മലയാളം), or Manglish (e.g., 'Enik oru electrician venam', 'Oru plumber venam', 'വൈദ്യുതി തകരാർ പരിഹരിക്കാൻ ഒരാളെ വേണം').\n\n"
         "Available services:\n"
     )
 
     for s in services:
-
         prompt += (
             f"- {s.name}: "
             f"{s.description}\n"
@@ -224,10 +297,9 @@ def match_service_and_workers(user_query, district=None, customer_lat=None, cust
 
     prompt += (
         f"\nCustomer request: '{user_query}'\n\n"
-        "Identify the single best matching service "
-        "from the available services.\n"
-        "Return ONLY the exact service name.\n"
-        "Do not add punctuation or explanation."
+        "Understand the request in English, Malayalam, or Manglish and identify the single best matching service name from the available services listed above.\n"
+        "Return ONLY the exact service name as it appears in the list.\n"
+        "Do not add punctuation, quotes, or explanation."
     )
 
     gemini_result = _call_gemini_api(prompt)
@@ -249,59 +321,91 @@ def match_service_and_workers(user_query, district=None, customer_lat=None, cust
         )
 
     # ------------------------------------------------------
-    # DATABASE FALLBACK
+    # DATABASE & KEYWORD FALLBACK (Handles Manglish, Malayalam, English)
     # ------------------------------------------------------
 
     if not matched_service:
+        # Check against multilingual synonym dictionary
+        lower_query = user_query.lower()
+        matched_category = None
 
-        # Searching for the whole sentence ("I need a plumber") inside a
-        # service name can never match, so score each service by how many
-        # of the query's meaningful words it contains.
-        STOP_WORDS = {
-            'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your',
-            'need', 'want', 'looking', 'for', 'a', 'an', 'the',
-            'please', 'can', 'could', 'would', 'like', 'to', 'get',
-            'find', 'help', 'someone', 'any', 'is', 'are', 'am',
-            'do', 'does', 'did', 'have', 'has', 'had', 'with',
-            'and', 'or', 'but', 'in', 'on', 'at', 'of', 'it', 'that',
-            'this', 'there', 'here', 'urgent', 'quickly', 'soon', 'now',
-        }
+        for category, keywords in SERVICE_SYNONYM_MAP.items():
+            for kw in keywords:
+                # Match full word or substring for Malayalam/Manglish tokens
+                if re.search(r'\b' + re.escape(kw) + r'\b', lower_query) or (len(kw) >= 4 and kw in lower_query):
+                    matched_category = category
+                    break
+            if matched_category:
+                break
 
-        tokens = [
-            t for t in re.split(r'[^a-z0-9]+', user_query.lower())
-            if len(t) > 2 and t not in STOP_WORDS
-        ]
+        if matched_category:
+            for s in services:
+                s_name_lower = s.name.lower()
+                if matched_category in s_name_lower or s_name_lower in matched_category:
+                    matched_service = s
+                    break
+                # Special cases: electrical / electrician
+                if matched_category == 'electrician' and ('electric' in s_name_lower or 'wiring' in s_name_lower):
+                    matched_service = s
+                    break
+                if matched_category == 'plumber' and ('plumb' in s_name_lower or 'pipe' in s_name_lower):
+                    matched_service = s
+                    break
+                if matched_category == 'carpenter' and ('carpent' in s_name_lower or 'wood' in s_name_lower):
+                    matched_service = s
+                    break
+                if matched_category == 'cleaner' and ('clean' in s_name_lower):
+                    matched_service = s
+                    break
+                if matched_category == 'painter' and ('paint' in s_name_lower):
+                    matched_service = s
+                    break
 
-        # Match on a short stem so "plumber" still finds "Plumbing" and
-        # "electrician" still finds "Electrical".
-        stems = [t[:5] for t in tokens]
+        if not matched_service:
+            # Fallback to English/Latin and Malayalam stem matching
+            STOP_WORDS = {
+                'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your',
+                'need', 'want', 'looking', 'for', 'a', 'an', 'the',
+                'please', 'can', 'could', 'would', 'like', 'to', 'get',
+                'find', 'help', 'someone', 'any', 'is', 'are', 'am',
+                'do', 'does', 'did', 'have', 'has', 'had', 'with',
+                'and', 'or', 'but', 'in', 'on', 'at', 'of', 'it', 'that',
+                'this', 'there', 'here', 'urgent', 'quickly', 'soon', 'now',
+                # Manglish stop words
+                'enik', 'enikk', 'enikku', 'oru', 'venam', 'vnm', 'aavashyam',
+                'avashyam', 'sahayam', 'undo', 'undoo', 'cheyyamo', 'kittumo',
+                'aano', 'ano', 'aanu', 'anu', 'evide', 'njan', 'njn',
+                # Malayalam stop words
+                'എനിക്ക്', 'ഒരു', 'വേണം', 'സഹായം', 'ഉണ്ടോ', 'ആണ്'
+            }
 
-        best_service = None
-        best_score = 0
+            tokens = [
+                t for t in re.split(r'[^a-zA-Z0-9\u0D00-\u0D7F]+', user_query.lower())
+                if len(t) > 2 and t not in STOP_WORDS
+            ]
 
-        for candidate in services:
-            name_text = (candidate.name or '').lower()
-            full_text = '{0} {1}'.format(
-                name_text, candidate.description or ''
-            ).lower()
+            stems = [t[:5] for t in tokens]
 
-            score = 0
-            for stem in stems:
-                if stem in name_text:
-                    # A hit in the service name is a much stronger signal than
-                    # one buried somewhere in the description.
-                    score += 2
-                elif stem in full_text:
-                    score += 1
+            best_service = None
+            best_score = 0
 
-            if score > best_score:
-                best_score = score
-                best_service = candidate
+            for candidate in services:
+                name_text = (candidate.name or '').lower()
+                full_text = f"{name_text} {(candidate.description or '').lower()}"
 
-        # Require a real signal: either the name matched, or two separate
-        # words landed somewhere in the listing.
-        if best_score >= 2:
-            matched_service = best_service
+                score = 0
+                for stem in stems:
+                    if stem in name_text:
+                        score += 2
+                    elif stem in full_text:
+                        score += 1
+
+                if score > best_score:
+                    best_score = score
+                    best_service = candidate
+
+            if best_score >= 2:
+                matched_service = best_service
 
     # ------------------------------------------------------
     # DO NOT RANDOMLY SELECT FIRST SERVICE

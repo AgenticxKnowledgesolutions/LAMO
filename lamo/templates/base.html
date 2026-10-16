@@ -90,70 +90,63 @@
 
     {% if user.is_authenticated and user.role == 'WORKER' %}
 
-      <!-- =====================================================
+    <!-- =====================================================
            WORKER NAVIGATION
            Separate from the existing user/public navbar.
            ===================================================== -->
 
-      <nav class="worker-navbar" id="workerNavbar">
+    <nav class="worker-navbar" id="workerNavbar">
 
-        <a href="{% url 'worker_dashboard' %}" class="worker-brand">
+      <a href="{% url 'worker_dashboard' %}" class="worker-brand">
 
-          <img
-            src="{% static 'img/logoo.png' %}"
-            alt="LAMO Logo"
-            style="height: 46px; width: auto; object-fit: contain; display: block;">
+        <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
+          style="height: 46px; width: auto; object-fit: contain; display: block;">
 
 
-          <div class="worker-brand-text">
-            <small>LABOUR MANAGEMENT SYSTEM</small>
-          </div>
+        <div class="worker-brand-text">
+          <small>LABOUR MANAGEMENT SYSTEM</small>
+        </div>
 
-        </a>
+      </a>
 
 
-        <!-- <div class="worker-center-label">
+      <!-- <div class="worker-center-label">
           <i class="bi bi-tools"></i>
           LAMO WORKER CENTER
         </div> -->
 
 
-        <div class="worker-nav-links">
+      <div class="worker-nav-links">
 
-          <a
-            href="{% url 'worker_dashboard' %}"
-            class="{% if request.resolver_match.url_name == 'worker_dashboard' %}active{% endif %}"
-          >
-            Home
-          </a>
+        <a href="{% url 'worker_dashboard' %}"
+          class="{% if request.resolver_match.url_name == 'worker_dashboard' %}active{% endif %}">
+          Home
+        </a>
 
-          <a href="{% url 'worker_manage_dashboard' %}">
-            Dashboard
-          </a>
+        <a href="{% url 'worker_manage_dashboard' %}">
+          Dashboard
+        </a>
 
-          <a href="#worker-jobs">
-            Services
-          </a>
+        <a href="{% url 'worker_jobs' %}"
+          class="{% if request.resolver_match.url_name == 'worker_jobs' %}active{% endif %}">
+          Services
+        </a>
 
-        </div>
+      </div>
 
 
-        <form
-          method="POST"
-          action="{% url 'logout' %}"
-          class="worker-logout-form"
-        >
+      <form method="POST" action="{% url 'logout' %}" class="worker-logout-form">
 
-          {% csrf_token %}
+        {% csrf_token %}
 
-          <button type="submit" class="worker-logout">
-            <i class="bi bi-box-arrow-right"></i>
-            Logout
-          </button>
+        <button type="submit" class="worker-logout">
+          <i class="bi bi-box-arrow-right"></i>
+          Logout
+        </button>
 
-        </form>
+      </form>
 
-      </nav>
+    </nav>
 
     {% else %}
 
@@ -169,11 +162,7 @@
 
         <a class="brand-logo" href="{% url 'home' %}" data-aos="fade-down">
 
-<img
-        src="{% static 'img/logoo.png' %}"
-        alt="LAMO"
-        class="lamo-navbar-logo"
-    >
+          <img src="{% static 'img/logoo.png' %}" alt="LAMO" class="lamo-navbar-logo">
         </a>
 
 
@@ -197,6 +186,14 @@
 
         <div class="collapse navbar-collapse" id="mainNav">
 
+          <!-- Mobile Drawer Header with Close Button -->
+          <div class="mobile-drawer-header d-lg-none">
+            <span class="mobile-drawer-title">Menu</span>
+            <button type="button" class="mobile-drawer-close" data-bs-toggle="collapse" data-bs-target="#mainNav"
+              aria-label="Close menu">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
 
           {% if user.is_authenticated %}
 
@@ -232,7 +229,8 @@
 
               <li class="nav-item">
 
-                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' %}active{% endif %}" href="{% url 'service_page' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' %}active{% endif %}"
+                  href="{% url 'service_page' %}">
 
                   Services
 
@@ -256,16 +254,13 @@
 
               <li class="nav-item">
 
-                <button type="button"
-                   class="nav-link notification-nav-link position-relative"
-                   id="lamoNotifBell"
-                   aria-expanded="false"
-                   aria-controls="lamoNotifDrawer"
-                   aria-haspopup="dialog"
-                   title="Notifications"
-                   aria-label="Notifications">
+                <button type="button" class="nav-link notification-nav-link position-relative" id="lamoNotifBell"
+                  aria-expanded="false" aria-controls="lamoNotifDrawer" aria-haspopup="dialog" title="Notifications"
+                  aria-label="Notifications">
                   <i class="bi bi-bell"></i>
-                  <span id="nav-unread-badge" class="badge bg-danger rounded-circle position-absolute" style="top: 2px; right: 2px; font-size: 0.65rem; padding: 3px 6px; {% if global_unread_count == 0 %}display: none;{% endif %}">{{ global_unread_count }}</span>
+                  <span id="nav-unread-badge" class="badge bg-danger rounded-circle position-absolute"
+                    style="top: 2px; right: 2px; font-size: 0.65rem; padding: 3px 6px; {% if global_unread_count == 0 %}display: none;{% endif %}">{{
+                    global_unread_count }}</span>
                 </button>
 
               </li>
@@ -282,15 +277,8 @@
 
             <div class="user-menu" id="userMenu">
 
-              <button
-                type="button"
-                class="user-menu-trigger"
-                id="userMenuTrigger"
-                aria-expanded="false"
-                aria-haspopup="true"
-                title="{{ user.username }}"
-                aria-label="Open user menu for {{ user.username }}"
-              >
+              <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false"
+                aria-haspopup="true" title="{{ user.username }}" aria-label="Open user menu for {{ user.username }}">
 
                 <span class="user-initial">
                   {{ user.username|first|upper }}
@@ -303,17 +291,18 @@
 
               <div class="user-dropdown" id="userDropdown">
 
-                
+
                 <a href="{% url 'user_dashboard' %}">
 
-                 <i class="bi bi-house"></i>
+                  <i class="bi bi-house"></i>
 
                   dashboard
 
                 </a>
                 <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
                   {% csrf_token %}
-                  <button type="submit" class="logout-item" style="width: 100%; background: none; border: none; cursor: pointer; font: inherit; display: flex; align-items: center; gap: 8px;">
+                  <button type="submit" class="logout-item"
+                    style="width: 100%; background: none; border: none; cursor: pointer; font: inherit; display: flex; align-items: center; gap: 8px;">
                     <i class="bi bi-box-arrow-right"></i>
                     Logout
                   </button>
@@ -381,7 +370,7 @@
 
 
               <!-- WORKERS -->
-<!-- 
+              <!-- 
               <li class="nav-item">
 
                 <a class="nav-link" data-section="workers" href="{% url 'home' %}#workers">
@@ -403,14 +392,15 @@
 
                 </a>
 
-              </li> --> 
+              </li> -->
 
 
               <!-- CONTACT -->
 
               <li class="nav-item">
 
-                <a class="nav-link" data-section="contact" href="{% url 'contact' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}"
+                  data-section="contact" href="{% url 'contact' %}">
 
                   Contact
 
@@ -466,6 +456,7 @@
       </div>
 
     </nav>
+    <div class="mobile-nav-backdrop" id="mobileNavBackdrop" aria-hidden="true"></div>
 
     {% endif %}
 
@@ -523,9 +514,7 @@
           <a class="brand-logo mb-3 d-inline-flex" href="{% url 'home' %}">
 
 
-            <img
-              src="{% static 'img/logoo.png' %}"
-              alt="LAMO Logo"
+            <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
               style="height: 50px; width: auto; object-fit: contain; display: block;">
 
 
@@ -542,9 +531,9 @@
 
           <p class="text-muted pe-lg-4 mt-3" style="font-size: 0.9rem;">
 
-          Connecting customers with verified service
-          workers and making booking services simple,
-          secure and efficient for everyone.
+            Connecting customers with verified service
+            workers and making booking services simple,
+            secure and efficient for everyone.
 
           </p>
 
@@ -787,7 +776,7 @@
               <i class="bi bi-envelope-fill text-success me-2">
               </i>
 
-              support@lamo.com
+              +91 9496552094
 
             </li>
 
@@ -797,9 +786,8 @@
               <i class="bi bi-geo-alt-fill text-success me-2">
               </i>
 
-              123, Green Street,
-              Coimbatore - 641001
 
+              3rd Floor, Raj Plaza, Town Limit, Kollam
             </li>
 
 
@@ -867,7 +855,7 @@
 
 
 
-  
+
 
 
   {% block extra_js %}
@@ -877,117 +865,117 @@
   {% include 'includes/ai_assistant.html' %}
 
 
-<div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer"></div>
 
-<script>
-function showToast(type, title, message, duration = 4000) {
-    const container = document.getElementById('toastContainer');
-    if (!container) { return; }
-    const toast = document.createElement('div');
-    toast.className = 'toast toast-' + type;
-    toast.setAttribute('role', 'status');
+  <script>
+    function showToast(type, title, message, duration = 4000) {
+      const container = document.getElementById('toastContainer');
+      if (!container) { return; }
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-' + type;
+      toast.setAttribute('role', 'status');
 
-    const icons = {
+      const icons = {
         success: 'bi-check-lg',
         error: 'bi-x-lg',
         warning: 'bi-exclamation-triangle',
         info: 'bi-info-lg'
-    };
+      };
 
-    const iconWrap = document.createElement('div');
-    iconWrap.className = 'toast-icon';
-    const icon = document.createElement('i');
-    icon.className = 'bi ' + (icons[type] || icons.info);
-    icon.setAttribute('aria-hidden', 'true');
-    iconWrap.appendChild(icon);
+      const iconWrap = document.createElement('div');
+      iconWrap.className = 'toast-icon';
+      const icon = document.createElement('i');
+      icon.className = 'bi ' + (icons[type] || icons.info);
+      icon.setAttribute('aria-hidden', 'true');
+      iconWrap.appendChild(icon);
 
-    const content = document.createElement('div');
-    content.className = 'toast-content';
-    const titleEl = document.createElement('div');
-    titleEl.className = 'toast-title';
-    titleEl.textContent = title;
-    const messageEl = document.createElement('div');
-    messageEl.className = 'toast-message';
-    messageEl.textContent = message;
-    content.appendChild(titleEl);
-    content.appendChild(messageEl);
+      const content = document.createElement('div');
+      content.className = 'toast-content';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'toast-title';
+      titleEl.textContent = title;
+      const messageEl = document.createElement('div');
+      messageEl.className = 'toast-message';
+      messageEl.textContent = message;
+      content.appendChild(titleEl);
+      content.appendChild(messageEl);
 
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'toast-close';
-    closeBtn.setAttribute('type', 'button');
-    closeBtn.setAttribute('aria-label', 'Dismiss notification');
-    const closeIcon = document.createElement('i');
-    closeIcon.className = 'bi bi-x';
-    closeIcon.setAttribute('aria-hidden', 'true');
-    closeBtn.appendChild(closeIcon);
-    closeBtn.addEventListener('click', function() { toast.remove(); });
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'toast-close';
+      closeBtn.setAttribute('type', 'button');
+      closeBtn.setAttribute('aria-label', 'Dismiss notification');
+      const closeIcon = document.createElement('i');
+      closeIcon.className = 'bi bi-x';
+      closeIcon.setAttribute('aria-hidden', 'true');
+      closeBtn.appendChild(closeIcon);
+      closeBtn.addEventListener('click', function () { toast.remove(); });
 
-    toast.appendChild(iconWrap);
-    toast.appendChild(content);
-    toast.appendChild(closeBtn);
+      toast.appendChild(iconWrap);
+      toast.appendChild(content);
+      toast.appendChild(closeBtn);
 
-    container.appendChild(toast);
+      container.appendChild(toast);
 
-    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            toast.classList.add('show');
+          toast.classList.add('show');
         });
-    });
+      });
 
-    if (duration > 0) {
+      if (duration > 0) {
         setTimeout(() => {
-            toast.classList.remove('show');
-            toast.classList.add('hide');
-            setTimeout(() => toast.remove(), 400);
+          toast.classList.remove('show');
+          toast.classList.add('hide');
+          setTimeout(() => toast.remove(), 400);
         }, duration);
+      }
     }
-}
 
-// Convert Django messages to toasts
-(function() {
-    const djangoMessages = [];
-    {% for message in messages %}
-    djangoMessages.push({
+    // Convert Django messages to toasts
+    (function () {
+      const djangoMessages = [];
+      {% for message in messages %}
+      djangoMessages.push({
         type: '{{ message.tags }}',
         message: '{{ message|escapejs }}'
-    });
-    {% endfor %}
+      });
+      {% endfor %}
 
-    djangoMessages.forEach(function(msg) {
+      djangoMessages.forEach(function (msg) {
         let type = 'info';
         if (msg.type === 'success') type = 'success';
         else if (msg.type === 'error') type = 'error';
         else if (msg.type === 'warning') type = 'warning';
         showToast(type, type.charAt(0).toUpperCase() + type.slice(1), msg.message);
-    });
-})();
+      });
+    })();
 
-// Real-time Notification Polling
-{% if user.is_authenticated %}
-(function() {
-    function checkNotifications() {
+    // Real-time Notification Polling
+    {% if user.is_authenticated %}
+    (function () {
+      function checkNotifications() {
         fetch("{% url 'notifications' %}?format=json", {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-        .then(response => response.json())
-        .then(data => {
+          .then(response => response.json())
+          .then(data => {
             const badge = document.getElementById('nav-unread-badge');
             if (badge) {
-                if (data.unread_count && data.unread_count > 0) {
-                    badge.innerText = data.unread_count > 99 ? '99+' : data.unread_count;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
+              if (data.unread_count && data.unread_count > 0) {
+                badge.innerText = data.unread_count > 99 ? '99+' : data.unread_count;
+                badge.style.display = 'inline-block';
+              } else {
+                badge.style.display = 'none';
+              }
             }
-        })
-        .catch(() => {});
-    }
-    checkNotifications();
-    setInterval(checkNotifications, 15000);
-})();
-{% endif %}
-</script>
+          })
+          .catch(() => { });
+      }
+      checkNotifications();
+      setInterval(checkNotifications, 15000);
+    })();
+    {% endif %}
+  </script>
 
   {% if user.is_authenticated %}
   <!-- =====================================================
@@ -998,12 +986,8 @@ function showToast(type, title, message, duration = 4000) {
        ====================================================== -->
   <div class="lamo-notif-backdrop" id="lamoNotifBackdrop" aria-hidden="true"></div>
 
-  <section class="lamo-notif-drawer"
-      id="lamoNotifDrawer"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="lamoNotifTitle"
-      aria-hidden="true">
+  <section class="lamo-notif-drawer" id="lamoNotifDrawer" role="dialog" aria-modal="true"
+    aria-labelledby="lamoNotifTitle" aria-hidden="true">
 
     <div class="lamo-notif-head">
       <div class="lamo-notif-head-row">
@@ -1011,16 +995,14 @@ function showToast(type, title, message, duration = 4000) {
           <h2 class="lamo-notif-title" id="lamoNotifTitle">Notifications</h2>
           <p class="lamo-notif-subtitle">Stay updated with your jobs and messages</p>
         </div>
-        <button type="button"
-            class="lamo-notif-close"
-            id="lamoNotifClose"
-            aria-label="Close notifications">
+        <button type="button" class="lamo-notif-close" id="lamoNotifClose" aria-label="Close notifications">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
 
       <div class="lamo-notif-tabs" role="tablist" aria-label="Filter notifications">
-        <button type="button" class="lamo-notif-tab active" data-lamo-notif-filter="all" role="tab" aria-selected="true">
+        <button type="button" class="lamo-notif-tab active" data-lamo-notif-filter="all" role="tab"
+          aria-selected="true">
           All <span class="lamo-notif-tab-count" data-lamo-notif-count="all"></span>
         </button>
         <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="unread" role="tab" aria-selected="false">
@@ -1038,11 +1020,11 @@ function showToast(type, title, message, duration = 4000) {
     <ul class="lamo-notif-list" id="lamoNotifList">
       {% for notif in global_notifications %}
       <li>
-        <a class="lamo-notif-row {% if not notif.is_read %}is-unread{% endif %}"
-            href="{{ notif.get_target_url }}"
-            data-lamo-notif-kind="{% if notif.notification_type == 'BOOKING' or notif.notification_type == 'BOOKING_UPDATE' or notif.notification_type == 'EMERGENCY' %}booking{% elif notif.notification_type == 'SYSTEM' %}general{% else %}general{% endif %}"
-            data-lamo-notif-read="{% if notif.is_read %}true{% else %}false{% endif %}">
-          <span class="lamo-notif-icon {% if notif.notification_type == 'EMERGENCY' %}lamo-notif-icon--cancel{% elif notif.notification_type == 'BOOKING' %}lamo-notif-icon--booking{% elif notif.notification_type == 'BOOKING_UPDATE' %}lamo-notif-icon--success{% elif notif.notification_type == 'SYSTEM' %}lamo-notif-icon--general{% else %}lamo-notif-icon--general{% endif %}">
+        <a class="lamo-notif-row {% if not notif.is_read %}is-unread{% endif %}" href="{{ notif.get_target_url }}"
+          data-lamo-notif-kind="{% if notif.notification_type == 'BOOKING' or notif.notification_type == 'BOOKING_UPDATE' or notif.notification_type == 'EMERGENCY' %}booking{% elif notif.notification_type == 'SYSTEM' %}general{% else %}general{% endif %}"
+          data-lamo-notif-read="{% if notif.is_read %}true{% else %}false{% endif %}">
+          <span
+            class="lamo-notif-icon {% if notif.notification_type == 'EMERGENCY' %}lamo-notif-icon--cancel{% elif notif.notification_type == 'BOOKING' %}lamo-notif-icon--booking{% elif notif.notification_type == 'BOOKING_UPDATE' %}lamo-notif-icon--success{% elif notif.notification_type == 'SYSTEM' %}lamo-notif-icon--general{% else %}lamo-notif-icon--general{% endif %}">
             {% if notif.notification_type == 'EMERGENCY' %}
             <i class="bi bi-exclamation-triangle"></i>
             {% elif notif.notification_type == 'BOOKING' %}
@@ -1081,108 +1063,108 @@ function showToast(type, title, message, duration = 4000) {
     </div>
   </section>
 
-<script>
-// Notification slide-over drawer controller. Runs AFTER the drawer
-// markup above so every element exists when it binds (this was the
-// bug: it previously ran earlier in the page, found nothing, and the
-// bell did nothing). Bell toggles, X/backdrop/Escape close. Filters
-// are client-side over the same server-rendered rows (no new backend,
-// no invented counts). Row clicks follow existing hrefs untouched.
-(function() {
-    var bell = document.getElementById('lamoNotifBell');
-    var drawer = document.getElementById('lamoNotifDrawer');
-    var backdrop = document.getElementById('lamoNotifBackdrop');
-    if (!bell || !drawer || !backdrop) { return; }
-    var closeBtn = document.getElementById('lamoNotifClose');
+  <script>
+    // Notification slide-over drawer controller. Runs AFTER the drawer
+    // markup above so every element exists when it binds (this was the
+    // bug: it previously ran earlier in the page, found nothing, and the
+    // bell did nothing). Bell toggles, X/backdrop/Escape close. Filters
+    // are client-side over the same server-rendered rows (no new backend,
+    // no invented counts). Row clicks follow existing hrefs untouched.
+    (function () {
+      var bell = document.getElementById('lamoNotifBell');
+      var drawer = document.getElementById('lamoNotifDrawer');
+      var backdrop = document.getElementById('lamoNotifBackdrop');
+      if (!bell || !drawer || !backdrop) { return; }
+      var closeBtn = document.getElementById('lamoNotifClose');
 
-    var MESSAGE_HINTS = ['new booking message', 'message from'];
+      var MESSAGE_HINTS = ['new booking message', 'message from'];
 
-    function rowText(row) {
+      function rowText(row) {
         var el = row.querySelector('.lamo-notif-text');
         return el ? (el.textContent || '').toLowerCase() : '';
-    }
+      }
 
-    function isMessageRow(row) {
+      function isMessageRow(row) {
         var text = rowText(row);
         for (var i = 0; i < MESSAGE_HINTS.length; i++) {
-            if (text.indexOf(MESSAGE_HINTS[i]) !== -1) { return true; }
+          if (text.indexOf(MESSAGE_HINTS[i]) !== -1) { return true; }
         }
         return false;
-    }
+      }
 
-    function rowMatches(row, filter) {
+      function rowMatches(row, filter) {
         if (filter === 'all') { return true; }
         if (filter === 'unread') {
-            return row.getAttribute('data-lamo-notif-read') === 'false';
+          return row.getAttribute('data-lamo-notif-read') === 'false';
         }
         if (filter === 'messages') { return isMessageRow(row); }
         if (filter === 'bookings') {
-            return row.getAttribute('data-lamo-notif-kind') === 'booking';
+          return row.getAttribute('data-lamo-notif-kind') === 'booking';
         }
         return true;
-    }
+      }
 
-    function updateCounts() {
+      function updateCounts() {
         var rows = drawer.querySelectorAll('.lamo-notif-row');
         var totals = { all: 0, unread: 0, messages: 0, bookings: 0 };
         for (var i = 0; i < rows.length; i++) {
-            totals.all += 1;
-            if (rows[i].getAttribute('data-lamo-notif-read') === 'false') {
-                totals.unread += 1;
-            }
-            if (isMessageRow(rows[i])) { totals.messages += 1; }
-            if (rows[i].getAttribute('data-lamo-notif-kind') === 'booking') {
-                totals.bookings += 1;
-            }
+          totals.all += 1;
+          if (rows[i].getAttribute('data-lamo-notif-read') === 'false') {
+            totals.unread += 1;
+          }
+          if (isMessageRow(rows[i])) { totals.messages += 1; }
+          if (rows[i].getAttribute('data-lamo-notif-kind') === 'booking') {
+            totals.bookings += 1;
+          }
         }
         var spans = drawer.querySelectorAll('[data-lamo-notif-count]');
         for (var j = 0; j < spans.length; j++) {
-            var key = spans[j].getAttribute('data-lamo-notif-count');
-            spans[j].textContent = '(' + (totals[key] || 0) + ')';
+          var key = spans[j].getAttribute('data-lamo-notif-count');
+          spans[j].textContent = '(' + (totals[key] || 0) + ')';
         }
-    }
+      }
 
-    function applyFilter(filter) {
+      function applyFilter(filter) {
         var tabs = drawer.querySelectorAll('.lamo-notif-tab');
         for (var i = 0; i < tabs.length; i++) {
-            var active = tabs[i].getAttribute('data-lamo-notif-filter') === filter;
-            tabs[i].classList.toggle('active', active);
-            tabs[i].setAttribute('aria-selected', active ? 'true' : 'false');
+          var active = tabs[i].getAttribute('data-lamo-notif-filter') === filter;
+          tabs[i].classList.toggle('active', active);
+          tabs[i].setAttribute('aria-selected', active ? 'true' : 'false');
         }
         var items = drawer.querySelectorAll('.lamo-notif-list > li');
         var visible = 0;
         for (var j = 0; j < items.length; j++) {
-            var row = items[j].querySelector('.lamo-notif-row');
-            if (!row) { items[j].style.display = ''; continue; }
-            var show = rowMatches(row, filter);
-            items[j].style.display = show ? '' : 'none';
-            if (show) { visible += 1; }
+          var row = items[j].querySelector('.lamo-notif-row');
+          if (!row) { items[j].style.display = ''; continue; }
+          var show = rowMatches(row, filter);
+          items[j].style.display = show ? '' : 'none';
+          if (show) { visible += 1; }
         }
         var emptyMsg = document.getElementById('lamoNotifFilterEmpty');
         if (visible === 0) {
-            if (!emptyMsg) {
-                var list = document.getElementById('lamoNotifList');
-                emptyMsg = document.createElement('li');
-                emptyMsg.id = 'lamoNotifFilterEmpty';
-                emptyMsg.className = 'lamo-notif-empty';
-                var icon = document.createElement('i');
-                icon.className = 'bi bi-inbox';
-                var strong = document.createElement('strong');
-                strong.textContent = 'Nothing here';
-                var p = document.createElement('p');
-                p.textContent = 'No notifications match this filter.';
-                emptyMsg.appendChild(icon);
-                emptyMsg.appendChild(strong);
-                emptyMsg.appendChild(p);
-                if (list) { list.appendChild(emptyMsg); }
-            }
-            emptyMsg.style.display = '';
+          if (!emptyMsg) {
+            var list = document.getElementById('lamoNotifList');
+            emptyMsg = document.createElement('li');
+            emptyMsg.id = 'lamoNotifFilterEmpty';
+            emptyMsg.className = 'lamo-notif-empty';
+            var icon = document.createElement('i');
+            icon.className = 'bi bi-inbox';
+            var strong = document.createElement('strong');
+            strong.textContent = 'Nothing here';
+            var p = document.createElement('p');
+            p.textContent = 'No notifications match this filter.';
+            emptyMsg.appendChild(icon);
+            emptyMsg.appendChild(strong);
+            emptyMsg.appendChild(p);
+            if (list) { list.appendChild(emptyMsg); }
+          }
+          emptyMsg.style.display = '';
         } else if (emptyMsg) {
-            emptyMsg.style.display = 'none';
+          emptyMsg.style.display = 'none';
         }
-    }
+      }
 
-    function openDrawer() {
+      function openDrawer() {
         updateCounts();
         applyFilter('all');
         drawer.classList.add('open');
@@ -1192,9 +1174,9 @@ function showToast(type, title, message, duration = 4000) {
         bell.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
         if (closeBtn) { closeBtn.focus(); }
-    }
+      }
 
-    function closeDrawer(returnFocus) {
+      function closeDrawer(returnFocus) {
         drawer.classList.remove('open');
         backdrop.classList.remove('open');
         drawer.setAttribute('aria-hidden', 'true');
@@ -1202,37 +1184,37 @@ function showToast(type, title, message, duration = 4000) {
         bell.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
         if (returnFocus) { bell.focus(); }
-    }
+      }
 
-    function isOpen() {
+      function isOpen() {
         return drawer.classList.contains('open');
-    }
+      }
 
-    bell.addEventListener('click', function(event) {
+      bell.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
         if (isOpen()) { closeDrawer(false); } else { openDrawer(); }
-    });
+      });
 
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() { closeDrawer(true); });
-    }
-    backdrop.addEventListener('click', function() { closeDrawer(false); });
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () { closeDrawer(true); });
+      }
+      backdrop.addEventListener('click', function () { closeDrawer(false); });
 
-    document.addEventListener('keydown', function(event) {
+      document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && isOpen()) { closeDrawer(true); }
-    });
+      });
 
-    var tabs = drawer.querySelectorAll('.lamo-notif-tab');
-    for (var k = 0; k < tabs.length; k++) {
-        tabs[k].addEventListener('click', function() {
-            applyFilter(this.getAttribute('data-lamo-notif-filter'));
+      var tabs = drawer.querySelectorAll('.lamo-notif-tab');
+      for (var k = 0; k < tabs.length; k++) {
+        tabs[k].addEventListener('click', function () {
+          applyFilter(this.getAttribute('data-lamo-notif-filter'));
         });
-    }
+      }
 
-    updateCounts();
-})();
-</script>
+      updateCounts();
+    })();
+  </script>
   {% endif %}
 
 </body>
