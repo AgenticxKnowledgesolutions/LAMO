@@ -794,21 +794,11 @@ def home(request):
 
     query = request.GET.get('q', '').strip()
 
-    # Determine if this session has already seen the splash screen.
-    # The flag can be in the Django session (e.g. from tests or prior view hits)
-    # or in the browser session cookie 'lamo_splash_seen'.
-    has_seen_splash = (
-        bool(request.session.get('lamo_splash_shown'))
-        or request.COOKIES.get('lamo_splash_seen') == '1'
-        or is_from_splash
-    )
-
-    # Show splash screen on first visit in a new browser session
-    # (Skip if user is already searching with ?q=)
-    if not query and not has_seen_splash:
+    # Replay splash screen on direct visits and page refreshes for unauthenticated
+    # visitors before login, ensuring a consistent premium brand intro.
+    # Authenticated users (customers/workers) and direct queries/splash redirects bypass it.
+    if not request.user.is_authenticated and not is_from_splash and not query:
         request.session['lamo_splash_shown'] = True
-        if not request.user.is_authenticated:
-            request.session.set_expiry(0)
         response = render(request, 'splash.html')
         response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
         return response

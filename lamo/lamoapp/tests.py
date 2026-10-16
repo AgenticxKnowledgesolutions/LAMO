@@ -7259,10 +7259,7 @@ class LegalPagesTest(TestCase):
         self.assertIn('Grievance Redressal', content)
 
     def test_footer_contains_terms_and_privacy_links(self):
-        session = self.client.session
-        session['lamo_splash_shown'] = True
-        session.save()
-        response = self.client.get(reverse('home'))
+        response = self.client.get(reverse('home') + '?from_splash=1')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
         self.assertIn('href="/terms/"', content)
@@ -8109,16 +8106,21 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
         # Session cookie is set to expire on browser close (expiry == 0)
         self.assertEqual(self.client.session.get_expiry_age(), self.client.session.get_expiry_date() and self.client.session.get_expiry_age() or 0)
 
-    def test_returning_visit_in_same_session_renders_home_page(self):
-        """A second hit in the same browsing session renders the actual homepage, preventing loops."""
+    def test_unauthenticated_refresh_replays_splash_screen(self):
+        """Unauthenticated visitors refreshing the page replay the splash screen, while from_splash=1 renders home."""
         # First hit triggers splash
         first_resp = self.client.get(reverse('home'))
         self.assertTemplateUsed(first_resp, 'splash.html')
 
-        # Second hit in the same session renders home.html
+        # Refresh before login replays splash
         second_resp = self.client.get(reverse('home'))
         self.assertEqual(second_resp.status_code, 200)
-        self.assertTemplateUsed(second_resp, 'home.html')
+        self.assertTemplateUsed(second_resp, 'splash.html')
+
+        # Transitioning with from_splash=1 renders home.html
+        home_resp = self.client.get(reverse('home') + '?from_splash=1')
+        self.assertEqual(home_resp.status_code, 200)
+        self.assertTemplateUsed(home_resp, 'home.html')
 
     def test_splash_to_home_transition_via_query_param(self):
         """Redirect from splash with from_splash=1 immediately serves home.html."""
@@ -8135,11 +8137,7 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
 
     def test_unauthenticated_user_receives_login_popup_markup_and_script(self):
         """Unauthenticated user homepage includes modal markup and session-scoped script."""
-        session = self.client.session
-        session['lamo_splash_shown'] = True
-        session.save()
-
-        response = self.client.get(reverse('home'))
+        response = self.client.get(reverse('home') + '?from_splash=1')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
 
@@ -8156,10 +8154,6 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
     def test_authenticated_user_does_not_receive_login_popup_script(self):
         """Authenticated users must never receive the automatic login popup trigger."""
         self.client.force_login(self.user)
-        session = self.client.session
-        session['lamo_splash_shown'] = True
-        session.save()
-
         response = self.client.get(reverse('home'))
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
@@ -8185,11 +8179,7 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
 
     def test_home_html_handles_dismissal_and_storage_fallbacks(self):
         """home.html contains clean-up of legacy localStorage and graceful error catching."""
-        session = self.client.session
-        session['lamo_splash_shown'] = True
-        session.save()
-
-        response = self.client.get(reverse('home'))
+        response = self.client.get(reverse('home') + '?from_splash=1')
         content = response.content.decode('utf-8')
 
         # Legacy localStorage cleanup is present
