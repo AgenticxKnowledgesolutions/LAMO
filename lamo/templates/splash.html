@@ -15,7 +15,6 @@
     :root {
       --emerald-vibrant: #00E668;
       --emerald: #00B050;
-      --emerald-dark: #077439;
       --stage-bg: #0a612f;
       --white: #FFFFFF;
     }
@@ -37,7 +36,7 @@
     }
 
     /* =========================================================
-       2. FULL-SCREEN SPLASH CONTAINER & BACKGROUND
+       2. FULL-SCREEN CONTAINER & SEAMLESS GREEN BACKGROUND
        ========================================================= */
     .splash-container {
       position: fixed;
@@ -47,31 +46,21 @@
       height: 100dvh;
       overflow: hidden;
       background:
-        radial-gradient(circle at 50% 50%, #138745 0%, #0a612f 48%, #054823 82%, #022b15 100%);
-      cursor: pointer;
+        radial-gradient(circle at 50% 50%, #138745 0%, #0a612f 50%, #054823 85%, #022b15 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-      isolation: isolate;
-    }
-
-    .splash-container.fade-out {
-      opacity: 0;
-      transform: scale(1.02);
-      pointer-events: none;
+      cursor: pointer;
+      user-select: none;
     }
 
     /* =========================================================
-       3. FULL-SCREEN VIDEO (NO CARD, NO BORDERS, NO GAPS)
+       3. VIDEO STAGE (ORIGINAL COMPOSITION, NO CROPPING/ZOOM)
        ========================================================= */
-    .splash-video-wrapper {
-      position: absolute;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
+    .splash-video-stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -79,48 +68,37 @@
     }
 
     .splash-video {
-      position: absolute;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      object-fit: cover;
+      width: 100%;
+      height: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      max-height: 100dvh;
+      object-fit: contain;
       object-position: center center;
       display: block;
       background: transparent;
       border: none;
       outline: none;
-      padding: 0;
       margin: 0;
-      border-radius: 0;
-    }
-
-    /* Ambient Subtle Vignette Overlay for Depth */
-    .viewport-ambient-vignette {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 2;
-      background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(2, 35, 17, 0.35) 100%);
+      padding: 0;
     }
 
     /* =========================================================
-       4. CONTROLS & TIMELINE OVERLAY
+       4. SKIP BUTTON & PROGRESS TIMELINE OVERLAY
        ========================================================= */
-    /* Skip / Continue Button */
     .skip-action {
       position: fixed;
-      top: 24px;
-      right: 28px;
+      top: 20px;
+      right: 24px;
       z-index: 100;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 20px;
+      padding: 9px 18px;
       border-radius: 30px;
       background: rgba(0, 0, 0, 0.32);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 255, 255, 0.28);
       color: var(--white);
       text-decoration: none;
@@ -154,7 +132,7 @@
       left: 0;
       bottom: 0;
       width: 100%;
-      height: 4px;
+      height: 3px;
       background: rgba(255, 255, 255, 0.15);
       z-index: 100;
     }
@@ -163,38 +141,27 @@
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, var(--emerald) 0%, var(--emerald-vibrant) 70%, #FFFFFF 100%);
-      box-shadow: 0 0 12px rgba(0, 230, 104, 0.9);
-      transition: width 0.15s linear;
+      box-shadow: 0 0 10px rgba(0, 230, 104, 0.8);
+      transition: width 0.1s linear;
     }
 
-    /* =========================================================
-       5. RESPONSIVE ADAPTATIONS
-       ========================================================= */
     @media (max-width: 768px) {
       .skip-action {
-        top: 16px;
-        right: 16px;
-        padding: 8px 16px;
+        top: 14px;
+        right: 14px;
+        padding: 7px 14px;
         font-size: 12px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- Full-Screen Splash Container -->
+  <!-- Splash Container -->
   <main class="splash-container" id="splashContainer" role="banner" aria-label="Welcome to LAMO">
 
-    <!-- Full-Screen Background Video -->
-    <div class="splash-video-wrapper">
+    <!-- Video Stage -->
+    <div class="splash-video-stage">
       <video
         id="splashVideo"
         class="splash-video"
@@ -205,11 +172,9 @@
         webkit-playsinline
         x5-playsinline
       >
-        <source src="{% static 'video/splash.mp4' %}" type="video/mp4">
-        <source src="{% static 'video/splash .mp4' %}" type="video/mp4">
+        <!-- Single responsive video source is injected dynamically by script to avoid loading both -->
         Your browser does not support HTML5 video.
       </video>
-      <div class="viewport-ambient-vignette" aria-hidden="true"></div>
     </div>
 
     <!-- Skip / Continue Button -->
@@ -225,29 +190,32 @@
 
   </main>
 
-  <!-- =========================================================
-       SPLASH LIFECYCLE, VIDEO SYNC & SEAMLESS REDIRECTION
-       ========================================================= */ -->
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      var container = document.getElementById("splashContainer");
-      var progressBar = document.getElementById("progressBar");
-      var skipBtn = document.getElementById("skipButton");
+    (function () {
       var video = document.getElementById("splashVideo");
+      var progressBar = document.getElementById("progressBar");
+      var container = document.getElementById("splashContainer");
+      var skipBtn = document.getElementById("skipButton");
       var transitioned = false;
 
+      // URL definitions
+      var desktopSrc = "{% static 'video/splash.mp4' %}";
+      var mobileSrc = "{% static 'video/splash-2.mp4' %}";
+
+      // Detect mobile screen: width <= 768px or mobile portrait
+      var isMobile = (window.innerWidth <= 768) || 
+                     (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+
+      // Select single video based on screen size (avoid loading both simultaneously)
+      var activeSrc = isMobile ? mobileSrc : desktopSrc;
+
       /*
-       * Smooth transition to homepage.
-       * Sets browser session storage and lamo_splash_seen cookie so
-       * the login popup appears promptly on the homepage and never repeats.
+       * Immediate transition to homepage.
+       * Sets session tracking so the user is not shown the splash repeatedly.
        */
       function proceedToHome() {
         if (transitioned) return;
         transitioned = true;
-
-        if (container) {
-          container.classList.add("fade-out");
-        }
 
         try {
           if (window.sessionStorage) {
@@ -260,18 +228,44 @@
           document.cookie = "lamo_splash_seen=1; path=/; SameSite=Lax";
         } catch (e) { }
 
-        window.setTimeout(function () {
-          window.location.replace("{% url 'home' %}?from_splash=1");
-        }, 220);
+        // Immediately transition without artificial delays or trailing green screen
+        window.location.replace("{% url 'home' %}?from_splash=1");
       }
 
-      // Skip button click
-      if (skipBtn) {
-        skipBtn.addEventListener("click", function (e) {
-          e.preventDefault();
-          e.stopPropagation();
+      if (video) {
+        // Set single source directly
+        video.src = activeSrc;
+        video.load();
+
+        // When the selected video finishes, immediately transition to home (plays only once)
+        video.addEventListener("ended", function () {
           proceedToHome();
         });
+
+        // Synchronize timeline progress bar
+        video.addEventListener("timeupdate", function () {
+          if (video.duration && progressBar) {
+            var percent = Math.min(100, (video.currentTime / video.duration) * 100);
+            progressBar.style.width = percent + "%";
+          }
+        });
+
+        // Fail-safe: if video fails to load, proceed immediately so user is not stuck
+        video.addEventListener("error", function () {
+          proceedToHome();
+        });
+
+        // Autoplay handling
+        var playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(function (error) {
+            // Autoplay blocked by browser policy; proceed to home gracefully
+            console.warn("Autoplay blocked:", error);
+            proceedToHome();
+          });
+        }
+      } else {
+        proceedToHome();
       }
 
       // Tap / click anywhere on screen to proceed immediately
@@ -282,51 +276,27 @@
         });
       }
 
-      // Keyboard navigation: Enter, Space, Escape
+      // Skip button
+      if (skipBtn) {
+        skipBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          proceedToHome();
+        });
+      }
+
+      // Keyboard navigation
       document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
           proceedToHome();
         }
       });
 
-      // Video playback tuning & progress synchronization
-      if (video) {
-        // Run at 1.15x for a brisk, cinematic pace (~8.5 seconds)
-        try {
-          video.playbackRate = 1.15;
-        } catch (e) { }
-
-        var playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(function (error) {
-            console.warn("Autoplay prevented:", error);
-          });
-        }
-
-        // Synchronize progress bar with video duration
-        video.addEventListener("timeupdate", function () {
-          if (video.duration && progressBar) {
-            var percent = Math.min(100, (video.currentTime / video.duration) * 100);
-            progressBar.style.width = percent + "%";
-          }
-        });
-
-        // Auto-proceed once the video ends
-        video.addEventListener("ended", function () {
-          if (progressBar) progressBar.style.width = "100%";
-          window.setTimeout(proceedToHome, 350);
-        });
-      }
-
-      // Accessibility: if reduced motion requested, proceed promptly
-      var prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      var maxFallbackDuration = prefersReducedMotion ? 1200 : 9200;
-
-      // Fail-safe automatic timer in case video finishes or fails to fire 'ended'
+      // Fail-safe maximum timeout (11s) in case events are completely stalled
       window.setTimeout(function () {
         proceedToHome();
-      }, maxFallbackDuration);
-    });
+      }, 11000);
+    })();
   </script>
 </body>
 </html>
