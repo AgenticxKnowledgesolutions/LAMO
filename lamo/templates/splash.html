@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#085427">
+  <meta name="theme-color" content="#0a612f">
   <title>LAMO | Your Services. One Place.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,12 +16,8 @@
       --emerald-vibrant: #00E668;
       --emerald: #00B050;
       --emerald-dark: #077439;
-      --emerald-deep: #054823;
-      --stage-bg-dark: #032b15;
+      --stage-bg: #0a612f;
       --white: #FFFFFF;
-      --text-bright: #F0FFF5;
-      --text-mint: #C2F0D3;
-      --gold-accent: #FFC024;
     }
 
     * {
@@ -36,12 +32,12 @@
       height: 100%;
       overflow: hidden;
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      background: var(--stage-bg-dark);
+      background: var(--stage-bg);
       color: var(--white);
     }
 
     /* =========================================================
-       2. FULL-SCREEN BACKGROUND & AMBIENT GLOWS
+       2. FULL-SCREEN SPLASH CONTAINER & BACKGROUND
        ========================================================= */
     .splash-container {
       position: fixed;
@@ -49,16 +45,15 @@
       width: 100vw;
       height: 100vh;
       height: 100dvh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 50%, #138745 0%, #0a612f 48%, #054823 82%, #022b15 100%);
+      cursor: pointer;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background:
-        radial-gradient(ellipse 100% 85% at 50% 45%, #138745 0%, #0a612f 42%, #054320 72%, #022311 100%);
-      overflow: hidden;
-      cursor: pointer;
-      isolation: isolate;
       transition: opacity 0.4s ease, transform 0.4s ease;
+      isolation: isolate;
     }
 
     .splash-container.fade-out {
@@ -67,367 +62,65 @@
       pointer-events: none;
     }
 
-    /* Animated Ambient Wave Glows */
-    .bg-shape {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(60px);
-      pointer-events: none;
-      z-index: 1;
-      opacity: 0.45;
-    }
-
-    .bg-shape-1 {
-      top: -15vh;
-      right: -10vw;
-      width: min(75vw, 650px);
-      height: min(75vw, 650px);
-      background: radial-gradient(circle, rgba(0, 230, 104, 0.35) 0%, rgba(8, 122, 62, 0.15) 60%, transparent 80%);
-      animation: floatShapeOne 12s ease-in-out infinite alternate;
-    }
-
-    .bg-shape-2 {
-      bottom: -15vh;
-      left: -10vw;
-      width: min(85vw, 750px);
-      height: min(85vw, 750px);
-      background: radial-gradient(circle, rgba(0, 176, 80, 0.3) 0%, rgba(5, 72, 35, 0.4) 60%, transparent 80%);
-      animation: floatShapeTwo 14s ease-in-out infinite alternate;
-    }
-
-    .bg-shape-3 {
-      top: 45%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(90vw, 850px);
-      height: min(60vw, 550px);
-      background: radial-gradient(ellipse, rgba(0, 230, 104, 0.22) 0%, rgba(8, 116, 57, 0.1) 50%, transparent 75%);
-      filter: blur(40px);
-      z-index: 1;
-      animation: pulseSpotlight 6s ease-in-out infinite alternate;
-    }
-
-    @keyframes floatShapeOne {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(-30px, 40px) scale(1.08); }
-    }
-
-    @keyframes floatShapeTwo {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(40px, -30px) scale(1.06); }
-    }
-
-    @keyframes pulseSpotlight {
-      0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.95); }
-      100% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.05); }
-    }
-
-    /* Concentric Orbit Halo */
-    .service-ring-system {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(92vw, 880px);
-      height: min(92vw, 880px);
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    .concentric-ring {
+    /* =========================================================
+       3. FULL-SCREEN VIDEO (NO CARD, NO BORDERS, NO GAPS)
+       ========================================================= */
+    .splash-video-wrapper {
       position: absolute;
       inset: 0;
-      border-radius: 50%;
-      border: 1px dashed rgba(255, 255, 255, 0.12);
-      animation: rotateRing 45s linear infinite;
-    }
-
-    .concentric-ring.inner {
-      inset: 14%;
-      border: 1px solid rgba(0, 230, 104, 0.14);
-      animation: rotateRingRev 35s linear infinite;
-    }
-
-    @keyframes rotateRing {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes rotateRingRev {
-      from { transform: rotate(360deg); }
-      to { transform: rotate(0deg); }
-    }
-
-    /* =========================================================
-       3. CENTRAL VIDEO STAGE
-       ========================================================= */
-    .brand-hub {
-      position: relative;
-      z-index: 10;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      max-width: 860px;
-      padding: 0 20px;
-      text-align: center;
-    }
-
-    /* Video Frame Container */
-    .video-stage {
-      position: relative;
-      width: 100%;
-      max-width: 720px;
-      aspect-ratio: 16 / 9;
-      border-radius: 22px;
-      overflow: hidden;
-      background: #0a5f2e;
-      box-shadow:
-        0 24px 60px rgba(0, 0, 0, 0.4),
-        0 0 50px rgba(0, 230, 104, 0.22),
-        inset 0 1px 1px rgba(255, 255, 255, 0.25);
-      border: 1.5px solid rgba(255, 255, 255, 0.16);
-      transform: scale(0.95);
-      opacity: 0;
-      animation: stageEntrance 0.8s cubic-bezier(0.2, 0.9, 0.3, 1) 0.1s forwards;
-    }
-
-    @keyframes stageEntrance {
-      0% { opacity: 0; transform: scale(0.9) translateY(20px); }
-      100% { opacity: 1; transform: scale(1) translateY(0); }
+      z-index: 1;
     }
 
     .splash-video {
-      width: 100%;
-      height: 100%;
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
       object-fit: cover;
+      object-position: center center;
       display: block;
       background: transparent;
+      border: none;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      border-radius: 0;
     }
 
-    /* Subtle edge vignette overlay */
-    .video-vignette {
+    /* Ambient Subtle Vignette Overlay for Depth */
+    .viewport-ambient-vignette {
       position: absolute;
       inset: 0;
       pointer-events: none;
-      box-shadow: inset 0 0 25px rgba(2, 35, 17, 0.3);
-      border-radius: inherit;
-    }
-
-    /* Central Subtle Glow Wave Behind Video */
-    .brand-glow-halo {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 110%;
-      height: 110%;
-      border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(0, 230, 104, 0.3) 0%, transparent 70%);
-      filter: blur(35px);
-      z-index: -1;
-      opacity: 0;
-      animation: glowFadeIn 1s ease 0.5s forwards;
-    }
-
-    @keyframes glowFadeIn {
-      from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
-      to { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+      z-index: 2;
+      background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(2, 35, 17, 0.35) 100%);
     }
 
     /* =========================================================
-       4. BRAND MESSAGING (TAGLINE & VALUE PROP)
+       4. CONTROLS & TIMELINE OVERLAY
        ========================================================= */
-    .brand-content {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      margin-top: clamp(14px, 2.5vh, 22px);
-      opacity: 0;
-      transform: translateY(16px);
-      animation: contentReveal 0.8s cubic-bezier(0.2, 0.9, 0.3, 1) 0.7s forwards;
-    }
-
-    .brand-tagline {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: clamp(17px, 3vw, 24px);
-      font-weight: 800;
-      color: var(--white);
-      letter-spacing: -0.01em;
-      text-transform: capitalize;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    .brand-tagline-dot {
-      display: inline-block;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--emerald-vibrant);
-      box-shadow: 0 0 10px rgba(0, 230, 104, 0.9);
-    }
-
-    .brand-description {
-      font-size: clamp(13px, 1.8vw, 15px);
-      font-weight: 500;
-      color: var(--text-mint);
-      max-width: 500px;
-      line-height: 1.5;
-      letter-spacing: 0.1px;
-      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
-    }
-
-    @keyframes contentReveal {
-      0% {
-        opacity: 0;
-        transform: translateY(16px);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    /* =========================================================
-       5. SATELLITE SERVICE BADGES (GLASS TILES)
-       ========================================================= */
-    .services-orbit {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 5;
-    }
-
-    .service-badge {
-      position: absolute;
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 16px;
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      box-shadow:
-        0 12px 30px rgba(0, 0, 0, 0.25),
-        inset 0 1px 1px rgba(255, 255, 255, 0.3);
-      opacity: 0;
-      transform: scale(0.7);
-      animation: badgeReveal 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) forwards;
-      pointer-events: auto;
-      transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
-    }
-
-    .service-badge:hover {
-      transform: scale(1.06) !important;
-      background: rgba(255, 255, 255, 0.22);
-      box-shadow: 0 16px 36px rgba(0, 230, 104, 0.3);
-    }
-
-    .badge-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
-      color: var(--white);
-      flex-shrink: 0;
-    }
-
-    .badge-icon svg {
-      width: 16px;
-      height: 16px;
-      stroke: var(--white);
-    }
-
-    .badge-text {
-      font-size: clamp(11px, 1.4vw, 13px);
-      font-weight: 700;
-      color: var(--white);
-      letter-spacing: 0.2px;
-      white-space: nowrap;
-    }
-
-    /* Placements of the 4 Service Badges */
-    .badge-home {
-      top: 12%;
-      left: 10%;
-      animation-delay: 0.9s;
-    }
-
-    .badge-tools {
-      top: 14%;
-      right: 10%;
-      animation-delay: 1.05s;
-    }
-
-    .badge-electric {
-      bottom: 16%;
-      left: 12%;
-      animation-delay: 1.2s;
-    }
-    .badge-electric .badge-icon svg {
-      stroke: var(--gold-accent);
-      fill: rgba(255, 192, 36, 0.15);
-    }
-
-    .badge-cleaning {
-      bottom: 15%;
-      right: 12%;
-      animation-delay: 1.35s;
-    }
-
-    @keyframes badgeReveal {
-      0% {
-        opacity: 0;
-        transform: scale(0.65) translateY(15px);
-      }
-      100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
-    }
-
-    /* Floating Orbital motions */
-    .badge-home { animation: badgeReveal 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) 0.9s forwards, floatA 4s ease-in-out infinite 1.6s; }
-    .badge-tools { animation: badgeReveal 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) 1.05s forwards, floatB 4.4s ease-in-out infinite 1.75s; }
-    .badge-electric { animation: badgeReveal 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) 1.2s forwards, floatB 4.2s ease-in-out infinite 1.9s; }
-    .badge-cleaning { animation: badgeReveal 0.7s cubic-bezier(0.2, 1.2, 0.4, 1) 1.35s forwards, floatA 4.6s ease-in-out infinite 2.05s; }
-
-    @keyframes floatA {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-
-    @keyframes floatB {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(6px); }
-    }
-
-    /* =========================================================
-       6. SKIP / CONTINUE BUTTON & PROGRESS TRACK
-       ========================================================= */
+    /* Skip / Continue Button */
     .skip-action {
       position: fixed;
-      top: 22px;
-      right: 24px;
+      top: 24px;
+      right: 28px;
       z-index: 100;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 9px 18px;
+      padding: 10px 20px;
       border-radius: 30px;
-      background: rgba(255, 255, 255, 0.16);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.28);
       color: var(--white);
       text-decoration: none;
@@ -435,15 +128,15 @@
       font-weight: 700;
       letter-spacing: 0.3px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-      transition: all 0.25s ease;
+      transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
       cursor: pointer;
     }
 
     .skip-action:hover {
-      background: rgba(255, 255, 255, 0.28);
-      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(0, 0, 0, 0.55);
+      border-color: rgba(255, 255, 255, 0.6);
       transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(0, 230, 104, 0.3);
+      box-shadow: 0 12px 28px rgba(0, 230, 104, 0.35);
     }
 
     .skip-arrow {
@@ -462,7 +155,7 @@
       bottom: 0;
       width: 100%;
       height: 4px;
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.15);
       z-index: 100;
     }
 
@@ -475,52 +168,14 @@
     }
 
     /* =========================================================
-       7. RESPONSIVENESS & ACCESSIBILITY
+       5. RESPONSIVE ADAPTATIONS
        ========================================================= */
     @media (max-width: 768px) {
-      .video-stage {
-        border-radius: 16px;
-        max-width: 95vw;
-      }
-      .badge-home {
-        top: 6%;
-        left: 4%;
-      }
-      .badge-tools {
-        top: 6%;
-        right: 4%;
-      }
-      .badge-electric {
-        bottom: 12%;
-        left: 4%;
-      }
-      .badge-cleaning {
-        bottom: 12%;
-        right: 4%;
-      }
-      .service-badge {
-        padding: 6px 12px;
-      }
-      .badge-text {
-        font-size: 11px;
-      }
-      .brand-hub {
-        padding: 0 14px;
-      }
       .skip-action {
-        top: 14px;
-        right: 14px;
-        padding: 7px 14px;
+        top: 16px;
+        right: 16px;
+        padding: 8px 16px;
         font-size: 12px;
-      }
-    }
-
-    @media (max-height: 640px) {
-      .video-stage {
-        max-width: 60vw;
-      }
-      .service-badge {
-        display: none;
       }
     }
 
@@ -530,27 +185,31 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
       }
-      .video-stage, .brand-content, .service-badge {
-        opacity: 1 !important;
-        transform: none !important;
-      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Main Splash Container -->
+  <!-- Full-Screen Splash Container -->
   <main class="splash-container" id="splashContainer" role="banner" aria-label="Welcome to LAMO">
 
-    <!-- Ambient Dynamic Studio Lighting Glows -->
-    <div class="bg-shape bg-shape-1"></div>
-    <div class="bg-shape bg-shape-2"></div>
-    <div class="bg-shape bg-shape-3"></div>
-
-    <!-- Orbit Rings -->
-    <div class="service-ring-system" aria-hidden="true">
-      <div class="concentric-ring"></div>
-      <div class="concentric-ring inner"></div>
+    <!-- Full-Screen Background Video -->
+    <div class="splash-video-wrapper">
+      <video
+        id="splashVideo"
+        class="splash-video"
+        autoplay
+        muted
+        playsinline
+        preload="auto"
+        webkit-playsinline
+        x5-playsinline
+      >
+        <source src="{% static 'video/splash.mp4' %}" type="video/mp4">
+        <source src="{% static 'video/splash .mp4' %}" type="video/mp4">
+        Your browser does not support HTML5 video.
+      </video>
+      <div class="viewport-ambient-vignette" aria-hidden="true"></div>
     </div>
 
     <!-- Skip / Continue Button -->
@@ -558,91 +217,6 @@
       <span>Continue</span>
       <span class="skip-arrow">&#8594;</span>
     </a>
-
-    <!-- Central Brand Stage -->
-    <section class="brand-hub">
-
-      <!-- Glowing Halo Behind Video -->
-      <div class="brand-glow-halo" aria-hidden="true"></div>
-
-      <!-- Video Stage -->
-      <div class="video-stage">
-        <video
-          id="splashVideo"
-          class="splash-video"
-          autoplay
-          muted
-          playsinline
-          preload="auto"
-          webkit-playsinline
-          x5-playsinline
-        >
-          <source src="{% static 'video/splash.mp4' %}" type="video/mp4">
-          <source src="{% static 'video/splash .mp4' %}" type="video/mp4">
-          Your browser does not support HTML5 video.
-        </video>
-        <div class="video-vignette" aria-hidden="true"></div>
-      </div>
-
-      <!-- Tagline & Value Prop -->
-      <div class="brand-content">
-        <h1 class="brand-tagline">
-          <span>Your Services</span>
-          <span class="brand-tagline-dot" aria-hidden="true"></span>
-          <span>One Place</span>
-        </h1>
-        <p class="brand-description">
-          Connecting you with trusted local professionals.
-        </p>
-      </div>
-
-    </section>
-
-    <!-- Satellite Service Badges -->
-    <div class="services-orbit" aria-hidden="true">
-
-      <!-- 1. Home / Construction -->
-      <div class="service-badge badge-home">
-        <span class="badge-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z"/>
-          </svg>
-        </span>
-        <span class="badge-text">Home Care</span>
-      </div>
-
-      <!-- 2. Tools / Repairs -->
-      <div class="service-badge badge-tools">
-        <span class="badge-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
-        </span>
-        <span class="badge-text">Repairs &amp; Labour</span>
-      </div>
-
-      <!-- 3. Electrical & Power -->
-      <div class="service-badge badge-electric">
-        <span class="badge-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </span>
-        <span class="badge-text">Electrical</span>
-      </div>
-
-      <!-- 4. Cleaning & Sparkle -->
-      <div class="service-badge badge-cleaning">
-        <span class="badge-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2l2.4 5.6L20 10l-5.6 2.4L12 18l-2.4-5.6L4 10l5.6-2.4L12 2z"/>
-            <path d="M19 17l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5z"/>
-          </svg>
-        </span>
-        <span class="badge-text">Cleaning &amp; Care</span>
-      </div>
-
-    </div>
 
     <!-- Bottom Timeline Progress Track -->
     <div class="progress-track" aria-hidden="true">
@@ -653,7 +227,7 @@
 
   <!-- =========================================================
        SPLASH LIFECYCLE, VIDEO SYNC & SEAMLESS REDIRECTION
-       ========================================================= -->
+       ========================================================= */ -->
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       var container = document.getElementById("splashContainer");
@@ -703,7 +277,6 @@
       // Tap / click anywhere on screen to proceed immediately
       if (container) {
         container.addEventListener("click", function (e) {
-          // If clicked the skip button directly, let its handler handle it
           if (e.target.closest("#skipButton")) return;
           proceedToHome();
         });
@@ -718,17 +291,15 @@
 
       // Video playback tuning & progress synchronization
       if (video) {
-        // Increase playback speed slightly so the 10-second animation completes briskly in ~8.5 seconds
+        // Run at 1.15x for a brisk, cinematic pace (~8.5 seconds)
         try {
           video.playbackRate = 1.15;
         } catch (e) { }
 
-        // Start playback
         var playPromise = video.play();
         if (playPromise !== undefined) {
           playPromise.catch(function (error) {
-            // Autoplay was prevented or video couldn't play; fallback to timer
-            console.warn("Video autoplay prevented:", error);
+            console.warn("Autoplay prevented:", error);
           });
         }
 
