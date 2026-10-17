@@ -85,146 +85,37 @@
 
 <div class="workers-page">
 
+    <div class="workers-page-body-wrap">
 
-    <!-- =====================================================
-         SIMPLE TOP BRAND
-    ===================================================== -->
+        <!-- BACK TO SERVICE BUTTON -->
+        <a href="{% url 'service_detail' service.id %}" class="pill-back-btn">
+            <i class="bi bi-arrow-left"></i>
+            Back to {{ service.name }}
+        </a>
 
-    <div class="workers-topbar">
-
-        <div class="lamo-brand">
-
-            <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="lamo-brand-logo">
-
-            <span>
-                LAMO
-            </span>
-
-        </div>
-
-
-        <div class="topbar-location">
-
-            <i class="bi bi-geo-alt-fill"></i>
-
-            {{ district }}
-
-        </div>
-
-    </div>
-
-
-    
-<!-- =====================================================
-     UNIQUE SERVICE DISCOVERY HEADER
-     Replaces the old large green hero.
-===================================================== -->
-
-<section class="service-discovery">
-
-    <div class="discovery-main">
-
-        <div class="service-symbol">
-            <i class="bi bi-tools"></i>
-        </div>
-
-        <div class="discovery-copy">
-
-            <div class="discovery-kicker">
-                <span class="live-dot"></span>
-                VERIFIED SERVICE NETWORK
+        <!-- EMERGENCY SERVICE BANNER (IMAGE 2 UI) -->
+        <div class="emergency-banner-card">
+            <div class="emergency-banner-left">
+                <div class="emergency-siren-box">
+                    🚨
+                </div>
+                <div class="emergency-banner-info">
+                    <h3>Emergency Service</h3>
+                    <p>Need urgent help? Find any available {{ service.name|lower }} instantly.</p>
+                </div>
             </div>
-
-            <h1>
-                Find a trusted
-                <span>{{ service.name }}</span>
-                professional
-            </h1>
-
-            <p>
-                Skilled and verified professionals available in
-                <strong>{{ district }}</strong>.
-            </p>
-
+            <button type="button" class="emergency-action-btn" onclick="openEmergencyModal()">
+                🚨 Find Emergency Help <i class="bi bi-arrow-right"></i>
+            </button>
         </div>
-
-    </div>
-
-
-    <div class="discovery-stats">
-
-        <div class="stat-box">
-            <div class="stat-icon">
-                <i class="bi bi-people-fill"></i>
-            </div>
-            <div>
-                <strong>{{ workers|length }}</strong>
-                <span>Professionals</span>
-            </div>
-        </div>
-
-
-        <div class="stat-box">
-            <div class="stat-icon">
-                <i class="bi bi-patch-check-fill"></i>
-            </div>
-            <div>
-                <strong>Verified</strong>
-                <span>Trusted workers</span>
-            </div>
-        </div>
-
-
-        <div class="stat-box">
-            <div class="stat-icon">
-                <i class="bi bi-geo-alt-fill"></i>
-            </div>
-            <div>
-                <strong>{{ district }}</strong>
-                <span>Service area</span>
-            </div>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-         CONTENT
-    ===================================================== -->
-
-    <main class="workers-container">
-
-
-        <!-- BACK -->
-
-        <div class="back-row">
-
-            <a
-                href="{% url 'service_detail' service.id %}"
-                class="back-services"
-            >
-
-                <i class="bi bi-arrow-left"></i>
-
-                Back to {{ service.name }}
-
-            </a>
-
-        </div>
-
 
         {% if ai_requirement %}
-            <section class="ai-recommendation-panel">
+            <section class="ai-recommendation-panel" style="margin-bottom: 24px;">
                 <div class="ai-panel-header">
                     <div>
                         <span class="ai-kicker">🤖 AI Recommendation</span>
                         <h2>Recommended Workers for: "{{ ai_requirement }}"</h2>
                     </div>
-                    <a href="#manual-workers" class="manual-browse-btn">
-                        Browse All Workers Manually
-                    </a>
                 </div>
 
                 {% if ai_recommendations %}
@@ -240,36 +131,14 @@
 
                                     <div class="ai-meta-row">
                                         <span><i class="bi bi-geo-alt-fill"></i> {{ worker.district }}</span>
-                                        <span><i class="bi bi-star-fill"></i> {% if recommendation.avg_rating %}{{ recommendation.avg_rating|floatformat:1 }}{% else %}New{% endif %}</span>
+                                        <span><i class="bi bi-star-fill"></i> {% if recommendation.avg_rating %}{{ recommendation.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}</span>
                                     </div>
 
-                                    <div class="ai-factors">
-                                        {% for reason in recommendation.reasons %}
-                                            <span>{{ reason }}</span>
-                                        {% endfor %}
-                                    </div>
-
-                                    <div class="ai-why-box">
-                                        <strong>Why this worker?</strong>
-                                        <ul>
-                                            {% for reason in recommendation.reasons %}
-                                                <li>✓ {{ reason }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-
-                                    <div class="ai-actions">
+                                    <div class="ai-actions" style="margin-top: 14px; display: flex; gap: 8px;">
                                         <button
                                             type="button"
-                                            class="ai-view-profile"
-                                            onclick="document.getElementById('worker-card-{{ worker.id }}').scrollIntoView({behavior: 'smooth', block: 'center'});"
-                                        >
-                                            View Profile
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            class="ai-book-btn"
+                                            class="btn-book-primary"
+                                            style="padding: 8px 14px; font-size: 13px;"
                                             data-worker-id="{{ worker.id }}"
                                             data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
                                             data-worker-district="{{ worker.district|escapejs }}"
@@ -280,482 +149,473 @@
                                             data-service-name="{{ service.name|escapejs }}"
                                             onclick="openBookingModal(this)"
                                         >
-                                            Book
+                                            Book Now
                                         </button>
                                     </div>
                                 </article>
                             {% endwith %}
                         {% endfor %}
                     </div>
-                {% else %}
-                    <div class="ai-empty-state">
-                        <p>AI recommendations are temporarily unavailable for this request. You can continue using the manual worker selection below.</p>
-                    </div>
                 {% endif %}
             </section>
         {% endif %}
 
-        <!-- SECTION HEADER -->
-
-        <div class="section-header">
-
-
-            <div class="section-title">
-
-                <h2>
-                    Available Professionals
-                </h2>
-
-                <p>
-                    Choose a verified worker that suits your needs.
-                </p>
-
-            </div>
-
-
-            <div class="filter-info">
-
-                <i class="bi bi-funnel-fill"></i>
-
-                {{ workers|length }} professional{{ workers|length|pluralize }}
-
-                in {{ district }}
-
-            </div>
-
-
-        </div>
-
-
-        <!-- =====================================================
-             EMERGENCY SERVICE BUTTON
-        ===================================================== -->
-
-        <div class="emergency-section">
-
-            <button type="button" class="emergency-btn" onclick="openEmergencyModal()">
-                <span class="emergency-icon">🚨</span>
-                <span class="emergency-text">
-                    <strong>Emergency Service</strong>
-                    <small>Need urgent help? Find any available worker instantly</small>
-                </span>
-                <i class="bi bi-chevron-right"></i>
-            </button>
-
-        </div>
-
-
-        <!-- =====================================================
-             WORKERS
-        ===================================================== -->
-
-        {% if workers %}
-
-
-            <div class="workers-grid" id="manual-workers">
-
-
-                {% for worker in workers %}
-
-
-                    <article
-                        id="worker-card-{{ worker.id }}"
-                        class="worker-card"
-                        style="--delay: {{ forloop.counter0 }}00ms;"
-                    >
-
-
-                        <!-- CARD TOP -->
-
-                        <div class="worker-top">
-
-
-                            <!-- PROFILE IMAGE -->
-
-                            <div class="worker-avatar">
-
-
-                                {% if worker.profile_image %}
-                                    <img
-                                        src="{{ worker.profile_image.url }}"
-                                        alt="{{ worker.user.username }}"
-                                        onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-                                    >
-                                    <div class="avatar-fallback" style="display:none;">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
-                                {% elif worker.user.profile_image %}
-                                    <img
-                                        src="{{ worker.user.profile_image.url }}"
-                                        alt="{{ worker.user.username }}"
-                                        onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
-                                    >
-                                    <div class="avatar-fallback" style="display:none;">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
-                                {% else %}
-                                    <div class="avatar-fallback">
-                                        <i class="bi bi-person-fill"></i>
-                                    </div>
-                                {% endif %}
-
-
-                            </div>
-
-
-                            <!-- VERIFIED -->
-
-                            {% if worker.is_verified %}
-
-                                <div class="verified">
-
-                                    <i class="bi bi-patch-check-fill"></i>
-
-                                    Verified
-
-                                </div>
-
-                            {% endif %}
-
-
-                        </div>
-
-
-                        <!-- NAME -->
-
-                        <h3>
-
-                            {{ worker.user.username }}
-
-                        </h3>
-
-
-                        <!-- SERVICE -->
-
-                        <div class="worker-service">
-
-                            <i class="bi bi-tools"></i>
-
-                            {{ service.name }}
-
-                        </div>
-
-
-                        <!-- =================================================
-                             DETAILS
-                        ================================================== -->
-
-                        <div class="worker-details">
-
-
-                            <!-- EXPERIENCE -->
-
-                            <div class="detail-item">
-
-                                <div class="detail-icon">
-
-                                    <i class="bi bi-briefcase-fill"></i>
-
-                                </div>
-
-
-                                <div class="detail-text">
-
-                                    <small>
-                                        Experience
-                                    </small>
-
-                                    <span>
-
-                                        {{ worker.experience_years }}
-
-                                        {% if worker.experience_years == 1 %}
-                                            year
-                                        {% else %}
-                                            years
-                                        {% endif %}
-
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- LOCATION -->
-
-                            <div class="detail-item">
-
-                                <div class="detail-icon">
-
-                                    <i class="bi bi-geo-alt-fill"></i>
-
-                                </div>
-
-
-                                <div class="detail-text">
-
-                                    <small>
-                                        Location
-                                    </small>
-
-                                    <span>
-                                        {{ worker.district }}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- NORMAL AVAILABILITY -->
-
-                            <div class="detail-item">
-
-                                <div class="detail-icon">
-
-                                    <i class="bi bi-clock-fill"></i>
-
-                                </div>
-
-
-                                <div class="detail-text">
-
-                                    <small>
-                                        Work Hours
-                                    </small>
-
-                                    <span>
-                                        {{ worker.availability }}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- PRICING -->
-
-                            <div class="detail-item">
-
-                                <div class="detail-icon">
-
-                                    <i class="bi bi-cash-stack"></i>
-
-                                </div>
-
-
-                                <div class="detail-text">
-
-                                    <small>
-                                        Rate
-                                    </small>
-
-                                    <span>
-                                        ₹{{ worker.pricing_amount|default:"0" }} / {{ worker.get_pricing_type_display|default:"Hour" }}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- RATING -->
-
-                            <div class="detail-item">
-
-                                <div class="detail-icon">
-
-                                    <i class="bi bi-star-fill"></i>
-
-                                </div>
-
-
-                                <div class="detail-text">
-
-                                    <small>
-                                        Rating
-                                    </small>
-
-                                    <span>
-                                        {% if worker.avg_rating %}
-                                            {{ worker.avg_rating|floatformat:1 }}
-                                            <i class="bi bi-star-fill" style="color:#f59e0b;font-size:10px;"></i>
-                                            ({{ worker.review_count }}
-                                            {% if worker.review_count == 1 %}
-                                                review
-                                            {% else %}
-                                                reviews
-                                            {% endif %})
-                                        {% else %}
-                                            No ratings yet
-                                        {% endif %}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                        </div>
-
-
-                        <!-- =================================================
-                             CURRENT WORK STATUS
-                        ================================================== -->
-
-                        <div class="worker-footer">
-
-
-                            {% if worker.is_bookable %}
-
-
-                                <div class="availability status-available">
-
-                                    <span class="availability-dot"></span>
-
-                                    Available for booking
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    class="book-worker book-worker-modal"
-                                    data-worker-id="{{ worker.id }}"
-                                    data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
-                                    data-worker-district="{{ worker.district|escapejs }}"
-                                    {% if worker.profile_image %}
-                                    data-worker-image="{{ worker.profile_image.url|escapejs }}"
-                                    {% elif worker.user.profile_image %}
-                                    data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
-                                    {% endif %}
-                                    data-service-id="{{ service.id }}"
-                                    data-service-name="{{ service.name|escapejs }}"
-                                    onclick="openBookingModal(this)"
-                                >
-                                    Book
-                                    <i class="bi bi-arrow-right"></i>
-                                </button>
-
-
-                            {% elif worker.unavailable_reasons %}
-
-
-                                <!-- Availability is decided by the backend
-                                     (get_worker_unavailability_reasons), the same
-                                     rules book_service enforces. Never rely on
-                                     JavaScript here. -->
-
-                                <div class="availability status-on-leave">
-
-                                    <span class="availability-dot"></span>
-
-                                    {{ worker.unavailable_reasons.0 }}
-
-                                </div>
-
-
-                                <span
-                                    class="book-worker disabled-book"
-                                    title="{{ worker.unavailable_reasons|join:' ' }}"
-                                >
-
-                                    Unavailable
-
-                                </span>
-
-
-                            {% else %}
-
-
-                                <div class="availability status-on-leave">
-
-                                    <span class="availability-dot"></span>
-
-                                    Not available
-
-                                </div>
-
-
-                                <span class="book-worker disabled-book">
-
-                                    Not Available
-
-                                </span>
-
-
-                            {% endif %}
-
-
-                        </div>
-
-
-                    </article>
-
-
-                {% endfor %}
-
-
-            </div>
-
-
-        {% else %}
-
-
-            <!-- =================================================
-                 EMPTY STATE
-            ================================================== -->
-
-            <div class="no-workers">
-
-
-                <div class="no-workers-icon">
-
-                    <i class="bi bi-person-x"></i>
-
+        <!-- MAIN 2-COLUMN LAYOUT -->
+        <div class="workers-layout-container">
+
+            <!-- LEFT: FILTERS SIDEBAR -->
+            <aside class="workers-filters-sidebar">
+                <div class="filters-header">
+                    <div class="filters-title">
+                        <i class="bi bi-funnel-fill"></i> Filters
+                    </div>
+                    <button type="button" class="filters-clear-btn" id="clearAllFilters">Clear All</button>
                 </div>
 
+                <!-- Availability -->
+                <div class="filter-group">
+                    <span class="filter-group-title">Availability</span>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" id="filterAvailableOnly" checked>
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">Available for booking</span>
+                    </label>
+                </div>
 
-                <h3>
-                    No workers found
-                </h3>
+                <!-- Experience -->
+                <div class="filter-group">
+                    <span class="filter-group-title">Experience</span>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-exp" value="0-2">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">0 - 2 years</span>
+                    </label>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-exp" value="3-5">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">3 - 5 years</span>
+                    </label>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-exp" value="5+">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">5+ years</span>
+                    </label>
+                </div>
 
+                <!-- Rating -->
+                <div class="filter-group">
+                    <span class="filter-group-title">Rating</span>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-rating" value="4">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text"><span class="stars">★★★★</span> 4+</span>
+                    </label>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-rating" value="3">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text"><span class="stars">★★★</span> 3+</span>
+                    </label>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-rating" value="2">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text"><span class="stars">★★</span> 2+</span>
+                    </label>
+                </div>
 
-                <p>
+                <!-- Work Hours -->
+                <div class="filter-group">
+                    <span class="filter-group-title">Work Hours</span>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-hours" value="Full Time">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">Full Time</span>
+                    </label>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" class="filter-hours" value="Part Time">
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">Part Time</span>
+                    </label>
+                </div>
 
-                    We couldn't find any verified
-                    {{ service.name|lower }} workers
-                    in {{ district }} right now.
+                <!-- Location -->
+                <div class="filter-group">
+                    <span class="filter-group-title">Location</span>
+                    <label class="filter-checkbox-label">
+                        <input type="checkbox" checked disabled>
+                        <span class="custom-checkbox"></span>
+                        <span class="checkbox-text">{{ district }} (Current)</span>
+                    </label>
 
-                    Try another district to find
-                    available professionals.
+                    <div class="location-select-wrap">
+                        <i class="bi bi-geo-alt-fill select-icon"></i>
+                        <select
+                            id="districtChangeSelect"
+                            class="location-select"
+                            onchange="if(this.value) { window.location.href = '{% url 'service_workers' service.id %}?district=' + encodeURIComponent(this.value); }"
+                        >
+                            <option value="Thiruvananthapuram" {% if district == 'Thiruvananthapuram' %}selected{% endif %}>Thiruvananthapuram</option>
+                            <option value="Kollam" {% if district == 'Kollam' %}selected{% endif %}>Kollam</option>
+                            <option value="Pathanamthitta" {% if district == 'Pathanamthitta' %}selected{% endif %}>Pathanamthitta</option>
+                            <option value="Alappuzha" {% if district == 'Alappuzha' %}selected{% endif %}>Alappuzha</option>
+                            <option value="Kottayam" {% if district == 'Kottayam' %}selected{% endif %}>Kottayam</option>
+                            <option value="Idukki" {% if district == 'Idukki' %}selected{% endif %}>Idukki</option>
+                            <option value="Ernakulam" {% if district == 'Ernakulam' %}selected{% endif %}>Ernakulam</option>
+                            <option value="Thrissur" {% if district == 'Thrissur' %}selected{% endif %}>Thrissur</option>
+                            <option value="Palakkad" {% if district == 'Palakkad' %}selected{% endif %}>Palakkad</option>
+                            <option value="Malappuram" {% if district == 'Malappuram' %}selected{% endif %}>Malappuram</option>
+                            <option value="Kozhikode" {% if district == 'Kozhikode' %}selected{% endif %}>Kozhikode</option>
+                            <option value="Wayanad" {% if district == 'Wayanad' %}selected{% endif %}>Wayanad</option>
+                            <option value="Kannur" {% if district == 'Kannur' %}selected{% endif %}>Kannur</option>
+                            <option value="Kasaragod" {% if district == 'Kasaragod' %}selected{% endif %}>Kasaragod</option>
+                        </select>
+                    </div>
+                </div>
+            </aside>
 
-                </p>
+            <!-- RIGHT: WORKERS LIST -->
+            <section class="workers-results-section">
 
+                <!-- Results Header with Sort dropdown -->
+                <div class="results-header">
+                    <div>
+                        <h2>Available {{ service.name }}s</h2>
+                        <p>Choose a verified {{ service.name|lower }} that suits your needs.</p>
+                    </div>
 
-                <a
-                    href="{% url 'service_detail' service.id %}"
-                    class="try-location"
-                >
+                    <div class="sort-wrap">
+                        <label for="workerSortSelect">
+                            <i class="bi bi-arrow-down-up"></i> Sort by:
+                        </label>
+                        <select id="workerSortSelect" class="sort-select" onchange="applyWorkerSort(this.value)">
+                            <option value="recommended">Recommended</option>
+                            <option value="rating-high">Rating: High to Low</option>
+                            <option value="exp-high">Experience: High to Low</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                        </select>
+                    </div>
+                </div>
 
-                    <i class="bi bi-geo-alt-fill"></i>
+                {% if workers %}
+                    <div id="workersListContainer" class="workers-horizontal-list">
+                        {% for worker in workers %}
+                            <article
+                                id="worker-card-{{ worker.id }}"
+                                class="worker-row-card"
+                                data-worker-id="{{ worker.id }}"
+                                data-name="{{ worker.user.get_full_name|default:worker.user.username }}"
+                                data-bookable="{% if worker.is_bookable %}1{% else %}0{% endif %}"
+                                data-exp="{{ worker.experience_years }}"
+                                data-rating="{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}"
+                                data-hours="{{ worker.availability }}"
+                                data-price="{{ worker.pricing_amount|default:'0' }}"
+                                data-district="{{ worker.district }}"
+                            >
+                                <!-- Photo & Verified Badge -->
+                                <div class="worker-row-photo-wrap">
+                                    {% if worker.profile_image %}
+                                        <img
+                                            src="{{ worker.profile_image.url }}"
+                                            alt="{{ worker.user.username }}"
+                                            class="worker-row-photo"
+                                            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                                        >
+                                        <div class="worker-photo-fallback" style="display:none;">
+                                            <i class="bi bi-person-fill"></i>
+                                        </div>
+                                    {% elif worker.user.profile_image %}
+                                        <img
+                                            src="{{ worker.user.profile_image.url }}"
+                                            alt="{{ worker.user.username }}"
+                                            class="worker-row-photo"
+                                            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                                        >
+                                        <div class="worker-photo-fallback" style="display:none;">
+                                            <i class="bi bi-person-fill"></i>
+                                        </div>
+                                    {% else %}
+                                        <div class="worker-photo-fallback">
+                                            <i class="bi bi-person-fill"></i>
+                                        </div>
+                                    {% endif %}
 
-                    Try Another Location
+                                    {% if worker.is_verified %}
+                                        <div class="worker-verified-pill">
+                                            <i class="bi bi-check-circle-fill"></i> Verified
+                                        </div>
+                                    {% endif %}
+                                </div>
 
-                </a>
+                                <!-- Center Content -->
+                                <div class="worker-row-content">
+                                    <div class="worker-row-main">
+                                        <h3 class="worker-row-name">
+                                            {{ worker.user.get_full_name|default:worker.user.username }}
+                                        </h3>
 
+                                        <div class="worker-row-service">
+                                            <i class="bi bi-tools"></i> {{ service.name }}
+                                        </div>
 
-            </div>
+                                        <div class="worker-row-rating">
+                                            <i class="bi bi-star-fill star-gold"></i>
+                                            <strong>{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}</strong>
+                                            <span class="review-count">
+                                                ({{ worker.review_count|default:"1" }} review{{ worker.review_count|pluralize }})
+                                            </span>
+                                        </div>
 
+                                        <p class="worker-row-bio">
+                                            Experienced {{ service.name|lower }} providing reliable and safe solutions for homes and offices in {{ worker.district }}.
+                                        </p>
+                                    </div>
 
-        {% endif %}
+                                    <!-- 4 Spec Badges -->
+                                    <div class="worker-specs-grid">
+                                        <div class="worker-spec-badge">
+                                            <i class="bi bi-briefcase-fill spec-icon"></i>
+                                            <div class="spec-meta">
+                                                <strong>{{ worker.experience_years }} year{{ worker.experience_years|pluralize }}</strong>
+                                                <small>Experience</small>
+                                            </div>
+                                        </div>
 
+                                        <div class="worker-spec-badge">
+                                            <i class="bi bi-clock-fill spec-icon"></i>
+                                            <div class="spec-meta">
+                                                <strong>{{ worker.availability }}</strong>
+                                                <small>Work hours</small>
+                                            </div>
+                                        </div>
 
-    </main>
+                                        <div class="worker-spec-badge">
+                                            <i class="bi bi-geo-alt-fill spec-icon"></i>
+                                            <div class="spec-meta">
+                                                <strong>{{ worker.district }}</strong>
+                                                <small>Location</small>
+                                            </div>
+                                        </div>
 
+                                        <div class="worker-spec-badge">
+                                            <i class="bi bi-cash-stack spec-icon"></i>
+                                            <div class="spec-meta">
+                                                <strong>₹{{ worker.pricing_amount|floatformat:2 }}</strong>
+                                                <small>{{ worker.get_pricing_type_display|default:"Per Hour" }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right Actions -->
+                                <div class="worker-row-actions">
+                                    {% if worker.is_bookable %}
+                                        <div class="status-indicator available">
+                                            <span class="status-dot-pulse"></span> Available for booking
+                                        </div>
+                                    {% elif worker.unavailable_reasons %}
+                                        <div class="status-indicator unavailable">
+                                            <span class="status-dot-off"></span> {{ worker.unavailable_reasons.0 }}
+                                        </div>
+                                    {% else %}
+                                        <div class="status-indicator unavailable">
+                                            <span class="status-dot-off"></span> Not available
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="worker-actions-stack">
+                                        {% if worker.is_bookable %}
+                                            <button
+                                                type="button"
+                                                class="btn-book-primary"
+                                                data-worker-id="{{ worker.id }}"
+                                                data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
+                                                data-worker-district="{{ worker.district|escapejs }}"
+                                                {% if worker.profile_image %}
+                                                data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                                {% elif worker.user.profile_image %}
+                                                data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
+                                                {% endif %}
+                                                data-service-id="{{ service.id }}"
+                                                data-service-name="{{ service.name|escapejs }}"
+                                                onclick="openBookingModal(this)"
+                                            >
+                                                Book Now <i class="bi bi-arrow-right"></i>
+                                            </button>
+                                        {% else %}
+                                            <button type="button" class="btn-book-primary disabled" disabled>
+                                                Unavailable
+                                            </button>
+                                        {% endif %}
+
+                                        <button
+                                            type="button"
+                                            class="btn-view-profile"
+                                            data-worker-id="{{ worker.id }}"
+                                            data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
+                                            data-worker-service="{{ service.name|escapejs }}"
+                                            data-worker-district="{{ worker.district|escapejs }}"
+                                            data-worker-exp="{{ worker.experience_years }}"
+                                            data-worker-hours="{{ worker.availability|escapejs }}"
+                                            data-worker-rate="₹{{ worker.pricing_amount|floatformat:2 }} / {{ worker.get_pricing_type_display|default:'Hour'|escapejs }}"
+                                            data-worker-rating="{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}"
+                                            data-worker-reviews="{{ worker.review_count|default:'1' }}"
+                                            data-worker-verified="{% if worker.is_verified %}1{% else %}0{% endif %}"
+                                            data-worker-bookable="{% if worker.is_bookable %}1{% else %}0{% endif %}"
+                                            {% if worker.profile_image %}
+                                            data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                            {% elif worker.user.profile_image %}
+                                            data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
+                                            {% endif %}
+                                            data-service-id="{{ service.id }}"
+                                            onclick="openWorkerProfileModal(this)"
+                                        >
+                                            <i class="bi bi-chat-left-text"></i> View Profile
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    <div id="noFilterResultsMsg" style="display:none; padding: 40px; text-align: center; background: white; border-radius: 18px; border: 1px solid #e2e8f0; margin-top: 10px;">
+                        <i class="bi bi-funnel" style="font-size: 32px; color: #94a3b8;"></i>
+                        <h4 style="margin: 12px 0 6px; font-weight: 700; color: #1e293b;">No matching professionals</h4>
+                        <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">Try unchecking some filters to see more workers.</p>
+                        <button type="button" class="btn-book-primary" style="display: inline-flex; width: auto; margin: 0 auto;" onclick="document.getElementById('clearAllFilters').click();">Reset Filters</button>
+                    </div>
+
+                {% else %}
+                    <div class="no-workers" style="background: white; border: 1px solid #e2e8f0; border-radius: 18px; padding: 45px 30px; text-align: center;">
+                        <div class="no-workers-icon" style="font-size: 40px; color: #94a3b8; margin-bottom: 12px;">
+                            <i class="bi bi-person-x"></i>
+                        </div>
+                        <h3 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">No workers found</h3>
+                        <p style="color: #64748b; font-size: 14px; max-width: 480px; margin: 0 auto 20px;">
+                            We couldn't find any verified {{ service.name|lower }} workers in {{ district }} right now. Try selecting another district in the filter to find available professionals.
+                        </p>
+                        <a href="{% url 'service_detail' service.id %}" class="pill-back-btn" style="margin: 0;">
+                            <i class="bi bi-geo-alt-fill"></i> Try Another Service
+                        </a>
+                    </div>
+                {% endif %}
+
+            </section>
+        </div>
+
+    </div>
 
 </div>
+
+<!-- =========================================================
+     WORKER PROFILE DETAILS POPUP MODAL
+========================================================= -->
+<div id="workerProfileModal" class="worker-profile-modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="profileModalName">
+    <div class="worker-profile-modal-card">
+        <button type="button" class="profile-modal-close" onclick="closeWorkerProfileModal()" aria-label="Close profile">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <div class="profile-modal-header">
+            <div class="profile-modal-avatar-wrap">
+                <img id="profileModalImg" src="" alt="Worker Profile" class="profile-modal-avatar" onerror="this.style.display='none'; document.getElementById('profileModalFallback').style.display='flex';">
+                <div id="profileModalFallback" class="profile-modal-avatar-fallback" style="display:none;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div id="profileModalVerified" class="profile-modal-verified-badge">
+                    <i class="bi bi-patch-check-fill"></i> Verified
+                </div>
+            </div>
+
+            <div class="profile-modal-intro">
+                <h3 id="profileModalName">Worker Name</h3>
+                <div class="profile-modal-role">
+                    <i class="bi bi-tools"></i> <span id="profileModalService">{{ service.name }}</span>
+                </div>
+                <div class="profile-modal-rating-row">
+                    <i class="bi bi-star-fill star-gold"></i>
+                    <strong id="profileModalRating">5.0</strong>
+                    <span id="profileModalReviews" class="review-count">(1 review)</span>
+                    <span class="profile-status-pill" id="profileModalStatusPill">Available</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-modal-body">
+            <!-- 4 Quick Stats -->
+            <div class="profile-stats-grid">
+                <div class="profile-stat-box">
+                    <i class="bi bi-briefcase-fill stat-icon-colored"></i>
+                    <div>
+                        <span class="stat-label">Experience</span>
+                        <strong id="profileModalExp">5 years</strong>
+                    </div>
+                </div>
+                <div class="profile-stat-box">
+                    <i class="bi bi-clock-fill stat-icon-colored"></i>
+                    <div>
+                        <span class="stat-label">Work Hours</span>
+                        <strong id="profileModalHours">Full Time</strong>
+                    </div>
+                </div>
+                <div class="profile-stat-box">
+                    <i class="bi bi-geo-alt-fill stat-icon-colored"></i>
+                    <div>
+                        <span class="stat-label">District</span>
+                        <strong id="profileModalDistrict">{{ district }}</strong>
+                    </div>
+                </div>
+                <div class="profile-stat-box">
+                    <i class="bi bi-cash-stack stat-icon-colored"></i>
+                    <div>
+                        <span class="stat-label">Rate</span>
+                        <strong id="profileModalRate">₹250.00 / Hour</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div class="profile-section-block">
+                <h4>About This Professional</h4>
+                <p id="profileModalBio">
+                    Experienced professional providing high-quality, verified service solutions. Thoroughly vetted and background-checked for safety and technical competence.
+                </p>
+            </div>
+
+            <!-- Verification & Safety Badges -->
+            <div class="profile-trust-box">
+                <div class="trust-item">
+                    <i class="bi bi-shield-check-fill"></i>
+                    <div>
+                        <strong>Government ID Verified</strong>
+                        <small>Identity documents verified by LAMO administration</small>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <i class="bi bi-geo-check-fill"></i>
+                    <div>
+                        <strong>Local District Coverage</strong>
+                        <small>Direct on-site service available across <span id="profileModalCoverage">{{ district }}</span></small>
+                    </div>
+                </div>
+                <div class="trust-item">
+                    <i class="bi bi-award-fill"></i>
+                    <div>
+                        <strong>Quality Guaranteed</strong>
+                        <small>Tracked booking lifecycle with customer dispute protection</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-modal-footer">
+            <button type="button" class="profile-modal-btn-close" onclick="closeWorkerProfileModal()">Close</button>
+            <button type="button" id="profileModalBookBtn" class="profile-modal-btn-book" onclick="bookFromProfileModal()">
+                Book Now <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
 
 
 {% include "lamo_service/includes/booking_modal.html" %}

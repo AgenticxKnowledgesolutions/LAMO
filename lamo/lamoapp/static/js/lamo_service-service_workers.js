@@ -288,3 +288,270 @@ if (emergencyForm) {
         });
     });
 }
+
+/* =========================================================
+   WORKER PROFILE POPUP MODAL & REAL-TIME FILTERS
+========================================================= */
+
+let activeProfileData = null;
+
+function openWorkerProfileModal(btn) {
+    const modal = document.getElementById('workerProfileModal');
+    if (!modal) return;
+
+    activeProfileData = {
+        workerId: btn.dataset.workerId || '',
+        workerName: btn.dataset.workerName || 'Worker',
+        serviceName: btn.dataset.workerService || '',
+        serviceId: btn.dataset.serviceId || '',
+        district: btn.dataset.workerDistrict || '',
+        exp: btn.dataset.workerExp || '0',
+        hours: btn.dataset.workerHours || 'Full Time',
+        rate: btn.dataset.workerRate || '₹0.00 / Hour',
+        rating: btn.dataset.workerRating || '5.0',
+        reviews: btn.dataset.workerReviews || '1',
+        image: btn.dataset.workerImage || '',
+        verified: btn.dataset.workerVerified === '1',
+        bookable: btn.dataset.workerBookable === '1',
+        bio: btn.dataset.workerBio || ''
+    };
+
+    const nameEl = document.getElementById('profileModalName');
+    const serviceEl = document.getElementById('profileModalService');
+    const ratingEl = document.getElementById('profileModalRating');
+    const reviewsEl = document.getElementById('profileModalReviews');
+    const statusPill = document.getElementById('profileModalStatusPill');
+    const expEl = document.getElementById('profileModalExp');
+    const hoursEl = document.getElementById('profileModalHours');
+    const districtEl = document.getElementById('profileModalDistrict');
+    const rateEl = document.getElementById('profileModalRate');
+    const bioEl = document.getElementById('profileModalBio');
+    const coverageEl = document.getElementById('profileModalCoverage');
+    const verifiedBadge = document.getElementById('profileModalVerified');
+    const imgEl = document.getElementById('profileModalImg');
+    const fallbackEl = document.getElementById('profileModalFallback');
+    const bookBtn = document.getElementById('profileModalBookBtn');
+
+    if (nameEl) nameEl.textContent = activeProfileData.workerName;
+    if (serviceEl) serviceEl.textContent = activeProfileData.serviceName;
+    if (ratingEl) ratingEl.textContent = activeProfileData.rating;
+    if (reviewsEl) reviewsEl.textContent = `(${activeProfileData.reviews} review${activeProfileData.reviews === '1' ? '' : 's'})`;
+
+    if (statusPill) {
+        if (activeProfileData.bookable) {
+            statusPill.textContent = 'Available';
+            statusPill.style.background = 'rgba(5, 150, 105, 0.3)';
+            statusPill.style.color = '#ffffff';
+        } else {
+            statusPill.textContent = 'Unavailable';
+            statusPill.style.background = 'rgba(217, 119, 6, 0.3)';
+            statusPill.style.color = '#ffffff';
+        }
+    }
+
+    if (expEl) expEl.textContent = `${activeProfileData.exp} year${activeProfileData.exp === '1' ? '' : 's'}`;
+    if (hoursEl) hoursEl.textContent = activeProfileData.hours;
+    if (districtEl) districtEl.textContent = activeProfileData.district;
+    if (coverageEl) coverageEl.textContent = activeProfileData.district;
+    if (rateEl) rateEl.textContent = activeProfileData.rate;
+    if (bioEl) {
+        bioEl.textContent = activeProfileData.bio || `Experienced ${activeProfileData.serviceName.toLowerCase()} providing reliable, verified, and safe technical solutions for homes and commercial establishments across ${activeProfileData.district}.`;
+    }
+
+    if (verifiedBadge) {
+        verifiedBadge.style.display = activeProfileData.verified ? 'block' : 'none';
+    }
+
+    if (imgEl && fallbackEl) {
+        if (activeProfileData.image) {
+            imgEl.src = activeProfileData.image;
+            imgEl.style.display = 'block';
+            fallbackEl.style.display = 'none';
+        } else {
+            imgEl.style.display = 'none';
+            fallbackEl.style.display = 'flex';
+        }
+    }
+
+    if (bookBtn) {
+        if (activeProfileData.bookable) {
+            bookBtn.disabled = false;
+            bookBtn.style.opacity = '1';
+            bookBtn.style.cursor = 'pointer';
+            bookBtn.innerHTML = 'Book Now <i class="bi bi-arrow-right"></i>';
+        } else {
+            bookBtn.disabled = true;
+            bookBtn.style.opacity = '0.5';
+            bookBtn.style.cursor = 'not-allowed';
+            bookBtn.innerHTML = 'Worker Unavailable';
+        }
+    }
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+}
+
+function closeWorkerProfileModal() {
+    const modal = document.getElementById('workerProfileModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+}
+
+function bookFromProfileModal() {
+    if (!activeProfileData || !activeProfileData.bookable) return;
+    closeWorkerProfileModal();
+
+    const dummyBtn = document.createElement('button');
+    dummyBtn.dataset.workerId = activeProfileData.workerId;
+    dummyBtn.dataset.workerName = activeProfileData.workerName;
+    dummyBtn.dataset.workerDistrict = activeProfileData.district;
+    dummyBtn.dataset.serviceId = activeProfileData.serviceId;
+    dummyBtn.dataset.serviceName = activeProfileData.serviceName;
+    if (activeProfileData.image) {
+        dummyBtn.dataset.workerImage = activeProfileData.image;
+    }
+
+    if (typeof openBookingModal === 'function') {
+        openBookingModal(dummyBtn);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const pModal = document.getElementById('workerProfileModal');
+    if (pModal) {
+        pModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeWorkerProfileModal();
+            }
+        });
+    }
+
+    initWorkerFilters();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const pModal = document.getElementById('workerProfileModal');
+        if (pModal && pModal.classList.contains('open')) {
+            closeWorkerProfileModal();
+        }
+    }
+});
+
+function initWorkerFilters() {
+    const filterAvailableOnly = document.getElementById('filterAvailableOnly');
+    const expCheckboxes = document.querySelectorAll('.filter-exp');
+    const ratingCheckboxes = document.querySelectorAll('.filter-rating');
+    const hoursCheckboxes = document.querySelectorAll('.filter-hours');
+    const clearBtn = document.getElementById('clearAllFilters');
+    const cards = Array.from(document.querySelectorAll('.worker-row-card'));
+    const container = document.getElementById('workersListContainer');
+    const noResultsMsg = document.getElementById('noFilterResultsMsg');
+
+    if (!container || cards.length === 0) return;
+
+    function applyFilters() {
+        const onlyAvailable = filterAvailableOnly ? filterAvailableOnly.checked : false;
+
+        const selectedExp = Array.from(expCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        const selectedRatings = Array.from(ratingCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => parseFloat(cb.value));
+
+        const selectedHours = Array.from(hoursCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value.toLowerCase());
+
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const isBookable = card.dataset.bookable === '1';
+            const exp = parseFloat(card.dataset.exp || '0');
+            const rating = parseFloat(card.dataset.rating || '0');
+            const hours = (card.dataset.hours || '').toLowerCase();
+
+            let match = true;
+
+            if (onlyAvailable && !isBookable) {
+                match = false;
+            }
+
+            if (match && selectedExp.length > 0) {
+                const expMatch = selectedExp.some(range => {
+                    if (range === '0-2') return exp <= 2;
+                    if (range === '3-5') return exp >= 3 && exp <= 5;
+                    if (range === '5+') return exp >= 5;
+                    return true;
+                });
+                if (!expMatch) match = false;
+            }
+
+            if (match && selectedRatings.length > 0) {
+                const minRating = Math.min(...selectedRatings);
+                if (rating < minRating) match = false;
+            }
+
+            if (match && selectedHours.length > 0) {
+                const hoursMatch = selectedHours.some(h => hours.includes(h));
+                if (!hoursMatch) match = false;
+            }
+
+            if (match) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        if (noResultsMsg) {
+            noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+    }
+
+    if (filterAvailableOnly) filterAvailableOnly.addEventListener('change', applyFilters);
+    expCheckboxes.forEach(cb => cb.addEventListener('change', applyFilters));
+    ratingCheckboxes.forEach(cb => cb.addEventListener('change', applyFilters));
+    hoursCheckboxes.forEach(cb => cb.addEventListener('change', applyFilters));
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            if (filterAvailableOnly) filterAvailableOnly.checked = false;
+            expCheckboxes.forEach(cb => cb.checked = false);
+            ratingCheckboxes.forEach(cb => cb.checked = false);
+            hoursCheckboxes.forEach(cb => cb.checked = false);
+            applyFilters();
+        });
+    }
+
+    applyFilters();
+}
+
+function applyWorkerSort(sortBy) {
+    const container = document.getElementById('workersListContainer');
+    if (!container) return;
+    const cards = Array.from(container.querySelectorAll('.worker-row-card'));
+
+    cards.sort((a, b) => {
+        if (sortBy === 'rating-high') {
+            return parseFloat(b.dataset.rating || '0') - parseFloat(a.dataset.rating || '0');
+        } else if (sortBy === 'exp-high') {
+            return parseFloat(b.dataset.exp || '0') - parseFloat(a.dataset.exp || '0');
+        } else if (sortBy === 'price-low') {
+            return parseFloat(a.dataset.price || '0') - parseFloat(b.dataset.price || '0');
+        } else if (sortBy === 'price-high') {
+            return parseFloat(b.dataset.price || '0') - parseFloat(a.dataset.price || '0');
+        } else {
+            return parseInt(a.dataset.workerId || '0') - parseInt(b.dataset.workerId || '0');
+        }
+    });
+
+    cards.forEach(card => container.appendChild(card));
+}
+
