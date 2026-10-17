@@ -77,6 +77,7 @@ urlpatterns = [
     path('worker-jobs/', views.worker_jobs, name='worker_jobs'),
     path('worker-earnings/', views.worker_earnings, name='worker_earnings'),
     path('worker-profile/', views.worker_profile, name='worker_profile'),
+    path('worker/wallet/recharge/', views.worker_recharge_wallet, name='worker_recharge_wallet'),
     path('worker-notifications/', views.worker_notifications, name='worker_notifications'),
     path('worker/update-status/', views.worker_update_status, name='worker_update_status'),
 

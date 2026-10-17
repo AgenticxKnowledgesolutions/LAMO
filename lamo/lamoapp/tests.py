@@ -15,7 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from unittest.mock import patch
-from .models import CustomUser, Service, WorkerProfile, Booking, Complaint, Payment, BookingMessage, WorkerLeave, Notification, Review, ServiceRequest, ContactEnquiry
+from .models import CustomUser, Service, WorkerProfile, Booking, Complaint, Payment, BookingMessage, WorkerLeave, Notification, Review, ServiceRequest, ContactEnquiry, WorkerWallet, WalletTransaction
 from .ai_utils import match_service_and_workers, classify_complaint_severity, build_worker_recommendations
 from .views import (
     _safe_post_login_redirect,
@@ -9054,6 +9054,152 @@ class AdminNewFeaturesTestSuite(TestCase):
         )
         self.assertEqual(broadcast_res.status_code, 302)
         self.assertEqual(broadcast_res.url, reverse('dashboard'))
+
+
+class HybridPaymentWalletTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.customer = CustomUser.objects.create_user(
+            username='pay_cust',
+            email='pay_cust@example.com',
+            password='Password123!',
+            role='USER',
+            is_email_verified=True,
+        )
+        self.worker_user = CustomUser.objects.create_user(
+            username='pay_worker',
+            email='pay_worker@example.com',
+            password='Password123!',
+            role='WORKER',
+            is_email_verified=True,
+        )
+        self.service = Service.objects.create(
+            name='AC Repair Pro',
+            description='Expert AC servicing',
+            price=Decimal('500.00'),
+            is_active=True,
+        )
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            phone='9876543210',
+            service=self.service,
+            district='Ernakulam',
+            availability='Full Time',
+            work_status='AVAILABLE',
+            is_verified=True,
+            launch_ends_at=timezone.now() + timedelta(days=30),
+        )
+        self.wallet = WorkerWallet.objects.create(
+            worker=self.worker_profile,
+            balance=Decimal('0.00'),
+        )
+
+    def test_wallet_zones_and_properties(self):
+        """Test healthy green, grace yellow, and locked red zones."""
+        self.wallet.balance = Decimal('100.00')
+        self.assertEqual(self.wallet.zone, 'GREEN')
+        self.assertFalse(self.wallet.is_locked)
+        self.assertEqual(self.wallet.amount_due, Decimal('0.00'))
+        self.assertEqual(self.wallet.buffer_remaining, Decimal('500.00'))
+
+        self.wallet.balance = Decimal('-200.00')
+        self.assertEqual(self.wallet.zone, 'YELLOW')
+        self.assertFalse(self.wallet.is_locked)
+        self.assertEqual(self.wallet.amount_due, Decimal('200.00'))
+        self.assertEqual(self.wallet.buffer_remaining, Decimal('300.00'))
+
+        self.wallet.balance = Decimal('-500.01')
+        self.assertEqual(self.wallet.zone, 'RED')
+        self.assertTrue(self.wallet.is_locked)
+        self.assertEqual(self.wallet.amount_due, Decimal('500.01'))
+
+    def test_zero_platform_fee_during_launch_period(self):
+        """Workers in the 30-day launch period pay 0% platform commission."""
+        self.assertTrue(self.worker_profile.is_in_launch)
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            district='Ernakulam',
+            booking_type='One Time',
+            date=timezone.now().date(),
+            time='10:00 AM - 12:00 PM',
+            location='Kaloor, Kochi',
+            phone='9876543210',
+            status='COMPLETION_REQUESTED',
+            payment_method='CASH',
+            final_amount=Decimal('500.00'),
+        )
+        self.client.force_login(self.customer)
+        res = self.client.post(reverse('confirm_completion', args=[booking.id]))
+        self.assertEqual(res.status_code, 302)
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, 'COMPLETED')
+        self.assertEqual(booking.platform_fee, Decimal('0.00'))
+        self.assertTrue(booking.fee_settled)
+
+        self.wallet.refresh_from_db()
+        self.assertEqual(self.wallet.balance, Decimal('0.00'))
+
+    def test_post_launch_fee_deduction_and_limit_lock(self):
+        """After launch expires, 10% fee (min ₹15) is debited for cash jobs, auto-pausing at limit."""
+        # Expire launch period
+        self.worker_profile.launch_ends_at = timezone.now() - timedelta(days=1)
+        self.worker_profile.save(update_fields=['launch_ends_at'])
+        self.assertFalse(self.worker_profile.is_in_launch)
+
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            district='Ernakulam',
+            booking_type='One Time',
+            date=timezone.now().date(),
+            time='10:00 AM - 12:00 PM',
+            location='Kaloor, Kochi',
+            phone='9876543210',
+            status='COMPLETION_REQUESTED',
+            payment_method='CASH',
+            final_amount=Decimal('6000.00'),
+        )
+        self.client.force_login(self.customer)
+        res = self.client.post(reverse('confirm_completion', args=[booking.id]))
+        self.assertEqual(res.status_code, 302)
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.platform_fee, Decimal('600.00'))  # 10% of 6000
+        self.assertTrue(booking.fee_settled)
+
+        self.wallet.refresh_from_db()
+        self.assertEqual(self.wallet.balance, Decimal('-600.00'))
+        self.assertEqual(self.wallet.zone, 'RED')
+        self.assertTrue(self.wallet.is_locked)
+
+        self.worker_profile.refresh_from_db()
+        self.assertTrue(self.worker_profile.is_paused_for_dues)
+
+    def test_worker_recharge_unpauses_worker(self):
+        """Worker paying off dues via UPI recharge restores active status."""
+        self.wallet.balance = Decimal('-600.00')
+        self.wallet.save()
+        self.worker_profile.is_paused_for_dues = True
+        self.worker_profile.save()
+
+        self.client.force_login(self.worker_user)
+        res = self.client.post(
+            reverse('worker_recharge_wallet'),
+            {'amount': '200.00', 'reference_id': 'UPI-TEST-1234'}
+        )
+        self.assertEqual(res.status_code, 302)
+
+        self.wallet.refresh_from_db()
+        self.assertEqual(self.wallet.balance, Decimal('-400.00'))
+        self.assertEqual(self.wallet.zone, 'YELLOW')
+
+        self.worker_profile.refresh_from_db()
+        self.assertFalse(self.worker_profile.is_paused_for_dues)
+
 
 
 

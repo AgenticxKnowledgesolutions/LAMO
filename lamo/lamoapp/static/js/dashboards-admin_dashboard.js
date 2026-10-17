@@ -75,6 +75,18 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Ensure broadcast announcement modal opens reliably on click
+    const broadcastButtons = document.querySelectorAll(".btn-broadcast, [data-bs-target='#broadcastModal']");
+    broadcastButtons.forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            const modalEl = document.getElementById("broadcastModal");
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalInstance.show();
+            }
+        });
+    });
+
     // -------------------------------------------------------------
     // LIVE DISTRICT OPERATIONS LEAFLET MAP
     // -------------------------------------------------------------

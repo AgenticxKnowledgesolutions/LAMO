@@ -140,6 +140,33 @@ Worker Dashboard | LAMO
         </form>
     </section>
 
+    <!-- ================= 30-DAY LAUNCH OFFER COUNTDOWN ================= -->
+    {% if is_in_launch %}
+    <aside class="launch-countdown-banner" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #bbf7d0 100%); border: 1.5px solid #10b981; border-radius: 16px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: #059669; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; box-shadow: 0 3px 8px rgba(5, 150, 105, 0.35);">
+                <i class="bi bi-gift-fill"></i>
+            </div>
+            <div>
+                <div style="font-weight: 700; color: #065f46; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                    <span>🎉 30-Day Launch Partner Benefit Active</span>
+                    <span class="badge" style="background: #059669; color: white; font-weight: 600; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem;">0% Commission</span>
+                </div>
+                <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">
+                    You keep 100% of your earnings on all completed jobs. Benefit active until <strong>{{ launch_ends_at|date:"M d, Y" }}</strong>.
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.7); backdrop-filter: blur(4px); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3);">
+            <i class="bi bi-hourglass-split" style="color: #059669; font-size: 1.1rem;"></i>
+            <div style="text-align: right;">
+                <div style="font-weight: 800; font-size: 1.15rem; color: #065f46; line-height: 1;">{{ launch_days_left }} Days</div>
+                <small style="color: #047857; font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Remaining</small>
+            </div>
+        </div>
+    </aside>
+    {% endif %}
+
     <!-- ================= STATS ================= -->
     <section class="worker-stats">
         <div class="stat-card green">
@@ -413,6 +440,82 @@ Worker Dashboard | LAMO
         <!-- ============ RIGHT COLUMN ============ -->
         <div class="dashboard-right-column">
 
+            <!-- ================= ADAPTIVE WORKER WALLET & DUES CARD ================= -->
+            <section class="dashboard-card worker-wallet-card" style="border: 1.5px solid {% if wallet_zone == 'RED' %}#f87171{% elif wallet_zone == 'YELLOW' %}#fbbf24{% else %}#34d399{% endif %}; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px {% if wallet_zone == 'RED' %}rgba(239, 68, 68, 0.12){% elif wallet_zone == 'YELLOW' %}rgba(245, 158, 11, 0.12){% else %}rgba(16, 185, 129, 0.12){% endif %}; margin-bottom: 24px;">
+                <div style="background: {% if wallet_zone == 'RED' %}linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%){% elif wallet_zone == 'YELLOW' %}linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%){% else %}linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%){% endif %}; padding: 18px 20px; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: {% if wallet_zone == 'RED' %}#991b1b{% elif wallet_zone == 'YELLOW' %}#92400e{% else %}#065f46{% endif %}; display: flex; align-items: center; gap: 6px;">
+                            <i class="bi {% if wallet_zone == 'RED' %}bi-shield-slash-fill{% elif wallet_zone == 'YELLOW' %}bi-exclamation-triangle-fill{% else %}bi-wallet2{% endif %}"></i>
+                            Worker Wallet & Dues
+                        </span>
+                        <span class="badge" style="background: {% if wallet_zone == 'RED' %}#dc2626{% elif wallet_zone == 'YELLOW' %}#d97706{% else %}#059669{% endif %}; color: white; font-weight: 600; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;">
+                            {% if wallet_zone == 'RED' %}Paused for Dues{% elif wallet_zone == 'YELLOW' %}Grace Period{% else %}Healthy Active{% endif %}
+                        </span>
+                    </div>
+
+                    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 0.8rem; color: #6b7280; font-weight: 500;">
+                                {% if wallet_balance < 0 %}Outstanding Dues to LAMO{% else %}Available Credit Balance{% endif %}
+                            </div>
+                            <div style="font-size: 1.85rem; font-weight: 800; color: {% if wallet_zone == 'RED' %}#b91c1c{% elif wallet_zone == 'YELLOW' %}#b45309{% else %}#047857{% endif %}; line-height: 1.2;">
+                                ₹{{ wallet_balance|floatformat:2 }}
+                            </div>
+                        </div>
+                        <button type="button" class="btn" id="openRechargeModalBtn" style="background: {% if wallet_zone == 'RED' %}#dc2626{% elif wallet_zone == 'YELLOW' %}#d97706{% else %}#059669{% endif %}; color: white; font-weight: 600; font-size: 0.85rem; padding: 8px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="bi bi-qr-code-scan"></i> {% if wallet_balance < 0 %}Pay Dues{% else %}Top Up{% endif %}
+                        </button>
+                    </div>
+
+                    {% if wallet_zone == 'YELLOW' %}
+                    <div style="margin-top: 12px; background: rgba(255,255,255,0.7); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-info-circle-fill" style="font-size: 0.95rem;"></i>
+                        <span>Buffer left: <strong>₹{{ wallet_buffer_remaining|floatformat:2 }}</strong> before service restrictions. Jobs continue normally.</span>
+                    </div>
+                    {% elif wallet_zone == 'RED' %}
+                    <div style="margin-top: 12px; background: rgba(255,255,255,0.85); border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                        <i class="bi bi-lock-fill" style="font-size: 0.95rem;"></i>
+                        <span>Dues limit of ₹500 reached. Pay ₹{{ wallet_amount_due|floatformat:2 }} via UPI to immediately reactivate incoming jobs.</span>
+                    </div>
+                    {% else %}
+                    <div style="margin-top: 12px; font-size: 0.78rem; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                        <i class="bi bi-check-circle-fill" style="color: #059669;"></i>
+                        <span>Zero outstanding dues. 100% compliant with platform standards.</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Recent Transactions Mini-Feed -->
+                <div style="padding: 16px 20px;">
+                    <div style="font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span>Recent Ledger Activity</span>
+                        <small style="color: #9ca3af; font-size: 0.75rem;">Signed Unified Ledger</small>
+                    </div>
+                    {% if recent_wallet_transactions %}
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        {% for tx in recent_wallet_transactions|slice:":4" %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 0; border-bottom: 1px solid #f3f4f6;">
+                            <div>
+                                <div style="font-weight: 600; color: #1f2937;">{{ tx.get_transaction_type_display }}</div>
+                                <small style="color: #6b7280; font-size: 0.72rem;">{{ tx.created_at|date:"M d, h:i A" }} {% if tx.reference_id %}&bull; {{ tx.reference_id }}{% endif %}</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: 700; color: {% if tx.amount < 0 %}#dc2626{% else %}#059669{% endif %};">
+                                    {% if tx.amount > 0 %}+{% endif %}₹{{ tx.amount|floatformat:2 }}
+                                </div>
+                                <small style="color: #9ca3af; font-size: 0.72rem;">Bal: ₹{{ tx.balance_after|floatformat:2 }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 12px 0; color: #9ca3af; font-size: 0.8rem;">
+                        No ledger transactions recorded yet.
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
             <!-- MY PROFILE -->
             <section class="dashboard-card">
                 <div class="card-heading">
@@ -678,5 +781,112 @@ Worker Dashboard | LAMO
         });
     }
 })();
+
+// UPI Recharge & Dues Modal Controller
+(function () {
+    var openBtn = document.getElementById('openRechargeModalBtn');
+    var modalEl = document.getElementById('walletRechargeModal');
+    if (!openBtn || !modalEl) return;
+
+    openBtn.addEventListener('click', function () {
+        if (window.bootstrap && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.setAttribute('aria-modal', 'true');
+            modalEl.removeAttribute('aria-hidden');
+        }
+    });
+
+    var closeBtns = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+    closeBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (window.bootstrap && bootstrap.Modal) {
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            } else {
+                modalEl.classList.remove('show');
+                modalEl.style.display = 'none';
+                modalEl.setAttribute('aria-hidden', 'true');
+                modalEl.removeAttribute('aria-modal');
+            }
+        });
+    });
+
+    // Quick Amount buttons
+    var quickBtns = modalEl.querySelectorAll('.quick-amt-btn');
+    var amtInput = document.getElementById('rechargeAmountInput');
+    quickBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var val = this.getAttribute('data-amt');
+            if (amtInput && val) {
+                amtInput.value = parseFloat(val).toFixed(2);
+            }
+        });
+    });
+})();
 </script>
+
+<!-- ================= UPI RECHARGE / PAY DUES MODAL ================= -->
+<div class="modal fade" id="walletRechargeModal" tabindex="-1" aria-labelledby="walletRechargeModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 20px; border: 1px solid #e5e7eb; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+      <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 18px 24px;">
+        <h5 class="modal-title d-flex align-items-center gap-2" id="walletRechargeModalLabel" style="font-weight: 700; font-size: 1.1rem; margin: 0;">
+          <i class="bi bi-wallet2"></i> UPI Payment & Dues Clearance
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'worker_recharge_wallet' %}" id="rechargeWalletForm">
+        {% csrf_token %}
+        <div class="modal-body" style="padding: 24px;">
+          <!-- UPI QR / ID box -->
+          <div style="background: #f0fdf4; border: 1.5px dashed #86efac; border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 20px;">
+            <div style="width: 64px; height: 64px; background: white; border-radius: 12px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-size: 2rem; color: #059669;">
+              <i class="bi bi-qr-code"></i>
+            </div>
+            <div style="font-size: 0.85rem; color: #166534; font-weight: 600;">Scan with GPay, PhonePe, Paytm, or BHIM</div>
+            <div style="display: inline-block; margin-top: 6px; background: white; border: 1px solid #bbf7d0; padding: 4px 12px; border-radius: 8px; font-family: monospace; font-size: 0.88rem; font-weight: 700; color: #065f46;">
+              lamo.pay@upi
+            </div>
+          </div>
+
+          <!-- Suggested Quick Amounts -->
+          <div class="mb-3">
+            <label class="form-label" style="font-weight: 600; font-size: 0.88rem; color: #374151;">Select or Enter Amount (₹)</label>
+            <div class="d-flex gap-2 mb-2 flex-wrap">
+              {% if wallet_amount_due > 0 %}
+              <button type="button" class="btn btn-sm btn-outline-danger quick-amt-btn" data-amt="{{ wallet_amount_due }}" style="font-weight: 700; border-radius: 8px;">
+                Clear Dues: ₹{{ wallet_amount_due|floatformat:0 }}
+              </button>
+              {% endif %}
+              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="50" style="font-weight: 600; border-radius: 8px;">₹50</button>
+              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="100" style="font-weight: 600; border-radius: 8px;">₹100</button>
+              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="200" style="font-weight: 600; border-radius: 8px;">₹200</button>
+              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="500" style="font-weight: 600; border-radius: 8px;">₹500</button>
+            </div>
+            <div class="input-group">
+              <span class="input-group-text" style="font-weight: 700; background: #f9fafb;">₹</span>
+              <input type="number" step="0.01" min="10" name="amount" id="rechargeAmountInput" class="form-control" placeholder="Enter amount (min ₹10)" value="{% if wallet_amount_due > 0 %}{{ wallet_amount_due }}{% else %}100.00{% endif %}" required style="font-size: 1.05rem; font-weight: 700;">
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label for="id_recharge_reference" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: #374151;">
+              UPI Reference / UTR Number <small class="text-muted">(Optional)</small>
+            </label>
+            <input type="text" name="reference_id" id="id_recharge_reference" class="form-control" placeholder="e.g. 331298475620 or UPI transaction ID">
+            <small class="text-muted" style="font-size: 0.75rem;">Helps match your payment instantly.</small>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #f3f4f6;">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="font-weight: 600; border-radius: 10px;">Cancel</button>
+          <button type="submit" class="btn btn-success" style="font-weight: 600; border-radius: 10px; padding: 8px 22px;">Confirm & Apply Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

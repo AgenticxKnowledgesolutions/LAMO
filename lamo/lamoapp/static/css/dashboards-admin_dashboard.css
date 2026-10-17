@@ -856,4 +856,102 @@
     100% {
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
     }
+}
+
+/* =========================================================
+   ACTIVE BROADCAST BANNER & PILL STYLING
+========================================================= */
+.active-broadcast-banner {
+    transition: all 0.25s ease;
+}
+
+.active-broadcast-banner:hover {
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.14) !important;
+    border-color: #6ee7b7 !important;
+}
+
+.lamo-floating-announcement {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.lamo-announcement-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 960px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 999px;
+    padding: 8px 14px 8px 10px;
+    box-shadow: 0 10px 30px -5px rgba(5, 150, 105, 0.16);
+}
+
+.lamo-announcement-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 750;
+    padding: 4px 11px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+.lamo-pulse-dot {
+    width: 7px;
+    height: 7px;
+    background: #a7f3d0;
+    border-radius: 50%;
+    display: inline-block;
+    animation: lamoPulseAdmin 1.8s infinite ease-in-out;
+}
+
+@keyframes lamoPulseAdmin {
+    0% { box-shadow: 0 0 0 0 rgba(167, 243, 208, 0.7); }
+    70% { box-shadow: 0 0 0 7px rgba(167, 243, 208, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(167, 243, 208, 0); }
+}
+
+.lamo-announcement-content {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: #1e293b;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lamo-announcement-text {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.lamo-announcement-close {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.lamo-announcement-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
 }

@@ -197,6 +197,39 @@
                             <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="Enter 10-digit mobile number" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" minlength="10" required>
                         </div>
 
+                        <div class="mb-4">
+                            <label class="form-label d-flex align-items-center justify-content-between" style="font-weight: 600;">
+                                <span>Payment Method</span>
+                                <span class="badge" style="background:#ecfdf5; color:#059669; font-weight:600; border:1px solid #a7f3d0; font-size:0.75rem;">
+                                    <i class="bi bi-shield-check"></i> Safe & Verified
+                                </span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="payment-card-option" id="cardPayOnline" style="display: block; border: 2px solid #16a34a; border-radius: 12px; padding: 14px; cursor: pointer; background: #f0fdf4; transition: all 0.2s;">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <input type="radio" name="payment_method" value="ONLINE" id="payOnlineRadio" checked style="margin-top: 4px; accent-color: #16a34a;">
+                                            <div>
+                                                <div style="font-weight: 600; font-size: 0.95rem; color: #166534;"><i class="bi bi-qr-code-scan"></i> Online Payment</div>
+                                                <small style="color: #4b5563; font-size: 0.8rem; display: block; margin-top: 2px;">UPI / QR on job completion. Zero cash handling.</small>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="payment-card-option" id="cardPayCash" style="display: block; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 14px; cursor: pointer; background: #ffffff; transition: all 0.2s;">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <input type="radio" name="payment_method" value="CASH" id="payCashRadio" style="margin-top: 4px; accent-color: #16a34a;">
+                                            <div>
+                                                <div style="font-weight: 600; font-size: 0.95rem; color: #374151;"><i class="bi bi-cash-stack"></i> Cash on Service</div>
+                                                <small style="color: #4b5563; font-size: 0.8rem; display: block; margin-top: 2px;">Pay directly in cash once pro finishes work.</small>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-success w-100" style="padding: 12px; font-weight: 600;">
                             Continue Booking <i class="bi bi-arrow-right"></i>
                         </button>
@@ -403,6 +436,30 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+
+    // Payment method card visual toggle
+    const payOnlineRadio = document.getElementById('payOnlineRadio');
+    const payCashRadio = document.getElementById('payCashRadio');
+    const cardPayOnline = document.getElementById('cardPayOnline');
+    const cardPayCash = document.getElementById('cardPayCash');
+
+    function updatePaymentCards() {
+        if (!cardPayOnline || !cardPayCash) return;
+        if (payOnlineRadio && payOnlineRadio.checked) {
+            cardPayOnline.style.borderColor = '#16a34a';
+            cardPayOnline.style.background = '#f0fdf4';
+            cardPayCash.style.borderColor = '#e5e7eb';
+            cardPayCash.style.background = '#ffffff';
+        } else if (payCashRadio && payCashRadio.checked) {
+            cardPayCash.style.borderColor = '#16a34a';
+            cardPayCash.style.background = '#f0fdf4';
+            cardPayOnline.style.borderColor = '#e5e7eb';
+            cardPayOnline.style.background = '#ffffff';
+        }
+    }
+
+    if (payOnlineRadio) payOnlineRadio.addEventListener('change', updatePaymentCards);
+    if (payCashRadio) payCashRadio.addEventListener('change', updatePaymentCards);
 });
 </script>
 {% endblock %}

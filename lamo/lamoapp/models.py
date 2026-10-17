@@ -353,9 +353,33 @@ class WorkerProfile(models.Model):
         help_text="Admin warning and dispute notes"
     )
 
+    launch_ends_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when 30-day 0% commission launch period expires"
+    )
+
+    is_paused_for_dues = models.BooleanField(
+        default=False,
+        help_text="Set to True automatically when wallet balance drops below -500"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_in_launch(self):
+        if not self.launch_ends_at:
+            return False
+        return timezone.now() < self.launch_ends_at
+
+    @property
+    def launch_days_left(self):
+        if not self.is_in_launch:
+            return 0
+        diff = self.launch_ends_at - timezone.now()
+        return max(0, diff.days + (1 if diff.seconds > 0 else 0))
 
     def __str__(self):
         return self.user.username
@@ -470,6 +494,18 @@ class Booking(models.Model):
         max_length=50,
         null=True,
         blank=True
+    )
+
+    platform_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Platform fee applicable to this booking"
+    )
+
+    fee_settled = models.BooleanField(
+        default=False,
+        help_text="Whether the platform fee has been settled or deducted"
     )
 
     status = models.CharField(
@@ -633,6 +669,107 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment #{self.id} - Booking #{self.booking_id} - {self.status}"
+
+
+# ============================================================
+# WORKER WALLET & TRANSACTION LEDGER
+# ============================================================
+
+class WorkerWallet(models.Model):
+    worker = models.OneToOneField(
+        WorkerProfile,
+        on_delete=models.CASCADE,
+        related_name='wallet'
+    )
+    balance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Single signed balance: positive=credit, negative=amount owed to LAMO"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def zone(self):
+        from decimal import Decimal
+        if self.balance >= Decimal('0.00'):
+            return 'GREEN'
+        elif self.balance >= Decimal('-500.00'):
+            return 'YELLOW'
+        return 'RED'
+
+    @property
+    def is_locked(self):
+        from decimal import Decimal
+        return self.balance < Decimal('-500.00')
+
+    @property
+    def amount_due(self):
+        from decimal import Decimal
+        return abs(self.balance) if self.balance < Decimal('0.00') else Decimal('0.00')
+
+    @property
+    def buffer_remaining(self):
+        from decimal import Decimal
+        if self.balance >= Decimal('0.00'):
+            return Decimal('500.00')
+        remaining = Decimal('500.00') + self.balance
+        return max(Decimal('0.00'), remaining)
+
+    def __str__(self):
+        return f"Wallet ({self.worker.user.username}) - Balance: ₹{self.balance}"
+
+
+class WalletTransaction(models.Model):
+    TRANSACTION_TYPES = (
+        ('FEE_DEDUCTION', 'Platform Fee (Cash Job)'),
+        ('RECHARGE', 'UPI Wallet Recharge'),
+        ('ONLINE_PAYOUT_OFFSET', 'Online Payout Offset'),
+        ('WELCOME_CREDIT', 'Welcome Launch Credit'),
+        ('ADJUSTMENT', 'Admin Adjustment'),
+    )
+
+    wallet = models.ForeignKey(
+        WorkerWallet,
+        on_delete=models.CASCADE,
+        related_name='transactions'
+    )
+    booking = models.ForeignKey(
+        'Booking',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='wallet_transactions'
+    )
+    transaction_type = models.CharField(
+        max_length=30,
+        choices=TRANSACTION_TYPES
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Negative for debits (fees), positive for credits (recharge)"
+    )
+    balance_after = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    reference_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default=''
+    )
+    notes = models.TextField(
+        blank=True,
+        default=''
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Tx #{self.id} - {self.transaction_type} - ₹{self.amount} (Bal: ₹{self.balance_after})"
 
 
 class BookingMessage(models.Model):

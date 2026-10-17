@@ -23,7 +23,9 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, FileResponse
 from django.utils.http import url_has_allowed_host_and_scheme
-from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord
+from django.utils import timezone
+from datetime import timedelta
+from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction
 from .email_utils import send_email_safely
 from .rate_limit import (
     AI_ASSISTANT_PER_HOUR,
@@ -2031,6 +2033,9 @@ def book_service(request):
         end_date = request.POST.get('end_date', '').strip()
         frequency = request.POST.get('frequency', 'Weekly').strip()
         preferred_day = request.POST.get('preferred_day', '').strip()
+        payment_method = request.POST.get('payment_method', 'CASH').strip().upper()
+        if payment_method not in ['ONLINE', 'CASH']:
+            payment_method = 'CASH'
 
         if not time:
             if custom_time:
@@ -2056,6 +2061,7 @@ def book_service(request):
             'end_date': end_date,
             'frequency': frequency,
             'preferred_day': preferred_day,
+            'payment_method': payment_method,
         }
 
         if not worker_id:
@@ -2159,6 +2165,9 @@ def book_service(request):
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
+            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+                return respond_error('This service professional is temporarily unavailable for new requests. Please choose another available worker.')
+
             duplicate_user_booking = Booking.objects.filter(
                 customer=request.user, worker=locked_worker, service=service, date=date,
                 status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
@@ -2202,7 +2211,8 @@ def book_service(request):
                 latitude=lat_val,
                 longitude=lng_val,
                 district=district,
-                estimated_cost=service.price, status='PENDING'
+                estimated_cost=service.price, status='PENDING',
+                payment_method=payment_method
             )
             booking.generate_arrival_otp()
 
@@ -4615,6 +4625,14 @@ def admin_dashboard(request):
     platform_commission = round(gross_revenue * 0.10, 2)
     worker_payouts = round(gross_revenue * 0.90, 2)
 
+    # Platform Dues & Launch Metrics
+    negative_wallets = WorkerWallet.objects.filter(balance__lt=0)
+    total_worker_dues = abs(negative_wallets.aggregate(total=Sum('balance'))['total'] or Decimal('0.00'))
+    paused_workers_count = WorkerProfile.objects.filter(is_paused_for_dues=True).count()
+    active_launch_workers_count = WorkerProfile.objects.filter(launch_ends_at__gt=timezone.now()).count()
+    cash_bookings_count = Booking.objects.filter(payment_method='CASH').count()
+    online_bookings_count = Booking.objects.filter(payment_method='ONLINE').count()
+
     # Monthly revenue trend (last 6 months)
     now = timezone.now()
     monthly_revenue = []
@@ -4757,6 +4775,11 @@ def admin_dashboard(request):
     }
     live_map_json = json.dumps(live_map_data)
 
+    latest_broadcast = Notification.objects.filter(
+        notification_type='SYSTEM',
+        message__startswith='📢'
+    ).order_by('-created_at').first()
+
     return render(
         request,
         'dashboards/admin_dashboard.html',
@@ -4786,6 +4809,12 @@ def admin_dashboard(request):
             'booking_status_data': booking_status_data,
             'top_workers': top_workers,
             'new_enquiries': new_enquiries,
+            'latest_broadcast': latest_broadcast,
+            'total_worker_dues': total_worker_dues,
+            'paused_workers_count': paused_workers_count,
+            'active_launch_workers_count': active_launch_workers_count,
+            'cash_bookings_count': cash_bookings_count,
+            'online_bookings_count': online_bookings_count,
         }
     )
 
@@ -4928,8 +4957,22 @@ def worker_dashboard(request):
     if not emergency_bookings:
         emergency_reason = _emergency_unavailable_reason(worker_profile, request.user)
 
+    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker_profile)
+    recent_wallet_transactions = wallet.transactions.select_related('booking').order_by('-created_at')[:8]
+
     context = {
         'worker_profile': worker_profile,
+        'wallet': wallet,
+        'wallet_balance': wallet.balance,
+        'wallet_zone': wallet.zone,
+        'wallet_is_locked': wallet.is_locked,
+        'wallet_amount_due': wallet.amount_due,
+        'wallet_buffer_remaining': wallet.buffer_remaining,
+        'is_in_launch': worker_profile.is_in_launch,
+        'launch_days_left': worker_profile.launch_days_left,
+        'launch_ends_at': worker_profile.launch_ends_at,
+        'is_paused_for_dues': worker_profile.is_paused_for_dues,
+        'recent_wallet_transactions': recent_wallet_transactions,
         'pending_bookings': pending_bookings,
         'active_bookings': active_bookings,
         'chat_bookings': chat_bookings,
@@ -4952,6 +4995,60 @@ def worker_dashboard(request):
         'dashboards/worker_dashboard.html',
         context
     )
+
+
+@login_required
+@require_POST
+def worker_recharge_wallet(request):
+    """Allows a worker to top up their wallet or pay off outstanding platform dues."""
+    if request.user.role != 'WORKER':
+        messages.error(request, 'Only service professionals can recharge a worker wallet.')
+        return redirect('dashboard')
+
+    try:
+        worker_profile = request.user.worker_profile
+    except WorkerProfile.DoesNotExist:
+        messages.error(request, 'Worker profile not found.')
+        return redirect('dashboard')
+
+    raw_amount = request.POST.get('amount', '').strip()
+    try:
+        amount = Decimal(raw_amount)
+        if amount < Decimal('10.00'):
+            messages.error(request, 'Minimum recharge / payment amount is ₹10.00.')
+            return redirect('worker_dashboard')
+    except (ValueError, TypeError, ArithmeticError):
+        messages.error(request, 'Please provide a valid payment amount.')
+        return redirect('worker_dashboard')
+
+    reference_id = request.POST.get('reference_id', '').strip()[:100]
+    if not reference_id:
+        reference_id = f"UPI-{uuid.uuid4().hex[:8].upper()}"
+
+    with transaction.atomic():
+        wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker_profile)
+        wallet.balance += amount
+        wallet.save()
+
+        # If dues were cleared above the -₹500 threshold, unpause the worker
+        if wallet.balance >= Decimal('-500.00') and worker_profile.is_paused_for_dues:
+            worker_profile.is_paused_for_dues = False
+            worker_profile.save(update_fields=['is_paused_for_dues'])
+
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            transaction_type='RECHARGE',
+            amount=amount,
+            balance_after=wallet.balance,
+            reference_id=reference_id,
+            notes=f"UPI Payment / Wallet Recharge of ₹{amount:.2f}"
+        )
+
+    messages.success(
+        request,
+        f'Payment of ₹{amount:.2f} recorded successfully! Current wallet balance: ₹{wallet.balance:.2f}.'
+    )
+    return redirect('worker_dashboard')
 
 
 @never_cache
@@ -5846,22 +5943,27 @@ def worker_verify(request, pk):
 
 
     # VERIFY WORKER
-
     worker.is_verified = True
+    if not worker.launch_ends_at:
+        worker.launch_ends_at = timezone.now() + timedelta(days=30)
 
     worker.save(
         update_fields=[
             'is_verified',
+            'launch_ends_at',
             'updated_at'
         ]
     )
 
+    WorkerWallet.objects.get_or_create(
+        worker=worker,
+        defaults={'balance': Decimal('0.00')}
+    )
 
     messages.success(
         request,
-        f'{worker.user.username} has been verified successfully.'
+        f'{worker.user.username} has been verified successfully with a 30-day 0% commission launch period.'
     )
-
 
     return redirect('workers_list')
 
@@ -7028,7 +7130,7 @@ def admin_broadcast_announcement(request):
             recipients = CustomUser.objects.filter(role='USER', is_active=True)
             target_label = "all registered customers"
         else:
-            recipients = CustomUser.objects.filter(is_active=True).exclude(role='ADMIN')
+            recipients = CustomUser.objects.filter(is_active=True)
             target_label = "all platform users"
 
         notif_list = [
@@ -7093,10 +7195,58 @@ def confirm_completion(request, booking_id):
 
     booking.status = 'COMPLETED'
 
+    # ==========================================
+    # PLATFORM FEE & WALLET DEDUCTION
+    # ==========================================
+    job_amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+
+    if booking.worker:
+        worker = booking.worker
+        if worker.is_in_launch:
+            platform_fee = Decimal('0.00')
+        else:
+            platform_fee = max(job_amount * Decimal('0.10'), Decimal('15.00'))
+
+        booking.platform_fee = platform_fee
+
+        if booking.payment_method == 'CASH' and not booking.fee_settled:
+            with transaction.atomic():
+                wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker)
+                if platform_fee > Decimal('0.00'):
+                    wallet.balance -= platform_fee
+                    wallet.save()
+
+                    if wallet.is_locked:
+                        worker.is_paused_for_dues = True
+                        worker.save(update_fields=['is_paused_for_dues'])
+
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        booking=booking,
+                        transaction_type='FEE_DEDUCTION',
+                        amount=-platform_fee,
+                        balance_after=wallet.balance,
+                        notes=f"Platform fee (10% min ₹15) for Cash Booking #{booking.id}"
+                    )
+                else:
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        booking=booking,
+                        transaction_type='FEE_DEDUCTION',
+                        amount=Decimal('0.00'),
+                        balance_after=wallet.balance,
+                        notes=f"Launch Offer Benefit: 0% Platform Fee for Cash Booking #{booking.id}"
+                    )
+                booking.fee_settled = True
+        elif booking.payment_method == 'ONLINE':
+            booking.fee_settled = True
+
     booking.save(
         update_fields=[
             'status',
             'estimated_cost',
+            'platform_fee',
+            'fee_settled',
             'updated_at'
         ]
     )
