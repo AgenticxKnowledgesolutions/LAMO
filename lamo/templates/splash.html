@@ -1,226 +1,80 @@
-{% load static %}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0a612f">
-  <title>LAMO | Your Services. One Place.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    /* =========================================================
-       1. VARIABLES & RESET
-       ========================================================= */
-    :root {
-      --emerald-vibrant: #00E668;
-      --emerald: #00B050;
-      --stage-bg: #0a612f;
-      --white: #FFFFFF;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAMO</title>
+<style>
+  :root { --green:#22c55e; --bg1:#07130d; --bg2:#0f2a1b; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; }
+  body {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: radial-gradient(circle at 50% 40%, var(--bg2), var(--bg1) 70%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    cursor: pointer;
+    user-select: none;
+  }
+  .logo { display:flex; gap:clamp(4px,1.5vw,14px); }
+  .logo span {
+    font-size: clamp(64px, 18vw, 150px);
+    font-weight: 800; line-height:1; color:#fff;
+    opacity:0; will-change: transform, opacity;
+    text-shadow: 0 8px 30px rgba(34,197,94,.25);
+  }
+  /* L and M come from the left, A and O from the right */
+  .logo span:nth-child(1){ animation: fromLeft  .9s .2s  forwards; }
+  .logo span:nth-child(2){ animation: fromRight .9s .6s  forwards; color: var(--green); }
+  .logo span:nth-child(3){ animation: fromLeft  .9s 1.0s forwards; }
+  .logo span:nth-child(4){ animation: fromRight .9s 1.4s forwards; color: var(--green); }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+  @keyframes fromLeft {
+    0%   { transform: translateX(-110vw) rotate(-20deg); opacity:0; }
+    55%  { transform: translateX(14px)   rotate(4deg);   opacity:1; }
+    72%  { transform: translateX(-9px)   rotate(-2deg); }
+    86%  { transform: translateX(4px);  }
+    100% { transform: translateX(0)      rotate(0);      opacity:1; }
+  }
+  @keyframes fromRight {
+    0%   { transform: translateX(110vw)  rotate(20deg);  opacity:0; }
+    55%  { transform: translateX(-14px)  rotate(-4deg);  opacity:1; }
+    72%  { transform: translateX(9px)    rotate(2deg); }
+    86%  { transform: translateX(-4px); }
+    100% { transform: translateX(0)      rotate(0);      opacity:1; }
+  }
+  /* small hop of the whole word after all letters landed */
+  .logo { animation: hop .6s 2.3s ease-out; }
+  @keyframes hop { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-14px)} 70%{transform:translateY(3px)} }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      background: var(--stage-bg);
-      color: var(--white);
-    }
+  .tag {
+    margin-top: 18px; color:#bbf7d0; letter-spacing:.35em; font-size:clamp(11px,2.8vw,15px);
+    text-transform:uppercase; opacity:0; animation: fade .8s 2.4s forwards;
+  }
+  .bar { width:min(220px,50vw); height:3px; margin-top:26px; background:rgba(255,255,255,.12);
+         border-radius:3px; overflow:hidden; opacity:0; animation: fade .4s 2.4s forwards; }
+  .bar i { display:block; height:100%; width:0; background:var(--green);
+           animation: load 1s 2.5s ease-out forwards; }
+  @keyframes fade { to { opacity:1; } }
+  @keyframes load { to { width:100%; } }
 
-    /* =========================================================
-       2. FULL-SCREEN CONTAINER & SEAMLESS GREEN BACKGROUND
-       ========================================================= */
-    .splash-container {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 50% 50%, #138745 0%, #0a612f 50%, #054823 85%, #022b15 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    /* =========================================================
-       3. RESPONSIVE VIDEO STAGE (FITS SCREEN WITHOUT CROPPING)
-       ========================================================= */
-    .splash-video-stage {
-      position: absolute;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      z-index: 1;
-    }
-
-    .splash-video {
-      width: 100%;
-      height: 100%;
-      max-width: 100vw;
-      max-height: 100vh;
-      max-height: 100dvh;
-      object-fit: contain;
-      object-position: center center;
-      display: block;
-      background: transparent;
-      border: none;
-      outline: none;
-      margin: 0;
-      padding: 0;
-    }
-
-    /* =========================================================
-       4. SKIP BUTTON & PROGRESS TIMELINE OVERLAY
-       ========================================================= */
-    .skip-action {
-      position: fixed;
-      top: 20px;
-      right: 24px;
-      z-index: 100;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 18px;
-      border-radius: 30px;
-      background: rgba(0, 0, 0, 0.32);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.28);
-      color: var(--white);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-      transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
-      cursor: pointer;
-    }
-
-    .skip-action:hover {
-      background: rgba(0, 0, 0, 0.55);
-      border-color: rgba(255, 255, 255, 0.6);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(0, 230, 104, 0.35);
-    }
-
-    .skip-arrow {
-      font-size: 14px;
-      transition: transform 0.2s ease;
-    }
-
-    .skip-action:hover .skip-arrow {
-      transform: translateX(3px);
-    }
-
-    /* Bottom Linear Progress Track */
-    .progress-track {
-      position: fixed;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.15);
-      z-index: 100;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, var(--emerald) 0%, var(--emerald-vibrant) 70%, #FFFFFF 100%);
-      box-shadow: 0 0 10px rgba(0, 230, 104, 0.8);
-      transition: width 0.1s linear;
-    }
-
-    @media (max-width: 768px) {
-      .skip-action {
-        top: 14px;
-        right: 14px;
-        padding: 7px 14px;
-        font-size: 12px;
-      }
-    }
-  </style>
+  @media (prefers-reduced-motion: reduce) {
+    .logo span, .logo, .tag, .bar { animation:none !important; opacity:1 !important; }
+  }
+</style>
 </head>
 <body>
-
-  <!-- Splash Container -->
-  <main class="splash-container" id="splashContainer" role="banner" aria-label="Welcome to LAMO">
-
-    <!-- Video Stage -->
-    <div class="splash-video-stage">
-      <video
-        id="splashVideo"
-        class="splash-video"
-        autoplay
-        muted
-        playsinline
-        preload="auto"
-        webkit-playsinline
-        x5-playsinline
-      >
-        <!-- Single responsive video source is injected dynamically by script to avoid loading both -->
-        Your browser does not support HTML5 video.
-      </video>
-    </div>
-
-    <!-- Skip / Continue Button -->
-    <a class="skip-action" id="skipButton" href="{% url 'home' %}?from_splash=1" role="button" aria-label="Skip to home page">
-      <span>Continue</span>
-      <span class="skip-arrow">&#8594;</span>
-    </a>
-
-    <!-- Bottom Timeline Progress Track -->
-    <div class="progress-track" aria-hidden="true">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-
-  </main>
+  <div class="logo" aria-label="LAMO">
+    <span>L</span><span>A</span><span>M</span><span>O</span>
+  </div>
+  <div class="tag">Home services, simplified</div>
+  <div class="bar"><i></i></div>
 
   <script>
     (function () {
-      var video = document.getElementById("splashVideo");
-      var progressBar = document.getElementById("progressBar");
-      var container = document.getElementById("splashContainer");
-      var skipBtn = document.getElementById("skipButton");
       var transitioned = false;
-
-      // Video sources
-      var desktopSrc = "{% static 'video/splash.mp4' %}";
-      var mobileSrc = "{% static 'video/splash-2.mp4' %}";
-
-      // Detect mobile screen: width <= 768px or portrait phone/tablet
-      var isMobile = (window.innerWidth <= 768) || 
-                     (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) ||
-                     (window.matchMedia && window.matchMedia("(orientation: portrait) and (max-width: 900px)").matches);
-
-      // Select single video based on screen size (avoids loading both simultaneously)
-      var activeSrc = isMobile ? mobileSrc : desktopSrc;
-
-      /*
-       * Immediate transition to homepage.
-       * Sets session tracking so the user is not shown the splash repeatedly.
-       */
       function proceedToHome() {
         if (transitioned) return;
         transitioned = true;
-
         try {
           if (window.sessionStorage) {
             sessionStorage.setItem("lamo_splash_seen", "true");
@@ -232,74 +86,17 @@
           document.cookie = "lamo_splash_seen=1; path=/; SameSite=Lax";
         } catch (e) { }
 
-        // Immediately transition without artificial delays or trailing green screen
         window.location.replace("{% url 'home' %}?from_splash=1");
       }
 
-      if (video) {
-        // Set single source directly
-        video.src = activeSrc;
-        video.load();
+      setTimeout(proceedToHome, 3700);
 
-        // When the selected video finishes, immediately transition to home (plays only once)
-        video.addEventListener("ended", function () {
-          proceedToHome();
-        });
-
-        // Synchronize timeline progress bar
-        video.addEventListener("timeupdate", function () {
-          if (video.duration && progressBar) {
-            var percent = Math.min(100, (video.currentTime / video.duration) * 100);
-            progressBar.style.width = percent + "%";
-          }
-        });
-
-        // Fail-safe: if video fails to load, proceed immediately so user is not stuck
-        video.addEventListener("error", function () {
-          proceedToHome();
-        });
-
-        // Autoplay handling
-        var playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(function (error) {
-            // Autoplay blocked by browser policy; proceed to home gracefully
-            console.warn("Autoplay blocked:", error);
-            proceedToHome();
-          });
-        }
-      } else {
-        proceedToHome();
-      }
-
-      // Tap / click anywhere on screen to proceed immediately
-      if (container) {
-        container.addEventListener("click", function (e) {
-          if (e.target.closest("#skipButton")) return;
-          proceedToHome();
-        });
-      }
-
-      // Skip button
-      if (skipBtn) {
-        skipBtn.addEventListener("click", function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          proceedToHome();
-        });
-      }
-
-      // Keyboard navigation
+      document.addEventListener("click", proceedToHome);
       document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
           proceedToHome();
         }
       });
-
-      // Fail-safe maximum timeout (11s) in case events are completely stalled
-      window.setTimeout(function () {
-        proceedToHome();
-      }, 11000);
     })();
   </script>
 </body>

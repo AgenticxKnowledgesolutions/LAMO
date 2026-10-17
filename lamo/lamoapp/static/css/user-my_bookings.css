@@ -863,6 +863,28 @@ body.drawer-open {
     color: #991b1b;
 }
 
+.report-no-show-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.report-no-show-action-btn:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #9a3412;
+    transform: translateY(-1px);
+}
+
 /* EMPTY STATE */
 .empty-bookings-box {
     text-align: center;
@@ -1477,108 +1499,312 @@ body.drawer-open {
     margin-top: 14px;
 }
 
-/* MODALS */
+/* =========================================================
+   PREMIUM MODAL SYSTEM (No-Show, Cancel, Dispute)
+   ========================================================= */
 .lamo-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 1200;
+    inset: 0;
+    z-index: 2000;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
-    animation: modalFadeIn 0.2s ease forwards;
+    animation: modalFadeIn 0.22s ease forwards;
 }
 
-.lamo-modal-dialog {
+.lamo-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(6, 40, 30, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+}
+
+.lamo-modal-surface {
+    position: relative;
+    z-index: 10;
     background: #ffffff;
-    border-radius: 18px;
+    border-radius: 24px;
     width: 100%;
-    max-width: 480px;
+    max-width: 520px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 25px 65px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
+    animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.lamo-modal-dialog .modal-header {
+.lamo-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 22px;
+    padding: 22px 28px;
     border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
-.lamo-modal-dialog .modal-title {
+.lamo-modal-header h3 {
     margin: 0;
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 800;
     color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    letter-spacing: -0.015em;
 }
 
-.lamo-modal-dialog .modal-close-btn {
-    border: none;
-    background: #f1f5f9;
+.lamo-modal-header h3 i {
+    font-size: 22px;
+    display: inline-flex;
+}
+
+.lamo-modal-close {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: #64748b;
+    font-size: 16px;
     cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
-.lamo-modal-dialog .modal-body {
-    padding: 20px 22px;
+.lamo-modal-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #fca5a5;
+    transform: rotate(90deg);
+}
+
+.lamo-modal-body {
+    padding: 24px 28px;
     color: #334155;
+    font-size: 14px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-instruction {
+    margin: 0;
+    color: #475569;
     font-size: 13.5px;
+    font-weight: 500;
+}
+
+.modal-alert-box.warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    color: #92400e;
+    font-size: 13px;
     line-height: 1.55;
 }
 
-.lamo-modal-dialog .modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 22px;
-    border-top: 1px solid #f1f5f9;
-    background: #fafafa;
-    border-bottom-left-radius: 18px;
-    border-bottom-right-radius: 18px;
+.modal-alert-box.warning i {
+    font-size: 19px;
+    color: #d97706;
+    flex-shrink: 0;
+    margin-top: 1px;
 }
 
+.quick-reasons-row,
 .quick-reasons-wrap {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
+    gap: 8px;
+    margin: 2px 0 4px;
 }
 
 .quick-reason-pill {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 5px 12px;
-    font-size: 12px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 7px 15px;
+    font-size: 12.5px;
+    font-weight: 600;
     color: #475569;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
 }
 
 .quick-reason-pill:hover {
-    background: #087f5b;
-    color: #ffffff;
+    background: #ecfdf5;
+    color: #087f5b;
     border-color: #087f5b;
+    transform: translateY(-1px);
+}
+
+.quick-reason-pill.active {
+    background: #087f5b !important;
+    color: #ffffff !important;
+    border-color: #087f5b !important;
+    box-shadow: 0 4px 12px rgba(8, 127, 91, 0.28);
+}
+
+.modal-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 750;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.modal-textarea {
+    width: 100%;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #0f172a;
+    background: #ffffff;
+    resize: vertical;
+    min-height: 90px;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.modal-textarea:focus {
+    border-color: #087f5b;
+    box-shadow: 0 0 0 3.5px rgba(8, 127, 91, 0.16);
+}
+
+.lamo-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 18px 28px;
+    border-top: 1px solid #f1f5f9;
+    background: #f8fafc;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+}
+
+.btn-modal-cancel {
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13.5px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-modal-cancel:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.btn-modal-destructive {
+    padding: 10px 22px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.28);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-modal-destructive:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.38);
+    transform: translateY(-1px);
+}
+
+.btn-modal-warning {
+    padding: 10px 22px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.28);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-modal-warning:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    box-shadow: 0 6px 18px rgba(217, 119, 6, 0.38);
+    transform: translateY(-1px);
 }
 
 @keyframes modalFadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+@keyframes modalPopIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) translateY(14px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .lamo-modal-overlay {
+        padding: 12px;
+        align-items: flex-end;
+    }
+    .lamo-modal-surface {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        max-height: 88vh;
+    }
+    .lamo-modal-header {
+        padding: 18px 20px;
+    }
+    .lamo-modal-body {
+        padding: 18px 20px;
+    }
+    .lamo-modal-footer {
+        padding: 16px 20px;
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+    .btn-modal-cancel,
+    .btn-modal-destructive,
+    .btn-modal-warning {
+        width: 100%;
+        justify-content: center;
+    }
 }

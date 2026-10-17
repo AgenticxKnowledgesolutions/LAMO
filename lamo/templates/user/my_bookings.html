@@ -939,7 +939,7 @@
     <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="cancelModalTitle">
         <div class="lamo-modal-header">
             <h3 id="cancelModalTitle"><i class="bi bi-x-circle-fill" style="color:#ef4444;"></i> Cancel Booking</h3>
-            <button type="button" class="lamo-modal-close" onclick="closeCancelModal()" aria-label="Close modal">&times;</button>
+            <button type="button" class="lamo-modal-close" onclick="closeCancelModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
         </div>
         <form method="POST" id="cancelBookingForm" action="">
             {% csrf_token %}
@@ -970,7 +970,7 @@
     <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="disputeModalTitle">
         <div class="lamo-modal-header">
             <h3 id="disputeModalTitle"><i class="bi bi-exclamation-octagon-fill" style="color:#f59e0b;"></i> Dispute Booking / Amount</h3>
-            <button type="button" class="lamo-modal-close" onclick="closeDisputeModal()" aria-label="Close modal">&times;</button>
+            <button type="button" class="lamo-modal-close" onclick="closeDisputeModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
         </div>
         <form method="POST" id="disputeBookingForm" action="">
             {% csrf_token %}
@@ -1000,7 +1000,7 @@
     <div class="lamo-modal-surface" role="dialog" aria-modal="true" aria-labelledby="noShowModalTitle">
         <div class="lamo-modal-header">
             <h3 id="noShowModalTitle"><i class="bi bi-person-x-fill" style="color:#ef4444;"></i> Report Worker No-Show</h3>
-            <button type="button" class="lamo-modal-close" onclick="closeNoShowModal()" aria-label="Close modal">&times;</button>
+            <button type="button" class="lamo-modal-close" onclick="closeNoShowModal()" aria-label="Close modal"><i class="bi bi-x-lg"></i></button>
         </div>
         <form method="POST" id="reportNoShowForm" action="">
             {% csrf_token %}
