@@ -2258,13 +2258,7 @@
    ========================================================= */
 
 .workers-page-nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #dfece7;
-    font-size: 14px;
+    display: none !important;
 }
 
 .workers-page-nav-spacer {
