@@ -2116,7 +2116,7 @@
         justify-self: end !important;
         position: static !important;
         transform: none !important;
-        margin-left: 70% !important;
+        margin-left: auto !important;
         margin-right: 0 !important;
         display: flex !important;
         align-items: center !important;
@@ -2198,7 +2198,7 @@
 @media (min-width: 992px) {
 
     .navbar .nav-pill {
-        margin-left: 100px;
+        margin-left: clamp(20px, 4vw, 80px);
     }
 
 
@@ -2210,7 +2210,7 @@
 
     /* Contact ↔ Login */
     .navbar .nav-actions {
-        margin-left: 40% !important;
+        margin-left: auto !important;
         gap: 16px !important;
     }
 }
@@ -2318,93 +2318,6 @@
     .toast { min-width: 0; max-width: none; }
 }
 
-.toast-container {
-    position: fixed;
-    top: 90px;
-    right: 20px;
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    pointer-events: none;
-}
-.toast {
-    min-width: 300px;
-    max-width: 420px;
-    padding: 14px 18px;
-    border-radius: 12px;
-    background: white;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    pointer-events: auto;
-    transform: translateX(120%);
-    opacity: 0;
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-    border-left: 4px solid;
-}
-.toast.show {
-    transform: translateX(0);
-    opacity: 1;
-}
-.toast.hide {
-    transform: translateX(120%);
-    opacity: 0;
-}
-.toast-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 14px;
-    color: white;
-}
-.toast-content {
-    flex: 1;
-    min-width: 0;
-}
-.toast-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 2px;
-    color: #1f2937;
-}
-.toast-message {
-    font-size: 12px;
-    color: #6b7280;
-    line-height: 1.4;
-}
-.toast-close {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 2px;
-    font-size: 16px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-.toast-close:hover { color: #4b5563; }
-.toast-success { border-left-color: #087f5b; }
-.toast-success .toast-icon { background: #087f5b; }
-.toast-error { border-left-color: #dc2626; }
-.toast-error .toast-icon { background: #dc2626; }
-.toast-warning { border-left-color: #f59e0b; }
-.toast-warning .toast-icon { background: #f59e0b; }
-.toast-info { border-left-color: #3b82f6; }
-.toast-info .toast-icon { background: #3b82f6; }
-@media (max-width: 480px) {
-    .toast-container {
-        top: 80px;
-        right: 10px;
-        left: 10px;
-    }
-    .toast { min-width: 0; max-width: none; }
-}
     /* =====================================================
        NOTIFICATION SLIDE-OVER DRAWER (part 1: shell/header/tabs)
        Replaces the old Bootstrap notification dropdown in the
@@ -2781,7 +2694,6 @@
         transition: none;
       }
     }
-    }
 
     .lamo-notif-tab:hover {
       border-color: #6ee7b7;
@@ -2802,4 +2714,31 @@
     .lamo-notif-tab-count {
       font-weight: 700;
       opacity: 0.85;
+    }
+
+    /* Accessibility: Skip-to-content link */
+    .skip-to-content {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 100000;
+      padding: 10px 18px;
+      background: #087f5b;
+      color: #ffffff !important;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      transition: transform 0.2s ease;
+    }
+    .skip-to-content:not(:focus):not(:focus-within) {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
     }

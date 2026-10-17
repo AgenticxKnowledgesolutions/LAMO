@@ -5,61 +5,14 @@
 LAMO | Labour Management System - Our Services
 {% endblock %}
 
+{% block meta_description %}LAMO connects you with verified service workers across Kerala. Book certified electricians, plumbers, cleaners, and home technicians with transparent pricing.{% endblock %}
+
 {% block extra_js %}
 <script src="{% static 'js/home.js' %}" defer></script>
 {% endblock %}
 
 
 {% block extra_css %}
-
-{% if messages %}
-<div class="lamo-toast-container" id="lamoToastContainer">
-  {% for message in messages %}
-  <div class="lamo-toast
-      {% if 'error' in message.tags %}toast-error
-      {% elif 'warning' in message.tags %}toast-warning
-      {% elif 'success' in message.tags %}toast-success
-      {% else %}toast-info{% endif %}" role="alert" aria-live="polite">
-
-    <div class="toast-icon">
-      {% if 'error' in message.tags %}
-      <i class="bi bi-x-circle-fill"></i>
-      {% elif 'warning' in message.tags %}
-      <i class="bi bi-exclamation-triangle-fill"></i>
-      {% elif 'success' in message.tags %}
-      <i class="bi bi-check-circle-fill"></i>
-      {% else %}
-      <i class="bi bi-info-circle-fill"></i>
-      {% endif %}
-    </div>
-
-    <div class="toast-content">
-      <div class="toast-title">
-        {% if 'error' in message.tags %}
-        Something went wrong
-        {% elif 'warning' in message.tags %}
-        Attention
-        {% elif 'success' in message.tags %}
-        Success
-        {% else %}
-        Information
-        {% endif %}
-      </div>
-
-      <div class="toast-message">{{ message }}</div>
-    </div>
-
-    <button type="button" class="toast-close" onclick="closeLamoToast(this)" aria-label="Close notification">
-      <i class="bi bi-x-lg"></i>
-    </button>
-
-    <div class="toast-progress"></div>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
-
 {% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/home.css' %}">
@@ -67,6 +20,7 @@ LAMO | Labour Management System - Our Services
 
 
 {% block hero %}
+
 
 <!-- =========================================================
      HERO
@@ -142,7 +96,7 @@ LAMO | Labour Management System - Our Services
                     ================================================= -->
 
           <h1 class="hero-title">
-            {% if user.is_authenticated %}
+            {% if user.is_authenticated and user.role == 'USER' %}
             Welcome back, {{ user.username }}!
             <br>
             <span>Find the perfect service</span>
@@ -200,6 +154,53 @@ LAMO | Labour Management System - Our Services
 
 {% block content %}
 
+{% if messages %}
+<div class="lamo-toast-container" id="lamoToastContainer">
+  {% for message in messages %}
+  <div class="lamo-toast
+      {% if 'error' in message.tags %}toast-error
+      {% elif 'warning' in message.tags %}toast-warning
+      {% elif 'success' in message.tags %}toast-success
+      {% else %}toast-info{% endif %}" role="alert" aria-live="polite">
+
+    <div class="toast-icon">
+      {% if 'error' in message.tags %}
+      <i class="bi bi-x-circle-fill"></i>
+      {% elif 'warning' in message.tags %}
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {% elif 'success' in message.tags %}
+      <i class="bi bi-check-circle-fill"></i>
+      {% else %}
+      <i class="bi bi-info-circle-fill"></i>
+      {% endif %}
+    </div>
+
+    <div class="toast-content">
+      <div class="toast-title">
+        {% if 'error' in message.tags %}
+        Something went wrong
+        {% elif 'warning' in message.tags %}
+        Attention
+        {% elif 'success' in message.tags %}
+        Success
+        {% else %}
+        Information
+        {% endif %}
+      </div>
+
+      <div class="toast-message">{{ message }}</div>
+    </div>
+
+    <button type="button" class="toast-close" onclick="closeLamoToast(this)" aria-label="Close notification">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <div class="toast-progress"></div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- =========================================================
      SERVICES
 ========================================================= -->
@@ -214,13 +215,16 @@ LAMO | Labour Management System - Our Services
       <form method="GET" action="{% url 'home' %}#services" id="homeSearchForm"
         style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;">
         <input type="text" name="q" id="homeSearchInput" value="{{ query|default:'' }}"
+          aria-label="Search services by name or description"
           placeholder="Search services by name or description..."
           style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;">
         <button type="submit" id="homeSearchButton"
+          aria-label="Submit service search"
           style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;">
           Search
         </button>
         <button type="button" id="homeSearchClear"
+          aria-label="Clear service search"
           style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center;">
           Clear
         </button>
@@ -945,6 +949,171 @@ LAMO | Labour Management System - Our Services
 
 
 <!-- =========================================================
+     SERVICE COVERAGE (KERALA 14 DISTRICTS - GEO / LOCAL SEO)
+========================================================= -->
+<section id="coverage" class="coverage-section py-5" style="background:#f8fafc; border-top:1px solid #e5e9e7; border-bottom:1px solid #e5e9e7;">
+  <div class="container">
+    <div class="text-center mb-4" data-aos="fade-up">
+      <span class="section-subtitle">Local Coverage</span>
+      <h2 class="section-title">Serving All 14 Districts of Kerala</h2>
+      <p class="text-muted" style="max-width: 680px; margin: 0 auto; font-size: 0.95rem;">
+        LAMO connects customers with verified, skilled local professionals across all 14 administrative districts of Kerala.
+      </p>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-center gap-2 mt-4" data-aos="fade-up" data-aos-delay="100" style="max-width: 900px; margin: 0 auto;">
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Thiruvananthapuram</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#087f5b; color:#ffffff; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kollam (HQ)</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Pathanamthitta</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Alappuzha</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kottayam</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Idukki</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Ernakulam</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Thrissur</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Palakkad</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Malappuram</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kozhikode</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Wayanad</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kannur</span>
+      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kasaragod</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- =========================================================
+     FREQUENTLY ASKED QUESTIONS (GEO & AI SEARCH Q&A)
+========================================================= -->
+<section id="faqs" class="py-5" style="background:#ffffff;">
+  <div class="container" style="max-width: 860px;">
+    <div class="text-center mb-5" data-aos="fade-up">
+      <span class="section-subtitle">Common Questions</span>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+    </div>
+
+    <div class="accordion" id="lamoFaqAccordion" data-aos="fade-up">
+      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
+        <h3 class="accordion-header" id="faqHeading1">
+          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="false" aria-controls="faqCollapse1">
+            What is LAMO and how does it work?
+          </button>
+        </h3>
+        <div id="faqCollapse1" class="accordion-collapse collapse" aria-labelledby="faqHeading1" data-bs-parent="#lamoFaqAccordion">
+          <div class="accordion-body text-muted">
+            LAMO is a service-booking platform connecting customers across Kerala with verified service workers for home repairs, electrical, plumbing, cleaning, and essential services. You select a service, choose an available date and time slot, and confirm your booking.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
+        <h3 class="accordion-header" id="faqHeading2">
+          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
+            Where does LAMO provide services?
+          </button>
+        </h3>
+        <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#lamoFaqAccordion">
+          <div class="accordion-body text-muted">
+            LAMO operates across all 14 districts in Kerala (Thiruvananthapuram, Kollam, Pathanamthitta, Alappuzha, Kottayam, Idukki, Ernakulam, Thrissur, Palakkad, Malappuram, Kozhikode, Wayanad, Kannur, and Kasaragod), with central support based in Kollam.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
+        <h3 class="accordion-header" id="faqHeading3">
+          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
+            How are service workers verified on LAMO?
+          </button>
+        </h3>
+        <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#lamoFaqAccordion">
+          <div class="accordion-body text-muted">
+            Every service worker registered on LAMO submits proof documents and undergoes administrative verification before they can accept customer bookings.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
+        <h3 class="accordion-header" id="faqHeading4">
+          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse4" aria-expanded="false" aria-controls="faqCollapse4">
+            How is worker arrival verified on-site?
+          </button>
+        </h3>
+        <div id="faqCollapse4" class="accordion-collapse collapse" aria-labelledby="faqHeading4" data-bs-parent="#lamoFaqAccordion">
+          <div class="accordion-body text-muted">
+            When a booking is confirmed, a secure 4-digit arrival OTP code is generated for the customer. When the worker arrives at the designated location, they enter this 4-digit code to formally start the job.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
+        <h3 class="accordion-header" id="faqHeading5">
+          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse5" aria-expanded="false" aria-controls="faqCollapse5">
+            How do I contact customer support?
+          </button>
+        </h3>
+        <div id="faqCollapse5" class="accordion-collapse collapse" aria-labelledby="faqHeading5" data-bs-parent="#lamoFaqAccordion">
+          <div class="accordion-body text-muted">
+            You can reach LAMO customer support by phone at +91 9496552094, or visit our office at 3rd Floor, Raj Plaza, Town Limit, Kollam, Kerala.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     FAQ SCHEMA.ORG STRUCTURED DATA
+========================================================= -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is LAMO and how does it work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "LAMO is a service-booking platform connecting customers across Kerala with verified service workers for home repairs, electrical, plumbing, cleaning, and essential services."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Where does LAMO provide services?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "LAMO operates across all 14 districts in Kerala (Thiruvananthapuram, Kollam, Pathanamthitta, Alappuzha, Kottayam, Idukki, Ernakulam, Thrissur, Palakkad, Malappuram, Kozhikode, Wayanad, Kannur, and Kasaragod), with central support based in Kollam."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How are service workers verified on LAMO?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Every service worker registered on LAMO submits proof documents and undergoes administrative verification before they can accept customer bookings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is worker arrival verified on-site?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "When a booking is confirmed, a secure 4-digit arrival OTP code is generated for the customer. When the worker arrives at the designated location, they enter this 4-digit code to formally start the job."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I contact customer support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You can reach LAMO customer support by phone at +91 9496552094, or visit our office at 3rd Floor, Raj Plaza, Town Limit, Kollam, Kerala."
+      }
+    }
+  ]
+}
+</script>
+
+
+<!-- =========================================================
      CONTACT
 ========================================================= -->
 
@@ -988,7 +1157,7 @@ LAMO | Labour Management System - Our Services
 
             </div>
 
-            +91 9496852094
+            +91 9496552094
 
           </li>
 
@@ -1587,696 +1756,14 @@ LAMO | Labour Management System - Our Services
 
     }
 
-
-    /* =====================================================
-       AI ASSISTANT
-       ===================================================== */
-
-    const aiInput =
-      document.getElementById(
-        "aiMessage"
-      );
-
-    const aiSendButton =
-      document.getElementById(
-        "aiSend"
-      );
-
-    const aiMessages =
-      document.getElementById(
-        "aiMessages"
-      );
-
-
-    /* -----------------------------------------------------
-       CHECK AI ELEMENTS
-       ----------------------------------------------------- */
-
-    if (
-      !aiInput ||
-      !aiSendButton ||
-      !aiMessages
-    ) {
-
-      console.log(
-        "AI Assistant elements not found."
-      );
-
-      return;
-
-    }
-
-
-    /* -----------------------------------------------------
-       CSRF TOKEN
-       ----------------------------------------------------- */
-
-    function getCookie(name) {
-
-      let cookieValue = null;
-
-      if (
-        document.cookie &&
-        document.cookie !== ""
-      ) {
-
-        const cookies =
-          document.cookie.split(";");
-
-        for (
-          let cookie of cookies
-        ) {
-
-          cookie =
-            cookie.trim();
-
-          if (
-            cookie.substring(
-              0,
-              name.length + 1
-            ) ===
-            name + "="
-          ) {
-
-            cookieValue =
-              decodeURIComponent(
-                cookie.substring(
-                  name.length + 1
-                )
-              );
-
-            break;
-
-          }
-
-        }
-
-      }
-
-      return cookieValue;
-    }
-
-
-    /* Prefer the Django-rendered token: with CSRF_COOKIE_HTTPONLY=True
-       (production) the csrftoken cookie is not readable from JavaScript, which
-       used to make this request fail with 403. */
-
+    /* CSRF helper: read token from <meta name="csrf-token"> or <input name="csrfmiddlewaretoken"> */
     function getCsrfToken() {
-
-      const meta =
-        document.querySelector(
-          'meta[name="csrf-token"]'
-        );
-
-      if (meta && meta.content) {
-
-        return meta.content;
-
-      }
-
-      const input =
-        document.querySelector(
-          'input[name="csrfmiddlewaretoken"]'
-        );
-
-      if (input && input.value) {
-
-        return input.value;
-
-      }
-
-      return getCookie("csrftoken") || "";
-
-    }
-
-
-    const csrftoken =
-      getCsrfToken();
-
-
-    /* -----------------------------------------------------
-       ADD TEXT MESSAGE
-       ----------------------------------------------------- */
-
-    function addMessage(
-      message,
-      sender
-    ) {
-
-      const messageDiv =
-        document.createElement(
-          "div"
-        );
-
-      messageDiv.classList.add(
-        "ai-message",
-        sender
-      );
-
-      messageDiv.textContent =
-        message;
-
-      aiMessages.appendChild(
-        messageDiv
-      );
-
-      aiMessages.scrollTop =
-        aiMessages.scrollHeight;
-    }
-
-
-    /* -----------------------------------------------------
-       ADD BOT HTML MESSAGE
-       ----------------------------------------------------- */
-
-    function addBotHTML(html) {
-
-      const messageDiv =
-        document.createElement(
-          "div"
-        );
-
-      messageDiv.classList.add(
-        "ai-message",
-        "bot"
-      );
-
-      messageDiv.innerHTML =
-        html;
-
-      aiMessages.appendChild(
-        messageDiv
-      );
-
-      aiMessages.scrollTop =
-        aiMessages.scrollHeight;
-    }
-
-
-    /* -----------------------------------------------------
-       LOADING MESSAGE
-       ----------------------------------------------------- */
-
-    function addLoading() {
-
-      const loading =
-        document.createElement(
-          "div"
-        );
-
-      loading.id =
-        "aiLoading";
-
-      loading.className =
-        "ai-message bot";
-
-      loading.textContent =
-        "Thinking...";
-
-      aiMessages.appendChild(
-        loading
-      );
-
-      aiMessages.scrollTop =
-        aiMessages.scrollHeight;
-    }
-
-
-    /* -----------------------------------------------------
-       REMOVE LOADING
-       ----------------------------------------------------- */
-
-    function removeLoading() {
-
-      const loading =
-        document.getElementById(
-          "aiLoading"
-        );
-
-      if (loading) {
-
-        loading.remove();
-
-      }
-
-    }
-
-
-    /* -----------------------------------------------------
-       GET DISTRICT
-       ----------------------------------------------------- */
-
-    function getDistrict() {
-
-      const districtInput =
-        document.getElementById(
-          "district"
-        );
-
-      if (districtInput) {
-
-        return districtInput.value.trim();
-
-      }
-
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta && meta.content) return meta.content;
+      const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (input && input.value) return input.value;
       return "";
-
     }
-
-
-    /* -----------------------------------------------------
-       ESCAPE HTML
-       ----------------------------------------------------- */
-
-    function escapeHtml(text) {
-
-      const div =
-        document.createElement(
-          "div"
-        );
-
-      div.textContent =
-        text || "";
-
-      return div.innerHTML;
-    }
-
-
-    /* -----------------------------------------------------
-       SHOW SERVICE RESULT
-       ----------------------------------------------------- */
-
-    function showServiceResult(data) {
-
-      const service =
-        data.service;
-
-      const workers =
-        data.workers || [];
-
-
-      let html = "";
-
-
-      html +=
-        "<strong>Sure! I found the right service for you. 😊</strong><br><br>";
-
-      html +=
-        "<strong>" +
-        escapeHtml(service.name) +
-        "</strong>";
-
-
-      if (service.description) {
-
-        html +=
-          "<br>" +
-          escapeHtml(
-            service.description
-          );
-
-      }
-
-
-      if (service.price) {
-
-        html +=
-          "<br>💰 Price: ₹" +
-          escapeHtml(
-            service.price
-          );
-
-      }
-
-
-      html +=
-        "<br><br>";
-
-
-      /* -------------------------------------------------
-         NO WORKERS
-         ------------------------------------------------- */
-
-      if (workers.length === 0) {
-
-        html +=
-          "I couldn't find any available workers for this service right now. 😔";
-
-      }
-
-
-      /* -------------------------------------------------
-         WORKERS
-         ------------------------------------------------- */
-
-      else {
-
-        html +=
-          "<strong>Available workers:</strong><br><br>";
-
-
-        workers.forEach(
-          function (worker) {
-
-            html +=
-              "👤 <strong>" +
-              escapeHtml(
-                worker.name
-              ) +
-              "</strong><br>";
-
-
-            if (
-              worker.district
-            ) {
-
-              html +=
-                "📍 " +
-                escapeHtml(
-                  worker.district
-                ) +
-                "<br>";
-
-            }
-
-
-            if (
-              worker.experience !==
-              undefined
-            ) {
-
-              html +=
-                "💼 " +
-                escapeHtml(
-                  String(
-                    worker.experience
-                  )
-                ) +
-                " years experience<br>";
-
-            }
-
-
-            html +=
-              "⭐ " +
-              escapeHtml(
-                String(
-                  worker.rating
-                )
-              ) +
-              "<br>";
-
-
-            html +=
-              "<hr>";
-
-          }
-        );
-
-      }
-
-
-      addBotHTML(html);
-
-    }
-
-
-    /* =====================================================
-       SEND AI MESSAGE
-       ===================================================== */
-
-    async function sendAIMessage() {
-
-      const message =
-        aiInput.value.trim();
-
-
-      /* -------------------------------------------------
-         EMPTY
-         ------------------------------------------------- */
-
-      if (!message) {
-
-        return;
-
-      }
-
-
-      /* -------------------------------------------------
-         SHOW USER MESSAGE
-         ------------------------------------------------- */
-
-      addMessage(
-        message,
-        "user"
-      );
-
-
-      aiInput.value = "";
-
-
-      /* -------------------------------------------------
-         DISABLE SEND
-         ------------------------------------------------- */
-
-      aiSendButton.disabled =
-        true;
-
-
-      addLoading();
-
-
-      try {
-
-        console.log(
-          "Sending AI request..."
-        );
-
-
-        const response =
-          await fetch(
-            "{% url 'ai_service_assistant' %}",
-            {
-
-              method: "POST",
-
-              headers: {
-
-                "Content-Type":
-                  "application/json",
-
-                "X-CSRFToken":
-                  csrftoken,
-
-                "X-Requested-With":
-                  "XMLHttpRequest"
-
-              },
-
-              body:
-                JSON.stringify({
-
-                  message:
-                    message,
-
-                  district:
-                    getDistrict()
-
-                })
-
-            }
-          );
-
-
-        console.log(
-          "AI HTTP STATUS:",
-          response.status
-        );
-
-
-        /* -------------------------------------------------
-           HTTP ERROR
-           ------------------------------------------------- */
-
-        if (!response.ok) {
-
-          throw new Error(
-            "HTTP Error " +
-            response.status
-          );
-
-        }
-
-
-        /* -------------------------------------------------
-           READ JSON
-           ------------------------------------------------- */
-
-        const data =
-          await response.json();
-
-
-        console.log(
-          "AI RESPONSE:",
-          data
-        );
-
-
-        removeLoading();
-
-
-        /* -------------------------------------------------
-           SUCCESS
-           ------------------------------------------------- */
-
-        if (data.success) {
-
-
-          /* ---------------------------------------------
-             NORMAL CHAT
-             --------------------------------------------- */
-
-          if (
-            data.type ===
-            "chat"
-          ) {
-
-            addMessage(
-              data.message,
-              "bot"
-            );
-
-          }
-
-
-          /* ---------------------------------------------
-             LOGIN REQUIRED
-             --------------------------------------------- */
-
-          else if (
-            data.type ===
-            "login_required"
-          ) {
-
-            addMessage(
-              data.message,
-              "bot"
-            );
-
-          }
-
-
-          /* ---------------------------------------------
-             SERVICE MATCH
-             --------------------------------------------- */
-
-          else if (
-            data.type ===
-            "service_match"
-          ) {
-
-            showServiceResult(
-              data
-            );
-
-          }
-
-
-          /* ---------------------------------------------
-             OTHER SUCCESS
-             --------------------------------------------- */
-
-          else {
-
-            addMessage(
-              data.message ||
-              "Done.",
-              "bot"
-            );
-
-          }
-
-        }
-
-
-        /* -------------------------------------------------
-           BACKEND ERROR
-           ------------------------------------------------- */
-
-        else {
-
-          addMessage(
-            data.message ||
-            "Sorry, something went wrong.",
-            "bot"
-          );
-
-        }
-
-      }
-
-      catch (error) {
-
-        console.error(
-          "AI Assistant Error:",
-          error
-        );
-
-
-        removeLoading();
-
-
-        addMessage(
-          "Sorry, I couldn't connect to the AI assistant. Please try again.",
-          "bot"
-        );
-
-      }
-
-      finally {
-
-        aiSendButton.disabled =
-          false;
-
-        aiInput.focus();
-
-      }
-
-    }
-
-
-    /* -----------------------------------------------------
-       SEND BUTTON
-       ----------------------------------------------------- */
-
-    aiSendButton.addEventListener(
-      "click",
-      sendAIMessage
-    );
-
-
-    /* -----------------------------------------------------
-       ENTER KEY
-       ----------------------------------------------------- */
-
-    aiInput.addEventListener(
-      "keydown",
-      function (event) {
-
-        if (
-          event.key === "Enter" &&
-          !event.shiftKey
-        ) {
-
-          event.preventDefault();
-
-          sendAIMessage();
-
-        }
-
-      }
-    );
-
 
   });
 </script>

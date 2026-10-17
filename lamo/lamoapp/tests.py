@@ -6320,6 +6320,12 @@ class RoleAwareHomeAndServiceDetailTest(TestCase):
         )
         self.customer = _make_user('user_c', role='USER')
         self.worker_user = _make_user('worker_w', role='WORKER')
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            service=self.service,
+            district='Ernakulam',
+            is_verified=True,
+        )
         self.admin_user = _make_user('admin_a', role='ADMIN')
 
     def test_anonymous_sees_service_link_on_home(self):
@@ -6333,18 +6339,28 @@ class RoleAwareHomeAndServiceDetailTest(TestCase):
         response = self.client.get(reverse('home'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"href=\"/services/{self.service.id}/\"")
+        self.assertContains(response, f"Welcome back, {self.customer.username}!")
 
-    def test_worker_sees_worker_portal_link_on_home(self):
+    def test_worker_redirected_to_worker_dashboard(self):
         self.client.login(username=self.worker_user.username, password='Password123!')
         response = self.client.get(reverse('home'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Worker Portal")
-        self.assertContains(response, reverse('worker_dashboard'))
+        self.assertRedirects(response, reverse('worker_dashboard'))
 
     def test_admin_redirected_to_admin_dashboard(self):
         self.client.login(username=self.admin_user.username, password='Password123!')
         response = self.client.get(reverse('home'))
         self.assertRedirects(response, reverse('admin_dashboard'))
+
+    def test_logout_redirects_to_home_with_never_cache(self):
+        self.client.login(username=self.customer.username, password='Password123!')
+        resp = self.client.post(reverse('logout'))
+        self.assertRedirects(resp, reverse('home'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+        # Verify homepage response after logout is not cached
+        home_resp = self.client.get(reverse('home') + '?from_splash=1')
+        self.assertEqual(home_resp.status_code, 200)
+        self.assertIn('no-cache', home_resp.headers.get('Cache-Control', ''))
+        self.assertContains(home_resp, "Our Services,")
 
     def test_service_detail_extends_base_template(self):
         response = self.client.get(reverse('service_detail', args=[self.service.id]))
@@ -7517,6 +7533,18 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'IN_PROGRESS')
         self.assertIsNotNone(self.booking.arrival_verified_at)
+
+    def test_worker_jobs_start_alias_route(self):
+        """Worker can verify OTP and start job using the /worker/jobs/<id>/start/ route."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.save()
+        self.client.login(username="worker_p1", password="Password123!")
+
+        alias_url = f"/worker/jobs/{self.booking.id}/start/"
+        resp = self.client.post(alias_url, {'arrival_otp': self.booking.arrival_otp})
+        self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'IN_PROGRESS')
 
     def test_worker_request_completion_and_customer_confirm(self):
         self.booking.status = 'IN_PROGRESS'
@@ -8730,6 +8758,99 @@ class WorkerPortalAuditedFixesTests(TestCase):
         url = reverse('worker_report_customer_no_show', args=[self.booking.id])
         resp = self.client.post(url, {})
         self.assertRedirects(resp, reverse('dashboard'), fetch_redirect_response=False)
+
+
+class SEOAndAccessibilityAuditTests(TestCase):
+    def setUp(self):
+        self.active_service = Service.objects.create(
+            name="Emergency Plumbing Audit",
+            description="Fix urgent water leaks across Kerala",
+            price=600.00,
+            is_active=True
+        )
+        self.inactive_service = Service.objects.create(
+            name="Retired Legacy Service",
+            description="Inactive service description",
+            price=900.00,
+            is_active=False
+        )
+
+    def test_robots_txt_status_and_content(self):
+        """robots.txt returns 200 text/plain, protects private paths, and specifies sitemap."""
+        response = self.client.get('/robots.txt')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('text/plain' in response['Content-Type'])
+        content = response.content.decode('utf-8')
+        self.assertIn('User-agent: *', content)
+        self.assertIn('Disallow: /admin/', content)
+        self.assertIn('Disallow: /user-dashboard/', content)
+        self.assertIn('Disallow: /worker-dashboard/', content)
+        self.assertIn('Disallow: /booking/', content)
+        self.assertIn('Sitemap: ', content)
+        self.assertIn('/sitemap.xml', content)
+
+    def test_sitemap_xml_status_and_content(self):
+        """sitemap.xml returns 200 XML, lists active public routes, and excludes private or inactive pages."""
+        response = self.client.get('/sitemap.xml')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('xml' in response['Content-Type'])
+        content = response.content.decode('utf-8')
+        self.assertIn('<urlset', content)
+        # Verify public pages are present
+        self.assertIn(reverse('home'), content)
+        self.assertIn(reverse('about'), content)
+        self.assertIn(reverse('contact'), content)
+        self.assertIn(reverse('service_page'), content)
+        self.assertIn(reverse('terms'), content)
+        self.assertIn(reverse('privacy'), content)
+        # Verify active service detail is included
+        active_url = reverse('service_detail', args=[self.active_service.id])
+        self.assertIn(active_url, content)
+        # Verify inactive service detail is NOT included
+        inactive_url = reverse('service_detail', args=[self.inactive_service.id])
+        self.assertNotIn(inactive_url, content)
+        # Verify private/auth routes are NOT in sitemap
+        self.assertNotIn('/admin/', content)
+        self.assertNotIn('/user-dashboard/', content)
+        self.assertNotIn('/worker-dashboard/', content)
+        self.assertNotIn('/login/', content)
+        self.assertNotIn('/register/', content)
+
+    def test_homepage_seo_and_crawlability(self):
+        """Homepage returns 200 with complete semantic HTML, Schema.org JSON-LD, and no JS redirect loop for crawlers."""
+        response = self.client.get(reverse('home'), HTTP_USER_AGENT='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'home.html')
+        content = response.content.decode('utf-8')
+        # Meta description and canonical
+        self.assertIn('meta name="description"', content)
+        self.assertIn('rel="canonical"', content)
+        # Structured Data
+        self.assertIn('application/ld+json', content)
+        self.assertIn('HomeAndConstructionBusiness', content)
+        self.assertIn('3rd Floor, Raj Plaza, Town Limit', content)
+        self.assertIn('+919496552094', content)
+        # Meaningful HTML content
+        self.assertIn('Our Services,', content)
+        self.assertIn('Find the Right Service', content)
+        # Skip to content link and main landmark
+        self.assertIn('skip-to-content', content)
+        self.assertIn('id="mainContent"', content)
+        # Accessible search input
+        self.assertIn('aria-label="Search services by name or description"', content)
+
+    def test_accessibility_landmarks_and_labels(self):
+        """Base template provides skip-to-content, main content landmark, and accessible social aria-labels."""
+        response = self.client.get(reverse('contact'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+        self.assertIn('href="#mainContent"', content)
+        self.assertIn('id="mainContent"', content)
+        self.assertIn('aria-label="Facebook"', content)
+        self.assertIn('aria-label="Instagram"', content)
+        self.assertIn('aria-label="X (Twitter)"', content)
+        self.assertIn('aria-label="LinkedIn"', content)
+
 
 
 

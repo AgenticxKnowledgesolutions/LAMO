@@ -6,6 +6,41 @@
     {{ service.name }} | LAMO
 {% endblock %}
 
+{% block meta_description %}{{ service.name }} on LAMO: {{ service.description|truncatewords:25 }}. Book verified service professionals across Kerala with transparent pricing.{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "{{ service.name|escapejs }}",
+  "description": "{{ service.description|escapejs }}",
+  "provider": {
+    "@type": "HomeAndConstructionBusiness",
+    "name": "LAMO",
+    "telephone": "+919496552094",
+    "url": "{{ request.scheme }}://{{ request.get_host }}/",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "3rd Floor, Raj Plaza, Town Limit",
+      "addressLocality": "Kollam",
+      "addressRegion": "Kerala",
+      "addressCountry": "IN"
+    }
+  },
+  "areaServed": {
+    "@type": "AdministrativeArea",
+    "name": "Kerala"
+  }{% if service.price %},
+  "offers": {
+    "@type": "Offer",
+    "price": "{{ service.price }}",
+    "priceCurrency": "INR"
+  }{% endif %}
+}
+</script>
+{% endblock %}
+
 {% block extra_css %}
     <link
         rel="stylesheet"

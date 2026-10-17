@@ -41,9 +41,22 @@ body {
 /* Keep the inherited base navbar/footer visible.
    UI-only redesign must not hide global nav or auth links. */
 
+.site-header {
+    min-height: 85px !important;
+    background-color: #064d3a !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+.navbar {
+    background-color: #064d3a !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
 .service-page {
-    min-height: auto;
-    padding: 0 0 24px;
+    min-height: calc(100vh - 85px);
+    padding: 12px 0 24px;
     color: var(--sd-text);
 }
 

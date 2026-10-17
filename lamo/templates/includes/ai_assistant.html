@@ -2,17 +2,17 @@
        AI SERVICE ASSISTANT WIDGET
   ========================================================= -->
   <div id="ai-assistant-widget" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999;">
-    <button id="ai-assistant-toggle" title="AI Service Matcher" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #087f5b); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">
+    <button id="ai-assistant-toggle" title="AI Service Matcher" aria-label="Open AI Service Matcher" aria-expanded="false" aria-controls="ai-chat-box" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #087f5b); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">
       <i class="bi bi-robot"></i>
     </button>
 
-    <div id="ai-chat-box" style="display: none; position: absolute; bottom: 70px; right: 0; width: 350px; max-width: 90vw; background: white; border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); border: 1px solid #e5e7eb; overflow: hidden; flex-direction: column;">
+    <div id="ai-chat-box" role="dialog" aria-modal="false" aria-label="AI Service Matcher" style="display: none; position: absolute; bottom: 70px; right: 0; width: 350px; max-width: 90vw; background: white; border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); border: 1px solid #e5e7eb; overflow: hidden; flex-direction: column;">
       <div style="background: linear-gradient(135deg, #042f1f, #16a34a); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <i class="bi bi-magic" style="font-size: 18px; color: #4ade80;"></i>
           <strong style="font-size: 14px;">AI Service Matcher</strong>
         </div>
-        <button id="ai-chat-close" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;"><i class="bi bi-x-lg"></i></button>
+        <button id="ai-chat-close" aria-label="Close AI Service Matcher" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;"><i class="bi bi-x-lg"></i></button>
       </div>
 
       <div id="ai-messages" style="padding: 15px; height: 260px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb;">
@@ -22,8 +22,8 @@
       </div>
 
       <div style="padding: 10px; border-top: 1px solid #e5e7eb; background: white; display: flex; gap: 6px;">
-        <input type="text" id="ai-input" placeholder="Type your need..." style="flex: 1; border-radius: 20px; border: 1px solid #d1d5db; padding: 7px 14px; font-size: 13px; outline: none;">
-        <button id="ai-send" style="background: #16a34a; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+        <input type="text" id="ai-input" aria-label="Ask about a service" placeholder="Type your need..." style="flex: 1; border-radius: 20px; border: 1px solid #d1d5db; padding: 7px 14px; font-size: 13px; outline: none;">
+        <button id="ai-send" aria-label="Send message to AI Matcher" style="background: #16a34a; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
           <i class="bi bi-send-fill" style="font-size: 13px;"></i>
         </button>
       </div>
@@ -53,11 +53,26 @@
     const LOCATION_STORAGE_KEY = 'lamo_ai_user_location';
 
     toggle.addEventListener('click', function() {
-      chatBox.style.display = chatBox.style.display === 'none' ? 'flex' : 'none';
+      const willOpen = chatBox.style.display === 'none';
+      chatBox.style.display = willOpen ? 'flex' : 'none';
+      toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      if (willOpen) {
+        input.focus();
+      }
     });
 
     closeBtn.addEventListener('click', function() {
       chatBox.style.display = 'none';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.focus();
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && chatBox.style.display !== 'none') {
+        chatBox.style.display = 'none';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+      }
     });
 
     /* Server/database values are always escaped before they reach innerHTML -

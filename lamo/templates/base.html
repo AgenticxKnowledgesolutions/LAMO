@@ -20,6 +20,78 @@
     {% endblock %}
   </title>
 
+  <meta name="description" content="{% block meta_description %}LAMO connects customers across Kerala with verified, skilled service workers for home repairs, electrical, plumbing, cleaning, and essential services.{% endblock %}">
+
+  <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+
+  {% block meta_robots %}
+  {% if user.is_authenticated and user.role != 'USER' %}
+  <meta name="robots" content="noindex, nofollow">
+  {% endif %}
+  {% endblock %}
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:site_name" content="LAMO">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}LAMO | Labour Management System{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% block twitter_title %}LAMO | Labour Management System{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
+  <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}">
+
+  <!-- =====================================================
+         SCHEMA.ORG STRUCTURED DATA (Verified Business Info)
+    ====================================================== -->
+  {% block structured_data %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HomeAndConstructionBusiness",
+    "name": "LAMO",
+    "alternateName": "Labour and Service Management System",
+    "url": "{{ request.scheme }}://{{ request.get_host }}/",
+    "logo": "{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}",
+    "image": "{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}",
+    "description": "Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.",
+    "telephone": "+919496552094",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "3rd Floor, Raj Plaza, Town Limit",
+      "addressLocality": "Kollam",
+      "addressRegion": "Kerala",
+      "addressCountry": "IN"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 8.8932,
+      "longitude": 76.6141
+    },
+    "areaServed": [
+      {"@type": "AdministrativeArea", "name": "Thiruvananthapuram"},
+      {"@type": "AdministrativeArea", "name": "Kollam"},
+      {"@type": "AdministrativeArea", "name": "Pathanamthitta"},
+      {"@type": "AdministrativeArea", "name": "Alappuzha"},
+      {"@type": "AdministrativeArea", "name": "Kottayam"},
+      {"@type": "AdministrativeArea", "name": "Idukki"},
+      {"@type": "AdministrativeArea", "name": "Ernakulam"},
+      {"@type": "AdministrativeArea", "name": "Thrissur"},
+      {"@type": "AdministrativeArea", "name": "Palakkad"},
+      {"@type": "AdministrativeArea", "name": "Malappuram"},
+      {"@type": "AdministrativeArea", "name": "Kozhikode"},
+      {"@type": "AdministrativeArea", "name": "Wayanad"},
+      {"@type": "AdministrativeArea", "name": "Kannur"},
+      {"@type": "AdministrativeArea", "name": "Kasaragod"}
+    ],
+    "priceRange": "₹₹"
+  }
+  </script>
+  {% endblock %}
+
 
   <!-- =====================================================
          BOOTSTRAP
@@ -73,6 +145,7 @@
 
 
 <body>
+  <a href="#mainContent" class="skip-to-content">Skip to content</a>
 
 
 
@@ -512,7 +585,7 @@
          MAIN CONTENT
     ====================================================== -->
 
-  <main>
+  <main id="mainContent" tabindex="-1">
 
     {% block content %}
 
@@ -571,19 +644,19 @@
 
           <div class="social-links mt-4">
 
-            <a href="#">
+            <a href="#" aria-label="Facebook">
               <i class="bi bi-facebook"></i>
             </a>
 
-            <a href="#">
+            <a href="#" aria-label="X (Twitter)">
               <i class="bi bi-twitter-x"></i>
             </a>
 
-            <a href="#">
+            <a href="#" aria-label="Instagram">
               <i class="bi bi-instagram"></i>
             </a>
 
-            <a href="#">
+            <a href="#" aria-label="LinkedIn">
               <i class="bi bi-linkedin"></i>
             </a>
 

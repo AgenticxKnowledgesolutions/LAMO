@@ -129,6 +129,90 @@ def custom_500_view(request):
     return render(request, '500.html', status=500)
 
 
+def robots_txt(request):
+    """Serve robots.txt with search crawler directives protecting private routes."""
+    lines = [
+        "User-agent: *",
+        "Disallow: /admin/",
+        "Disallow: /admin-dashboard/",
+        "Disallow: /user-dashboard/",
+        "Disallow: /worker-dashboard/",
+        "Disallow: /my-bookings/",
+        "Disallow: /my-series/",
+        "Disallow: /my-complaints/",
+        "Disallow: /profile/",
+        "Disallow: /booking/",
+        "Disallow: /worker/",
+        "Disallow: /worker-jobs/",
+        "Disallow: /worker-earnings/",
+        "Disallow: /worker-profile/",
+        "Disallow: /worker-notifications/",
+        "Disallow: /notifications/",
+        "Disallow: /admin-notifications/",
+        "Disallow: /admin-export/",
+        "Disallow: /service-requests/",
+        "Disallow: /ai/",
+        "Disallow: /media/worker_proofs/",
+        "Allow: /",
+        "Allow: /about/",
+        "Allow: /contact/",
+        "Allow: /service_page/",
+        "Allow: /services/",
+        "Allow: /terms/",
+        "Allow: /privacy/",
+        "Allow: /static/",
+        "",
+        f"Sitemap: {request.build_absolute_uri('/sitemap.xml')}",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
+
+
+def sitemap_xml(request):
+    """Serve dynamic XML sitemap with public canonical URLs."""
+    base_url = request.build_absolute_uri('/').rstrip('/')
+
+    static_urls = [
+        {'loc': f"{base_url}/", 'changefreq': 'daily', 'priority': '1.0'},
+        {'loc': f"{base_url}/about/", 'changefreq': 'monthly', 'priority': '0.8'},
+        {'loc': f"{base_url}/contact/", 'changefreq': 'monthly', 'priority': '0.8'},
+        {'loc': f"{base_url}/service_page/", 'changefreq': 'daily', 'priority': '0.9'},
+        {'loc': f"{base_url}/terms/", 'changefreq': 'yearly', 'priority': '0.5'},
+        {'loc': f"{base_url}/privacy/", 'changefreq': 'yearly', 'priority': '0.5'},
+    ]
+
+    xml_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+
+    for item in static_urls:
+        xml_lines.append('  <url>')
+        xml_lines.append(f"    <loc>{item['loc']}</loc>")
+        xml_lines.append(f"    <changefreq>{item['changefreq']}</changefreq>")
+        xml_lines.append(f"    <priority>{item['priority']}</priority>")
+        xml_lines.append('  </url>')
+
+    # Add active public services
+    active_services = Service.objects.filter(is_active=True).order_by('-created_at')
+    for s in active_services:
+        xml_lines.append('  <url>')
+        xml_lines.append(f"    <loc>{base_url}/services/{s.id}/</loc>")
+        if s.updated_at:
+            xml_lines.append(f"    <lastmod>{s.updated_at.strftime('%Y-%m-%d')}</lastmod>")
+        xml_lines.append('    <changefreq>weekly</changefreq>')
+        xml_lines.append('    <priority>0.8</priority>')
+        xml_lines.append('  </url>')
+
+    xml_lines.append('</urlset>')
+    return HttpResponse('\n'.join(xml_lines), content_type='application/xml; charset=utf-8')
+
+
+def splash_view(request):
+    """Standalone view for the animated LAMO splash screen."""
+    return render(request, 'splash.html')
+
+
+
 # Length of the window implied by a single clock time ("10:00 AM"). This is
 # the behaviour that already existed and is kept so existing single-slot
 # bookings keep behaving exactly as before.
@@ -762,6 +846,7 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
     return redirect('my_bookings')
 
 
+@never_cache
 def home(request):
     # ---------------------------------------------------------
     # One-time animated splash screen (templates/splash.html).
@@ -776,15 +861,18 @@ def home(request):
     # from replaying on internal navigation or a homepage refresh.
     # ---------------------------------------------------------
 
-    # Admins have no business on the public homepage; send them
-    # directly to the admin dashboard so they don't see the
-    # customer-facing splash / service listing.
-    if request.user.is_authenticated and (
-        getattr(request.user, 'role', None) == 'ADMIN'
-        or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
-    ):
-        return redirect('admin_dashboard')
+    # Admins and Workers have dedicated dashboards and workflows.
+    # Redirect them to their respective dashboards so they don't see
+    # the customer-facing splash / service listing.
+    if request.user.is_authenticated:
+        if (
+            getattr(request.user, 'role', None) == 'ADMIN'
+            or getattr(request.user, 'is_superuser', False)
+            or getattr(request.user, 'is_staff', False)
+        ):
+            return redirect('admin_dashboard')
+        elif getattr(request.user, 'role', None) == 'WORKER':
+            return redirect('worker_dashboard')
 
     is_from_splash = bool(request.GET.get('from_splash'))
     if is_from_splash:
@@ -794,10 +882,17 @@ def home(request):
 
     query = request.GET.get('q', '').strip()
 
-    # Replay splash screen on direct visits and page refreshes for unauthenticated
-    # visitors before login, ensuring a consistent premium brand intro.
-    # Authenticated users (customers/workers) and direct queries/splash redirects bypass it.
-    if not request.user.is_authenticated and not is_from_splash and not query:
+    # Check for search engine crawlers and bots so they always receive clean,
+    # immediate semantic HTML without client-side animation delays.
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    is_crawler = any(
+        bot in user_agent
+        for bot in ('bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'headless', 'gptbot', 'claudebot')
+    ) or request.GET.get('crawler') == '1'
+
+    # Search engine crawlers receive home.html directly with complete semantic HTML and Schema.org markup.
+    # Regular unauthenticated human visitors receive splash.html to preserve the animated brand intro.
+    if not is_crawler and not request.user.is_authenticated and not is_from_splash and not query:
         request.session['lamo_splash_shown'] = True
         response = render(request, 'splash.html')
         response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
@@ -4147,6 +4242,7 @@ def login_view(request):
         'accounts/login.html'
     )
 @require_POST
+@never_cache
 def logout_view(request):
     """Sign the current user out.
 
@@ -6851,7 +6947,7 @@ def worker_start_job(request, booking_id):
         if not arrival_otp or arrival_otp != booking.arrival_otp:
             messages.error(
                 request,
-                'Invalid Arrival OTP. Please ask the customer for their 6-digit verification code.'
+                'Invalid Arrival OTP. Please ask the customer for their 4-digit verification code.'
             )
             return redirect('worker_jobs')
 
@@ -6872,6 +6968,9 @@ def worker_start_job(request, booking_id):
         'Arrival verified! Job started successfully.'
     )
 
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'worker-jobs' in referer or 'worker_jobs' in referer:
+        return redirect('worker_jobs')
     return redirect('worker_dashboard')
 
 @login_required

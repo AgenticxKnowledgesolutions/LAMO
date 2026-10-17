@@ -2,7 +2,11 @@
        AOS
     ====================================================== */
 
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     AOS.init({
+
+      disable: prefersReducedMotion,
 
       duration: 800,
 

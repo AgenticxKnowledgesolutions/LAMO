@@ -18,6 +18,9 @@ urlpatterns = [
     path('contact/', views.contact, name='contact'),
     path('terms/', views.terms_view, name='terms'),
     path('privacy/', views.privacy_view, name='privacy'),
+    path('splash/', views.splash_view, name='splash'),
+    path('robots.txt', views.robots_txt, name='robots_txt'),
+    path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),
@@ -80,8 +83,11 @@ urlpatterns = [
     path('worker/bookings/<int:booking_id>/accept/', views.worker_accept_booking, name='worker_accept_booking'),
     path('worker/bookings/<int:booking_id>/reject/', views.worker_reject_booking, name='worker_reject_booking'),
     path('worker/booking/<int:booking_id>/start/', views.worker_start_job, name='worker_start_job'),
+    path('worker/jobs/<int:booking_id>/start/', views.worker_start_job, name='worker_start_job_alias'),
     path('worker/booking/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion'),
+    path('worker/jobs/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion_alias'),
     path('worker/booking/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking'),
+    path('worker/jobs/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking_alias'),
     path('worker/booking/<int:booking_id>/report-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show'),
     path('worker/jobs/<int:booking_id>/report-customer-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show_alias'),
     path('worker/emergency/<int:booking_id>/accept/', views.worker_accept_emergency, name='worker_accept_emergency'),
