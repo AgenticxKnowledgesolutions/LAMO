@@ -79,6 +79,28 @@ Worker Dashboard | LAMO
         </div>
     </header>
 
+    <!-- ================= FLOATING ANNOUNCEMENT PILL ================= -->
+    {% for notif in global_notifications %}
+        {% if notif.notification_type == 'SYSTEM' and not notif.is_read and '📢' in notif.message %}
+            {% if forloop.first %}
+            <aside class="lamo-floating-announcement" id="lamoFloatingAnnouncement" role="alert" aria-live="polite" data-notif-id="{{ notif.id }}" style="padding:14px 24px 0;">
+              <div class="lamo-announcement-pill">
+                <span class="lamo-announcement-badge">
+                  <span class="lamo-pulse-dot"></span>
+                  <span>ANNOUNCEMENT</span>
+                </span>
+                <div class="lamo-announcement-content">
+                  <span class="lamo-announcement-text">{{ notif.message|slice:"2:" }}</span>
+                </div>
+                <button type="button" class="lamo-announcement-close" id="closeFloatingAnnouncement" aria-label="Dismiss announcement">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </aside>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
     <!-- ================= HERO ================= -->
     <section class="dashboard-hero">
         <div class="hero-text">
@@ -627,6 +649,34 @@ Worker Dashboard | LAMO
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && isOpen()) { close(); toggle.focus(); }
     });
+})();
+
+// Floating announcement dismiss controller (Option 2)
+(function () {
+    var banner = document.getElementById('lamoFloatingAnnouncement');
+    if (!banner) return;
+    var notifId = banner.getAttribute('data-notif-id') || 'global';
+    try {
+        if (sessionStorage.getItem('lamo_dismissed_announcement_' + notifId)) {
+            banner.style.display = 'none';
+            return;
+        }
+    } catch (e) {}
+
+    var closeBtn = document.getElementById('closeFloatingAnnouncement');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+            banner.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+            banner.style.opacity = '0';
+            banner.style.transform = 'translateY(-12px)';
+            setTimeout(function () {
+                banner.style.display = 'none';
+            }, 260);
+            try {
+                sessionStorage.setItem('lamo_dismissed_announcement_' + notifId, 'true');
+            } catch (e) {}
+        });
+    }
 })();
 </script>
 {% endblock %}

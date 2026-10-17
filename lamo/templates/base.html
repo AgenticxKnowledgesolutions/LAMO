@@ -579,7 +579,31 @@
 
   </header>
 
-
+  <!-- =====================================================
+       GLOBAL FLOATING ANNOUNCEMENT PILL (Linear / Apple Style)
+       ====================================================== -->
+  {% if request.user.is_authenticated and global_notifications %}
+    {% for notif in global_notifications %}
+      {% if notif.notification_type == 'SYSTEM' and not notif.is_read and '📢' in notif.message %}
+        {% if forloop.first %}
+        <aside class="lamo-floating-announcement" id="lamoFloatingAnnouncement" role="alert" aria-live="polite" data-notif-id="{{ notif.id }}">
+          <div class="lamo-announcement-pill">
+            <span class="lamo-announcement-badge">
+              <span class="lamo-pulse-dot"></span>
+              <span>ANNOUNCEMENT</span>
+            </span>
+            <div class="lamo-announcement-content">
+              <span class="lamo-announcement-text">{{ notif.message|slice:"2:" }}</span>
+            </div>
+            <button type="button" class="lamo-announcement-close" id="closeFloatingAnnouncement" aria-label="Dismiss announcement">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </aside>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
 
   <!-- =====================================================
          MAIN CONTENT

@@ -1,4 +1,4 @@
-﻿{% extends 'admin/base_admin.html' %}
+{% extends 'admin/base_admin.html' %}
 {% load static %}
 
 {% block extra_css %}
@@ -190,6 +190,16 @@
                         Pending
                     </span>
 
+                {% endif %}
+
+                {% if worker.strikes_count >= 3 %}
+                    <span class="strike-pill strike-danger" title="{{ worker.strikes_count }} strikes recorded - suspended">
+                        <i class="bi bi-shield-slash-fill"></i> {{ worker.strikes_count }}/3 Strikes
+                    </span>
+                {% elif worker.strikes_count > 0 %}
+                    <span class="strike-pill strike-warning" title="{{ worker.strikes_count }} strike(s) recorded">
+                        <i class="bi bi-exclamation-triangle-fill"></i> {{ worker.strikes_count }}/3 Strikes
+                    </span>
                 {% endif %}
 
 
@@ -572,6 +582,17 @@
                 {% endif %}
 
 
+                <!-- STRIKE / WARNING -->
+                <button
+                    type="button"
+                    class="strike-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#strikeModal{{ worker.id }}"
+                    title="Issue Warning or Strike"
+                >
+                    <i class="bi bi-shield-exclamation"></i>
+                </button>
+
                 <!-- DELETE -->
 
                 <form
@@ -595,9 +616,122 @@
 
                 </form>
 
-
             </div>
 
+            <!-- =================================================
+                 STRIKE & WARNING MODAL
+            ================================================= -->
+            <div class="modal fade" id="strikeModal{{ worker.id }}" tabindex="-1" aria-labelledby="strikeModalLabel{{ worker.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content" style="border-radius:16px; border:none; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden;">
+                        <div class="modal-header" style="background:#fef7ee; border-bottom:1px solid #fed7aa; padding:18px 24px;">
+                            <h5 class="modal-title" id="strikeModalLabel{{ worker.id }}" style="font-size:16px; font-weight:700; color:#9a3412;">
+                                <i class="bi bi-shield-exclamation me-2"></i> Worker Warning & Strike Action
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="POST" action="{% url 'admin_worker_strike' worker.id %}">
+                            {% csrf_token %}
+                            <div class="modal-body" style="padding:22px 24px;">
+                                <!-- WORKER SUMMARY -->
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:12px; background:#f8fafc; border-radius:10px;">
+                                    <div>
+                                        <div style="font-weight:700; color:#1e293b;">{{ worker.user.get_full_name|default:worker.user.username }}</div>
+                                        <div style="font-size:12px; color:#64748b;">{{ worker.service.name|default:'General Service' }} • {{ worker.district }}</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <span class="strike-pill {% if worker.strikes_count >= 3 %}strike-danger{% elif worker.strikes_count > 0 %}strike-warning{% else %}strike-clean{% endif %}">
+                                            {{ worker.strikes_count }}/3 Strikes
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- AUDIT HISTORY -->
+                                <div class="mb-3">
+                                    <label class="form-label text-muted small fw-bold">Warning & Strike History</label>
+                                    <div class="strike-audit-box">
+                                        {% if worker.warning_notes %}
+                                            {{ worker.warning_notes }}
+                                        {% else %}
+                                            <span class="text-muted">No prior warning or strike notes on file. Clean record.</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- ACTION TYPE -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-dark small">Select Action</label>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        <label class="strike-option-card">
+                                            <input type="radio" name="action_type" value="strike" checked class="form-check-input mt-1">
+                                            <div>
+                                                <div style="font-size:13px; font-weight:700; color:#c2410c;">
+                                                    <i class="bi bi-exclamation-octagon-fill me-1"></i> Issue Official Strike (+1)
+                                                </div>
+                                                <div style="font-size:11px; color:#64748b;">
+                                                    Increments strike count. Automatically suspends account when reaching 3 strikes.
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label class="strike-option-card">
+                                            <input type="radio" name="action_type" value="warning" class="form-check-input mt-1">
+                                            <div>
+                                                <div style="font-size:13px; font-weight:700; color:#d97706;">
+                                                    <i class="bi bi-chat-right-dots-fill me-1"></i> Send Formal Warning (0 Strikes)
+                                                </div>
+                                                <div style="font-size:11px; color:#64748b;">
+                                                    Logs an official performance advisory and notifies worker without incrementing strike count.
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label class="strike-option-card">
+                                            <input type="radio" name="action_type" value="reset" class="form-check-input mt-1">
+                                            <div>
+                                                <div style="font-size:13px; font-weight:700; color:#059669;">
+                                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Strikes to Zero
+                                                </div>
+                                                <div style="font-size:11px; color:#64748b;">
+                                                    Clears active strikes back to 0 with explanatory audit note.
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- REASON TEXT -->
+                                <div class="mb-3">
+                                    <label for="strikeReason{{ worker.id }}" class="form-label fw-bold text-dark small">Reason / Violation Details *</label>
+                                    <textarea
+                                        name="reason"
+                                        id="strikeReason{{ worker.id }}"
+                                        class="form-control"
+                                        rows="3"
+                                        placeholder="e.g. Unjustified no-show for booking #102, customer dispute, policy breach..."
+                                        required
+                                        style="font-size:13px;"
+                                    ></textarea>
+                                </div>
+
+                                <!-- SUSPEND NOW OPTION -->
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="suspend_now" id="suspendNow{{ worker.id }}" {% if worker.strikes_count >= 2 %}checked{% endif %}>
+                                    <label class="form-check-label small text-danger fw-bold" for="suspendNow{{ worker.id }}">
+                                        Suspend worker account immediately
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:14px 24px;">
+                                <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark px-3">
+                                    <i class="bi bi-check2-circle me-1"></i> Confirm Action
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
         </div>
 

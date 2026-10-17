@@ -1019,4 +1019,87 @@
     }
 }
 
+/* =========================================================
+   STRIKE & WARNING SYSTEM
+========================================================= */
+.strike-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.strike-pill.strike-warning {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fdba74;
+}
+
+.strike-pill.strike-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    animation: strikePulse 2s infinite ease-in-out;
+}
+
+@keyframes strikePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.strike-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #ea580c;
+    font-size: 13px;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.strike-btn:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #c2410c;
+    transform: translateY(-1px);
+}
+
+.strike-audit-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.strike-option-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: .2s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.strike-option-card:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
 

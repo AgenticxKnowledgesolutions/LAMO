@@ -4706,6 +4706,7 @@ class TemplateIntegrityTest(SimpleTestCase):
         'admin_delete_user': '1',
         'admin_delete_worker': '1',
         'admin_suspend_worker': '1',
+        'admin_worker_strike': '1',
         'worker_verify': '1',
         'worker_proof_document': '1',
         'ai_recommend_workers': '1',
@@ -8850,6 +8851,210 @@ class SEOAndAccessibilityAuditTests(TestCase):
         self.assertIn('aria-label="Instagram"', content)
         self.assertIn('aria-label="X (Twitter)"', content)
         self.assertIn('aria-label="LinkedIn"', content)
+
+
+class AdminNewFeaturesTestSuite(TestCase):
+    """Tests for platform commission, broadcast announcements, worker strikes, and live operations map."""
+
+    def setUp(self):
+        self.admin = CustomUser.objects.create_user(
+            username='superadmin',
+            email='admin@lamo.test',
+            password='Password123!',
+            role='ADMIN',
+            is_email_verified=True,
+            is_staff=True,
+            is_superuser=True
+        )
+        self.customer = CustomUser.objects.create_user(
+            username='customer_jane',
+            email='jane@lamo.test',
+            password='Password123!',
+            role='USER',
+            is_email_verified=True
+        )
+        self.worker_user = CustomUser.objects.create_user(
+            username='worker_bob',
+            email='bob@lamo.test',
+            password='Password123!',
+            role='WORKER',
+            is_email_verified=True
+        )
+        self.service = Service.objects.create(
+            name='Electrical Repairs',
+            description='Expert electrical work',
+            is_active=True
+        )
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            phone='9876543210',
+            service=self.service,
+            district='Ernakulam',
+            availability='Full Time',
+            work_status='AVAILABLE',
+            experience_years=4,
+            pricing_amount=500.00,
+            strikes_count=0,
+            warning_notes=''
+        )
+
+    def test_commission_and_revenue_analytics_in_dashboard(self):
+        """Admin dashboard computes 10% platform commission and 90% worker payout."""
+        # Create a paid completed booking
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            district='Ernakulam',
+            estimated_cost=2000.00,
+            is_paid=True,
+            status='COMPLETED'
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['commission_rate'], 10)
+        self.assertEqual(response.context['platform_commission'], 200.0)
+        self.assertEqual(response.context['worker_payouts'], 1800.0)
+        self.assertTrue(len(response.context['monthly_revenue']) >= 1)
+        # Check district revenue data contains Ernakulam
+        district_data = response.context['district_revenue_data']
+        self.assertTrue(any(d['district'] == 'Ernakulam' for d in district_data))
+
+    def test_live_district_operations_map_data(self):
+        """Admin dashboard provides live map JSON with active bookings and available workers."""
+        booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            district='Ernakulam',
+            status='IN_PROGRESS'
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        map_json_str = response.context['live_map_json']
+        import json
+        map_data = json.loads(map_json_str)
+        self.assertIn('bookings', map_data)
+        self.assertIn('workers', map_data)
+        self.assertIn('districts', map_data)
+        # Verify active booking in map
+        self.assertTrue(any(b['id'] == booking.id for b in map_data['bookings']))
+        # Verify worker in map
+        self.assertTrue(any(w['id'] == self.worker_profile.id for w in map_data['workers']))
+
+    def test_broadcast_announcement_to_workers(self):
+        """Admin can broadcast an in-app announcement to all workers."""
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('admin_broadcast_announcement'),
+            {
+                'target': 'WORKERS',
+                'title': 'Safety Advisory',
+                'message': 'Always wear safety gear during electrical repairs.'
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        # Worker receives notification
+        worker_notifs = Notification.objects.filter(recipient=self.worker_user)
+        self.assertEqual(worker_notifs.count(), 1)
+        self.assertIn('Safety Advisory', worker_notifs.first().message)
+        # Customer does not receive worker-targeted broadcast
+        customer_notifs = Notification.objects.filter(recipient=self.customer)
+        self.assertEqual(customer_notifs.count(), 0)
+
+    def test_broadcast_announcement_to_all_users(self):
+        """Admin can broadcast an announcement to all platform users."""
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('admin_broadcast_announcement'),
+            {
+                'target': 'ALL',
+                'title': 'Monsoon Notice',
+                'message': 'Monsoon rains alert in Kerala.'
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Notification.objects.filter(recipient=self.worker_user).exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.customer).exists())
+
+    def test_worker_warning_action(self):
+        """Admin can issue an official warning without incrementing strike count."""
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('admin_worker_strike', args=[self.worker_profile.id]),
+            {
+                'action_type': 'warning',
+                'reason': 'Arrived 15 minutes late without prior notice.'
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.worker_profile.refresh_from_db()
+        self.assertEqual(self.worker_profile.strikes_count, 0)
+        self.assertIn('Arrived 15 minutes late', self.worker_profile.warning_notes)
+        self.assertTrue(Notification.objects.filter(recipient=self.worker_user).exists())
+
+    def test_worker_strike_increment_and_auto_suspension_at_three(self):
+        """Admin issuing 3rd strike auto-suspends worker account."""
+        self.worker_profile.strikes_count = 2
+        self.worker_profile.save(update_fields=['strikes_count'])
+
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('admin_worker_strike', args=[self.worker_profile.id]),
+            {
+                'action_type': 'strike',
+                'reason': 'Major customer complaint - uncompleted work.'
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.worker_profile.refresh_from_db()
+        self.assertEqual(self.worker_profile.strikes_count, 3)
+        self.assertEqual(self.worker_profile.work_status, 'SUSPENDED')
+        self.assertFalse(self.worker_profile.user.is_active)
+        self.assertIn('STRIKE #3', self.worker_profile.warning_notes)
+
+    def test_worker_strike_reset(self):
+        """Admin can reset strikes to 0 with audit log."""
+        self.worker_profile.strikes_count = 2
+        self.worker_profile.save(update_fields=['strikes_count'])
+
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('admin_worker_strike', args=[self.worker_profile.id]),
+            {
+                'action_type': 'reset',
+                'reason': 'Dispute resolved after customer clarified misunderstanding.'
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.worker_profile.refresh_from_db()
+        self.assertEqual(self.worker_profile.strikes_count, 0)
+        self.assertIn('STRIKES RESET', self.worker_profile.warning_notes)
+
+    def test_unauthorized_user_cannot_issue_strike_or_broadcast(self):
+        """Regular customer cannot access admin strike or broadcast endpoints."""
+        self.client.force_login(self.customer)
+        strike_res = self.client.post(
+            reverse('admin_worker_strike', args=[self.worker_profile.id]),
+            {'action_type': 'strike', 'reason': 'Hacker attempt'}
+        )
+        self.assertEqual(strike_res.status_code, 302)
+        self.assertEqual(strike_res.url, reverse('dashboard'))
+
+        broadcast_res = self.client.post(
+            reverse('admin_broadcast_announcement'),
+            {'target': 'ALL', 'message': 'Unauthorized announcement'}
+        )
+        self.assertEqual(broadcast_res.status_code, 302)
+        self.assertEqual(broadcast_res.url, reverse('dashboard'))
+
 
 
 

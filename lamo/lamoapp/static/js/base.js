@@ -521,3 +521,34 @@
 
       }
     );
+
+    /* =====================================================
+       FLOATING ANNOUNCEMENT PILL CONTROLLER (OPTION 2)
+    ====================================================== */
+    document.addEventListener("DOMContentLoaded", function () {
+        const banner = document.getElementById("lamoFloatingAnnouncement");
+        if (!banner) return;
+
+        const notifId = banner.getAttribute("data-notif-id") || "global";
+        if (sessionStorage.getItem("lamo_dismissed_announcement_" + notifId)) {
+            banner.style.display = "none";
+            return;
+        }
+
+        const closeBtn = document.getElementById("closeFloatingAnnouncement");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", function () {
+                banner.style.transition = "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
+                banner.style.opacity = "0";
+                banner.style.transform = "translateY(-12px)";
+                setTimeout(function () {
+                    banner.style.display = "none";
+                }, 260);
+                try {
+                    sessionStorage.setItem("lamo_dismissed_announcement_" + notifId, "true");
+                } catch (e) {
+                    /* ignore storage quota/security restrictions */
+                }
+            });
+        }
+    });

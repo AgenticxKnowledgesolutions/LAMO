@@ -607,3 +607,253 @@
             animation: none !important;
         }
     }
+
+/* =========================================================
+   BROADCAST BUTTON & MODAL
+========================================================= */
+.btn-broadcast {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-broadcast:hover {
+    background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+    color: #ffffff;
+}
+
+/* =========================================================
+   LIVE OPERATIONS MAP
+========================================================= */
+.operations-map-card {
+    background: #ffffff;
+    border: 1px solid #e8ece9;
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.map-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.map-filter-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.map-pill-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.map-pill-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.map-pill-btn.active {
+    background: #1e293b;
+    color: #ffffff;
+    border-color: #1e293b;
+}
+
+#adminKeralaMap {
+    height: 420px;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    z-index: 1;
+}
+
+.district-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-top: 14px;
+    margin-top: 14px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.district-chip {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+.district-chip:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   REVENUE & COMMISSION ANALYTICS
+========================================================= */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+@media (max-width: 992px) {
+    .analytics-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.revenue-chart-card {
+    background: #ffffff;
+    border: 1px solid #e8ece9;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.monthly-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    height: 220px;
+    padding-top: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 12px;
+}
+
+.month-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    position: relative;
+}
+
+.month-bar-fill {
+    width: 100%;
+    max-width: 42px;
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 4px;
+}
+
+.month-bar-fill.commission-stack {
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+}
+
+.bar-tooltip {
+    position: absolute;
+    bottom: 105%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 10;
+}
+
+.month-bar-col:hover .bar-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+}
+
+.month-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-top: 8px;
+}
+
+.district-bar-item {
+    margin-bottom: 14px;
+}
+
+.district-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.district-progress {
+    height: 8px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.district-progress-inner {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+    transition: width 0.6s ease;
+}
+
+/* Pulsing Leaflet pin */
+.leaflet-emergency-marker {
+    background: #ef4444;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0.6);
+    animation: pulseMarker 1.5s infinite;
+}
+
+@keyframes pulseMarker {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}

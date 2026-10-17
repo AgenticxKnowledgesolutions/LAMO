@@ -4605,6 +4605,158 @@ def admin_dashboard(request):
 
     new_enquiries = ContactEnquiry.objects.filter(status='NEW').count()
 
+    import json
+    from django.utils import timezone
+    import datetime
+
+    # Commission & Revenue Metrics (10% platform fee)
+    gross_revenue = float(total_revenue)
+    commission_rate = 10
+    platform_commission = round(gross_revenue * 0.10, 2)
+    worker_payouts = round(gross_revenue * 0.90, 2)
+
+    # Monthly revenue trend (last 6 months)
+    now = timezone.now()
+    monthly_revenue = []
+    for i in range(5, -1, -1):
+        target_date = now - datetime.timedelta(days=i * 30)
+        y = target_date.year
+        m = target_date.month
+        label = target_date.strftime('%b')
+
+        b_rev = Booking.objects.filter(
+            is_paid=True,
+            created_at__year=y,
+            created_at__month=m
+        ).aggregate(total=Sum('estimated_cost'))['total'] or 0
+
+        p_rev = Payment.objects.filter(
+            status='PAID',
+            booking__created_at__year=y,
+            booking__created_at__month=m
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        m_rev = float(max(b_rev, p_rev))
+        m_comm = round(m_rev * 0.10, 2)
+
+        monthly_revenue.append({
+            'month': label,
+            'year': y,
+            'revenue': m_rev,
+            'commission': m_comm,
+            'payout': round(m_rev * 0.90, 2),
+        })
+
+    # Top earning services
+    top_services_qs = Service.objects.filter(
+        bookings__is_paid=True
+    ).annotate(
+        total=Sum('bookings__estimated_cost')
+    ).order_by('-total')[:5]
+
+    top_services_data = [
+        {
+            'name': s.name,
+            'revenue': float(s.total or 0),
+            'commission': round(float(s.total or 0) * 0.10, 2),
+            'bookings_count': s.bookings.filter(is_paid=True).count(),
+        }
+        for s in top_services_qs
+    ]
+
+    # Revenue by district
+    district_revenue_qs = Booking.objects.filter(
+        is_paid=True,
+        district__isnull=False
+    ).exclude(district='').values('district').annotate(
+        total=Sum('estimated_cost')
+    ).order_by('-total')[:6]
+
+    district_revenue_data = [
+        {
+            'district': dr['district'],
+            'revenue': float(dr['total'] or 0),
+            'commission': round(float(dr['total'] or 0) * 0.10, 2),
+        }
+        for dr in district_revenue_qs
+    ]
+
+    # Live District Operations Map Data
+    active_bookings_qs = Booking.objects.filter(
+        status__in=['PENDING', 'EMERGENCY_PENDING', 'ACCEPTED', 'IN_PROGRESS']
+    ).select_related('customer', 'worker__user', 'service')[:60]
+
+    map_bookings = []
+    for b in active_bookings_qs:
+        coords = None
+        if b.district and b.district in DISTRICT_COORDINATES:
+            coords = DISTRICT_COORDINATES[b.district]
+        elif b.worker and b.worker.district in DISTRICT_COORDINATES:
+            coords = DISTRICT_COORDINATES[b.worker.district]
+
+        if coords:
+            j_lat = ((b.id * 13) % 20 - 10) * 0.006
+            j_lng = ((b.id * 29) % 20 - 10) * 0.006
+            map_bookings.append({
+                'id': b.id,
+                'service': b.service.name,
+                'customer': b.customer.get_full_name() or b.customer.username,
+                'worker': (b.worker.user.get_full_name() or b.worker.user.username) if b.worker else 'Unassigned',
+                'status': b.get_status_display(),
+                'status_code': b.status,
+                'district': b.district or (b.worker.district if b.worker else ''),
+                'lat': round(coords[0] + j_lat, 5),
+                'lng': round(coords[1] + j_lng, 5),
+                'is_emergency': b.status == 'EMERGENCY_PENDING' or b.booking_type == 'Emergency',
+            })
+
+    workers_active_qs = WorkerProfile.objects.filter(
+        work_status__in=['AVAILABLE', 'ON_DUTY']
+    ).select_related('user', 'service')[:70]
+
+    map_workers = []
+    for w in workers_active_qs:
+        coords = None
+        if w.latitude and w.longitude:
+            coords = (float(w.latitude), float(w.longitude))
+        elif w.district and w.district in DISTRICT_COORDINATES:
+            base = DISTRICT_COORDINATES[w.district]
+            j_lat = ((w.id * 17) % 20 - 10) * 0.007
+            j_lng = ((w.id * 37) % 20 - 10) * 0.007
+            coords = (base[0] + j_lat, base[1] + j_lng)
+
+        if coords:
+            map_workers.append({
+                'id': w.id,
+                'name': w.user.get_full_name() or w.user.username,
+                'service': w.service.name if w.service else (w.custom_service or 'Service Pro'),
+                'district': w.district,
+                'status': w.get_work_status_display(),
+                'status_code': w.work_status,
+                'strikes': w.strikes_count,
+                'lat': round(coords[0], 5),
+                'lng': round(coords[1], 5),
+            })
+
+    district_operations = []
+    for dist_name, coords in DISTRICT_COORDINATES.items():
+        w_cnt = sum(1 for w in map_workers if w['district'] == dist_name)
+        b_cnt = sum(1 for b in map_bookings if b['district'] == dist_name)
+        district_operations.append({
+            'district': dist_name,
+            'lat': coords[0],
+            'lng': coords[1],
+            'workers': w_cnt,
+            'bookings': b_cnt,
+        })
+
+    live_map_data = {
+        'bookings': map_bookings,
+        'workers': map_workers,
+        'districts': district_operations,
+    }
+    live_map_json = json.dumps(live_map_data)
+
     return render(
         request,
         'dashboards/admin_dashboard.html',
@@ -4619,6 +4771,16 @@ def admin_dashboard(request):
             'total_complaints': total_complaints,
             'open_complaints': open_complaints,
             'total_revenue': total_revenue,
+            'gross_revenue': gross_revenue,
+            'commission_rate': commission_rate,
+            'platform_commission': platform_commission,
+            'worker_payouts': worker_payouts,
+            'monthly_revenue': monthly_revenue,
+            'top_services_data': top_services_data,
+            'district_revenue_data': district_revenue_data,
+            'live_map_json': live_map_json,
+            'map_bookings_count': len(map_bookings),
+            'map_workers_count': len(map_workers),
             'avg_rating': round(avg_rating, 1),
             'recent_bookings': recent_bookings,
             'booking_status_data': booking_status_data,
@@ -5131,6 +5293,87 @@ def admin_suspend_worker(request, worker_id):
             notification_type='SYSTEM',
             message='Your account has been reactivated. You can now receive bookings.'
         )
+
+    return redirect('workers_list')
+
+
+@login_required
+def admin_worker_strike(request, worker_id):
+    """Admin issues an official warning, strike, or resets strikes with audit notes."""
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
+        messages.error(request, 'You are not authorized to perform this action.')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('workers_list')
+
+    worker_profile = get_object_or_404(WorkerProfile, id=worker_id)
+    action_type = request.POST.get('action_type', 'strike').strip().lower()
+    reason = request.POST.get('reason', '').strip()
+    suspend_now = request.POST.get('suspend_now') in ('1', 'on', 'true', True)
+
+    import datetime
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    if action_type == 'strike':
+        worker_profile.strikes_count += 1
+        note_entry = f"[{now_str}] STRIKE #{worker_profile.strikes_count}: {reason if reason else 'Policy violation'}"
+        if worker_profile.warning_notes:
+            worker_profile.warning_notes = f"{worker_profile.warning_notes}\n{note_entry}"
+        else:
+            worker_profile.warning_notes = note_entry
+
+        auto_suspended = False
+        if worker_profile.strikes_count >= 3 or suspend_now:
+            worker_profile.work_status = 'SUSPENDED'
+            worker_profile.user.is_active = False
+            worker_profile.user.save(update_fields=['is_active'])
+            auto_suspended = True
+
+        worker_profile.save(update_fields=['strikes_count', 'warning_notes', 'work_status'])
+
+        notif_msg = f"Official Strike #{worker_profile.strikes_count} recorded on your account. Reason: {reason or 'Platform policy violation'}."
+        if auto_suspended:
+            notif_msg += " Your account has been suspended."
+        Notification.objects.create(
+            recipient=worker_profile.user,
+            notification_type='SYSTEM',
+            message=notif_msg
+        )
+        msg_text = f'Strike #{worker_profile.strikes_count} issued to {worker_profile.user.username}.'
+        if auto_suspended:
+            msg_text += ' Worker account has been SUSPENDED.'
+        messages.warning(request, msg_text)
+
+    elif action_type == 'warning':
+        note_entry = f"[{now_str}] OFFICIAL WARNING: {reason if reason else 'Advisory notice'}"
+        if worker_profile.warning_notes:
+            worker_profile.warning_notes = f"{worker_profile.warning_notes}\n{note_entry}"
+        else:
+            worker_profile.warning_notes = note_entry
+        worker_profile.save(update_fields=['warning_notes'])
+
+        Notification.objects.create(
+            recipient=worker_profile.user,
+            notification_type='SYSTEM',
+            message=f"Official Notice from Admin: {reason or 'Please review platform quality guidelines.'}"
+        )
+        messages.info(request, f'Official warning recorded and sent to {worker_profile.user.username}.')
+
+    elif action_type == 'reset':
+        worker_profile.strikes_count = 0
+        note_entry = f"[{now_str}] STRIKES RESET: {reason if reason else 'Strikes cleared by admin'}"
+        if worker_profile.warning_notes:
+            worker_profile.warning_notes = f"{worker_profile.warning_notes}\n{note_entry}"
+        else:
+            worker_profile.warning_notes = note_entry
+        worker_profile.save(update_fields=['strikes_count', 'warning_notes'])
+        messages.success(request, f'Strikes reset to 0 for {worker_profile.user.username}.')
 
     return redirect('workers_list')
 
@@ -6752,6 +6995,58 @@ def admin_notifications(request):
             'unread_count': unread_count,
         }
     )
+
+
+@login_required
+def admin_broadcast_announcement(request):
+    """Admin tool to broadcast in-app notifications/alerts to all users, workers, or customers."""
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
+        messages.error(request, 'You are not authorized to broadcast announcements.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        target = request.POST.get('target', 'ALL').strip().upper()
+        title = request.POST.get('title', '').strip()
+        message_body = request.POST.get('message', '').strip()
+
+        if not message_body:
+            messages.error(request, 'Announcement message cannot be empty.')
+            return redirect('admin_dashboard')
+
+        header_prefix = f"📢 [{title}] " if title else "📢 [ANNOUNCEMENT] "
+        formatted_message = f"{header_prefix}{message_body}"
+
+        if target == 'WORKERS':
+            recipients = CustomUser.objects.filter(role='WORKER', is_active=True)
+            target_label = "all registered workers"
+        elif target == 'CUSTOMERS':
+            recipients = CustomUser.objects.filter(role='USER', is_active=True)
+            target_label = "all registered customers"
+        else:
+            recipients = CustomUser.objects.filter(is_active=True).exclude(role='ADMIN')
+            target_label = "all platform users"
+
+        notif_list = [
+            Notification(
+                recipient=u,
+                notification_type='SYSTEM',
+                message=formatted_message,
+                is_read=False
+            )
+            for u in recipients
+        ]
+        Notification.objects.bulk_create(notif_list)
+
+        messages.success(request, f'Broadcast announcement sent to {len(notif_list)} users ({target_label}).')
+        return redirect('admin_dashboard')
+
+    return redirect('admin_dashboard')
+
 
 @login_required
 def confirm_completion(request, booking_id):

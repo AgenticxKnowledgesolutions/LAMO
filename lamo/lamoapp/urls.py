@@ -71,6 +71,7 @@ urlpatterns = [
     path('workers/', views.workers_list, name='workers_list'),
     path('workers/<int:worker_id>/delete/', views.admin_delete_worker, name='admin_delete_worker'),
     path('workers/<int:worker_id>/suspend/', views.admin_suspend_worker, name='admin_suspend_worker'),
+    path('workers/<int:worker_id>/strike/', views.admin_worker_strike, name='admin_worker_strike'),
     path('workers/verify/<int:pk>/', views.worker_verify, name='worker_verify'),
     path('worker/work-dashboard/', views.worker_manage_dashboard, name='worker_manage_dashboard'),
     path('worker-jobs/', views.worker_jobs, name='worker_jobs'),
@@ -97,6 +98,7 @@ urlpatterns = [
     path('notifications/<int:notification_id>/mark-read/', views.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
     path('admin-notifications/', views.admin_notifications, name='admin_notifications'),
+    path('admin-dashboard/broadcast/', views.admin_broadcast_announcement, name='admin_broadcast_announcement'),
     path('admin-dashboard/bookings/', views.admin_booking_details, name='admin_booking_details'),
     path('admin-dashboard/payments/', views.admin_payments, name='admin_payments'),
     path(
