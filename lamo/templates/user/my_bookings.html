@@ -180,7 +180,15 @@
                                         <h3 class="details-service-title">{{ booking.service.name }}</h3>
                                         <div class="details-worker-meta">
                                             {% if booking.worker and booking.worker.profile_image and booking.worker.user %}
-                                                <img src="{{ booking.worker.profile_image.url }}" alt="{{ booking.worker.user.username }}" class="worker-avatar-mini">
+                                                <img src="{{ booking.worker.profile_image.url }}" alt="{{ booking.worker.user.username }}" class="worker-avatar-mini" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                                                <div class="worker-avatar-mini" style="display:none; align-items:center; justify-content:center; background:#e2e8f0; color:#64748b; font-size:11px;">
+                                                    <i class="bi bi-person-fill"></i>
+                                                </div>
+                                            {% elif booking.worker and booking.worker.user and booking.worker.user.profile_image %}
+                                                <img src="{{ booking.worker.user.profile_image.url }}" alt="{{ booking.worker.user.username }}" class="worker-avatar-mini" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                                                <div class="worker-avatar-mini" style="display:none; align-items:center; justify-content:center; background:#e2e8f0; color:#64748b; font-size:11px;">
+                                                    <i class="bi bi-person-fill"></i>
+                                                </div>
                                             {% else %}
                                                 <div class="worker-avatar-mini" style="display:inline-flex; align-items:center; justify-content:center; background:#e2e8f0; color:#64748b; font-size:11px;">
                                                     <i class="bi bi-person-fill"></i>

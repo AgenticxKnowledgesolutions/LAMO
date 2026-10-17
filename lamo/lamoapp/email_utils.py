@@ -170,11 +170,26 @@ def send_email_safely(
                 _scrub('requests library not available'),
             )
             return False
+        recipients = [str(r).strip() for r in recipient_list if r and str(r).strip()]
+        if not recipients:
+            logger.warning(
+                'email_not_sent purpose=%s reason=no_valid_recipients', purpose,
+            )
+            return False
+
+        html_content = (
+            f"<div style='font-family: Arial, sans-serif; line-height: 1.6; color: #17231f; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2eee9; border-radius: 12px; background: #ffffff;'>"
+            f"<div style='margin-bottom: 20px;'><h2 style='color: #087f5b; margin: 0;'>LAMO</h2></div>"
+            f"<div>{message.replace(chr(10), '<br>')}</div>"
+            f"</div>"
+        ) if '<html' not in message.lower() and '<div' not in message.lower() else message
+
         payload = {
             'from': sender,
-            'to': list(recipient_list),
+            'to': recipients,
             'subject': subject,
-            'html': message,
+            'text': message,
+            'html': html_content,
         }
         try:
             response = requests.post(
@@ -185,12 +200,20 @@ def send_email_safely(
             )
             response.raise_for_status()
         except Exception as exc:  # pragma: no cover
+            detail = str(exc)
+            if hasattr(exc, 'response') and exc.response is not None:
+                try:
+                    resp_body = exc.response.text
+                    if resp_body:
+                        detail = f"{exc}: {resp_body}"
+                except Exception:
+                    pass
             logger.error(
                 'email_send_failed purpose=%s recipients=%s exc_type=%s detail=%s',
                 purpose,
                 _recipients_label(recipient_list),
                 type(exc).__name__,
-                _scrub(str(exc)),
+                _scrub(detail),
             )
             return False
         logger.info('email_sent purpose=%s recipients=%s', purpose, _recipients_label(recipient_list))

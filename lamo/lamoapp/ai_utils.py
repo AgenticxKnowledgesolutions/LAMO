@@ -687,9 +687,22 @@ def build_worker_recommendations(
         if not reasons:
             reasons.append('Relevant worker profile match')
 
+        worker_img_url = ''
+        if worker.profile_image:
+            try:
+                worker_img_url = worker.profile_image.url
+            except Exception:
+                worker_img_url = ''
+        elif hasattr(worker.user, 'profile_image') and worker.user.profile_image:
+            try:
+                worker_img_url = worker.user.profile_image.url
+            except Exception:
+                worker_img_url = ''
+
         recommendations.append({
             'worker_id': worker.id,
             'worker_name': worker.user.get_full_name() or worker.user.username,
+            'worker_image': worker_img_url,
             'service_name': service.name,
             'district': worker.district,
             'match_score': match_score,

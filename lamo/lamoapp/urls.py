@@ -83,6 +83,7 @@ urlpatterns = [
     path('worker/booking/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion'),
     path('worker/booking/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking'),
     path('worker/booking/<int:booking_id>/report-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show'),
+    path('worker/jobs/<int:booking_id>/report-customer-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show_alias'),
     path('worker/emergency/<int:booking_id>/accept/', views.worker_accept_emergency, name='worker_accept_emergency'),
 
     # Notifications

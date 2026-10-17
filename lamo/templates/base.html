@@ -238,6 +238,23 @@
 
               </li>
 
+              <!-- MY BOOKINGS OR ADMIN CONSOLE -->
+
+              {% if user.role == 'ADMIN' %}
+
+              <li class="nav-item">
+
+                <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}"
+                  href="{% url 'admin_dashboard' %}">
+
+                  Admin Dashboard
+
+                </a>
+
+              </li>
+
+              {% else %}
+
               <!-- MY BOOKINGS -->
 
               <li class="nav-item">
@@ -250,6 +267,8 @@
                 </a>
 
               </li>
+
+              {% endif %}
               <!-- NOTIFICATIONS (slide-over drawer trigger) -->
 
               <li class="nav-item">
@@ -291,18 +310,30 @@
 
               <div class="user-dropdown" id="userDropdown">
 
+                {% if user.role == 'ADMIN' %}
+
+                <a href="{% url 'admin_dashboard' %}">
+
+                  <i class="bi bi-speedometer2"></i>
+
+                  Dashboard
+
+                </a>
+
+                {% else %}
 
                 <a href="{% url 'user_dashboard' %}">
 
                   <i class="bi bi-house"></i>
 
-                  dashboard
+                  Dashboard
 
                 </a>
+
+                {% endif %}
                 <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
                   {% csrf_token %}
-                  <button type="submit" class="logout-item"
-                    style="width: 100%; background: none; border: none; cursor: pointer; font: inherit; display: flex; align-items: center; gap: 8px;">
+                  <button type="submit" class="logout-item">
                     <i class="bi bi-box-arrow-right"></i>
                     Logout
                   </button>

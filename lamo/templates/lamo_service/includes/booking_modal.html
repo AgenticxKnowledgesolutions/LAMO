@@ -548,6 +548,10 @@ function openBookingModal(button) {
     const fallback = document.getElementById("modalWorkerFallback");
 
     if (workerImage && image) {
+        image.onerror = function() {
+            this.style.display = "none";
+            if (fallback) fallback.style.display = "block";
+        };
         image.src = workerImage;
         image.style.display = "block";
         if (fallback) fallback.style.display = "none";
@@ -775,6 +779,54 @@ document.addEventListener('DOMContentLoaded', function() {
    DATE
 ========================================================= */
 
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return null;
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+}
+
+function updateModalTimeSlotAvailability() {
+    const bookingDateInput = document.getElementById('modalBookingDate');
+    const timeSlotSelect = document.getElementById('modalTimeSlot');
+    if (!timeSlotSelect) return;
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    const todayStr = `${year}-${month}-${day}`;
+
+    const isToday = bookingDateInput && (bookingDateInput.value === todayStr);
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+
+    Array.from(timeSlotSelect.options).forEach(function(opt) {
+        if (!opt.value) return;
+        const parts = opt.value.split(/\s*-\s*/);
+        const startMinutes = parseTimeToMinutes(parts[0]);
+        if (isToday && startMinutes !== null && startMinutes <= nowMinutes) {
+            opt.disabled = true;
+            if (!opt.text.endsWith(' (Passed)')) {
+                opt.text = opt.value + ' (Passed)';
+            }
+        } else {
+            opt.disabled = false;
+            opt.text = opt.value;
+        }
+    });
+
+    if (timeSlotSelect.selectedOptions.length && timeSlotSelect.selectedOptions[0].disabled) {
+        timeSlotSelect.value = '';
+        var finalTime = document.getElementById('modalFinalTime');
+        if (finalTime) finalTime.value = '';
+    }
+}
+
 function setModalMinimumDate() {
     const today = new Date();
     const year = today.getFullYear();
@@ -784,8 +836,15 @@ function setModalMinimumDate() {
 
     ['modalBookingDate', 'modalStartDate', 'modalEndDate'].forEach(function(id) {
         var input = document.getElementById(id);
-        if (input) input.min = minDateStr;
+        if (input) {
+            input.min = minDateStr;
+            if (id === 'modalBookingDate' && !input.dataset.timeBound) {
+                input.dataset.timeBound = 'true';
+                input.addEventListener('change', updateModalTimeSlotAvailability);
+            }
+        }
     });
+    updateModalTimeSlotAvailability();
 }
 
 
@@ -922,6 +981,31 @@ document.addEventListener("DOMContentLoaded", function() {
                         finalTime.value = timeSlot.value;
                     } else if (finalTime && customTime) {
                         finalTime.value = customTime.value;
+                    }
+
+                    // Client-side past-time validation for same-day bookings
+                    const bookingDateInput = document.getElementById('modalBookingDate');
+                    const bTypeInput = document.getElementById('modalBookingType');
+                    const isOneTime = !bTypeInput || bTypeInput.value === 'One Time';
+                    const now = new Date();
+                    const pad2 = function(n) { return String(n).padStart(2, '0'); };
+                    const todayIso = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+                    if (isOneTime && bookingDateInput && bookingDateInput.value === todayIso && finalTime && finalTime.value) {
+                        const startPart = finalTime.value.split(/\s*-\s*/)[0];
+                        const startMins = parseTimeToMinutes(startPart);
+                        const nowMins = now.getHours() * 60 + now.getMinutes();
+                        if (startMins !== null && startMins <= nowMins) {
+                            if (modalErrorBox) {
+                                modalErrorBox.innerHTML = 'Cannot book a time slot that has already passed today.';
+                                modalErrorBox.style.display = 'block';
+                            }
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = origHtml;
+                            }
+                            return;
+                        }
                     }
 
                     const formData = new FormData(form);

@@ -1644,8 +1644,10 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     except (ValueError, TypeError):
         return respond_error('Invalid end date format.')
 
+    now_local = timezone.localtime()
+
     # Validate date range
-    if start_date < timezone.localdate():
+    if start_date < now_local.date():
         return respond_error('Start date cannot be in the past.')
     if end_date <= start_date:
         return respond_error('End date must be after start date.')
@@ -1684,6 +1686,9 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     # same slot and would allow a double booking).
     if start_t is None or end_t is None:
         return respond_error('Please select a valid time slot.')
+
+    if booking_dates and booking_dates[0] == now_local.date() and start_t <= now_local.time():
+        return respond_error('Cannot book a time slot that has already passed today.')
 
     with transaction.atomic():
         locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
@@ -2030,7 +2035,8 @@ def book_service(request):
         except (ValueError, TypeError):
             return respond_error('Invalid date format.')
 
-        if booking_date < timezone.localdate():
+        now_local = timezone.localtime()
+        if booking_date < now_local.date():
             return respond_error('Cannot book for past dates.')
 
         worker_on_leave = False
@@ -2051,6 +2057,9 @@ def book_service(request):
         # rejected instead of falling back to exact-string matching.
         if start_t is None or end_t is None:
             return respond_error('Please select a valid time slot.')
+
+        if booking_date == now_local.date() and start_t <= now_local.time():
+            return respond_error('Cannot book a time slot that has already passed today.')
 
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
@@ -4538,6 +4547,39 @@ def worker_dashboard(request):
         messages.error(request, 'Worker profile not found.')
         return redirect('dashboard')
 
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'update_location':
+            latitude = request.POST.get('latitude', '').strip()
+            longitude = request.POST.get('longitude', '').strip()
+            if not latitude or not longitude:
+                messages.error(request, 'Unable to get your location. Please try again.')
+                return redirect('worker_dashboard')
+            try:
+                worker_profile.latitude = float(latitude)
+                worker_profile.longitude = float(longitude)
+                place_name = _get_place_name_from_coords(
+                    worker_profile.latitude,
+                    worker_profile.longitude
+                )
+                if place_name:
+                    worker_profile.current_place = place_name
+                worker_profile.save(
+                    update_fields=[
+                        'latitude',
+                        'longitude',
+                        'current_place',
+                        'updated_at'
+                    ]
+                )
+                success_msg = 'Current location updated successfully.'
+                if place_name:
+                    success_msg = f'Location updated: {place_name}'
+                messages.success(request, success_msg)
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid location data. Please try again.')
+            return redirect('worker_dashboard')
+
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(worker=worker_profile)
 
@@ -5700,6 +5742,11 @@ def worker_manage_dashboard(request):
                 ''
             ).strip()
 
+            redirect_target = 'worker_dashboard'
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                redirect_target = next_url
+
             if not latitude or not longitude:
 
                 messages.error(
@@ -5707,9 +5754,7 @@ def worker_manage_dashboard(request):
                     'Unable to get your location. Please try again.'
                 )
 
-                return redirect(
-                    'worker_manage_dashboard'
-                )
+                return redirect(redirect_target)
 
             try:
 
@@ -5750,9 +5795,7 @@ def worker_manage_dashboard(request):
                     'Invalid location data. Please try again.'
                 )
 
-            return redirect(
-                'worker_manage_dashboard'
-            )
+            return redirect(redirect_target)
 
 
     # ==========================================
@@ -8118,7 +8161,10 @@ def ai_recommend_workers(request, service_id):
             'completed_jobs': item.get('completed_jobs') or 0,
             'reasons': item.get('reasons', []),
             'district': item.get('district'),
-            'worker_image': worker.profile_image.url if worker and worker.profile_image else '',
+            'worker_image': (
+                worker.profile_image.url if (worker and worker.profile_image)
+                else (worker.user.profile_image.url if (worker and hasattr(worker.user, 'profile_image') and worker.user.profile_image) else '')
+            ),
         })
 
     return JsonResponse({

@@ -42,7 +42,11 @@
                     <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
                         <div style="width: 48px; height: 48px; border-radius: 12px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                             {% if worker.profile_image %}
-                            <img src="{{ worker.profile_image.url }}" alt="{{ worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            <img src="{{ worker.profile_image.url }}" alt="{{ worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
+                            <i class="bi bi-person-fill" style="display:none; color: #4f46e5; font-size: 20px;"></i>
+                            {% elif worker.user.profile_image %}
+                            <img src="{{ worker.user.profile_image.url }}" alt="{{ worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
+                            <i class="bi bi-person-fill" style="display:none; color: #4f46e5; font-size: 20px;"></i>
                             {% else %}
                             <i class="bi bi-person-fill" style="color: #4f46e5; font-size: 20px;"></i>
                             {% endif %}
@@ -238,6 +242,52 @@ document.addEventListener('DOMContentLoaded', function() {
         timeSlot.addEventListener('change', function() {
             timeHidden.value = this.value;
         });
+    }
+
+    const dateInput = document.getElementById('id_date');
+    function updateBookServiceTimeSlots() {
+        if (!timeSlot) return;
+        const now = new Date();
+        const pad2 = function(n) { return String(n).padStart(2, '0'); };
+        const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+        const isToday = dateInput && dateInput.value === todayStr;
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+        function parseToMinutes(str) {
+            if (!str) return null;
+            const m = str.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            if (!m) return null;
+            let h = parseInt(m[1], 10);
+            const mins = parseInt(m[2], 10);
+            const ampm = m[3].toUpperCase();
+            if (ampm === 'PM' && h < 12) h += 12;
+            if (ampm === 'AM' && h === 12) h = 0;
+            return h * 60 + mins;
+        }
+
+        Array.from(timeSlot.options).forEach(function(opt) {
+            if (!opt.value) return;
+            const startPart = opt.value.split(/\s*-\s*/)[0];
+            const startM = parseToMinutes(startPart);
+            if (isToday && startM !== null && startM <= nowMinutes) {
+                opt.disabled = true;
+                if (!opt.text.endsWith(' (Passed)')) opt.text = opt.value + ' (Passed)';
+            } else {
+                opt.disabled = false;
+                opt.text = opt.value;
+            }
+        });
+        if (timeSlot.selectedOptions.length && timeSlot.selectedOptions[0].disabled) {
+            timeSlot.value = '';
+            if (timeHidden) timeHidden.value = '';
+        }
+    }
+    if (dateInput) {
+        const now = new Date();
+        const pad2 = function(n) { return String(n).padStart(2, '0'); };
+        dateInput.min = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+        dateInput.addEventListener('change', updateBookServiceTimeSlots);
+        updateBookServiceTimeSlots();
     }
 
     const mapContainer = document.getElementById('bookServiceMap');

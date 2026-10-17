@@ -376,20 +376,27 @@
 
 
                                 {% if worker.profile_image %}
-
                                     <img
                                         src="{{ worker.profile_image.url }}"
                                         alt="{{ worker.user.username }}"
+                                        onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
                                     >
-
-                                {% else %}
-
-                                    <div class="avatar-fallback">
-
+                                    <div class="avatar-fallback" style="display:none;">
                                         <i class="bi bi-person-fill"></i>
-
                                     </div>
-
+                                {% elif worker.user.profile_image %}
+                                    <img
+                                        src="{{ worker.user.profile_image.url }}"
+                                        alt="{{ worker.user.username }}"
+                                        onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                                    >
+                                    <div class="avatar-fallback" style="display:none;">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="avatar-fallback">
+                                        <i class="bi bi-person-fill"></i>
+                                    </div>
                                 {% endif %}
 
 
@@ -620,6 +627,8 @@
                                     data-worker-district="{{ worker.district|escapejs }}"
                                     {% if worker.profile_image %}
                                     data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                    {% elif worker.user.profile_image %}
+                                    data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
                                     {% endif %}
                                     data-service-id="{{ service.id }}"
                                     data-service-name="{{ service.name|escapejs }}"

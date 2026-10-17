@@ -739,7 +739,8 @@
     }
 
 
-    .user-dropdown a {
+    .user-dropdown a,
+    .user-dropdown .logout-item {
 
       display: flex;
 
@@ -751,13 +752,27 @@
 
       padding: 10px 12px;
 
+      border: none;
+
       border-radius: 10px;
 
+      background: transparent;
+
       color: #1f2937;
+
+      font-family: inherit;
 
       font-size: 13px;
 
       font-weight: 600;
+
+      line-height: inherit;
+
+      text-decoration: none;
+
+      cursor: pointer;
+
+      text-align: left;
 
       transition:
         color 0.2s ease,
@@ -766,7 +781,8 @@
     }
 
 
-    .user-dropdown a i {
+    .user-dropdown a i,
+    .user-dropdown .logout-item i {
 
       width: 18px;
 
@@ -786,6 +802,7 @@
     }
 
 
+    .user-dropdown .logout-item:hover,
     .user-dropdown a.logout-item:hover {
 
       color: #dc3545;

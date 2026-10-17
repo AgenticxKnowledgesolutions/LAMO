@@ -62,7 +62,8 @@
 }
 @media (max-width: 600px) {
     .ep-card { padding: 24px 18px; }
-    .ep-form > div[style*="grid-template-columns: 1fr 1fr"] {
-        grid-template-columns: 1fr;
+    .ep-form > div[style*="grid-template-columns: 1fr 1fr"],
+    .ep-form > div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
     }
 }

@@ -254,7 +254,15 @@ LAMO | Labour Management System - Our Services
           <p class="modern-service-desc">{{ service.description }}</p>
           <div class="service-card-footer">
             <div class="service-availability"><span></span> Available</div>
-            {% if user.is_authenticated %}
+            {% if user.is_authenticated and user.role == 'WORKER' %}
+            <a href="{% url 'worker_dashboard' %}" class="modern-book-btn">
+              Worker Portal <i class="bi bi-arrow-right"></i>
+            </a>
+            {% elif user.is_authenticated and user.role == 'ADMIN' %}
+            <a href="{% url 'admin_dashboard' %}" class="modern-book-btn">
+              Admin Portal <i class="bi bi-arrow-right"></i>
+            </a>
+            {% elif user.is_authenticated %}
             <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
               View Service <i class="bi bi-arrow-right"></i>
             </a>

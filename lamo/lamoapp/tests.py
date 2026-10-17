@@ -6244,6 +6244,114 @@ class BookingTimeRejectionTest(TestCase):
         # the emergency flow keeps its own handling and must not regress.
         self.assertFalse(is_schedulable_time('ASAP'))
 
+    def test_today_past_time_slot_is_rejected(self):
+        """A time slot that has already started or passed today must be rejected."""
+        fixed_now = timezone.datetime(2026, 10, 17, 14, 30, tzinfo=timezone.get_current_timezone())
+        today_str = fixed_now.date().isoformat()
+        with patch('django.utils.timezone.localtime', return_value=fixed_now):
+            # 10:00 AM start time is in the past relative to 14:30
+            response = self.client.post(
+                reverse('book_service'),
+                {
+                    'worker': self.worker.id, 'service': self.service.id,
+                    'date': today_str, 'time': '10:00 AM - 12:00 PM', 'location': 'Kochi',
+                    'phone': '9000000002', 'booking_type': 'One Time',
+                },
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            )
+            self.assertEqual(response.status_code, 400)
+            payload = response.json()
+            self.assertFalse(payload['success'])
+            self.assertIn('already passed today', payload['error_message'])
+            self.assertEqual(Booking.objects.count(), 0)
+
+    def test_today_future_time_slot_is_accepted(self):
+        """A time slot in the future on today must be accepted normally."""
+        fixed_now = timezone.datetime(2026, 10, 17, 14, 30, tzinfo=timezone.get_current_timezone())
+        today_str = fixed_now.date().isoformat()
+        with patch('django.utils.timezone.localtime', return_value=fixed_now):
+            # 4:00 PM start time (16:00) is in the future relative to 14:30
+            response = self.client.post(
+                reverse('book_service'),
+                {
+                    'worker': self.worker.id, 'service': self.service.id,
+                    'date': today_str, 'time': '4:00 PM - 6:00 PM', 'location': 'Kochi',
+                    'phone': '9000000002', 'booking_type': 'One Time',
+                },
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            )
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertTrue(payload['success'])
+            booking = Booking.objects.get()
+            self.assertEqual(booking.start_time, datetime_time(16, 0))
+            self.assertEqual(booking.end_time, datetime_time(18, 0))
+
+    def test_recurring_today_past_time_slot_is_rejected(self):
+        """Recurring booking starting today with past time slot must be rejected."""
+        fixed_now = timezone.datetime(2026, 10, 17, 14, 30, tzinfo=timezone.get_current_timezone())
+        today_str = fixed_now.date().isoformat()
+        end_str = (fixed_now.date() + timedelta(days=14)).isoformat()
+        with patch('django.utils.timezone.localtime', return_value=fixed_now):
+            response = self.client.post(
+                reverse('book_service'),
+                {
+                    'worker': self.worker.id, 'service': self.service.id,
+                    'booking_type': 'Recurring', 'frequency': 'Daily',
+                    'start_date': today_str, 'end_date': end_str,
+                    'time': '10:00 AM - 12:00 PM', 'location': 'Kochi',
+                    'phone': '9000000002',
+                },
+                HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            )
+            self.assertEqual(response.status_code, 400)
+            payload = response.json()
+            self.assertFalse(payload['success'])
+            self.assertIn('already passed today', payload['error_message'])
+            self.assertEqual(Booking.objects.count(), 0)
+
+
+class RoleAwareHomeAndServiceDetailTest(TestCase):
+    """Regression tests for role-aware home buttons and service_detail template contract."""
+
+    def setUp(self):
+        self.service = Service.objects.create(
+            name='Plumbing Test', description='Test Desc', price=Decimal('450.00'), is_active=True
+        )
+        self.customer = _make_user('user_c', role='USER')
+        self.worker_user = _make_user('worker_w', role='WORKER')
+        self.admin_user = _make_user('admin_a', role='ADMIN')
+
+    def test_anonymous_sees_service_link_on_home(self):
+        # Anonymous visitors after splash screen see the public homepage with register/next links
+        response = self.client.get(reverse('home') + '?from_splash=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"/services/{self.service.id}/")
+
+    def test_customer_sees_service_detail_link_on_home(self):
+        self.client.login(username=self.customer.username, password='Password123!')
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"href=\"/services/{self.service.id}/\"")
+
+    def test_worker_sees_worker_portal_link_on_home(self):
+        self.client.login(username=self.worker_user.username, password='Password123!')
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Worker Portal")
+        self.assertContains(response, reverse('worker_dashboard'))
+
+    def test_admin_redirected_to_admin_dashboard(self):
+        self.client.login(username=self.admin_user.username, password='Password123!')
+        response = self.client.get(reverse('home'))
+        self.assertRedirects(response, reverse('admin_dashboard'))
+
+    def test_service_detail_extends_base_template(self):
+        response = self.client.get(reverse('service_detail', args=[self.service.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<meta name="viewport" content="width=device-width, initial-scale=1.0">')
+        self.assertContains(response, 'lamo-navbar')
+
 class ProofDocumentAccessTest(TestCase):
     """Regression tests for worker proof document access control."""
 
@@ -8420,6 +8528,209 @@ class MultiTabAuthenticationAndOptimizationTests(TestCase):
         self.assertTemplateUsed(resp, 'splash.html')
         self.assertIn('lamo_splash_seen', resp.cookies)
         self.assertEqual(resp.cookies['lamo_splash_seen'].value, '1')
+
+
+class WorkerPortalAuditedFixesTests(TestCase):
+    """
+    Focused regression tests for the 5 audited worker portal issues:
+    1. Worker Dashboard Location Redirect Bug
+    2. Worker Sidebar Styling and Active States
+    3. Worker OTP Email delivery & Resend payload
+    4. My Jobs Open Chat Modal Popup
+    5. My Jobs Customer No-Show Routing and Validation
+    """
+
+    def setUp(self):
+        from .models import Service, CustomUser, WorkerProfile, Booking
+        from unittest.mock import patch
+        self.service = Service.objects.create(
+            name="Carpentry", description="Woodwork and repairs", price=400.00, is_active=True
+        )
+        self.customer = CustomUser.objects.create_user(
+            username="test_customer_audit",
+            email="cust_audit@example.com",
+            password="Password123!",
+            role="USER",
+            is_email_verified=True,
+        )
+        self.worker_user = CustomUser.objects.create_user(
+            username="test_worker_audit",
+            email="worker_audit@example.com",
+            password="Password123!",
+            role="WORKER",
+            is_email_verified=True,
+        )
+        self.worker_profile = WorkerProfile.objects.create(
+            user=self.worker_user,
+            service=self.service,
+            phone="9876543210",
+            district="Ernakulam",
+            experience_years=5,
+            pricing_type="hour",
+            pricing_amount=400,
+            availability="Full Time",
+            work_status="AVAILABLE",
+            is_verified=True,
+        )
+        self.booking = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            date=timezone.now().date(),
+            time="10:00",
+            location="Kochi City Center",
+            phone="9876543210",
+            status="ACCEPTED",
+            estimated_cost=Decimal("400.00"),
+            latitude=9.9312,
+            longitude=76.2673,
+        )
+
+    # --- ISSUE 1: Worker Dashboard Location Redirect Bug ---
+    def test_worker_dashboard_location_update_redirects_to_worker_dashboard(self):
+        """Updating location directly on worker_dashboard stays on /worker-dashboard/."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+        with patch('lamoapp.views._get_place_name_from_coords', return_value="Ernakulam North"):
+            resp = self.client.post(reverse('worker_dashboard'), {
+                'action': 'update_location',
+                'latitude': '9.931234',
+                'longitude': '76.267300',
+            })
+        self.assertRedirects(resp, reverse('worker_dashboard'))
+        self.worker_profile.refresh_from_db()
+        self.assertAlmostEqual(self.worker_profile.latitude, 9.931234, places=5)
+        self.assertAlmostEqual(self.worker_profile.longitude, 76.267300, places=5)
+        self.assertEqual(self.worker_profile.current_place, "Ernakulam North")
+
+    def test_worker_manage_dashboard_location_update_redirects_to_worker_dashboard(self):
+        """Location update via worker_manage_dashboard redirects to worker_dashboard (or next)."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+        with patch('lamoapp.views._get_place_name_from_coords', return_value="Marine Drive"):
+            resp = self.client.post(reverse('worker_manage_dashboard'), {
+                'action': 'update_location',
+                'latitude': '9.970000',
+                'longitude': '76.280000',
+                'next': reverse('worker_dashboard'),
+            })
+        self.assertRedirects(resp, reverse('worker_dashboard'))
+        self.worker_profile.refresh_from_db()
+        self.assertEqual(self.worker_profile.current_place, "Marine Drive")
+
+    def test_worker_dashboard_renders_clean_content_not_customer_footer(self):
+        """Worker dashboard loads with worker sidebar layout and correct content."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+        resp = self.client.get(reverse('worker_dashboard'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'dashboards/worker_dashboard.html')
+        content = resp.content.decode('utf-8')
+        self.assertIn('worker-sidebar', content)
+        self.assertIn('workerLocationForm', content)
+        self.assertIn('action="/worker-dashboard/"', content)
+
+    # --- ISSUE 2: Worker Sidebar Color and Active States ---
+    def test_worker_sidebar_dark_green_and_active_classes(self):
+        """Sidebar contains dark green brand CSS and marks current routes active."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+
+        # Home route
+        resp_home = self.client.get(reverse('worker_dashboard'))
+        content_home = resp_home.content.decode('utf-8')
+        self.assertIn('.worker-sidebar', content_home)
+        self.assertIn('#064d3a', content_home)
+        self.assertIn('rgba(255, 255, 255, 0.14)', content_home)
+
+        # My Jobs route
+        resp_jobs = self.client.get(reverse('worker_jobs'))
+        self.assertContains(resp_jobs, 'My Jobs')
+
+        # Profile route
+        resp_profile = self.client.get(reverse('worker_profile'))
+        self.assertEqual(resp_profile.status_code, 200)
+
+        # Earnings route
+        resp_earnings = self.client.get(reverse('worker_earnings'))
+        self.assertEqual(resp_earnings.status_code, 200)
+
+    # --- ISSUE 3: Worker OTP Email Delivery & Payload ---
+    def test_worker_otp_email_recipient_and_generation(self):
+        """Worker registration and OTP sending selects the worker email address."""
+        from .views import send_otp_email
+        with patch('lamoapp.views.send_email_safely', return_value=True) as mock_send:
+            otp, sent = send_otp_email(self.worker_user)
+            self.assertTrue(sent)
+            self.assertEqual(len(otp), 6)
+            mock_send.assert_called_once()
+            call_kwargs = mock_send.call_args[1]
+            self.assertEqual(call_kwargs['recipient_list'], [self.worker_user.email])
+            self.assertEqual(call_kwargs['purpose'], 'otp_verification')
+
+    def test_send_email_safely_resend_includes_both_text_and_html(self):
+        """When USE_RESEND=True, payload contains both text and html attributes."""
+        from .email_utils import send_email_safely
+        with patch('lamoapp.email_utils.settings') as mock_settings, \
+             patch('lamoapp.email_utils.requests.post') as mock_post:
+            mock_settings.USE_RESEND = True
+            mock_settings.RESEND_API_KEY = 're_test_key'
+            mock_settings.RESEND_SENDER = 'LAMO <noreply@mail.agenticx.co.in>'
+            mock_response = mock_post.return_value
+            mock_response.raise_for_status.return_value = None
+
+            result = send_email_safely(
+                subject='LAMO - Your Email Verification OTP',
+                message='Hi worker,\nYour OTP is: 123456\nThanks, LAMO Team',
+                recipient_list=['worker_audit@example.com'],
+                purpose='otp_verification',
+            )
+            self.assertTrue(result)
+            self.assertEqual(mock_post.call_count, 1)
+            payload = mock_post.call_args[1]['json']
+            self.assertIn('text', payload)
+            self.assertIn('html', payload)
+            self.assertEqual(payload['to'], ['worker_audit@example.com'])
+            self.assertIn('123456', payload['text'])
+            self.assertIn('<br>', payload['html'])
+
+    # --- ISSUE 4: My Jobs Open Chat Modal Popup ---
+    def test_my_jobs_open_chat_modal_button_and_popup_markup(self):
+        """My Jobs renders Open Chat as a modal trigger rather than an outbound navigation link."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+        resp = self.client.get(reverse('worker_jobs'))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode('utf-8')
+        # Button with chat-open-btn class
+        self.assertIn('chat-open-btn', content)
+        self.assertIn(f'data-booking-id="{self.booking.id}"', content)
+        self.assertIn(f'data-chat-url="/booking/{self.booking.id}/messages/"', content)
+        # Modal and backdrop
+        self.assertIn('id="lamoChatModal"', content)
+        self.assertIn('id="lamoChatBackdrop"', content)
+        # Reused dashboard chat script
+        self.assertIn('worker-dashboard-chat.js', content)
+
+    # --- ISSUE 5: My Jobs No Show Routing and Validation ---
+    def test_worker_report_customer_no_show_urls_do_not_404(self):
+        """Both canonical route and alias route resolve to worker_report_customer_no_show."""
+        self.client.login(username="test_worker_audit", password="Password123!")
+        url_canonical = reverse('worker_report_customer_no_show', args=[self.booking.id])
+        url_alias = reverse('worker_report_customer_no_show_alias', args=[self.booking.id])
+
+        # Test canonical URL with missing notes - redirects with error, not 404
+        resp_canonical = self.client.post(url_canonical, {})
+        self.assertNotEqual(resp_canonical.status_code, 404)
+        self.assertEqual(resp_canonical.status_code, 302)
+
+        # Test alias URL with missing notes - redirects with error, not 404
+        resp_alias = self.client.post(url_alias, {})
+        self.assertNotEqual(resp_alias.status_code, 404)
+        self.assertEqual(resp_alias.status_code, 302)
+
+    def test_worker_report_customer_no_show_rejects_unauthorized_user(self):
+        """Non-worker or other user is rejected when attempting to report no-show."""
+        self.client.login(username="test_customer_audit", password="Password123!")
+        url = reverse('worker_report_customer_no_show', args=[self.booking.id])
+        resp = self.client.post(url, {})
+        self.assertRedirects(resp, reverse('dashboard'), fetch_redirect_response=False)
+
 
 
 

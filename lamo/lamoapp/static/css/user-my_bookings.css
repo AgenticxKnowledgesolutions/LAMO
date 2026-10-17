@@ -1203,7 +1203,33 @@ body.drawer-open {
         justify-content: space-between;
     }
 
+    .details-service-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+        padding-bottom: 16px;
+        margin-bottom: 18px;
+    }
+
+    .service-avatar-wrap {
+        width: 100%;
+    }
+
+    .details-status-badge-wrap {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .details-worker-meta {
+        flex-wrap: wrap;
+        max-width: 100%;
+    }
+
     .details-2col-row,
+    .info-grid-2col,
     .completion-review-grid {
         grid-template-columns: 1fr;
     }
@@ -1218,6 +1244,37 @@ body.drawer-open {
 
     .drawer-body {
         padding: 18px 20px 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .booking-card {
+        padding: 14px 16px;
+    }
+
+    .drawer-header {
+        padding: 14px 16px;
+    }
+
+    .drawer-body {
+        padding: 14px 16px 36px;
+    }
+
+    .booking-info-box {
+        padding: 14px 14px;
+    }
+
+    .card-meta-row {
+        gap: 8px;
+    }
+
+    .details-service-img {
+        width: 48px;
+        height: 48px;
+    }
+
+    .details-service-title {
+        font-size: 16px;
     }
 }
 

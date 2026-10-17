@@ -1553,18 +1553,22 @@ body.ai-mode-open { overflow: hidden; }
 
 /* --- Tablet ≤ 820px: stack bottom, hero single column --- */
 @media (max-width: 820px) {
+    .sd-hero-wrap {
+        grid-template-columns: 1fr;
+    }
+
     .sd-hero-content {
         padding: 24px 22px 20px;
     }
 
     .sd-hero-image {
-        height: 210px;
+        height: 220px;
         min-height: 0;
     }
 
     .sd-bottom-section {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 18px;
     }
 
     .sd-features-side {
@@ -1575,19 +1579,46 @@ body.ai-mode-open { overflow: hidden; }
 
 /* --- Mobile ≤ 600px: single column, no horizontal overflow --- */
 @media (max-width: 600px) {
-    .service-page,
-    .service-page .service-container,
-    .sd-outer-card,
-    .sd-hero-wrap,
-    .sd-bottom-section,
-    .sd-features-side,
-    .sd-search-side {
+    .service-page {
+        padding: 0 0 16px;
+    }
+
+    .service-page .service-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 0 12px;
+        box-sizing: border-box;
+    }
+
+    .sd-topbar {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 8px 12px;
+    }
+
+    .sd-topbar-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .sd-outer-card {
+        border-radius: 16px;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    .sd-hero-wrap {
+        grid-template-columns: 1fr;
         max-width: 100%;
         overflow-x: clip;
     }
 
     .sd-hero-content {
-        padding: 20px 18px 18px;
+        padding: 20px 16px 18px;
+    }
+
+    .sd-hero-title {
+        font-size: 1.65rem;
     }
 
     .sd-hero-image {
@@ -1595,21 +1626,59 @@ body.ai-mode-open { overflow: hidden; }
     }
 
     .sd-bottom-section {
-        padding: 14px 14px 18px;
+        padding: 16px 14px 18px;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    .sd-search-side {
+        max-width: 100%;
     }
 
     .sd-features-side {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        max-width: 100%;
     }
 }
 
-@media (max-width: 420px) {
-    .sd-features-side {
-        grid-template-columns: 1fr;
+@media (max-width: 390px) {
+    .service-page .service-container {
+        padding: 0 8px;
+    }
+
+    .sd-hero-content {
+        padding: 16px 12px 14px;
     }
 
     .sd-hero-title {
-        font-size: 1.55rem;
+        font-size: 1.45rem;
+    }
+
+    .sd-hero-image {
+        height: 160px;
+    }
+
+    .sd-bottom-section {
+        padding: 14px 10px 16px;
+    }
+}
+
+@media (max-width: 340px) {
+    .sd-hero-title {
+        font-size: 1.3rem;
+    }
+
+    .sd-step-num {
+        width: 30px;
+        height: 30px;
+        font-size: 11px;
+    }
+
+    .sd-search-title {
+        font-size: 14.5px;
     }
 }
 

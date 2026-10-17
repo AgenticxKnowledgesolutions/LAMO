@@ -1,4 +1,5 @@
 {% extends "workers/worker_sidebar.html" %}
+{% load static %}
 
 {% block title %}My Jobs | LAMO{% endblock %}
 
@@ -1219,6 +1220,42 @@
     }
 }
 
+/* =========================================================
+   CUSTOMER CHAT POPUP (reused from worker dashboard)
+========================================================= */
+.chat-modal[hidden],.chat-modal-backdrop[hidden]{display:none !important}
+.chat-modal-backdrop{position:fixed;inset:0;background:rgba(15,35,28,.45);backdrop-filter:blur(3px);z-index:99990;opacity:0;transition:opacity .18s ease}
+.chat-modal-backdrop.show{opacity:1}
+.chat-modal{position:fixed;z-index:99995;top:50%;left:50%;width:min(460px,calc(100vw - 32px));max-height:80vh;display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 24px 70px rgba(10,40,28,.28);overflow:hidden;transform:translate(-50%,-46%) scale(.97);opacity:0;transition:transform .18s ease,opacity .18s ease}
+.chat-modal.show{transform:translate(-50%,-50%) scale(1);opacity:1}
+.chat-modal-header{display:flex;align-items:center;gap:10px;padding:14px 16px;background:linear-gradient(135deg,#0b7a55,#0e9b6c);color:#fff}
+.chat-modal-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:18px;flex:none}
+.chat-modal-title{min-width:0;flex:1;display:flex;flex-direction:column}
+.chat-modal-title strong{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.chat-modal-title small{font-size:11px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.chat-modal-close{border:0;background:rgba(255,255,255,.18);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;display:grid;place-items:center;font-size:14px}
+.chat-modal-close:hover{background:rgba(255,255,255,.32)}
+.chat-modal-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f6faf8;min-height:220px;max-height:52vh}
+.chat-modal-loading,.chat-modal-empty{text-align:center;color:#64748b;font-size:13px;padding:28px 12px}
+.chat-modal-empty strong{display:block;color:#1e293b;font-size:14px;margin-bottom:4px}
+.chat-modal-empty p{margin:0}
+.chat-msg-row{display:flex}
+.chat-msg-row.me{justify-content:flex-end}
+.chat-msg-bubble{max-width:78%;padding:9px 12px;border-radius:14px;background:#fff;border:1px solid #e3ede8;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.chat-msg-row.me .chat-msg-bubble{background:#087f5b;border-color:#087f5b;color:#fff;border-radius:14px 14px 5px 14px}
+.chat-msg-text{white-space:pre-wrap}
+.chat-msg-meta{font-size:10px;margin-top:4px;opacity:.7}
+.chat-modal-form{display:flex;gap:8px;padding:12px;border-top:1px solid #e7efea;background:#fff}
+.chat-modal-form textarea{flex:1;resize:none;border:1px solid #dfe8e3;border-radius:12px;padding:10px 12px;font:inherit;font-size:13px;max-height:96px;outline:none}
+.chat-modal-form textarea:focus{border-color:#087f5b;box-shadow:0 0 0 3px rgba(8,127,91,.12)}
+.chat-modal-form button{border:0;border-radius:12px;background:#087f5b;color:#fff;font-weight:800;font-size:13px;padding:0 16px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.chat-modal-form button:hover{filter:brightness(.94)}
+.chat-modal-error{margin:0;padding:8px 14px 12px;font-size:12px;color:#dc2626;background:#fff}
+@media(max-width:480px){
+  .chat-modal{width:calc(100vw - 20px);max-height:86vh}
+  .chat-modal-body{max-height:58vh}
+}
+
 </style>
 
 
@@ -1831,10 +1868,19 @@
 
                             <div class="job-actions" style="flex-wrap: wrap;">
 
-                                <a href="{% url 'booking_messages' booking.id %}" class="job-button accept-button" style="flex: 1; min-width: 130px; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                                <button
+                                    type="button"
+                                    class="job-button accept-button chat-open-btn"
+                                    style="flex: 1; min-width: 130px; text-decoration:none; display:flex; align-items:center; justify-content:center; cursor:pointer;"
+                                    data-booking-id="{{ booking.id }}"
+                                    data-customer-name="{{ booking.customer.get_full_name|default:booking.customer.username|escape }}"
+                                    data-service-name="{{ booking.service.name|escape }}"
+                                    data-chat-url="{% url 'booking_messages' booking.id %}"
+                                    aria-haspopup="dialog"
+                                >
                                     <i class="bi bi-chat-dots-fill"></i>
                                     <span>Open Chat</span>
-                                </a>
+                                </button>
 
                                 <button
                                     type="button"
@@ -1875,10 +1921,19 @@
 
                             <div class="job-actions">
 
-                                <a href="{% url 'booking_messages' booking.id %}" class="job-button accept-button" style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                                <button
+                                    type="button"
+                                    class="job-button accept-button chat-open-btn"
+                                    style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center; cursor:pointer;"
+                                    data-booking-id="{{ booking.id }}"
+                                    data-customer-name="{{ booking.customer.get_full_name|default:booking.customer.username|escape }}"
+                                    data-service-name="{{ booking.service.name|escape }}"
+                                    data-chat-url="{% url 'booking_messages' booking.id %}"
+                                    aria-haspopup="dialog"
+                                >
                                     <i class="bi bi-chat-dots-fill"></i>
                                     <span>Open Chat</span>
-                                </a>
+                                </button>
 
                                 <button
                                     type="button"
@@ -2301,7 +2356,7 @@ function setWorkerCancelReason(reason) {
 function openWorkerNoShowModal(bookingId, date, time) {
     const modal = document.getElementById("workerNoShowModal");
     const form = document.getElementById("workerNoShowForm");
-    form.action = "/worker/jobs/" + bookingId + "/report-customer-no-show/";
+    form.action = "/worker/booking/" + bookingId + "/report-no-show/";
     modal.style.display = "flex";
 }
 
@@ -2342,5 +2397,31 @@ function captureWorkerLocation() {
     );
 }
 </script>
+
+<!-- ============ CUSTOMER CHAT POPUP (reuses booking_messages endpoint) ============ -->
+<div class="chat-modal-backdrop" id="lamoChatBackdrop" hidden></div>
+<div class="chat-modal" id="lamoChatModal" role="dialog" aria-modal="true" aria-labelledby="lamoChatTitle" hidden>
+    <div class="chat-modal-header">
+        <span class="chat-modal-avatar"><i class="bi bi-person-fill"></i></span>
+        <div class="chat-modal-title">
+            <strong id="lamoChatTitle">Customer Chat</strong>
+            <small id="lamoChatSubtitle">Booking #–</small>
+        </div>
+        <button type="button" class="chat-modal-close" id="lamoChatClose" aria-label="Close chat">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="chat-modal-body" id="lamoChatBody" aria-live="polite">
+        <div class="chat-modal-loading">Loading conversation…</div>
+    </div>
+    <form class="chat-modal-form" id="lamoChatForm" method="post">
+        {% csrf_token %}
+        <textarea name="message" id="lamoChatInput" rows="1" maxlength="2000" placeholder="Type your message..." required></textarea>
+        <button type="submit" id="lamoChatSend">Send <i class="bi bi-send-fill"></i></button>
+    </form>
+    <p class="chat-modal-error" id="lamoChatError" role="alert" hidden></p>
+</div>
+
+<script src="{% static 'js/worker-dashboard-chat.js' %}?v=20261011"></script>
 
 {% endblock %}

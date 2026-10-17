@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 
@@ -67,7 +67,7 @@
             {% elif request.user.role == 'ADMIN' %}
                 <a href="{% url 'admin_dashboard' %}" class="notifications-back">
             {% else %}
-                <a href="{% url 'home' %}" class="notifications-back">
+                <a href="{% url 'user_dashboard' %}" class="notifications-back">
             {% endif %}
         {% else %}
             <a href="{% url 'home' %}" class="notifications-back">

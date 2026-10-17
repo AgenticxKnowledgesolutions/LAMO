@@ -425,9 +425,10 @@ Worker Dashboard | LAMO
                      Reuses the existing worker_manage_dashboard 'update_location'
                      action and workers-worker_manage_dashboard.js. Location is only
                      sent when the worker explicitly clicks the button below. -->
-                <form method="POST" action="{% url 'worker_manage_dashboard' %}" id="workerLocationForm">
+                <form method="POST" action="{% url 'worker_dashboard' %}" id="workerLocationForm">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_location">
+                    <input type="hidden" name="next" value="{% url 'worker_dashboard' %}">
                     <input type="hidden" name="latitude" id="workerLatitudeInput">
                     <input type="hidden" name="longitude" id="workerLongitudeInput">
                     <button type="button" id="workerUpdateLocationBtn" class="profile-location-btn">

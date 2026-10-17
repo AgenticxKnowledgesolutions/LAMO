@@ -89,9 +89,9 @@
 
             padding: 20px 13px;
 
-            background: #ffffff;
+            background: #064d3a;
 
-            border-right: 1px solid var(--border);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
 
             z-index: 1000;
 
@@ -102,7 +102,7 @@
                 transform .25s ease;
 
             box-shadow:
-                5px 0 25px rgba(0,70,50,.04);
+                5px 0 25px rgba(0, 0, 0, 0.15);
         }
 
 
@@ -137,7 +137,7 @@
 
 
         .brand-text {
-            color: var(--green-dark);
+            color: #ffffff;
 
             font-size: 22px;
 
@@ -171,15 +171,17 @@
 
             padding: 0 13px;
 
-            color: #687873;
+            color: rgba(255, 255, 255, 0.78);
 
             text-decoration: none;
 
-            border-radius: 13px;
+            border-radius: 10px;
 
             font-size: 13px;
 
             font-weight: 650;
+
+            border: 1px solid transparent;
 
             transition: .2s ease;
         }
@@ -193,15 +195,24 @@
             text-align: center;
 
             font-size: 17px;
+
+            color: rgba(255, 255, 255, 0.75);
+
+            transition: color .2s ease;
         }
 
 
         .sidebar-link:hover {
-            color: var(--green);
+            color: #ffffff;
 
-            background: var(--green-light);
+            background: rgba(255, 255, 255, 0.08);
 
             transform: translateX(2px);
+        }
+
+
+        .sidebar-link:hover i {
+            color: #ffffff;
         }
 
 
@@ -212,11 +223,15 @@
         .sidebar-link.active {
             color: #ffffff;
 
-            background: #087f5b;
+            background: rgba(255, 255, 255, 0.14);
+
+            border: 1px solid rgba(255, 255, 255, 0.12);
+
+            border-radius: 10px;
 
             font-weight: 750;
 
-            box-shadow: 0 4px 12px rgba(8, 127, 91, 0.22);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         }
 
 
@@ -228,12 +243,12 @@
         .sidebar-link.active:hover {
             color: #ffffff;
 
-            background: var(--green-dark);
+            background: rgba(255, 255, 255, 0.20);
         }
 
 
         .sidebar-link.active:focus-visible {
-            outline: 2px solid var(--green);
+            outline: 2px solid rgba(255, 255, 255, 0.5);
             outline-offset: 2px;
         }
 
@@ -248,16 +263,24 @@
         ========================= */
 
         .logout-link {
-            color: #dc3545;
+            color: #fca5a5;
+        }
+
+        .logout-link i {
+            color: #fca5a5;
         }
 
 
         .logout-link:hover {
-            color: #b02a37;
+            color: #ffffff;
 
-            background: #fff1f2;
+            background: rgba(220, 53, 69, 0.22);
 
             transform: translateX(2px);
+        }
+
+        .logout-link:hover i {
+            color: #ffffff;
         }
 
 
@@ -287,11 +310,11 @@
 
             padding: 8px;
 
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255, 255, 255, 0.12);
 
             border-radius: 13px;
 
-            background: #f5fbf8;
+            background: rgba(255, 255, 255, 0.08);
         }
 
 
@@ -333,7 +356,7 @@
         .sidebar-user-info strong {
             overflow: hidden;
 
-            color: var(--text);
+            color: #ffffff;
 
             font-size: 11px;
 
@@ -346,7 +369,7 @@
         .sidebar-user-info small {
             margin-top: 2px;
 
-            color: var(--muted);
+            color: rgba(255, 255, 255, 0.75);
 
             font-size: 9px;
         }
@@ -366,20 +389,23 @@
             align-items: center;
             justify-content: center;
 
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255, 255, 255, 0.15);
 
             border-radius: 11px;
 
-            background: white;
+            background: rgba(255, 255, 255, 0.08);
 
-            color: var(--green);
+            color: #ffffff;
 
             cursor: pointer;
+
+            transition: background .2s ease;
         }
 
 
         .sidebar-toggle:hover {
-            background: var(--green-light);
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
         }
 
 
@@ -709,7 +735,7 @@
             <a
                 href="{% url 'worker_dashboard' %}"
                 class="sidebar-link
-                {% if request.resolver_match.url_name == 'worker_dashboard' %}
+                {% if request.resolver_match.url_name == 'worker_dashboard' or request.resolver_match.url_name == 'worker_manage_dashboard' %}
                     active
                 {% endif %}"
             >
@@ -766,7 +792,7 @@
             <a
                 href="{% url 'worker_profile' %}"
                 class="sidebar-link
-                {% if request.resolver_match.url_name == 'worker_profile' %}
+                {% if request.resolver_match.url_name == 'worker_profile' or request.resolver_match.url_name == 'edit_worker_profile' %}
                     active
                 {% endif %}"
             >
