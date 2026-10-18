@@ -256,7 +256,11 @@
     </div>
 
     <!-- MAP CONTAINER -->
-    <div id="adminKeralaMap"></div>
+    <div id="adminKeralaMap"
+         data-tile-url="{{ map_tile_url }}"
+         data-tile-attribution="{{ map_tile_attribution }}"
+         data-tile-subdomains="{{ map_tile_subdomains }}"
+         data-tile-max-zoom="{{ map_tile_max_zoom|default:19 }}"></div>
 
     <!-- DISTRICT QUICK JUMP STRIP -->
     <div class="district-strip">

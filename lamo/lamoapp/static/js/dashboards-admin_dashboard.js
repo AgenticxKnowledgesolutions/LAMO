@@ -107,11 +107,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 scrollWheelZoom: false
             });
 
-            // Tile layer
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 18
-            }).addTo(map);
+            // Tile provider from dataset or Esri World Street Map fallback
+            const defaultTileUrl = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+            const defaultAttribution = 'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, Intermap, GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), &copy; OpenStreetMap contributors';
+
+            const tileUrl = (mapContainer && mapContainer.dataset.tileUrl) || defaultTileUrl;
+            const tileAttribution = (mapContainer && mapContainer.dataset.tileAttribution) || defaultAttribution;
+            const tileSubdomains = (mapContainer && mapContainer.dataset.tileSubdomains) || '';
+            const tileMaxZoom = parseInt(mapContainer && mapContainer.dataset.tileMaxZoom, 10) || 19;
+
+            const tileOptions = {
+                attribution: tileAttribution,
+                maxZoom: tileMaxZoom
+            };
+            if (tileSubdomains) {
+                tileOptions.subdomains = tileSubdomains;
+            }
+
+            L.tileLayer(tileUrl, tileOptions).addTo(map);
 
             const bookingLayer = L.layerGroup().addTo(map);
             const workerLayer = L.layerGroup().addTo(map);

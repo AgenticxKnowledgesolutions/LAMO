@@ -281,7 +281,7 @@
                                     <div class="expired-banner-content">
                                         <div class="expired-banner-title">Booking Request Expired</div>
                                         <p>The worker did not respond within the 30-minute window. You can easily pick another available worker with your booking details prefilled.</p>
-                                        <a href="{% url 'service_workers' booking.service.id %}?district={{ booking.district|default:booking.worker.district|urlencode }}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
+                                        <a href="{% url 'service_workers' booking.service.id %}?district={% if booking.district %}{{ booking.district|urlencode }}{% elif booking.worker and booking.worker.district %}{{ booking.worker.district|urlencode }}{% endif %}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
                                             <i class="bi bi-people-fill"></i> Select Another Worker
                                         </a>
                                     </div>
@@ -295,7 +295,7 @@
                                     <div class="expired-banner-content">
                                         <div class="expired-banner-title" style="color:#991b1b;">Booking Declined by Worker</div>
                                         <p>{{ booking.cancellation_reason|default:"The worker was unavailable for the requested schedule." }}</p>
-                                        <a href="{% url 'service_workers' booking.service.id %}?district={{ booking.district|default:booking.worker.district|urlencode }}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
+                                        <a href="{% url 'service_workers' booking.service.id %}?district={% if booking.district %}{{ booking.district|urlencode }}{% elif booking.worker and booking.worker.district %}{{ booking.worker.district|urlencode }}{% endif %}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
                                             <i class="bi bi-people-fill"></i> Select Another Worker
                                         </a>
                                     </div>
