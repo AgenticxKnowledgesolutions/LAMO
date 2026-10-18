@@ -18,6 +18,10 @@
         {% block title %}LAMO Worker{% endblock %}
     </title>
 
+    <!-- PWA Manifest & Theme Color -->
+    <link rel="manifest" href="{% url 'manifest_json' %}">
+    <meta name="theme-color" content="#064d3a">
+
     <!-- Bootstrap Icons -->
     <link
         rel="stylesheet"

@@ -1326,4 +1326,25 @@ class StrikeRecord(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Strike #{self.id} - {self.user.username} ({self.get_strike_type_display()}) [{self.status}]"
+        return f"Strike #{self.id} - {self.user.username} ({self.get_strike_type_display()}) [{self.status}]"
+
+
+# ============================================================
+# WEB PUSH NOTIFICATIONS
+# ============================================================
+
+class PushSubscription(models.Model):
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='push_subscriptions'
+    )
+    endpoint = models.CharField(max_length=500, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"PushSub ({self.user.username}) - {self.endpoint[:30]}..."
+

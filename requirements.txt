@@ -51,3 +51,4 @@ whitenoise==6.7.0
 # by the application or the test suite.
 gunicorn==22.0.0
 requests==2.32.3
+pywebpush==2.5.0

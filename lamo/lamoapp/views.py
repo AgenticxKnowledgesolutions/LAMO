@@ -25,7 +25,8 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http4
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from datetime import timedelta
-from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction
+from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction, PushSubscription
+from .push_utils import send_web_push_async, broadcast_web_push_async
 from .email_utils import send_email_safely
 from .rate_limit import (
     AI_ASSISTANT_PER_HOUR,
@@ -212,6 +213,99 @@ def sitemap_xml(request):
 def splash_view(request):
     """Standalone view for the animated LAMO splash screen."""
     return render(request, 'splash.html')
+
+
+def service_worker_js(request):
+    """Serve root-scoped service worker for Web Push Notifications."""
+    sw_path = os.path.join(settings.BASE_DIR, 'lamoapp', 'static', 'sw.js')
+    try:
+        with open(sw_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except OSError:
+        content = "// Service Worker not found"
+    response = HttpResponse(content, content_type='application/javascript; charset=utf-8')
+    response['Service-Worker-Allowed'] = '/'
+    return response
+
+
+def manifest_json(request):
+    """Serve Web App Manifest."""
+    manifest_path = os.path.join(settings.BASE_DIR, 'lamoapp', 'static', 'manifest.json')
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except OSError:
+        content = "{}"
+    return HttpResponse(content, content_type='application/manifest+json; charset=utf-8')
+
+
+@login_required
+@require_POST
+def save_push_subscription(request):
+    """Save or update browser Web Push subscription for logged-in user."""
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        endpoint = data.get('endpoint', '').strip()
+        keys = data.get('keys', {})
+        p256dh = keys.get('p256dh', '').strip()
+        auth = keys.get('auth', '').strip()
+
+        if not endpoint or not p256dh or not auth:
+            return JsonResponse({'ok': False, 'error': 'Invalid subscription payload'}, status=400)
+
+        PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                'user': request.user,
+                'p256dh': p256dh,
+                'auth': auth,
+            }
+        )
+        return JsonResponse({'ok': True})
+    except Exception as ex:
+        logger.error("Failed to save push subscription for user %s: %s", request.user.username, str(ex))
+        return JsonResponse({'ok': False, 'error': str(ex)}, status=500)
+
+
+@login_required
+def api_worker_new_jobs(request):
+    """Poll endpoint for active worker dashboard to receive live new-job alerts."""
+    if request.user.role != 'WORKER':
+        return JsonResponse({'count': 0, 'jobs': []})
+
+    try:
+        worker_profile = request.user.worker_profile
+    except WorkerProfile.DoesNotExist:
+        return JsonResponse({'count': 0, 'jobs': []})
+
+    # Check if worker is eligible
+    if not worker_profile.is_verified or worker_profile.is_paused_for_dues:
+        return JsonResponse({'count': 0, 'jobs': []})
+
+    # Get pending jobs waiting for worker response
+    pending_qs = Booking.objects.filter(
+        worker=worker_profile,
+        status='PENDING'
+    ).select_related('customer', 'service').order_by('-created_at')[:5]
+
+    jobs_data = []
+    for b in pending_qs:
+        jobs_data.append({
+            'id': b.id,
+            'service': b.service.name if b.service else 'Service',
+            'customer': b.customer.get_full_name() or b.customer.username,
+            'date': str(b.date) if b.date else '',
+            'time': b.time,
+            'location': b.location,
+            'estimated_cost': float(b.estimated_cost or (b.service.price if b.service else 0)),
+            'booking_type': b.booking_type,
+        })
+
+    return JsonResponse({
+        'count': len(jobs_data),
+        'jobs': jobs_data
+    })
+
 
 
 
@@ -814,6 +908,15 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
     if notifications_to_create:
         Notification.objects.bulk_create(notifications_to_create)
         workers_notified = len(notifications_to_create)
+        # Broadcast Web Push to all matching workers
+        notified_users = [w.user for w in eligible_workers[:EMERGENCY_MAX_NOTIFIED_WORKERS] if getattr(w, 'user', None)]
+        if notified_users:
+            broadcast_web_push_async(
+                users=notified_users,
+                title=f"🚨 EMERGENCY: {service.name}",
+                body=f"Immediate help needed at {location}. Tap to accept!",
+                url="/worker-dashboard/"
+            )
 
     # Notify admins
     admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
@@ -2219,6 +2322,12 @@ def book_service(request):
             Notification.objects.create(
                 recipient=worker.user, booking=booking, notification_type='BOOKING',
                 message=f'New booking request from {request.user.get_full_name() or request.user.username} for {service.name} on {date}.'
+            )
+            send_web_push_async(
+                user=worker.user,
+                title=f"🔔 New Job: {service.name}",
+                body=f"New booking from {request.user.get_full_name() or request.user.username} for {date} ({time}). Tap to accept!",
+                url="/worker-dashboard/"
             )
 
             admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
@@ -4988,6 +5097,8 @@ def worker_dashboard(request):
         'notifications': notifications,
         'emergency_bookings': emergency_bookings,
         'emergency_reason': emergency_reason,
+        'vapid_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
+        'has_push_subscription': PushSubscription.objects.filter(user=request.user).exists(),
     }
 
     return render(

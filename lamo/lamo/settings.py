@@ -850,3 +850,12 @@ LOGGING = {
         },
     },
 }
+
+# ============================================================
+# WEB PUSH NOTIFICATIONS (VAPID)
+# ============================================================
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@lamo.in')
+
+

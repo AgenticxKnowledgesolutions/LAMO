@@ -6,7 +6,7 @@ Worker Dashboard | LAMO
 {% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/dashboards-worker_dashboard.css' %}?v=20261011">
+    <link rel="stylesheet" href="{% static 'css/dashboards-worker_dashboard.css' %}?v=20261018">
 {% endblock %}
 
 {% block worker_content %}
@@ -21,6 +21,18 @@ Worker Dashboard | LAMO
         </div>
 
         <div class="topbar-actions">
+            <!-- Web Push Job Alerts Toggle Button -->
+            <button
+                type="button"
+                class="push-alert-toggle-btn"
+                id="enablePushAlertsBtn"
+                title="Enable instant sound and push notifications for new jobs"
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; border: 1.5px solid {% if has_push_subscription %}#86efac{% else %}#fed7aa{% endif %}; background: {% if has_push_subscription %}#f0fdf4{% else %}#fff7ed{% endif %}; color: {% if has_push_subscription %}#166534{% else %}#c2410c{% endif %}; cursor: pointer; transition: all 0.2s;"
+            >
+                <i class="bi {% if has_push_subscription %}bi-bell-fill{% else %}bi-bell{% endif %}" id="pushAlertsIcon"></i>
+                <span id="pushAlertsLabel">{% if has_push_subscription %}Job Alerts On{% else %}Enable Job Alerts{% endif %}</span>
+            </button>
+
             <!-- Notification bell (floating dropdown) -->
             <div class="notif-bell-wrap" id="dashNotifWrap">
                 <button
@@ -459,7 +471,7 @@ Worker Dashboard | LAMO
                                 {% if wallet_balance < 0 %}Outstanding Dues to LAMO{% else %}Available Credit Balance{% endif %}
                             </div>
                             <div style="font-size: 1.85rem; font-weight: 800; color: {% if wallet_zone == 'RED' %}#b91c1c{% elif wallet_zone == 'YELLOW' %}#b45309{% else %}#047857{% endif %}; line-height: 1.2;">
-                                ₹{{ wallet_balance|floatformat:2 }}
+                                {% if wallet_balance < 0 %}₹{{ wallet_amount_due|floatformat:2 }}{% else %}₹{{ wallet_balance|floatformat:2 }}{% endif %}
                             </div>
                         </div>
                         <button type="button" class="btn" id="openRechargeModalBtn" style="background: {% if wallet_zone == 'RED' %}#dc2626{% elif wallet_zone == 'YELLOW' %}#d97706{% else %}#059669{% endif %}; color: white; font-weight: 600; font-size: 0.85rem; padding: 8px 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 6px;">
@@ -712,6 +724,72 @@ Worker Dashboard | LAMO
 </div>
 </div>
 
+<!-- ================= UPI RECHARGE / PAY DUES MODAL ================= -->
+<div class="modal fade wallet-modal-overlay" id="walletRechargeModal" tabindex="-1" role="dialog" aria-labelledby="walletRechargeModalLabel" aria-hidden="true">
+  <div class="wallet-modal-dialog" role="document">
+    <div class="wallet-modal-card">
+      <div class="wallet-modal-header">
+        <h5 class="wallet-modal-title" id="walletRechargeModalLabel">
+          <i class="bi bi-wallet2"></i> UPI Payment & Dues Clearance
+        </h5>
+        <button type="button" class="wallet-modal-close-btn" data-bs-dismiss="modal" id="closeRechargeModalBtn" aria-label="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form method="POST" action="{% url 'worker_recharge_wallet' %}" id="rechargeWalletForm">
+        {% csrf_token %}
+        <div class="wallet-modal-body">
+          <!-- UPI QR / ID box -->
+          <div class="wallet-upi-qr-box">
+            <div class="wallet-upi-qr-icon">
+              <i class="bi bi-qr-code"></i>
+            </div>
+            <div class="wallet-upi-hint">Scan with GPay, PhonePe, Paytm, or BHIM</div>
+            <div class="wallet-upi-id-badge" id="copyUpiIdBtn" title="Click to copy UPI ID">
+              <span id="upiIdText">lamo.pay@upi</span>
+              <i class="bi bi-copy wallet-upi-copy-hint" id="copyUpiIcon"></i>
+            </div>
+          </div>
+
+          <!-- Suggested Quick Amounts -->
+          <div class="wallet-form-group">
+            <label class="wallet-form-label">Select or Enter Amount (₹)</label>
+            <div class="wallet-quick-pills">
+              {% if wallet_amount_due > 0 %}
+              <button type="button" class="wallet-pill-btn pill-dues quick-amt-btn active" data-amt="{{ wallet_amount_due }}">
+                Clear Dues: ₹{{ wallet_amount_due|floatformat:0 }}
+              </button>
+              {% endif %}
+              <button type="button" class="wallet-pill-btn quick-amt-btn" data-amt="50">₹50</button>
+              <button type="button" class="wallet-pill-btn quick-amt-btn" data-amt="100">₹100</button>
+              <button type="button" class="wallet-pill-btn quick-amt-btn" data-amt="200">₹200</button>
+              <button type="button" class="wallet-pill-btn quick-amt-btn" data-amt="500">₹500</button>
+            </div>
+            <div class="wallet-input-group">
+              <span class="wallet-input-prefix">₹</span>
+              <input type="number" step="0.01" min="10" name="amount" id="rechargeAmountInput" class="wallet-input-field" placeholder="Enter amount (min ₹10)" value="{% if wallet_amount_due > 0 %}{{ wallet_amount_due }}{% else %}100.00{% endif %}" required>
+            </div>
+          </div>
+
+          <div class="wallet-form-group" style="margin-bottom: 0;">
+            <label for="id_recharge_reference" class="wallet-form-label">
+              UPI Reference / UTR Number <small style="color: #64748b; font-weight: normal;">(Optional)</small>
+            </label>
+            <input type="text" name="reference_id" id="id_recharge_reference" class="wallet-text-input" placeholder="e.g. 331298475620 or UPI transaction ID">
+            <small class="wallet-help-text">Helps match your payment instantly.</small>
+          </div>
+        </div>
+        <div class="wallet-modal-footer">
+          <button type="button" class="wallet-btn-cancel" data-bs-dismiss="modal" id="cancelRechargeModalBtn">Cancel</button>
+          <button type="submit" class="wallet-btn-submit" id="submitRechargeBtn">
+            <i class="bi bi-shield-check"></i> Confirm & Apply Payment
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -783,110 +861,334 @@ Worker Dashboard | LAMO
 })();
 
 // UPI Recharge & Dues Modal Controller
-(function () {
+function initWalletRechargeModal() {
     var openBtn = document.getElementById('openRechargeModalBtn');
     var modalEl = document.getElementById('walletRechargeModal');
-    if (!openBtn || !modalEl) return;
+    var amtInput = document.getElementById('rechargeAmountInput');
+    var quickBtns = document.querySelectorAll('.quick-amt-btn');
+    var copyBtn = document.getElementById('copyUpiIdBtn');
 
-    openBtn.addEventListener('click', function () {
-        if (window.bootstrap && bootstrap.Modal) {
-            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
-        } else {
-            modalEl.classList.add('show');
-            modalEl.style.display = 'block';
-            modalEl.setAttribute('aria-modal', 'true');
-            modalEl.removeAttribute('aria-hidden');
+    if (!modalEl) return;
+
+    function showModal() {
+        modalEl.style.display = 'flex';
+        // Force reflow for CSS animation
+        void modalEl.offsetHeight;
+        modalEl.classList.add('active');
+        modalEl.classList.add('show');
+        modalEl.setAttribute('aria-modal', 'true');
+        modalEl.removeAttribute('aria-hidden');
+        document.body.style.overflow = 'hidden';
+        if (amtInput) {
+            amtInput.focus();
+            amtInput.select();
         }
-    });
+    }
 
-    var closeBtns = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
-    closeBtns.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            if (window.bootstrap && bootstrap.Modal) {
-                var modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-            } else {
-                modalEl.classList.remove('show');
+    function hideModal() {
+        modalEl.classList.remove('active');
+        modalEl.classList.remove('show');
+        modalEl.setAttribute('aria-hidden', 'true');
+        modalEl.removeAttribute('aria-modal');
+        document.body.style.overflow = '';
+        setTimeout(function () {
+            if (!modalEl.classList.contains('active')) {
                 modalEl.style.display = 'none';
-                modalEl.setAttribute('aria-hidden', 'true');
-                modalEl.removeAttribute('aria-modal');
             }
+        }, 220);
+    }
+
+    if (openBtn) {
+        openBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            showModal();
+        });
+    }
+
+    // Close buttons (Cancel & 'X')
+    var closeSelectors = '[data-bs-dismiss="modal"], #closeRechargeModalBtn, #cancelRechargeModalBtn';
+    var closeBtns = modalEl.querySelectorAll(closeSelectors);
+    closeBtns.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            hideModal();
         });
     });
 
+    // Close on backdrop click
+    modalEl.addEventListener('click', function (e) {
+        if (e.target === modalEl) {
+            hideModal();
+        }
+    });
+
+    // Close on ESC
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modalEl.classList.contains('active')) {
+            hideModal();
+        }
+    });
+
     // Quick Amount buttons
-    var quickBtns = modalEl.querySelectorAll('.quick-amt-btn');
-    var amtInput = document.getElementById('rechargeAmountInput');
     quickBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
             var val = this.getAttribute('data-amt');
             if (amtInput && val) {
                 amtInput.value = parseFloat(val).toFixed(2);
+                quickBtns.forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
             }
         });
     });
+
+    // Clear active state on manual typing
+    if (amtInput) {
+        amtInput.addEventListener('input', function () {
+            quickBtns.forEach(function (b) { b.classList.remove('active'); });
+        });
+    }
+
+    // Copy UPI ID helper
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+            var upiId = document.getElementById('upiIdText');
+            var text = upiId ? upiId.innerText.trim() : 'lamo.pay@upi';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                    showCopiedFeedback();
+                }).catch(function () {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        });
+    }
+
+    function showCopiedFeedback() {
+        var copyIcon = document.getElementById('copyUpiIcon');
+        if (copyIcon) {
+            copyIcon.className = 'bi bi-check-lg wallet-upi-copy-hint';
+            copyIcon.style.color = '#059669';
+            setTimeout(function () {
+                copyIcon.className = 'bi bi-copy wallet-upi-copy-hint';
+                copyIcon.style.color = '';
+            }, 2000);
+        }
+    }
+
+    function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            showCopiedFeedback();
+        } catch (e) {}
+        document.body.removeChild(ta);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWalletRechargeModal);
+} else {
+    initWalletRechargeModal();
+}
+
+// =========================================================
+// WEB PUSH NOTIFICATIONS & REAL-TIME JOB POLLING
+// =========================================================
+(function () {
+    const VAPID_PUBLIC_KEY = "{{ vapid_public_key|default:'' }}";
+    const SUBSCRIBE_URL = "{% url 'save_push_subscription' %}";
+    const NEW_JOBS_URL = "{% url 'api_worker_new_jobs' %}";
+    const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    // Play pleasant 2-tone chime via Web Audio API (zero audio file dependencies)
+    function playJobChime() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(659.25, now);
+            gain1.gain.setValueAtTime(0.25, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.35);
+
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(523.25, now + 0.18);
+            gain2.gain.setValueAtTime(0.3, now + 0.18);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.18);
+            osc2.stop(now + 0.7);
+        } catch (e) {
+            console.debug("Chime audio unavailable:", e);
+        }
+    }
+
+    // Push subscription handler
+    async function subscribeWorkerToPush() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert('Web Push is not supported by your current browser.');
+            return false;
+        }
+
+        if (!VAPID_PUBLIC_KEY) {
+            console.warn('VAPID public key not configured.');
+            return false;
+        }
+
+        try {
+            const reg = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert('Please allow notification permission in your browser to receive instant job alerts.');
+                return false;
+            }
+
+            const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: convertedVapidKey
+                });
+            }
+
+            const response = await fetch(SUBSCRIBE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN
+                },
+                body: JSON.stringify(sub)
+            });
+
+            if (response.ok) {
+                return true;
+            }
+        } catch (err) {
+            console.error('Failed to subscribe to Web Push:', err);
+        }
+        return false;
+    }
+
+    // Setup push button
+    const pushBtn = document.getElementById('enablePushAlertsBtn');
+    const pushIcon = document.getElementById('pushAlertsIcon');
+    const pushLabel = document.getElementById('pushAlertsLabel');
+
+    if (pushBtn) {
+        pushBtn.addEventListener('click', async function () {
+            pushBtn.style.opacity = '0.7';
+            pushLabel.textContent = 'Activating...';
+            const ok = await subscribeWorkerToPush();
+            pushBtn.style.opacity = '1';
+            if (ok) {
+                pushBtn.style.background = '#f0fdf4';
+                pushBtn.style.borderColor = '#86efac';
+                pushBtn.style.color = '#166534';
+                pushIcon.className = 'bi bi-bell-fill';
+                pushLabel.textContent = 'Job Alerts On';
+                playJobChime();
+            } else {
+                pushLabel.textContent = 'Enable Job Alerts';
+            }
+        });
+    }
+
+    // Live Dashboard Polling (every 12 seconds)
+    let knownPendingJobIds = new Set();
+    {% for b in pending_bookings %}
+    knownPendingJobIds.add("{{ b.id }}");
+    {% endfor %}
+
+    let isPolling = false;
+    async function pollNewJobs() {
+        if (isPolling) return;
+        isPolling = true;
+        try {
+            const res = await fetch(NEW_JOBS_URL, { credentials: 'same-origin' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.jobs && data.jobs.length > 0) {
+                    let hasNewJob = false;
+                    data.jobs.forEach(job => {
+                        const jid = String(job.id);
+                        if (!knownPendingJobIds.has(jid)) {
+                            knownPendingJobIds.add(jid);
+                            hasNewJob = true;
+                        }
+                    });
+
+                    if (hasNewJob) {
+                        playJobChime();
+                        showInAppJobBanner(data.jobs[0]);
+                    }
+                }
+            }
+        } catch (e) {
+            console.debug('Job poll check:', e);
+        } finally {
+            isPolling = false;
+        }
+    }
+
+    function showInAppJobBanner(job) {
+        let banner = document.getElementById('lamoLiveJobAlertBanner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'lamoLiveJobAlertBanner';
+            banner.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9999;background:#064d3a;color:#ffffff;padding:14px 18px;border-radius:14px;box-shadow:0 10px 25px rgba(0,0,0,0.3);display:flex;align-items:center;gap:12px;animation:slideInRight 0.3s ease;border:1px solid #059669;max-width:360px;';
+            document.body.appendChild(banner);
+        }
+        banner.innerHTML = `
+            <div style="font-size:1.6rem;color:#34d399;"><i class="bi bi-bell-fill"></i></div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:0.9rem;">New Job Request!</div>
+                <div style="font-size:0.78rem;color:#d1fae5;margin-top:2px;">${job.service} • ₹${job.estimated_cost.toFixed(2)}</div>
+            </div>
+            <a href="/worker-dashboard/" style="background:#059669;color:#ffffff;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;text-decoration:none;white-space:nowrap;">View</a>
+            <button type="button" onclick="this.parentElement.remove()" style="background:transparent;border:none;color:#94a3b8;font-size:1rem;cursor:pointer;">&times;</button>
+        `;
+    }
+
+    // Auto-poll every 12 seconds when document is visible
+    setInterval(() => {
+        if (!document.hidden) {
+            pollNewJobs();
+        }
+    }, 12000);
 })();
 </script>
-
-<!-- ================= UPI RECHARGE / PAY DUES MODAL ================= -->
-<div class="modal fade" id="walletRechargeModal" tabindex="-1" aria-labelledby="walletRechargeModalLabel" aria-hidden="true" style="backdrop-filter: blur(4px);">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 20px; border: 1px solid #e5e7eb; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
-      <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 18px 24px;">
-        <h5 class="modal-title d-flex align-items-center gap-2" id="walletRechargeModalLabel" style="font-weight: 700; font-size: 1.1rem; margin: 0;">
-          <i class="bi bi-wallet2"></i> UPI Payment & Dues Clearance
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form method="POST" action="{% url 'worker_recharge_wallet' %}" id="rechargeWalletForm">
-        {% csrf_token %}
-        <div class="modal-body" style="padding: 24px;">
-          <!-- UPI QR / ID box -->
-          <div style="background: #f0fdf4; border: 1.5px dashed #86efac; border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 20px;">
-            <div style="width: 64px; height: 64px; background: white; border-radius: 12px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-size: 2rem; color: #059669;">
-              <i class="bi bi-qr-code"></i>
-            </div>
-            <div style="font-size: 0.85rem; color: #166534; font-weight: 600;">Scan with GPay, PhonePe, Paytm, or BHIM</div>
-            <div style="display: inline-block; margin-top: 6px; background: white; border: 1px solid #bbf7d0; padding: 4px 12px; border-radius: 8px; font-family: monospace; font-size: 0.88rem; font-weight: 700; color: #065f46;">
-              lamo.pay@upi
-            </div>
-          </div>
-
-          <!-- Suggested Quick Amounts -->
-          <div class="mb-3">
-            <label class="form-label" style="font-weight: 600; font-size: 0.88rem; color: #374151;">Select or Enter Amount (₹)</label>
-            <div class="d-flex gap-2 mb-2 flex-wrap">
-              {% if wallet_amount_due > 0 %}
-              <button type="button" class="btn btn-sm btn-outline-danger quick-amt-btn" data-amt="{{ wallet_amount_due }}" style="font-weight: 700; border-radius: 8px;">
-                Clear Dues: ₹{{ wallet_amount_due|floatformat:0 }}
-              </button>
-              {% endif %}
-              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="50" style="font-weight: 600; border-radius: 8px;">₹50</button>
-              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="100" style="font-weight: 600; border-radius: 8px;">₹100</button>
-              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="200" style="font-weight: 600; border-radius: 8px;">₹200</button>
-              <button type="button" class="btn btn-sm btn-outline-success quick-amt-btn" data-amt="500" style="font-weight: 600; border-radius: 8px;">₹500</button>
-            </div>
-            <div class="input-group">
-              <span class="input-group-text" style="font-weight: 700; background: #f9fafb;">₹</span>
-              <input type="number" step="0.01" min="10" name="amount" id="rechargeAmountInput" class="form-control" placeholder="Enter amount (min ₹10)" value="{% if wallet_amount_due > 0 %}{{ wallet_amount_due }}{% else %}100.00{% endif %}" required style="font-size: 1.05rem; font-weight: 700;">
-            </div>
-          </div>
-
-          <div class="mb-2">
-            <label for="id_recharge_reference" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: #374151;">
-              UPI Reference / UTR Number <small class="text-muted">(Optional)</small>
-            </label>
-            <input type="text" name="reference_id" id="id_recharge_reference" class="form-control" placeholder="e.g. 331298475620 or UPI transaction ID">
-            <small class="text-muted" style="font-size: 0.75rem;">Helps match your payment instantly.</small>
-          </div>
-        </div>
-        <div class="modal-footer" style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #f3f4f6;">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="font-weight: 600; border-radius: 10px;">Cancel</button>
-          <button type="submit" class="btn btn-success" style="font-weight: 600; border-radius: 10px; padding: 8px 22px;">Confirm & Apply Payment</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 {% endblock %}

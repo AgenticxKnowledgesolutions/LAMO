@@ -21,6 +21,10 @@ urlpatterns = [
     path('splash/', views.splash_view, name='splash'),
     path('robots.txt', views.robots_txt, name='robots_txt'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
+    path('sw.js', views.service_worker_js, name='service_worker_js'),
+    path('manifest.json', views.manifest_json, name='manifest_json'),
+    path('push/subscribe/', views.save_push_subscription, name='save_push_subscription'),
+    path('api/worker/new-jobs/', views.api_worker_new_jobs, name='api_worker_new_jobs'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),

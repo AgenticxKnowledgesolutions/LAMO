@@ -393,24 +393,36 @@
                                             <i class="bi bi-credit-card"></i> Payment Details
                                         </div>
                                         <div class="payment-stat-row">
+                                            <span class="stat-label"><i class="bi bi-wallet2"></i> Payment Method</span>
+                                            <span class="stat-val" style="font-weight: 700; color: #047857;">
+                                                {% if booking.payment_method == 'ONLINE' %}
+                                                    Online Payment
+                                                {% elif booking.payment_method == 'UPI' %}
+                                                    Direct UPI
+                                                {% else %}
+                                                    <i class="bi bi-cash-stack"></i> Pay After Service (Cash / UPI)
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="payment-stat-row">
                                             <span class="stat-label"><i class="bi bi-shield-check"></i> Payment Status</span>
                                             <span class="stat-val">
                                                 {% if booking.payment %}
                                                     {% if booking.payment.status == 'PENDING' %}
-                                                        Pending Verification
+                                                        <span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Pending Verification</span>
                                                     {% else %}
-                                                        {{ booking.payment.get_status_display }}
+                                                        <span class="badge" style="background:#ecfdf5; color:#047857; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">{{ booking.payment.get_status_display }}</span>
                                                     {% endif %}
                                                 {% elif booking.is_paid %}
-                                                    Paid
+                                                    <span class="badge" style="background:#ecfdf5; color:#047857; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Paid</span>
                                                 {% else %}
-                                                    Not submitted
+                                                    <span class="badge" style="background:#f1f5f9; color:#475569; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Pay After Service</span>
                                                 {% endif %}
                                             </span>
                                         </div>
                                         <div class="payment-stat-row">
                                             <span class="stat-label"><i class="bi bi-tag"></i> Service Cost (estimate)</span>
-                                            <span class="stat-val">
+                                            <span class="stat-val" style="font-weight: 700;">
                                                 {% if booking.estimated_cost != None %}
                                                     &#8377;{{ booking.estimated_cost|floatformat:2 }}
                                                 {% elif booking.service.price != None %}
@@ -423,32 +435,43 @@
 
                                         {% if booking.payment and booking.payment.amount %}
                                             <div class="payment-stat-row">
-                                                <span class="stat-label"><i class="bi bi-wallet2"></i> Amount Paid</span>
-                                                <span class="stat-val">&#8377;{{ booking.payment.amount|floatformat:2 }}</span>
+                                                <span class="stat-label"><i class="bi bi-receipt"></i> Amount Paid</span>
+                                                <span class="stat-val" style="font-weight: 700;">&#8377;{{ booking.payment.amount|floatformat:2 }}</span>
                                             </div>
                                         {% endif %}
                                     </div>
 
                                     <!-- PAYMENT NOTICES OR ACTIONS -->
                                     {% if booking.payment and booking.payment.status == 'PENDING' %}
-                                        <div class="payment-alert-box info">
+                                        <div class="payment-alert-box info" style="margin-top:10px;">
                                             <i class="bi bi-info-circle-fill"></i>
                                             <span>Manual payment reported; awaiting admin verification. Reference: <strong>{{ booking.payment.payment_reference }}</strong></span>
                                         </div>
                                     {% elif not booking.is_paid and not booking.estimated_cost and not booking.service.price %}
-                                        <div class="payment-alert-box warning">
+                                        <div class="payment-alert-box warning" style="margin-top:10px;">
                                             <i class="bi bi-info-circle-fill"></i>
                                             <span>Payment is unavailable because no amount is configured for this booking.</span>
                                         </div>
                                     {% elif not booking.is_paid and not booking.payment or not booking.is_paid and booking.payment.status != 'PENDING' %}
+                                        <!-- Cash on Delivery / Pay at Doorstep informative notice -->
+                                        {% if booking.payment_method != 'ONLINE' %}
+                                            <div style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 12px; font-size: 11.5px; color: #166534; line-height: 1.45;">
+                                                <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+                                                    <i class="bi bi-cash-stack"></i> No Advance Payment Required
+                                                </div>
+                                                <span>Pay directly to your service professional via <strong>Cash</strong> or <strong>UPI (GPay / PhonePe)</strong> at your doorstep after the work is completed.</span>
+                                            </div>
+                                        {% endif %}
+
                                         {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
-                                            <div class="payment-action-wrap">
+                                            <div class="payment-action-wrap" style="margin-top:8px;">
                                                 <button
                                                     type="button"
                                                     class="record-payment-btn"
+                                                    style="background: transparent; border: 1px solid #cbd5e1; color: #64748b; font-size: 11px; padding: 5px 10px;"
                                                     onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block';"
                                                 >
-                                                    <i class="bi bi-credit-card"></i> Record Manual Payment
+                                                    <i class="bi bi-receipt"></i> Already paid platform via bank/UPI? Submit Ref
                                                 </button>
                                                 <div class="manual-pay-form-wrap" style="display:none; margin-top:10px;">
                                                     <form method="POST" action="{% url 'confirm_payment' booking.id %}" class="compact-pay-form">
@@ -465,7 +488,7 @@
                                                                 Submit
                                                             </button>
                                                         </div>
-                                                        <small class="pay-hint">Enter your UPI / bank reference ID for admin verification.</small>
+                                                        <small class="pay-hint">Enter the 12-digit UPI / UTR reference ID if you paid the LAMO platform account directly.</small>
                                                     </form>
                                                 </div>
                                             </div>
@@ -496,11 +519,15 @@
                                         <div class="review-sum">&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</div>
                                     </div>
                                     <p class="amount-review-desc">The worker has submitted this final service amount. Please verify the completed work and confirm or submit a dispute below.</p>
+                                    <div style="background: #ffffff; border: 1px dashed #bbf7d0; border-radius: 9px; padding: 9px 12px; margin-bottom: 12px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
+                                        <i class="bi bi-cash-stack" style="font-size: 16px;"></i>
+                                        <span>Please pay <strong>&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</strong> directly to <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong> via Cash or UPI before confirming.</span>
+                                    </div>
                                     <div class="amount-review-actions-wrap">
                                         <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0; flex:1;">
                                             {% csrf_token %}
                                             <button type="submit" class="btn-confirm-amount-complete">
-                                                <i class="bi bi-check2-circle"></i> Confirm Completion &amp; Pay
+                                                <i class="bi bi-check2-circle"></i> Confirm Completion &amp; Paid
                                             </button>
                                         </form>
                                         <button type="button" class="btn-open-dispute" onclick="openDisputeModal({{ booking.id }})">
