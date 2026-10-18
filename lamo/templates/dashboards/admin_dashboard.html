@@ -418,7 +418,8 @@
             <i class="bi bi-clock-history"></i> Recent Bookings
         </h4>
         {% if recent_bookings %}
-        <table style="width:100%; font-size:13px;">
+        <div class="table-wrap">
+        <table style="width:100%; min-width:480px; font-size:13px;">
             <tr style="text-align:left; color:#64748b; border-bottom:1px solid #f1f5f9;">
                 <th style="padding:8px 0;">ID</th>
                 <th>Customer</th>
@@ -436,6 +437,7 @@
             </tr>
             {% endfor %}
         </table>
+        </div>
         {% else %}
         <p style="color:#94a3b8; text-align:center; padding:20px;">No bookings yet</p>
         {% endif %}

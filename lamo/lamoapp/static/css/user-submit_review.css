@@ -140,20 +140,22 @@
 .rating-box label {
     color: #d7dfdc;
 
-    font-size: 35px;
+    font-size: 38px;
 
     cursor: pointer;
 
-    transition: 0.2s ease;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease;
+    display: inline-block;
 }
 
 .rating-box label:hover,
 .rating-box label:hover ~ label {
-    color: #f5b400;
+    color: #f59e0b;
+    transform: scale(1.15);
 }
 
 .rating-box input:checked ~ label {
-    color: #f5b400;
+    color: #f59e0b;
 }
 
 

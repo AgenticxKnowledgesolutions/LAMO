@@ -396,19 +396,18 @@ Register | LAMO
                         </select>
 
                         <!-- WORKER LAUNCH OFFER BENEFIT BANNER -->
-                        <div id="workerLaunchOfferBanner" style="display: none; margin: 16px 0 20px 0; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1.5px solid #10b981; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);">
-                            <div style="display: flex; align-items: flex-start; gap: 12px;">
-                                <div style="background: #059669; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);">
+                        <div id="workerLaunchOfferBanner" class="worker-launch-badge" style="display: none;">
+                            <div class="worker-launch-badge-inner">
+                                <div class="badge-icon">
                                     <i class="bi bi-gift-fill"></i>
                                 </div>
-                                <div>
-                                    <div style="font-weight: 700; color: #065f46; font-size: 0.95rem; margin-bottom: 2px;">
-                                        🎉 30-Day Launch Partner Benefit
-                                    </div>
-                                    <div style="font-size: 0.85rem; color: #047857; line-height: 1.4;">
-                                        <strong>₹0 Registration Fee</strong> + <strong>0% Commission</strong> for your first 30 days! Keep 100% of your earnings on every completed job.
-                                    </div>
+                                <div class="badge-text">
+                                    <strong>30-Day Launch Partner Benefit Active!</strong>
+                                    <span>₹0 Fee &bull; 0% Commission &bull; Keep 100% of earnings</span>
                                 </div>
+                                <button type="button" class="badge-action-link" onclick="openWorkerOfferModal()">
+                                    Details <i class="bi bi-chevron-right"></i>
+                                </button>
                             </div>
                         </div>
 
@@ -424,6 +423,10 @@ Register | LAMO
                             <i class="bi bi-arrow-right"></i>
 
                         </button>
+
+                        <p class="terms-disclaimer">
+                            By continuing, you agree to LAMO's <a href="{% url 'terms' %}">Terms</a> &amp; <a href="{% url 'privacy' %}">Privacy Policy</a>.
+                        </p>
 
                     </div>
 
@@ -1057,32 +1060,127 @@ Register | LAMO
 
     </div>
 
+    <!-- =================================================
+         WORKER LAUNCH OFFER POPUP MODAL
+    ================================================= -->
+    <div id="workerOfferModal" class="worker-offer-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="offerModalTitle">
+        <div class="worker-offer-backdrop" onclick="closeWorkerOfferModal()"></div>
+        <div class="worker-offer-dialog">
+            <button type="button" class="offer-modal-close" onclick="closeWorkerOfferModal()" aria-label="Close offer">
+                <i class="bi bi-x"></i>
+            </button>
+
+            <div class="offer-modal-badge">
+                <i class="bi bi-stars"></i> Exclusive Launch Partner Perk
+            </div>
+
+            <div class="offer-modal-hero">
+                <div class="offer-icon-bubble">
+                    <i class="bi bi-gift-fill"></i>
+                </div>
+                <h3 id="offerModalTitle" class="offer-modal-title">Join LAMO as a Service Partner</h3>
+                <p class="offer-modal-desc">
+                    Start offering your services with complete confidence. We are waiving platform fees for our early service partners!
+                </p>
+            </div>
+
+            <div class="offer-perks-list">
+                <div class="offer-perk">
+                    <div class="perk-icon"><i class="bi bi-check2-circle"></i></div>
+                    <div class="perk-content">
+                        <div class="perk-title">₹0 Registration Fee</div>
+                        <div class="perk-desc">Zero joining fees or upfront onboarding charges.</div>
+                    </div>
+                </div>
+
+                <div class="offer-perk">
+                    <div class="perk-icon"><i class="bi bi-percent"></i></div>
+                    <div class="perk-content">
+                        <div class="perk-title">0% Commission for 30 Days</div>
+                        <div class="perk-desc">Keep 100% of your earnings on every completed booking.</div>
+                    </div>
+                </div>
+
+                <div class="offer-perk">
+                    <div class="perk-icon"><i class="bi bi-patch-check-fill"></i></div>
+                    <div class="perk-content">
+                        <div class="perk-title">Verified Partner Badge</div>
+                        <div class="perk-desc">Fast-track document review &amp; instant direct client bookings.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="offer-modal-action">
+                <button type="button" class="btn-claim-offer" onclick="closeWorkerOfferModal()">
+                    <span>Claim Benefit &amp; Continue</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+                <div class="offer-guarantee">
+                    <i class="bi bi-shield-lock-fill"></i> 100% Secure &amp; Verified Platform
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var banner = document.getElementById('workerLaunchOfferBanner');
     var roleCards = document.querySelectorAll('.role-card');
     var roleSelect = document.getElementById('roleSelect');
+    var modal = document.getElementById('workerOfferModal');
+    var hasShownOfferModal = false;
 
-    function syncBanner() {
-        if (!banner) return;
+    window.openWorkerOfferModal = function () {
+        if (!modal) return;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeWorkerOfferModal = function () {
+        if (!modal) return;
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+            window.closeWorkerOfferModal();
+        }
+    });
+
+    function syncBannerAndOffer(triggerModal) {
         var val = roleSelect ? roleSelect.value : '';
         if (val === 'WORKER') {
-            banner.style.display = 'block';
+            if (banner) banner.style.display = 'block';
+            if (triggerModal && !hasShownOfferModal) {
+                hasShownOfferModal = true;
+                setTimeout(function () {
+                    window.openWorkerOfferModal();
+                }, 120);
+            }
         } else {
-            banner.style.display = 'none';
+            if (banner) banner.style.display = 'none';
         }
     }
 
     roleCards.forEach(function (card) {
         card.addEventListener('click', function () {
-            setTimeout(syncBanner, 20);
+            var role = this.dataset.role;
+            setTimeout(function () {
+                syncBannerAndOffer(role === 'WORKER');
+            }, 30);
         });
     });
 
     if (roleSelect) {
-        roleSelect.addEventListener('change', syncBanner);
+        roleSelect.addEventListener('change', function () {
+            syncBannerAndOffer(this.value === 'WORKER');
+        });
     }
-    syncBanner();
+    syncBannerAndOffer(false);
 });
 </script>
 {% endblock %}

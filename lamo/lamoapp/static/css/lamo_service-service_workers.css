@@ -3191,6 +3191,71 @@
     box-shadow: 0 4px 12px rgba(8, 127, 91, 0.25);
 }
 
+/* Worker Availability Pulse Badge */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+}
+
+.status-indicator.available {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.status-indicator.unavailable {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.status-dot-pulse {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+}
+
+.status-dot-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.45);
+    animation: statusPulseGlow 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes statusPulseGlow {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.8;
+    }
+    70% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+.status-dot-off {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94a3b8;
+    display: inline-block;
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .workers-layout-container {
@@ -3240,4 +3305,5 @@
         flex-direction: column;
     }
 }
+
 

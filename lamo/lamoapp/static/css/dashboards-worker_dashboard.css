@@ -109,6 +109,12 @@
   padding:16px;
   border:1px solid transparent;
   border-radius:14px;
+  box-shadow: 0 2px 8px rgba(0, 40, 30, 0.04);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.stat-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -2px rgba(0, 40, 30, 0.08);
 }
 .stat-icon{
   grid-row:1 / 4;
@@ -118,17 +124,25 @@
   background:#fff;
   font-size:17px;
   box-shadow:0 2px 6px rgba(0,0,0,.05);
+  transition: transform 0.2s ease;
+}
+.stat-card:hover .stat-icon{
+  transform: scale(1.08);
 }
 .stat-number{font-size:24px;font-weight:850;line-height:1.1}
 .stat-label{font-size:13px;font-weight:700}
 .stat-subtitle{font-size:12px;color:var(--muted)}
 .stat-card.green{background:#e6f6ef;border-color:#d3eee1}
+.stat-card.green:hover{border-color:#a8e2cb}
 .stat-card.green .stat-icon{color:var(--g)}
 .stat-card.blue{background:#e9f1ff;border-color:#d5e5ff}
+.stat-card.blue:hover{border-color:#bad5ff}
 .stat-card.blue .stat-icon{color:var(--blue)}
 .stat-card.orange{background:#fff1dc;border-color:#fbe3bd}
+.stat-card.orange:hover{border-color:#f8d197}
 .stat-card.orange .stat-icon{color:#e08a00}
 .stat-card.red{background:#ffeaea;border-color:#fbd5d5}
+.stat-card.red:hover{border-color:#f8b5b5}
 .stat-card.red .stat-icon{color:var(--red)}
 
 /* ---------- GRID ---------- */
@@ -221,18 +235,22 @@
 .job-actions{display:flex;gap:6px;align-items:center}
 .job-actions form{display:flex;margin:0}
 .btn-view,.btn-accept,.btn-reject{
-  height:30px;padding:0 12px;
-  border-radius:7px;
-  font-size:11px;font-weight:700;
+  height:32px;padding:0 14px;
+  border-radius:8px;
+  font-size:11.5px;font-weight:750;
+  letter-spacing:-0.01em;
   text-align:center;text-decoration:none;cursor:pointer;
-  transition:filter .15s,transform .15s,box-shadow .15s;
+  transition:all .18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space:nowrap;
   display:inline-flex;align-items:center;justify-content:center;
+  gap:5px;
 }
-.btn-view{border:1px solid #d9e3df;background:#f2f6f4;color:var(--text)}
-.btn-accept{border:1px solid var(--g);background:var(--g);color:#fff}
-.btn-reject{border:1px solid #f0b9b9;background:#fff;color:var(--red)}
-.btn-view:hover,.btn-accept:hover,.btn-reject:hover{filter:brightness(.97);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.btn-view{border:1px solid #d1ded8;background:#f8faf9;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.btn-accept{border:1px solid var(--g);background:linear-gradient(135deg, #087f5b 0%, #066649 100%);color:#fff;box-shadow:0 2px 6px rgba(8,127,91,.25)}
+.btn-reject{border:1px solid #fed7d7;background:#fff5f5;color:var(--red);box-shadow:0 1px 2px rgba(224,72,74,.05)}
+.btn-view:hover{background:#ffffff;border-color:#b4c7c0;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.06);color:var(--g)}
+.btn-accept:hover{background:linear-gradient(135deg, #066649 0%, #044d37 100%);transform:translateY(-1px);box-shadow:0 4px 10px rgba(8,127,91,.35);color:#fff}
+.btn-reject:hover{background:#ffe3e3;border-color:#fca5a5;transform:translateY(-1px);box-shadow:0 3px 8px rgba(224,72,74,.15)}
 
 /* ---------- MESSAGES ---------- */
 .message-list{display:flex;flex-direction:column}

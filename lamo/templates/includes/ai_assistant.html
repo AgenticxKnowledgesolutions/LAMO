@@ -1,30 +1,122 @@
   <!-- =========================================================
        AI SERVICE ASSISTANT WIDGET
   ========================================================= -->
+  <style>
+    #ai-chat-box {
+      width: 360px;
+      max-width: 92vw;
+      background: rgba(255, 255, 255, 0.95) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16) !important;
+      border: 1px solid rgba(8, 127, 91, 0.18) !important;
+      overflow: hidden;
+    }
+
+    .ai-query-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .ai-chip-btn {
+      border: 1px solid #d1fae5;
+      background: #f0fdf4;
+      color: #065f46;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      font-family: inherit;
+    }
+
+    .ai-chip-btn:hover {
+      background: #087f5b;
+      color: #ffffff;
+      border-color: #087f5b;
+      transform: translateY(-1px);
+    }
+
+    .ai-typing-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px;
+    }
+
+    .ai-typing-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: aiDotPulse 1.2s infinite ease-in-out;
+    }
+
+    .ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes aiDotPulse {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    @media (max-width: 600px) {
+      #ai-assistant-widget {
+        bottom: 18px !important;
+        right: 18px !important;
+      }
+      #ai-assistant-toggle {
+        width: 48px !important;
+        height: 48px !important;
+        font-size: 20px !important;
+      }
+      #ai-chat-box {
+        width: calc(100vw - 36px) !important;
+        max-width: 350px !important;
+        bottom: 62px !important;
+        right: 0 !important;
+      }
+    }
+  </style>
   <div id="ai-assistant-widget" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999;">
-    <button id="ai-assistant-toggle" title="AI Service Matcher" aria-label="Open AI Service Matcher" aria-expanded="false" aria-controls="ai-chat-box" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #087f5b); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">
+    <button id="ai-assistant-toggle" title="AI Service Matcher" aria-label="Open AI Service Matcher" aria-expanded="false" aria-controls="ai-chat-box" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #087f5b 0%, #056b4d 100%); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">
       <i class="bi bi-robot"></i>
     </button>
 
-    <div id="ai-chat-box" role="dialog" aria-modal="false" aria-label="AI Service Matcher" style="display: none; position: absolute; bottom: 70px; right: 0; width: 350px; max-width: 90vw; background: white; border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); border: 1px solid #e5e7eb; overflow: hidden; flex-direction: column;">
-      <div style="background: linear-gradient(135deg, #042f1f, #16a34a); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
+    <div id="ai-chat-box" role="dialog" aria-modal="false" aria-label="AI Service Matcher" style="display: none; position: absolute; bottom: 70px; right: 0; overflow: hidden; flex-direction: column;">
+      <div style="background: linear-gradient(135deg, #064e3b 0%, #087f5b 100%); color: white; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <i class="bi bi-magic" style="font-size: 18px; color: #4ade80;"></i>
-          <strong style="font-size: 14px;">AI Service Matcher</strong>
+          <i class="bi bi-magic" style="font-size: 18px; color: #6ee7b7;"></i>
+          <div>
+            <strong style="font-size: 14px; display: block; line-height: 1.2;">AI Service Matcher</strong>
+            <small style="font-size: 10.5px; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: #34d399; display: inline-block;"></span> Online • Ready to match
+            </small>
+          </div>
         </div>
-        <button id="ai-chat-close" aria-label="Close AI Service Matcher" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;"><i class="bi bi-x-lg"></i></button>
+        <button id="ai-chat-close" aria-label="Close AI Service Matcher" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="bi bi-x-lg"></i></button>
       </div>
 
-      <div id="ai-messages" style="padding: 15px; height: 260px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb;">
-        <div style="background: white; padding: 10px 14px; border-radius: 12px; border: 1px solid #e5e7eb; color: #374151;">
-          👋 Hi! Tell me what work you need done (e.g., <em>"I need an electrician for wiring repair in Kochi"</em>).
+      <div id="ai-messages" style="padding: 15px; height: 280px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;">
+        <div style="background: white; padding: 12px 14px; border-radius: 14px; border: 1px solid #e2e8f0; color: #374151; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+          👋 Hi! What work do you need done?
+          <div class="ai-query-chips-row">
+            <button type="button" class="ai-chip-btn" data-query="Need an electrician for wiring repair">⚡ Electrician</button>
+            <button type="button" class="ai-chip-btn" data-query="Plumber needed for leaking tap">🔧 Plumbing</button>
+            <button type="button" class="ai-chip-btn" data-query="AC repair and servicing">❄️ AC Repair</button>
+            <button type="button" class="ai-chip-btn" data-query="House deep cleaning">🧹 Cleaning</button>
+          </div>
         </div>
       </div>
 
-      <div style="padding: 10px; border-top: 1px solid #e5e7eb; background: white; display: flex; gap: 6px;">
-        <input type="text" id="ai-input" aria-label="Ask about a service" placeholder="Type your need..." style="flex: 1; border-radius: 20px; border: 1px solid #d1d5db; padding: 7px 14px; font-size: 13px; outline: none;">
-        <button id="ai-send" aria-label="Send message to AI Matcher" style="background: #16a34a; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
-          <i class="bi bi-send-fill" style="font-size: 13px;"></i>
+      <div style="padding: 12px; border-top: 1px solid #e2e8f0; background: white; display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="ai-input" aria-label="Ask about a service" placeholder="Type your need..." style="flex: 1; border-radius: 12px; border: 1.5px solid #cbd5e1; padding: 9px 14px; font-size: 13px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#087f5b'" onblur="this.style.borderColor='#cbd5e1'">
+        <button id="ai-send" aria-label="Send message to AI Matcher" style="background: #087f5b; color: white; border: none; border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 8px rgba(8,127,91,0.25);">
+          <i class="bi bi-send-fill" style="font-size: 14px;"></i>
         </button>
       </div>
     </div>
@@ -123,7 +215,7 @@
     function appendLoading() {
       const loadingMessage = createBubble(false);
       loadingMessage.dataset.loading = 'true';
-      loadingMessage.innerHTML = '<i class="bi bi-hourglass-split"></i> Matching service...';
+      loadingMessage.innerHTML = '<div class="ai-typing-indicator"><span class="ai-typing-dot"></span><span class="ai-typing-dot"></span><span class="ai-typing-dot"></span><span style="font-size:11.5px; margin-left:6px; color:#64748b; font-weight:600;">Matching verified services...</span></div>';
       messages.appendChild(loadingMessage);
       messages.scrollTop = messages.scrollHeight;
       return loadingMessage;
@@ -271,5 +363,17 @@
     input.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') handleSend();
     });
+
+    // Preset query chips
+    document.querySelectorAll('.ai-chip-btn').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        const query = this.dataset.query;
+        if (query) {
+          input.value = query;
+          handleSend();
+        }
+      });
+    });
   });
   </script>
+

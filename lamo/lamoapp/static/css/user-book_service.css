@@ -1,0 +1,347 @@
+/* =========================================================
+   LAMO - USER BOOK SERVICE MODERN SAAS DESIGN SYSTEM
+   ========================================================= */
+
+:root {
+  --book-primary: #087f5b;
+  --book-primary-hover: #066649;
+  --book-primary-soft: rgba(8, 127, 91, 0.08);
+  --book-primary-glow: rgba(8, 127, 91, 0.18);
+  --book-bg: #f8fafc;
+  --book-card-bg: #ffffff;
+  --book-border: #e2e8f0;
+  --book-border-focus: #087f5b;
+  --book-text-main: #0f172a;
+  --book-text-muted: #64748b;
+  --book-radius-lg: 16px;
+  --book-radius-md: 12px;
+  --book-radius-sm: 8px;
+  --book-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --book-shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
+  --book-shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.08);
+}
+
+.service-page {
+  min-height: calc(100vh - 85px);
+  padding-top: 36px;
+  padding-bottom: 70px;
+  background: 
+    radial-gradient(circle at 90% 10%, rgba(8, 127, 91, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 10% 80%, rgba(14, 165, 233, 0.03) 0%, transparent 35%),
+    var(--book-bg);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Breadcrumb / Back Link */
+.book-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--book-border);
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 650;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--book-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.book-back-link:hover {
+  background: #ffffff;
+  color: var(--book-primary);
+  border-color: rgba(8, 127, 91, 0.3);
+  transform: translateX(-3px);
+  box-shadow: 0 2px 8px rgba(8, 127, 91, 0.12);
+}
+
+/* Layout Cards */
+.worker-summary-card,
+.booking-form-card {
+  background: var(--book-card-bg);
+  border-radius: var(--book-radius-lg);
+  border: 1px solid var(--book-border);
+  box-shadow: var(--book-shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.worker-summary-card {
+  padding: 28px;
+  position: sticky;
+  top: 105px;
+}
+
+.booking-form-card {
+  padding: 32px;
+}
+
+/* Summary Card Typography & Details */
+.worker-summary-card h4,
+.booking-form-card h4 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--book-text-main);
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--book-radius-md);
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  margin-bottom: 14px;
+  transition: all 0.2s ease;
+}
+
+.summary-item:hover {
+  background: #ffffff;
+  border-color: var(--book-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.summary-item-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+.summary-item-icon.service-icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.summary-item-icon.worker-avatar {
+  background: #eef2ff;
+  color: #4f46e5;
+  overflow: hidden;
+}
+
+.summary-item-content small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--book-text-muted);
+  margin-bottom: 2px;
+}
+
+.summary-item-content .item-name {
+  font-size: 0.98rem;
+  font-weight: 750;
+  color: var(--book-text-main);
+}
+
+.district-badge-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+  border: 1px solid #d1fae5;
+  border-radius: var(--book-radius-md);
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.district-badge-card .district-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #059669;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.district-badge-card .district-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+.trust-guarantee-box {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border-radius: var(--book-radius-md);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trust-guarantee-box i {
+  font-size: 22px;
+  color: #087f5b;
+}
+
+.trust-guarantee-box div {
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+/* Service Type Segmented Toggle */
+.service-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: var(--book-radius-md);
+  border: 1px solid var(--book-border);
+  margin-bottom: 20px;
+}
+
+.service-type-toggle .btn-check + .btn {
+  border: none;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 16px;
+  color: #475569;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.service-type-toggle .btn-check:checked + .btn {
+  background: #ffffff;
+  color: #087f5b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Form Controls */
+.booking-form-card .form-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.booking-form-card .form-control,
+.booking-form-card .form-select {
+  height: 48px;
+  border-radius: var(--book-radius-md);
+  border: 1.5px solid var(--book-border);
+  padding: 0 16px;
+  font-size: 0.92rem;
+  color: var(--book-text-main);
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.booking-form-card textarea.form-control {
+  height: auto;
+  padding: 14px 16px;
+  border-radius: var(--book-radius-md);
+}
+
+.booking-form-card .form-control:focus,
+.booking-form-card .form-select:focus {
+  border-color: var(--book-border-focus);
+  box-shadow: 0 0 0 3.5px var(--book-primary-glow);
+  outline: none;
+}
+
+/* Map Container */
+#bookServiceMap {
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.06);
+  border-radius: 14px !important;
+  border: 1px solid var(--book-border) !important;
+  overflow: hidden;
+}
+
+#bookingGetCurrentLocationBtn {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  transition: all 0.2s ease;
+}
+
+#bookingGetCurrentLocationBtn:hover {
+  background: #087f5b;
+  color: #ffffff;
+  border-color: #087f5b;
+}
+
+/* Payment Method Selection Cards */
+.payment-card-option {
+  display: block;
+  border-radius: var(--book-radius-md);
+  padding: 16px;
+  cursor: pointer;
+  background: #ffffff;
+  border: 2px solid var(--book-border);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.payment-card-option:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.payment-card-option input[type="radio"] {
+  accent-color: var(--book-primary);
+  width: 17px;
+  height: 17px;
+}
+
+/* Continue Booking Submit CTA */
+.btn-book-submit {
+  height: 52px;
+  border-radius: var(--book-radius-md);
+  background: linear-gradient(135deg, #087f5b 0%, #056b4d 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(8, 127, 91, 0.28);
+  transition: all 0.2s ease;
+}
+
+.btn-book-submit:hover {
+  background: linear-gradient(135deg, #066649 0%, #044d37 100%);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 127, 91, 0.38);
+}
+
+.btn-book-submit:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 991px) {
+  .worker-summary-card {
+    position: static;
+    margin-bottom: 24px;
+  }
+  
+  .booking-form-card {
+    padding: 22px;
+  }
+}

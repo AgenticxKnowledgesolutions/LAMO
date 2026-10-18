@@ -195,15 +195,43 @@
         /* Messages */
         .messages {
             margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .message {
             padding: 13px 16px;
             border-radius: 10px;
-            background: #fff4df;
-            border: 1px solid #f2d59c;
-            color: #765713;
             font-size: 14px;
+            font-weight: 550;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+        }
+
+        .message.message-success {
+            background: #e9f8f2;
+            border-color: #bfe7d4;
+            color: #087f5b;
+        }
+
+        .message.message-error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+
+        .message.message-warning {
+            background: #fff4df;
+            border-color: #f2d59c;
+            color: #765713;
+        }
+
+        .message.message-info {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
         }
 
         /* Responsive */

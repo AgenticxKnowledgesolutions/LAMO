@@ -67,7 +67,7 @@
     {% if messages %}
         <div class="messages">
             {% for message in messages %}
-                <div class="message">
+                <div class="message {% if 'success' in message.tags %}message-success{% elif 'error' in message.tags or 'danger' in message.tags %}message-error{% elif 'warning' in message.tags %}message-warning{% else %}message-info{% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -138,6 +138,31 @@
 
             {% csrf_token %}
 
+            <!-- Dispute Severity Selector -->
+            <div class="form-group">
+                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span>Dispute Severity &amp; Turnaround</span>
+                    <span id="severityBadge" style="background: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid #a7f3d0;">Standard Turnaround</span>
+                </label>
+                <div class="severity-chips-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 8px;">
+                    <label class="severity-card selected" data-severity="LOW" style="border: 2px solid #087f5b; border-radius: 12px; padding: 12px; cursor: pointer; background: #f0fdf4; transition: all 0.2s; display: block;">
+                        <input type="radio" name="dispute_severity" value="LOW" checked style="display: none;">
+                        <div style="font-weight: 750; font-size: 13px; color: #087f5b;">🟢 Low Priority</div>
+                        <small style="display: block; font-size: 11px; color: #4b5563; margin-top: 3px;">Timing or minor query<br><strong>Within 24-48 hrs</strong></small>
+                    </label>
+                    <label class="severity-card" data-severity="MEDIUM" style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; cursor: pointer; background: #fff; transition: all 0.2s; display: block;">
+                        <input type="radio" name="dispute_severity" value="MEDIUM" style="display: none;">
+                        <div style="font-weight: 750; font-size: 13px; color: #b45309;">🟡 Medium Priority</div>
+                        <small style="display: block; font-size: 11px; color: #4b5563; margin-top: 3px;">Work quality dispute<br><strong>Within 12-24 hrs</strong></small>
+                    </label>
+                    <label class="severity-card" data-severity="URGENT" style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px; cursor: pointer; background: #fff; transition: all 0.2s; display: block;">
+                        <input type="radio" name="dispute_severity" value="URGENT" style="display: none;">
+                        <div style="font-weight: 750; font-size: 13px; color: #b91c1c;">🔴 Urgent Priority</div>
+                        <small style="display: block; font-size: 11px; color: #4b5563; margin-top: 3px;">Damage / Safety concern<br><strong>Priority &lt; 4 hrs</strong></small>
+                    </label>
+                </div>
+            </div>
+
             <!-- Subject -->
             <div class="form-group">
 
@@ -206,6 +231,43 @@
     </div>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.severity-card');
+    const badge = document.getElementById('severityBadge');
+    const badgeMap = {
+        'LOW': { text: 'Standard Turnaround (24-48h)', color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
+        'MEDIUM': { text: 'Expedited Review (12-24h)', color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
+        'URGENT': { text: 'Critical Escalation (< 4h)', color: '#991b1b', bg: '#fee2e2', border: '#fecaca' }
+    };
+
+    cards.forEach(function(card) {
+        card.addEventListener('click', function() {
+            cards.forEach(c => {
+                c.style.borderColor = '#e2e8f0';
+                c.style.background = '#ffffff';
+                c.classList.remove('selected');
+            });
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+                const val = radio.value;
+                this.style.borderColor = val === 'URGENT' ? '#dc2626' : (val === 'MEDIUM' ? '#f59e0b' : '#087f5b');
+                this.style.background = val === 'URGENT' ? '#fff5f5' : (val === 'MEDIUM' ? '#fffbeb' : '#f0fdf4');
+                this.classList.add('selected');
+
+                if (badge && badgeMap[val]) {
+                    badge.textContent = badgeMap[val].text;
+                    badge.style.color = badgeMap[val].color;
+                    badge.style.background = badgeMap[val].bg;
+                    badge.style.borderColor = badgeMap[val].border;
+                }
+            }
+        });
+    });
+});
+</script>
 
   {% block extra_js %}{% endblock %}
 </body>

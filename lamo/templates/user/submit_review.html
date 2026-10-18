@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 
@@ -141,6 +141,9 @@
 
                 </div>
 
+                <div id="starFeedbackText" style="text-align: center; font-size: 13.5px; font-weight: 750; color: #087f5b; min-height: 20px; margin-top: -15px; margin-bottom: 20px; letter-spacing: -0.01em;">
+                    Tap a star to rate
+                </div>
 
                 <!-- COMMENT -->
 
@@ -194,6 +197,26 @@
 
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const feedback = document.getElementById('starFeedbackText');
+    const labels = {
+        '1': '😞 Poor — Needs significant improvement',
+        '2': '😐 Fair — Met bare minimum',
+        '3': '🙂 Good — Satisfactory work done',
+        '4': '😊 Very Good — Recommended professional',
+        '5': '⭐ Excellent! — Outstanding service'
+    };
+    const radios = document.querySelectorAll('input[name="rating"]');
+    radios.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (feedback && labels[this.value]) {
+                feedback.textContent = labels[this.value];
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
 
 

@@ -77,6 +77,16 @@ document.addEventListener(
                 'registerSubtitle'
             );
 
+        function notifyUser(message, type) {
+            type = type || 'warning';
+            if (typeof showToast === 'function') {
+                const title = type === 'error' ? 'Error' : 'Notice';
+                showToast(type, title, message);
+            } else {
+                alert(message);
+            }
+        }
+
 
         /* Initial entrance animation */
         if (stepAccount && stepAccount.classList.contains('active')) {
@@ -230,7 +240,7 @@ document.addEventListener(
 
                 if (!role) {
 
-                    alert(
+                    notifyUser(
                         'Please select User or Worker.'
                     );
 
@@ -320,7 +330,7 @@ document.addEventListener(
                     !/^[6-9][0-9]{9}$/.test(phone)
                 ) {
 
-                    alert(
+                    notifyUser(
                         'Please enter a valid 10-digit Indian mobile number.'
                     );
 
@@ -335,7 +345,7 @@ document.addEventListener(
 
                 if (!service) {
 
-                    alert(
+                    notifyUser(
                         'Please select your service.'
                     );
 
@@ -349,14 +359,14 @@ document.addEventListener(
 
 
                 if (!district) {
-                    alert('Please select your district.');
+                    notifyUser('Please select your district.');
                     document.getElementById('district').focus();
                     return;
                 }
 
 
                 if (!address) {
-                    alert('Please enter your address.');
+                    notifyUser('Please enter your address.');
                     document.getElementById('address').focus();
                     return;
                 }
@@ -367,7 +377,7 @@ document.addEventListener(
                     Number(experience) < 0
                 ) {
 
-                    alert(
+                    notifyUser(
                         'Please enter valid experience.'
                     );
 
@@ -383,7 +393,7 @@ document.addEventListener(
 
 
                 if (!availability) {
-                    alert('Please select your availability.');
+                    notifyUser('Please select your availability.');
                     document.getElementById('availability').focus();
                     return;
                 }
@@ -419,7 +429,7 @@ document.addEventListener(
                         .value.trim();
 
                 if (!pricingType) {
-                    alert('Please select a pricing type.');
+                    notifyUser('Please select a pricing type.');
                     document.getElementById('pricing_type').focus();
                     return;
                 }
@@ -429,7 +439,7 @@ document.addEventListener(
                     !Number.isFinite(Number(pricingAmount)) ||
                     Number(pricingAmount) <= 0
                 ) {
-                    alert('Please enter a pricing amount greater than ₹0.');
+                    notifyUser('Please enter a pricing amount greater than ₹0.');
                     document.getElementById('pricing_amount').focus();
                     return;
                 }
@@ -438,7 +448,7 @@ document.addEventListener(
                     document.getElementById('proof_document');
 
                 if (!proofDocument.files.length) {
-                    alert('Please upload your proof document.');
+                    notifyUser('Please upload your proof document.');
                     proofDocument.focus();
                     return;
                 }
@@ -454,7 +464,7 @@ document.addEventListener(
                     !allowedProofTypes.includes(proofFile.type) ||
                     proofFile.size > 5 * 1024 * 1024
                 ) {
-                    alert(
+                    notifyUser(
                         'Proof must be a PDF, JPG or PNG file smaller than 5 MB.'
                     );
                     proofDocument.focus();
@@ -476,7 +486,7 @@ document.addEventListener(
                         !allowedImageTypes.includes(imageFile.type) ||
                         imageFile.size > 5 * 1024 * 1024
                     ) {
-                        alert(
+                        notifyUser(
                             'Profile image must be JPG, PNG or WEBP and smaller than 5 MB.'
                         );
                         profileImage.focus();
@@ -572,7 +582,7 @@ document.addEventListener(
 
                     event.preventDefault();
 
-                    alert(
+                    notifyUser(
                         'Please select User or Worker.'
                     );
 
@@ -594,7 +604,7 @@ document.addEventListener(
 
                     event.preventDefault();
 
-                    alert(
+                    notifyUser(
                         'Passwords do not match.'
                     );
 
@@ -613,7 +623,7 @@ document.addEventListener(
 
                     event.preventDefault();
 
-                    alert(
+                    notifyUser(
                         'Password must contain at least 8 characters.'
                     );
 
@@ -650,7 +660,7 @@ document.addEventListener(
 
                         event.preventDefault();
 
-                        alert(
+                        notifyUser(
                             'Please upload your proof document.'
                         );
 
@@ -678,7 +688,7 @@ document.addEventListener(
                         proofFile.size > 5 * 1024 * 1024
                     ) {
                         event.preventDefault();
-                        alert(
+                        notifyUser(
                             'Proof must be a PDF, JPG or PNG file smaller than 5 MB.'
                         );
                         proofDocument.focus();
@@ -703,7 +713,7 @@ document.addEventListener(
                             imageFile.size > 5 * 1024 * 1024
                         ) {
                             event.preventDefault();
-                            alert(
+                            notifyUser(
                                 'Profile image must be JPG, PNG or WEBP and smaller than 5 MB.'
                             );
                             profileImage.focus();
@@ -716,7 +726,7 @@ document.addEventListener(
 
                         event.preventDefault();
 
-                        alert(
+                        notifyUser(
                             'Please enter your address.'
                         );
 

@@ -142,31 +142,61 @@
 
     flex-shrink: 0;
 
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+
     transition:
-      transform 0.3s ease,
-      background 0.3s ease,
-      border-color 0.3s ease,
-      box-shadow 0.3s ease;
+      transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      background 0.35s ease,
+      border-color 0.35s ease,
+      box-shadow 0.35s ease;
   }
 
+  /* Light sheen / sweep across badge on hover */
+  .hero-badge::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.16) 45%, rgba(56, 217, 169, 0.28) 55%, transparent 80%);
+    transform: translateX(-140%);
+    transition: transform 0.75s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .hero-badge:hover::after {
+    transform: translateX(140%);
+  }
 
   .hero-badge:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px) scale(1.02);
 
-    background: rgba(22, 163, 74, 0.16);
+    background: rgba(6, 77, 58, 0.68);
 
-    border-color: rgba(22, 163, 74, 0.9);
+    border-color: rgba(56, 217, 169, 0.85);
 
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25), 
+                0 0 0 1.5px rgba(56, 217, 169, 0.3);
   }
 
 
   .hero-badge i {
-    color: #16a34a;
+    color: #20c997;
 
     font-size: 1.35rem;
 
     flex-shrink: 0;
+
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                color 0.3s ease, 
+                filter 0.3s ease;
+  }
+
+  .hero-badge:hover i {
+    transform: scale(1.22);
+    color: #38d9a9;
+    filter: drop-shadow(0 0 8px rgba(56, 217, 169, 0.65));
   }
 
 
@@ -200,6 +230,38 @@
     color: #16a34a;
 
     display: inline-block;
+  }
+
+  /* Rotating Trade Word */
+  .hero-rotator {
+    display: inline-block;
+    position: relative;
+    color: #38d9a9;
+    font-weight: 800;
+    border-bottom: 3px solid rgba(56, 217, 169, 0.45);
+    padding-bottom: 2px;
+    transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), 
+                filter 0.32s ease;
+    will-change: transform, opacity;
+  }
+
+  .hero-rotator.is-exiting {
+    opacity: 0;
+    transform: translateY(-12px);
+    filter: blur(3px);
+  }
+
+  .hero-rotator.is-entering {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(3px);
+  }
+
+  .hero-rotator.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 
 
@@ -1799,7 +1861,41 @@
   }
 }
 
+@media (max-width: 768px) {
+  #siteHeader {
+    min-height: 480px;
+  }
+}
 
+@media (max-width: 576px) {
+  #siteHeader {
+    min-height: 420px;
+  }
+
+  .hero-badges {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+  }
+
+  .hero-badge {
+    width: calc(50% - 6px);
+    min-height: 64px;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+  }
+
+  .hero-badge:last-child {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .hero-badge {
+    width: 100%;
+  }
+}
 
 /* =========================================================
    LAMO GREEN INTERACTION EFFECTS

@@ -642,6 +642,14 @@
                 visibility: visible;
             }
 
+            .worker-layout.sidebar-open
+            .mobile-logo {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transition: opacity .2s ease, visibility .2s ease;
+            }
+
 
             /* Disable minimize behaviour on mobile */
 

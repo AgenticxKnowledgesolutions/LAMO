@@ -26,18 +26,8 @@
 
     padding: 70px 20px 30px;
 
-    /* Full-page login background image */
-    background-image:
-      linear-gradient(
-        rgba(4, 47, 31, 0.35),
-        rgba(4, 47, 31, 0.35)
-      ),
-      url('../img/login-back.png');
-
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+    /* Clean, light modern SaaS background */
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
   }
 
 
@@ -45,9 +35,6 @@
    BACKGROUND DECORATION
 ========================================================= */
 
-  /* Keep the uploaded background image clean and visible */
-  .login-page::before,
-  .login-page::after,
   .login-pattern {
     display: none;
   }
@@ -57,18 +44,18 @@
 
     position: absolute;
 
-    width: 450px;
-    height: 450px;
+    width: 520px;
+    height: 520px;
 
-    top: -250px;
-    left: -180px;
+    top: -160px;
+    left: -120px;
 
     border-radius: 50%;
 
-    background:
-      rgba(22, 163, 74, 0.08);
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
 
     pointer-events: none;
+    display: block;
   }
 
 
@@ -77,18 +64,18 @@
 
     position: absolute;
 
-    width: 400px;
-    height: 400px;
+    width: 520px;
+    height: 520px;
 
-    right: -200px;
-    bottom: -220px;
+    right: -120px;
+    bottom: -160px;
 
     border-radius: 50%;
 
-    background:
-      rgba(22, 163, 74, 0.07);
+    background: radial-gradient(circle, rgba(8, 127, 91, 0.07) 0%, transparent 70%);
 
     pointer-events: none;
+    display: block;
   }
 
 
@@ -165,16 +152,16 @@
 
 
   .login-back-home:hover {
-    color: #16a34a;
+    color: #087f5b;
 
     border-color:
-      rgba(22, 163, 74, 0.3);
+      rgba(8, 127, 91, 0.3);
 
     transform:
       translateX(-2px);
 
     box-shadow:
-      0 8px 22px rgba(22, 163, 74, 0.10);
+      0 8px 22px rgba(8, 127, 91, 0.12);
   }
 
 
@@ -195,7 +182,7 @@
 
     width: 100%;
 
-    max-width: 850px;
+    max-width: 860px;
 
     min-height: 510px;
 
@@ -210,14 +197,14 @@
 
     background: #ffffff;
 
-    border:
-      1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
 
     box-shadow:
-      0 22px 60px rgba(0, 0, 0, 0.10);
+      0 20px 60px rgba(15, 23, 42, 0.08),
+      0 1px 3px rgba(15, 23, 42, 0.04);
 
     animation:
-      cardAppear 0.7s ease both;
+      cardAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
 
@@ -559,9 +546,14 @@
 
     justify-content: center;
 
-    padding: 35px 45px;
+    padding: 38px 46px;
 
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.92);
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    border-left: 1px solid #f1f5f9;
   }
 
 
@@ -794,44 +786,46 @@
   .login-input {
     width: 100%;
 
-    height: 51px;
+    height: 48px;
 
     padding:
-      0 43px;
+      0 44px 0 46px;
 
     border:
-      1.5px solid #e5e7eb;
+      1.5px solid #e2e8f0;
 
-    border-radius: 11px;
+    border-radius: 12px;
 
     outline: none;
 
     background: #ffffff;
 
-    color: #172033;
+    color: #0f172a;
 
-    font-size: 0.78rem;
+    font-size: 14px;
+
+    font-weight: 500;
 
     transition:
-      all 0.3s ease;
+      all 0.2s ease;
   }
 
 
   .login-input::placeholder {
-    color: #9ca3af;
+    color: #94a3b8;
   }
 
 
   .login-input:hover {
-    border-color: #d1d5db;
+    border-color: #cbd5e1;
   }
 
 
   .login-input:focus {
-    border-color: #16a34a;
+    border-color: #087f5b;
 
     box-shadow:
-      0 0 0 3px rgba(22, 163, 74, 0.08);
+      0 0 0 3px rgba(8, 127, 91, 0.12);
   }
 
 
@@ -854,7 +848,7 @@
 
   /* Icon bounce on focus */
   .login-input-group:focus-within .login-input-icon {
-    color: #16a34a;
+    color: #087f5b;
 
     transform:
       translateY(-50%) scale(1.15);
@@ -882,15 +876,15 @@
   .login-password-toggle {
     position: absolute;
 
-    right: 10px;
+    right: 12px;
 
     top: 50%;
 
     transform:
       translateY(-50%);
 
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
 
     display: flex;
 
@@ -899,23 +893,30 @@
 
     border: none;
 
-    border-radius: 50%;
+    border-radius: 8px;
 
     background: transparent;
 
-    color: #9ca3af;
+    color: #94a3b8;
 
     cursor: pointer;
 
+    z-index: 4;
+
     transition:
-      all 0.25s ease;
+      all 0.2s ease;
   }
 
 
   .login-password-toggle:hover {
-    color: #16a34a;
+    color: #087f5b;
 
     background: #f0fdf4;
+  }
+
+  .login-password-toggle:focus {
+    outline: none;
+    color: #087f5b;
   }
 
 
@@ -983,7 +984,7 @@
 
     width: 100%;
 
-    height: 51px;
+    height: 48px;
 
     display: flex;
 
@@ -991,32 +992,34 @@
 
     justify-content: center;
 
-    gap: 7px;
+    gap: 8px;
 
     border: none;
 
-    border-radius: 11px;
+    border-radius: 12px;
 
     background:
       linear-gradient(135deg,
-        #16a34a,
-        #0f9f46);
+        #087f5b,
+        #059669);
 
     color: #ffffff;
 
-    font-size: 0.78rem;
+    font-size: 14px;
 
     font-weight: 700;
 
     cursor: pointer;
 
     box-shadow:
-      0 7px 18px rgba(22, 163, 74, 0.20);
+      0 8px 20px rgba(8, 127, 91, 0.22);
 
     transition:
       all 0.3s ease;
 
     overflow: hidden;
+
+    margin-top: 16px;
   }
 
 
@@ -1062,14 +1065,14 @@
   .btn-login-lamo:hover {
     background:
       linear-gradient(135deg,
-        #15803d,
-        #16a34a);
+        #066b4d,
+        #047857);
 
     transform:
       translateY(-2px);
 
     box-shadow:
-      0 10px 22px rgba(22, 163, 74, 0.27);
+      0 12px 26px rgba(8, 127, 91, 0.30);
   }
 
 
@@ -1163,6 +1166,29 @@
 
 
   /* =========================================================
+   FORGOT PASSWORD
+========================================================= */
+
+  .login-forgot-wrap {
+    text-align: center;
+    margin-top: 14px;
+  }
+
+  .login-forgot-link {
+    font-size: 13px;
+    color: #087f5b;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .login-forgot-link:hover {
+    color: #065f46;
+    text-decoration: underline;
+  }
+
+
+  /* =========================================================
    DIVIDER
 ========================================================= */
 
@@ -1171,16 +1197,18 @@
 
     align-items: center;
 
-    gap: 10px;
+    gap: 12px;
 
     margin:
-      19px 0 15px;
+      20px 0 16px;
 
-    color: #9ca3af;
+    color: #94a3b8;
 
-    font-size: 0.55rem;
+    font-size: 11px;
 
     font-weight: 600;
+
+    letter-spacing: 0.5px;
   }
 
 
@@ -1192,7 +1220,7 @@
 
     height: 1px;
 
-    background: #e5e7eb;
+    background: #e2e8f0;
   }
 
 
@@ -1203,14 +1231,14 @@
   .login-register {
     text-align: center;
 
-    color: #6b7280;
+    color: #64748b;
 
-    font-size: 0.68rem;
+    font-size: 13px;
   }
 
 
   .login-register a {
-    color: #16a34a;
+    color: #087f5b;
 
     font-weight: 700;
 
@@ -1222,7 +1250,8 @@
 
 
   .login-register a:hover {
-    color: #15803d;
+    color: #065f46;
+    text-decoration: underline;
   }
 
 

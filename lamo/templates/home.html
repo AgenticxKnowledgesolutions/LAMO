@@ -98,11 +98,11 @@ LAMO | Labour Management System - Our Services
             {% if user.is_authenticated and user.role == 'USER' %}
             Welcome back, {{ user.username }}!
             <br>
-            <span>Find the perfect service</span>
+            <span>Find the perfect <span class="hero-rotator" id="heroRotator" data-words='["service", "electrician", "plumber", "carpenter", "cleaner", "painter"]'>service</span></span>
             {% else %}
             Our Services,
             <br>
-            <span>Your Solutions</span>
+            <span>Your <span class="hero-rotator" id="heroRotator" data-words='["Solutions", "Electricians", "Plumbers", "Carpenters", "Cleaners", "Experts"]'>Solutions</span></span>
             {% endif %}
           </h1>
 
@@ -1763,6 +1763,43 @@ LAMO | Labour Management System - Our Services
       if (input && input.value) return input.value;
       return "";
     }
+
+    /* -----------------------------------------------------
+       HERO ROTATING TRADE TEXT (Smooth Vertical Transition)
+       ----------------------------------------------------- */
+    (function initHeroRotator() {
+      const rotator = document.getElementById('heroRotator');
+      if (!rotator) return;
+      let words = [];
+      try {
+        words = JSON.parse(rotator.getAttribute('data-words') || '[]');
+      } catch (e) { }
+      if (!words || words.length < 2) return;
+
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+      }
+
+      let currentIndex = 0;
+      setInterval(function () {
+        rotator.classList.remove('is-entering', 'is-visible');
+        rotator.classList.add('is-exiting');
+
+        setTimeout(function () {
+          currentIndex = (currentIndex + 1) % words.length;
+          rotator.textContent = words[currentIndex];
+          rotator.classList.remove('is-exiting');
+          rotator.classList.add('is-entering');
+
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              rotator.classList.remove('is-entering');
+              rotator.classList.add('is-visible');
+            });
+          });
+        }, 320);
+      }, 2600);
+    })();
 
   });
 </script>

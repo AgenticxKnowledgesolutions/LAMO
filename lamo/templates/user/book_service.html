@@ -3,18 +3,22 @@
 
 {% block title %}Book Service | LAMO{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/user-book_service.css' %}?v=20261018">
+{% endblock %}
+
 {% block content %}
-<div class="service-page" style="padding-top: 40px; padding-bottom: 60px;">
+<div class="service-page">
 
     <div class="container">
 
         {% if service %}
-            <a href="{% url 'service_workers' service.id %}?district={{ district }}" class="back-link" style="margin-bottom: 20px; display: inline-flex;">
+            <a href="{% url 'service_workers' service.id %}?district={{ district }}" class="book-back-link">
                 <i class="bi bi-arrow-left"></i>
                 Back to {{ service.name }} Workers
             </a>
         {% else %}
-            <a href="{% url 'service_page' %}" class="back-link" style="margin-bottom: 20px; display: inline-flex;">
+            <a href="{% url 'service_page' %}" class="book-back-link">
                 <i class="bi bi-arrow-left"></i>
                 Back to Services
             </a>
@@ -24,23 +28,28 @@
 
             <div class="col-lg-5">
 
-                <div class="worker-summary-card" style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
+                <div class="worker-summary-card">
 
-                    <h4 style="margin-bottom: 16px;">Booking Summary</h4>
+                    <h4>
+                        <span>Booking Summary</span>
+                        <span class="badge" style="background:#ecfdf5; color:#059669; font-weight:600; border:1px solid #a7f3d0; font-size:0.75rem;">
+                            <i class="bi bi-shield-check"></i> Verified
+                        </span>
+                    </h4>
 
-                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
-                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #dcfce7; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-tools" style="color: #16a34a; font-size: 20px;"></i>
+                    <div class="summary-item">
+                        <div class="summary-item-icon service-icon">
+                            <i class="bi bi-tools"></i>
                         </div>
-                        <div>
-                            <small class="text-muted">Service</small>
-                            <div style="font-weight: 600;">{{ service.name }}</div>
+                        <div class="summary-item-content">
+                            <small>Service</small>
+                            <div class="item-name">{{ service.name }}</div>
                         </div>
                     </div>
 
                     {% if worker %}
-                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
-                        <div style="width: 48px; height: 48px; border-radius: 12px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <div class="summary-item">
+                        <div class="summary-item-icon worker-avatar">
                             {% if worker.profile_image %}
                             <img src="{{ worker.profile_image.url }}" alt="{{ worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
                             <i class="bi bi-person-fill" style="display:none; color: #4f46e5; font-size: 20px;"></i>
@@ -51,20 +60,28 @@
                             <i class="bi bi-person-fill" style="color: #4f46e5; font-size: 20px;"></i>
                             {% endif %}
                         </div>
-                        <div>
-                            <small class="text-muted">Worker</small>
-                            <div style="font-weight: 600;">{{ worker.user.get_full_name|default:worker.user.username }}</div>
+                        <div class="summary-item-content">
+                            <small>Assigned Pro</small>
+                            <div class="item-name">{{ worker.user.get_full_name|default:worker.user.username }}</div>
                         </div>
                     </div>
                     {% endif %}
 
-                    <div style="background: #f9fafb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                            <i class="bi bi-geo-alt-fill" style="color: #16a34a;"></i>
-                            <strong>Service District</strong>
+                    <div class="district-badge-card">
+                        <div class="district-header">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            <span>Service District</span>
                         </div>
-                        <div style="font-size: 1.1rem; font-weight: 600;">{{ district }}</div>
-                        <small class="text-muted">District is automatically set based on the selected worker.</small>
+                        <div class="district-name">{{ district }}</div>
+                        <small class="text-muted" style="display: block; margin-top: 4px; font-size: 0.78rem;">District is automatically synchronized with your chosen pro.</small>
+                    </div>
+
+                    <div class="trust-guarantee-box">
+                        <i class="bi bi-patch-check-fill"></i>
+                        <div>
+                            <strong>LAMO Guarantee</strong><br>
+                            Background verified professional with upfront, fair pricing.
+                        </div>
                     </div>
 
                 </div>
@@ -73,12 +90,12 @@
 
             <div class="col-lg-7">
 
-                <div style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;">
+                <div class="booking-form-card">
 
-                    <h4 style="margin-bottom: 20px;">Booking Details</h4>
+                    <h4>Booking Details</h4>
 
                     {% if error_message %}
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger" style="border-radius: 12px; font-size: 0.9rem;">
                         <i class="bi bi-exclamation-triangle-fill"></i>
                         {{ error_message }}
                     </div>
@@ -99,12 +116,12 @@
 
                         <div class="mb-3">
                             <label class="form-label">Service Type</label>
-                            <div class="btn-group w-100" role="group">
+                            <div class="service-type-toggle" role="group">
                                 <input type="radio" class="btn-check" name="booking_type" id="bookingTypeOneTime" value="One Time" checked>
-                                <label class="btn btn-outline-success" for="bookingTypeOneTime">One-time</label>
+                                <label class="btn" for="bookingTypeOneTime"><i class="bi bi-calendar-event me-1"></i> One-time</label>
 
                                 <input type="radio" class="btn-check" name="booking_type" id="bookingTypeRecurring" value="Recurring">
-                                <label class="btn btn-outline-success" for="bookingTypeRecurring">Recurring</label>
+                                <label class="btn" for="bookingTypeRecurring"><i class="bi bi-arrow-repeat me-1"></i> Recurring</label>
                             </div>
                         </div>
 
@@ -147,7 +164,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Preferred Time</label>
+                            <label class="form-label" for="id_time_slot">Preferred Time</label>
                             <select name="time_slot" id="id_time_slot" class="form-select" required>
                                 <option value="">Select time slot</option>
                                 <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
@@ -230,7 +247,7 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100" style="padding: 12px; font-weight: 600;">
+                        <button type="submit" class="btn btn-book-submit w-100">
                             Continue Booking <i class="bi bi-arrow-right"></i>
                         </button>
 

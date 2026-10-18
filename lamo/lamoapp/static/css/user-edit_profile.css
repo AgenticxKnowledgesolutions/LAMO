@@ -24,28 +24,36 @@
 }
 .ep-form input, .ep-form textarea, .ep-form select {
     width: 100%;
-    padding: 10px 14px;
-    border: 1.5px solid #e5e7eb;
-    border-radius: 10px;
+    padding: 11px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
     font-size: 14px;
     margin-bottom: 18px;
-    transition: border-color 0.2s;
+    background: #ffffff;
+    transition: all 0.2s ease;
 }
-.ep-form input:focus, .ep-form textarea:focus {
-    border-color: #6366f1;
+.ep-form input:focus, .ep-form textarea:focus, .ep-form select:focus {
+    border-color: #087f5b;
+    box-shadow: 0 0 0 3.5px rgba(8, 127, 91, 0.15);
     outline: none;
 }
 .ep-btn {
     padding: 12px 32px;
-    background: linear-gradient(135deg, #087f5b, #056b4d);
+    background: linear-gradient(135deg, #087f5b 0%, #056b4d 100%);
     color: #fff;
     border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 4px 14px rgba(8, 127, 91, 0.25);
+    transition: all 0.2s ease;
 }
-.ep-btn:hover { opacity: 0.9; }
+.ep-btn:hover {
+    background: linear-gradient(135deg, #066649 0%, #044d37 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(8, 127, 91, 0.32);
+}
 .ep-cancel {
     margin-left: 12px;
     color: #6b7280;
