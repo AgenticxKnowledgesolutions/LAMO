@@ -688,6 +688,146 @@
 
         }
 
+        /* =========================
+           WORKER ALERT NOTIFICATION BANNERS
+        ========================= */
+        .worker-messages-wrap {
+            padding: 16px 28px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .worker-alert-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 0.92rem;
+            animation: alertSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            border: 1.5px solid transparent;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        @keyframes alertSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .worker-alert-icon {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .worker-alert-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .worker-alert-title {
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 2px;
+        }
+
+        .worker-alert-text {
+            color: inherit;
+            line-height: 1.4;
+            font-size: 0.92rem;
+            font-weight: 500;
+        }
+
+        .worker-alert-close {
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.5;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: opacity 0.2s, background 0.2s;
+        }
+
+        .worker-alert-close:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.06);
+        }
+
+        /* Success */
+        .worker-alert-success {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+            color: #065f46;
+        }
+        .worker-alert-success .worker-alert-icon {
+            color: #059669;
+        }
+        .worker-alert-success .worker-alert-title {
+            color: #047857;
+        }
+
+        /* Error */
+        .worker-alert-error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        .worker-alert-error .worker-alert-icon {
+            color: #dc2626;
+        }
+        .worker-alert-error .worker-alert-title {
+            color: #b91c1c;
+        }
+
+        /* Warning */
+        .worker-alert-warning {
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+        .worker-alert-warning .worker-alert-icon {
+            color: #d97706;
+        }
+        .worker-alert-warning .worker-alert-title {
+            color: #b45309;
+        }
+
+        /* Info */
+        .worker-alert-info {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1e40af;
+        }
+        .worker-alert-info .worker-alert-icon {
+            color: #2563eb;
+        }
+        .worker-alert-info .worker-alert-title {
+            color: #1d4ed8;
+        }
+
+        @media (max-width: 768px) {
+            .worker-messages-wrap {
+                padding: 12px 16px 0;
+            }
+        }
+
     </style>
 
     <!-- =====================================================
@@ -989,17 +1129,46 @@
 
         {% block worker_messages %}
             {% if messages %}
+            <div class="worker-messages-wrap" id="workerMessagesWrap">
                 {% for message in messages %}
-                    {% if 'error' in message.tags %}
-                        <div class="alert alert-danger" role="alert">{{ message }}</div>
-                    {% elif 'warning' in message.tags %}
-                        <div class="alert alert-warning" role="alert">{{ message }}</div>
-                    {% elif 'success' in message.tags %}
-                        <div class="alert alert-success" role="alert">{{ message }}</div>
-                    {% else %}
-                        <div class="alert alert-info" role="alert">{{ message }}</div>
-                    {% endif %}
+                <div class="worker-alert-card {% if 'error' in message.tags %}worker-alert-error{% elif 'warning' in message.tags %}worker-alert-warning{% elif 'success' in message.tags %}worker-alert-success{% else %}worker-alert-info{% endif %}" role="alert">
+                    <div class="worker-alert-icon">
+                        {% if 'error' in message.tags %}
+                            <i class="bi bi-x-circle-fill"></i>
+                        {% elif 'warning' in message.tags %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif 'success' in message.tags %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill"></i>
+                        {% endif %}
+                    </div>
+                    <div class="worker-alert-body">
+                        <div class="worker-alert-title">
+                            {% if 'error' in message.tags %}Error{% elif 'warning' in message.tags %}Attention{% elif 'success' in message.tags %}Success{% else %}Information{% endif %}
+                        </div>
+                        <div class="worker-alert-text">{{ message }}</div>
+                    </div>
+                    <button type="button" class="worker-alert-close" onclick="this.closest('.worker-alert-card').remove()" aria-label="Dismiss">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
                 {% endfor %}
+            </div>
+            <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                var alerts = document.querySelectorAll('.worker-alert-card');
+                alerts.forEach(function(alert) {
+                    setTimeout(function() {
+                        if (alert && alert.parentNode) {
+                            alert.style.opacity = '0';
+                            alert.style.transform = 'translateY(-6px)';
+                            setTimeout(function() { alert.remove(); }, 350);
+                        }
+                    }, 5000);
+                });
+            });
+            </script>
             {% endif %}
         {% endblock %}
 
