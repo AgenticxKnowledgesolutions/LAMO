@@ -979,29 +979,7 @@ def home(request):
         elif getattr(request.user, 'role', None) == 'WORKER':
             return redirect('worker_dashboard')
 
-    is_from_splash = bool(request.GET.get('from_splash'))
-    if is_from_splash:
-        request.session['lamo_splash_shown'] = True
-        if not request.user.is_authenticated:
-            request.session.set_expiry(0)
-
     query = request.GET.get('q', '').strip()
-
-    # Check for search engine crawlers and bots so they always receive clean,
-    # immediate semantic HTML without client-side animation delays.
-    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
-    is_crawler = any(
-        bot in user_agent
-        for bot in ('bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'headless', 'gptbot', 'claudebot')
-    ) or request.GET.get('crawler') == '1'
-
-    # Search engine crawlers receive home.html directly with complete semantic HTML and Schema.org markup.
-    # Regular unauthenticated human visitors receive splash.html to preserve the animated brand intro.
-    if not is_crawler and not request.user.is_authenticated and not is_from_splash and not query:
-        request.session['lamo_splash_shown'] = True
-        response = render(request, 'splash.html')
-        response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
-        return response
 
     services = Service.objects.filter(is_active=True)
     if query:
@@ -1762,6 +1740,7 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
                 ),
                 recipient_list=[b.customer.email],
                 purpose='booking_expired',
+                async_send=True,
             )
 
             # Also notify worker if one was assigned
@@ -4982,9 +4961,17 @@ def worker_dashboard(request):
     job_stats = Booking.objects.filter(worker=worker_profile).aggregate(
         total=Count('id'),
         pending=Count('id', filter=Q(status='PENDING')),
+        completed=Count('id', filter=Q(status='COMPLETED')),
+        in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
+        cancelled=Count('id', filter=Q(status='CANCELLED')),
+        total_earnings=Sum('estimated_cost', filter=Q(status='COMPLETED', is_paid=True)),
     )
     total_jobs = job_stats['total'] or 0
     pending_jobs_count = job_stats['pending'] or 0
+    completed_bookings = job_stats['completed'] or 0
+    in_progress_bookings = job_stats['in_progress'] or 0
+    cancelled_bookings = job_stats['cancelled'] or 0
+    total_earnings = job_stats['total_earnings'] or 0
 
     pending_bookings = Booking.objects.filter(
         worker=worker_profile,
@@ -5009,25 +4996,6 @@ def worker_dashboard(request):
             to_attr='chat_messages',
         )
     ).order_by('-updated_at')[:6]
-
-    completed_bookings = Booking.objects.filter(
-        worker=worker_profile,
-        status='COMPLETED'
-    ).count()
-    in_progress_bookings = Booking.objects.filter(
-        worker=worker_profile,
-        status='IN_PROGRESS'
-    ).count()
-    cancelled_bookings = Booking.objects.filter(
-        worker=worker_profile,
-        status='CANCELLED'
-    ).count()
-
-    total_earnings = Booking.objects.filter(
-        worker=worker_profile,
-        status='COMPLETED',
-        is_paid=True
-    ).aggregate(total=Sum('estimated_cost'))['total'] or 0
 
     avg_rating = Review.objects.filter(
         worker=worker_profile

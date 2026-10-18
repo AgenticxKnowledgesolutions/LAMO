@@ -381,6 +381,14 @@ class WorkerProfile(models.Model):
         diff = self.launch_ends_at - timezone.now()
         return max(0, diff.days + (1 if diff.seconds > 0 else 0))
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['service', 'is_verified', 'work_status', 'district'],
+                name='worker_svc_ver_stat_dist_idx',
+            ),
+        ]
+
     def __str__(self):
         return self.user.username
 # ============================================================
@@ -591,6 +599,14 @@ class Booking(models.Model):
             models.Index(
                 fields=['worker', 'date', 'status'],
                 name='booking_worker_date_status_idx',
+            ),
+            models.Index(
+                fields=['customer', '-created_at'],
+                name='booking_cust_created_idx',
+            ),
+            models.Index(
+                fields=['status', 'district'],
+                name='booking_stat_dist_idx',
             ),
         ]
 
@@ -943,6 +959,10 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read'], name='notif_recip_read_idx'),
+            models.Index(fields=['recipient', '-created_at'], name='notif_recip_created_idx'),
+        ]
 
     def __str__(self):
 

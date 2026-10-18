@@ -504,7 +504,7 @@ def _database_from_url(url):
         'PASSWORD': unquote(parsed.password or ''),
         'HOST': parsed.hostname or '',
         'PORT': str(parsed.port or ''),
-        'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+        'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '60')),
         'OPTIONS': {},
     }
 
@@ -526,7 +526,7 @@ else:
             'default': {
                 'ENGINE': _DB_ENGINE,
                 'NAME': os.getenv('DJANGO_DB_NAME', str(BASE_DIR / 'db.sqlite3')),
-                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '60')),
             }
         }
     else:
@@ -545,7 +545,7 @@ else:
                 'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', ''),
                 'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1'),
                 'PORT': os.getenv('DJANGO_DB_PORT', '3306'),
-                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '0')),
+                'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '60')),
                 'OPTIONS': dict(_MYSQL_OPTIONS, **_MYSQL_SSL) if _DB_ENGINE == 'django.db.backends.mysql' else {},
             }
         }

@@ -36,6 +36,7 @@ dependency and no model change.
 import logging
 import re
 import os
+import threading
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -120,26 +121,56 @@ def send_email_safely(
     purpose,
     from_email=None,
     fail_silently=True,
+    async_send=False,
 ):
     """Send an e-mail, logging any failure without leaking secrets.
 
-    Parameters
-    ----------
-    purpose:
-        Short stable tag describing the operation, e.g. ``'otp_verification'``
-        or ``'contact_enquiry'``. This is the only message content written to
-        the log, and it is a constant defined in code - never user input.
-    subject / message:
-        Used for the actual send only. Neither is ever logged, because both
-        can contain user-supplied text or credentials.
-
-    Returns
-    -------
-    bool
-        ``True`` when the message was handed to the mail backend,
-        ``False`` when sending failed. Callers must not report success to the
-        user when this is ``False``.
+    If async_send=True, runs the network call in a daemon background thread
+    so the web request can return immediately without blocking on SMTP/API.
     """
+    if async_send:
+        # Background worker thread so HTTP request does not wait on remote socket
+        thread = threading.Thread(
+            target=_send_email_internal,
+            args=(subject, message, recipient_list, purpose, from_email, fail_silently),
+            daemon=True,
+        )
+        thread.start()
+        return True
+
+    return _send_email_internal(
+        subject, message, recipient_list, purpose, from_email, fail_silently
+    )
+
+
+def send_email_async(
+    subject,
+    message,
+    recipient_list,
+    purpose,
+    from_email=None,
+    fail_silently=True,
+):
+    """Convenience wrapper for non-blocking email delivery."""
+    return send_email_safely(
+        subject=subject,
+        message=message,
+        recipient_list=recipient_list,
+        purpose=purpose,
+        from_email=from_email,
+        fail_silently=fail_silently,
+        async_send=True,
+    )
+
+
+def _send_email_internal(
+    subject,
+    message,
+    recipient_list,
+    purpose,
+    from_email=None,
+    fail_silently=True,
+):
     if not recipient_list:
         logger.warning(
             'email_not_sent purpose=%s reason=no_recipients', purpose,
