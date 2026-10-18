@@ -147,6 +147,91 @@
 <body>
   <a href="#mainContent" class="skip-to-content">Skip to content</a>
 
+  {% if request.path == '/' %}
+  <!-- LAMO Fullscreen Client-Side Splash Screen Overlay -->
+  <div id="lamoSplashOverlay" class="lamo-splash-overlay">
+    <div class="lamo-splash-box">
+      <div class="lamo-splash-letters" aria-label="LAMO">
+        <span>L</span><span>A</span><span>M</span><span>O</span>
+      </div>
+      <div class="lamo-splash-tag">Home services, simplified</div>
+      <div class="lamo-splash-bar"><i></i></div>
+    </div>
+  </div>
+  <style>
+  .lamo-splash-overlay {
+    position: fixed; inset: 0; z-index: 9999999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 40%, #0f2a1b, #07130d 70%);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    cursor: pointer; user-select: none;
+    transition: opacity 0.35s ease-out, visibility 0.35s ease-out;
+  }
+  .lamo-splash-overlay.fade-out {
+    opacity: 0; visibility: hidden; pointer-events: none;
+  }
+  .lamo-splash-letters { display: flex; gap: clamp(4px, 1.5vw, 14px); }
+  .lamo-splash-letters span {
+    font-size: clamp(54px, 15vw, 110px);
+    font-weight: 800; line-height: 1; color: #fff;
+    opacity: 0; will-change: transform, opacity;
+    text-shadow: 0 8px 30px rgba(34, 197, 94, .25);
+  }
+  .lamo-splash-letters span:nth-child(1){ animation: splashFromLeft .4s .05s forwards; }
+  .lamo-splash-letters span:nth-child(2){ animation: splashFromRight .4s .15s forwards; color: #22c55e; }
+  .lamo-splash-letters span:nth-child(3){ animation: splashFromLeft .4s .25s forwards; }
+  .lamo-splash-letters span:nth-child(4){ animation: splashFromRight .4s .35s forwards; color: #22c55e; }
+
+  @keyframes splashFromLeft {
+    0% { transform: translateX(-60vw); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes splashFromRight {
+    0% { transform: translateX(60vw); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  .lamo-splash-tag {
+    margin-top: 14px; color: #bbf7d0; letter-spacing: .25em; font-size: clamp(10px, 2.5vw, 14px);
+    text-transform: uppercase; opacity: 0; animation: splashFade .3s .5s forwards; text-align: center;
+  }
+  .lamo-splash-bar {
+    width: min(180px, 45vw); height: 3px; margin: 20px auto 0; background: rgba(255, 255, 255, .15);
+    border-radius: 3px; overflow: hidden; opacity: 0; animation: splashFade .3s .5s forwards;
+  }
+  .lamo-splash-bar i {
+    display: block; height: 100%; width: 0; background: #22c55e;
+    animation: splashLoad .4s .6s ease-out forwards;
+  }
+  @keyframes splashFade { to { opacity: 1; } }
+  @keyframes splashLoad { to { width: 100%; } }
+  </style>
+  <script>
+  (function() {
+    var overlay = document.getElementById('lamoSplashOverlay');
+    if (!overlay) return;
+    var params = new URLSearchParams(window.location.search);
+    var forceSplash = params.has('splash');
+    if (!forceSplash && sessionStorage.getItem('lamo_splash_seen') === '1') {
+      overlay.style.display = 'none';
+      return;
+    }
+    function dismissSplash() {
+      if (!overlay || overlay.classList.contains('fade-out')) return;
+      overlay.classList.add('fade-out');
+      try {
+        sessionStorage.setItem('lamo_splash_seen', '1');
+      } catch(e) {}
+      setTimeout(function() { overlay.style.display = 'none'; }, 400);
+    }
+    setTimeout(dismissSplash, 1200);
+    overlay.addEventListener('click', dismissSplash);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') dismissSplash();
+    });
+  })();
+  </script>
+  {% endif %}
+
 
 
 

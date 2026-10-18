@@ -46,7 +46,7 @@
 ========================================================= */
 
   #siteHeader {
-    background-image: url("../img/image.png");
+    background-image: url("../img/image.webp");
 
     /* Keep the same image, but reduce the empty lower area */
     min-height: 620px;

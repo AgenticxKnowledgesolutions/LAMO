@@ -34,7 +34,7 @@ body{
     isolation:isolate;
     background-image:
       /* linear-gradient(90deg,rgba(2,43,33,.90) 0%,rgba(3,55,42,.67) 40%,rgba(3,55,42,.24) 74%,rgba(3,55,42,.06) 100%), */
-      url("../img/image.png");
+      url("../img/image.webp");
     background-size:cover;
     background-position:center;
 }
