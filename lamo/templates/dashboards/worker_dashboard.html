@@ -69,14 +69,17 @@ Worker Dashboard | LAMO
                         {% endfor %}
                     </div>
 
-                    {% if global_unread_count > 0 %}
-                    <div class="notif-dropdown-foot">
-                        <form action="{% url 'mark_all_notifications_read' %}" method="POST">
+                    <div class="notif-dropdown-foot" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        {% if global_unread_count > 0 %}
+                        <form action="{% url 'mark_all_notifications_read' %}" method="POST" style="margin: 0;">
                             {% csrf_token %}
                             <button type="submit">✓ Mark all as read</button>
                         </form>
+                        {% endif %}
+                        <a href="{% url 'worker_notifications' %}" style="font-size: 0.78rem; font-weight: 600; color: #087f5b; text-decoration: none; margin-left: auto;">
+                            View all <i class="bi bi-arrow-right"></i>
+                        </a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
 

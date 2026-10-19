@@ -979,7 +979,30 @@ def home(request):
         elif getattr(request.user, 'role', None) == 'WORKER':
             return redirect('worker_dashboard')
 
+    is_from_splash = bool(request.GET.get('from_splash'))
+    force_splash = request.GET.get('splash') == '1'
+    if is_from_splash:
+        request.session['lamo_splash_shown'] = True
+        if not request.user.is_authenticated:
+            request.session.set_expiry(0)
+
     query = request.GET.get('q', '').strip()
+
+    # Check for search engine crawlers and bots so they always receive clean,
+    # immediate semantic HTML without client-side animation delays.
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    is_crawler = any(
+        bot in user_agent
+        for bot in ('bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'headless', 'gptbot', 'claudebot')
+    ) or request.GET.get('crawler') == '1'
+
+    # Search engine crawlers receive home.html directly with complete semantic HTML and Schema.org markup.
+    # Regular unauthenticated human visitors receive splash.html to preserve the animated brand intro.
+    if force_splash or (not is_crawler and not request.user.is_authenticated and not is_from_splash and not query):
+        request.session['lamo_splash_shown'] = True
+        response = render(request, 'splash.html')
+        response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
+        return response
 
     services = Service.objects.filter(is_active=True)
     if query:
@@ -6381,6 +6404,11 @@ def worker_manage_dashboard(request):
 @never_cache
 @login_required
 def notifications_view(request):
+    # Route workers and admins to their respective notification portals
+    if getattr(request.user, 'role', None) == 'WORKER':
+        return redirect('worker_notifications')
+    elif getattr(request.user, 'role', None) == 'ADMIN' or getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False):
+        return redirect('admin_notifications')
 
     notifications = Notification.objects.filter(
         recipient=request.user
@@ -6408,8 +6436,18 @@ def notifications_view(request):
 
 @login_required
 def mark_notification_read(request, notification_id):
-    if request.method != 'POST':
+    def get_redirect():
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            return redirect(referer)
+        if getattr(request.user, 'role', None) == 'WORKER':
+            return redirect('worker_notifications')
+        elif getattr(request.user, 'role', None) == 'ADMIN' or getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False):
+            return redirect('admin_notifications')
         return redirect('notifications')
+
+    if request.method != 'POST':
+        return get_redirect()
 
     notification = get_object_or_404(
         Notification,
@@ -6429,13 +6467,23 @@ def mark_notification_read(request, notification_id):
             'unread_count': unread_count,
         })
 
-    return redirect('notifications')
+    return get_redirect()
 
 
 @login_required
 def mark_all_notifications_read(request):
-    if request.method != 'POST':
+    def get_redirect():
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            return redirect(referer)
+        if getattr(request.user, 'role', None) == 'WORKER':
+            return redirect('worker_notifications')
+        elif getattr(request.user, 'role', None) == 'ADMIN' or getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False):
+            return redirect('admin_notifications')
         return redirect('notifications')
+
+    if request.method != 'POST':
+        return get_redirect()
 
     Notification.objects.filter(
         recipient=request.user,
@@ -6447,7 +6495,7 @@ def mark_all_notifications_read(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({'success': True})
 
-    return redirect('notifications')
+    return get_redirect()
 
 
 # ==========================================================
