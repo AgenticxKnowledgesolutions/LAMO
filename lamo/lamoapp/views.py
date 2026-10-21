@@ -1011,9 +1011,9 @@ def home(request):
         )
     services = services.order_by('-created_at')
 
-    # Show only 4 services on the home page preview
-    home_services = services[:4]
-    has_more_services = services.count() > 4
+    # Show only 8 services on the home page preview
+    home_services = services[:8]
+    has_more_services = services.count() > 8
 
     # Fetch real reviews from database
     reviews = (

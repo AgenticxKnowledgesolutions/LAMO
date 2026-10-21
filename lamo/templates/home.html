@@ -232,53 +232,78 @@ LAMO | Labour Management System - Our Services
     </div>
 
     {% if services %}
-    <div class="services-grid">
-      {% for service in services %}
-      <div class="modern-service-card" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
-        <div class="modern-service-image">
-          {% if service.image %}
-          <img src="{{ service.image.url }}" alt="{{ service.name }}" class="service-db-image" loading="lazy">
-          {% else %}
-          <div
-            style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e7f7ef,#f7fbf9);">
-            <i class="bi bi-tools" style="font-size:55px;color:#087f5b;"></i>
+    <div class="coverflow-stage-wrapper" id="servicesCoverflowStage">
+      <!-- 3D STAGE & COVERFLOW CAROUSEL -->
+      <div class="coverflow-carousel-container" id="coverflowContainer">
+        <!-- Floating Left Arrow -->
+        <button type="button" class="coverflow-nav-btn prev" id="coverflowPrevBtn" aria-label="Previous Service">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <!-- 3D Track -->
+        <div class="coverflow-track" id="coverflowTrack">
+          {% for service in services %}
+          <div class="coverflow-slide" data-index="{{ forloop.counter0 }}">
+            <div class="modern-service-card">
+              <div class="modern-service-image">
+                {% if service.image %}
+                <img src="{{ service.image.url }}" alt="{{ service.name }}" class="service-db-image" loading="lazy">
+                {% else %}
+                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e7f7ef,#f7fbf9);">
+                  <i class="bi bi-tools" style="font-size:55px;color:#087f5b;"></i>
+                </div>
+                {% endif %}
+                <div class="service-type-badge"><i class="bi bi-tools"></i> Service</div>
+                {% if service.is_featured %}<div class="featured-badge"><i class="bi bi-star-fill"></i> Featured</div>{% endif %}
+              </div>
+
+              <div class="modern-service-content">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h3 style="margin:0;">{{ service.name }}</h3>
+                  {% if service.price %}<span style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{ service.price }}</span>{% endif %}
+                </div>
+                <p class="modern-service-desc">{{ service.description }}</p>
+                <div class="service-card-footer">
+                  <div class="service-availability"><span></span> Available</div>
+                  {% if user.is_authenticated and user.role == 'WORKER' %}
+                  <a href="{% url 'worker_dashboard' %}" class="modern-book-btn">
+                    Worker Portal <i class="bi bi-arrow-right"></i>
+                  </a>
+                  {% elif user.is_authenticated and user.role == 'ADMIN' %}
+                  <a href="{% url 'admin_dashboard' %}" class="modern-book-btn">
+                    Admin Portal <i class="bi bi-arrow-right"></i>
+                  </a>
+                  {% elif user.is_authenticated %}
+                  <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
+                    View Service <i class="bi bi-arrow-right"></i>
+                  </a>
+                  {% else %}
+                  <a href="{% url 'register' %}?next={% url 'service_detail' service.id %}" class="modern-book-btn">
+                    View Service <i class="bi bi-arrow-right"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
           </div>
-          {% endif %}
-          <div class="service-type-badge"><i class="bi bi-tools"></i> Service</div>
-          {% if service.is_featured %}<div class="featured-badge"><i class="bi bi-star-fill"></i> Featured</div>{% endif %}
+          {% endfor %}
         </div>
 
-        <div class="modern-service-content">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;">{{ service.name }}</h3>
-            {% if service.price %}<span
-              style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{
-              service.price }}</span>{% endif %}
-          </div>
-          <p class="modern-service-desc">{{ service.description }}</p>
-          <div class="service-card-footer">
-            <div class="service-availability"><span></span> Available</div>
-            {% if user.is_authenticated and user.role == 'WORKER' %}
-            <a href="{% url 'worker_dashboard' %}" class="modern-book-btn">
-              Worker Portal <i class="bi bi-arrow-right"></i>
-            </a>
-            {% elif user.is_authenticated and user.role == 'ADMIN' %}
-            <a href="{% url 'admin_dashboard' %}" class="modern-book-btn">
-              Admin Portal <i class="bi bi-arrow-right"></i>
-            </a>
-            {% elif user.is_authenticated %}
-            <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
-              View Service <i class="bi bi-arrow-right"></i>
-            </a>
-            {% else %}
-            <a href="{% url 'register' %}?next={% url 'service_detail' service.id %}" class="modern-book-btn">
-              View Service <i class="bi bi-arrow-right"></i>
-            </a>
-            {% endif %}
-          </div>
-        </div>
+        <!-- Floating Right Arrow -->
+        <button type="button" class="coverflow-nav-btn next" id="coverflowNextBtn" aria-label="Next Service">
+          <i class="bi bi-chevron-right"></i>
+        </button>
       </div>
-      {% endfor %}
+
+      <!-- Spotlight Floor Glow -->
+      <div class="coverflow-floor-glow"></div>
+
+      <!-- Pagination Indicator Dots -->
+      <div class="coverflow-pagination" id="coverflowPagination">
+        {% for service in services %}
+        <button type="button" class="coverflow-dot {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Service {{ forloop.counter }}"></button>
+        {% endfor %}
+      </div>
     </div>
     {% else %}
     <div class="services-empty" data-aos="fade-up">

@@ -203,32 +203,12 @@
                             <small>Regular service</small>
                         </button>
 
-                        <button type="button"
-                                class="modal-booking-type modal-booking-emergency"
-                                data-booking-type="Emergency"
-                                onclick="selectModalBookingType(this)">
-                            <i class="bi bi-lightning-charge-fill"></i>
-                            <span>Emergency</span>
-                            <small>Express 60-min</small>
-                        </button>
-
                     </div>
 
                     <input type="hidden"
                            name="booking_type"
                            id="modalBookingType"
                            value="One Time">
-
-                    <!-- EMERGENCY ALERT BANNER -->
-                    <div id="emergencyOptions" class="emergency-badge-banner" style="display:none;">
-                        <div class="emergency-banner-icon">
-                            <i class="bi bi-lightning-charge-fill"></i>
-                        </div>
-                        <div class="emergency-banner-content">
-                            <strong>⚡ 60-Minute Priority Express Dispatch</strong>
-                            <p>Worker will receive an immediate high-priority alert. Date is locked to Today for urgent fast-track arrival.</p>
-                        </div>
-                    </div>
 
                     <!-- ONE-TIME OPTIONS (Preferred Date) -->
                     <div id="oneTimeOptions">
@@ -771,34 +751,15 @@ function selectModalBookingType(element) {
     var oneTimeOptions = document.getElementById('oneTimeOptions');
     var recurringTopOptions = document.getElementById('recurringTopOptions');
     var recurringBottomOptions = document.getElementById('recurringBottomOptions');
-    var emergencyOptions = document.getElementById('emergencyOptions');
 
     var bookingDate = document.getElementById('modalBookingDate');
     var startDate = document.getElementById('modalStartDate');
     var endDate = document.getElementById('modalEndDate');
 
-    if (bookingType === 'Emergency') {
-        if (oneTimeOptions) oneTimeOptions.style.display = 'block';
-        if (recurringTopOptions) recurringTopOptions.style.display = 'none';
-        if (recurringBottomOptions) recurringBottomOptions.style.display = 'none';
-        if (emergencyOptions) emergencyOptions.style.display = 'flex';
-
-        if (bookingDate) {
-            bookingDate.required = true;
-            var today = new Date();
-            var yyyy = today.getFullYear();
-            var mm = String(today.getMonth() + 1).padStart(2, '0');
-            var dd = String(today.getDate()).padStart(2, '0');
-            bookingDate.value = yyyy + '-' + mm + '-' + dd;
-            bookingDate.readOnly = true;
-        }
-        if (startDate) { startDate.required = false; startDate.value = ''; }
-        if (endDate) { endDate.required = false; endDate.value = ''; }
-    } else if (bookingType === 'Recurring') {
+    if (bookingType === 'Recurring') {
         if (oneTimeOptions) oneTimeOptions.style.display = 'none';
         if (recurringTopOptions) recurringTopOptions.style.display = 'block';
         if (recurringBottomOptions) recurringBottomOptions.style.display = 'block';
-        if (emergencyOptions) emergencyOptions.style.display = 'none';
 
         if (bookingDate) {
             bookingDate.required = false;
@@ -811,7 +772,6 @@ function selectModalBookingType(element) {
         if (oneTimeOptions) oneTimeOptions.style.display = 'block';
         if (recurringTopOptions) recurringTopOptions.style.display = 'none';
         if (recurringBottomOptions) recurringBottomOptions.style.display = 'none';
-        if (emergencyOptions) emergencyOptions.style.display = 'none';
 
         if (bookingDate) {
             bookingDate.required = true;
