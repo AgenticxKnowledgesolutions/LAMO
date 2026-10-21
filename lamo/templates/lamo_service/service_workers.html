@@ -142,6 +142,7 @@
                                             data-worker-id="{{ worker.id }}"
                                             data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
                                             data-worker-district="{{ worker.district|escapejs }}"
+                                            data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
                                             {% if worker.profile_image %}
                                             data-worker-image="{{ worker.profile_image.url|escapejs }}"
                                             {% endif %}
@@ -430,6 +431,7 @@
                                                 data-worker-id="{{ worker.id }}"
                                                 data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
                                                 data-worker-district="{{ worker.district|escapejs }}"
+                                                data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
                                                 {% if worker.profile_image %}
                                                 data-worker-image="{{ worker.profile_image.url|escapejs }}"
                                                 {% elif worker.user.profile_image %}

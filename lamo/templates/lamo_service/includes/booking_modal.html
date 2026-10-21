@@ -203,12 +203,32 @@
                             <small>Regular service</small>
                         </button>
 
+                        <button type="button"
+                                class="modal-booking-type modal-booking-emergency"
+                                data-booking-type="Emergency"
+                                onclick="selectModalBookingType(this)">
+                            <i class="bi bi-lightning-charge-fill"></i>
+                            <span>Emergency</span>
+                            <small>Express 60-min</small>
+                        </button>
+
                     </div>
 
                     <input type="hidden"
                            name="booking_type"
                            id="modalBookingType"
                            value="One Time">
+
+                    <!-- EMERGENCY ALERT BANNER -->
+                    <div id="emergencyOptions" class="emergency-badge-banner" style="display:none;">
+                        <div class="emergency-banner-icon">
+                            <i class="bi bi-lightning-charge-fill"></i>
+                        </div>
+                        <div class="emergency-banner-content">
+                            <strong>⚡ 60-Minute Priority Express Dispatch</strong>
+                            <p>Worker will receive an immediate high-priority alert. Date is locked to Today for urgent fast-track arrival.</p>
+                        </div>
+                    </div>
 
                     <!-- ONE-TIME OPTIONS (Preferred Date) -->
                     <div id="oneTimeOptions">
@@ -393,17 +413,85 @@
 
                     </div>
 
-                    <!-- Requirement -->
+                    <!-- Transparent Cost Estimator -->
+                    <div class="modal-form-group">
+                        <div class="modal-estimate-box">
+                            <div class="estimate-header">
+                                <div class="estimate-title">
+                                    <i class="bi bi-calculator"></i>
+                                    <span>Transparent Cost Estimator</span>
+                                </div>
+                                <div class="estimate-badge" id="estimateCostBadge">
+                                    ₹<span id="calculatedCostDisplay">250</span> est.
+                                </div>
+                            </div>
+                            <div class="estimate-chips">
+                                <button type="button" class="estimate-chip active" data-hours="1" onclick="applyEstimateScope(this, 1)">
+                                    <span>Minor Fix</span>
+                                    <small>~1 hr</small>
+                                </button>
+                                <button type="button" class="estimate-chip" data-hours="2" onclick="applyEstimateScope(this, 2)">
+                                    <span>Standard</span>
+                                    <small>~2 hrs</small>
+                                </button>
+                                <button type="button" class="estimate-chip" data-hours="4" onclick="applyEstimateScope(this, 4)">
+                                    <span>Half Day</span>
+                                    <small>~4 hrs</small>
+                                </button>
+                                <button type="button" class="estimate-chip" data-hours="8" onclick="applyEstimateScope(this, 8)">
+                                    <span>Full Day</span>
+                                    <small>~8 hrs</small>
+                                </button>
+                            </div>
+                            <input type="hidden" name="estimated_cost" id="modalEstimatedCostInput" value="250.00">
+                            <div class="estimate-subtext">
+                                <i class="bi bi-info-circle"></i> Estimated based on rate (<span id="modalWorkerRateDisplay">₹250/hr</span>). Pay upon completed inspection.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Requirement & Voice-to-Text Speech -->
                     <div class="modal-form-group">
 
-                        <label class="modal-label">
-                            Describe Your Requirement
-                        </label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <label class="modal-label" style="margin-bottom:0;">
+                                Describe Your Requirement
+                            </label>
+                            <button type="button" id="voiceDescribeBtn" class="voice-describe-btn" onclick="toggleVoiceDescription()" title="Speak in your language to describe the problem">
+                                <i class="bi bi-mic-fill"></i>
+                                <span id="voiceBtnText">Speak to Describe</span>
+                            </button>
+                        </div>
 
                         <textarea name="description"
+                                  id="modalDescriptionTextarea"
                                   class="modal-input"
-                                  placeholder="Example: Kitchen tap is leaking..."></textarea>
+                                  placeholder="Example: Kitchen tap is leaking, need replacement washer..."></textarea>
 
+                        <div id="voiceRecordingStatus" class="voice-status-bar" style="display:none;">
+                            <span class="voice-pulse-dot"></span>
+                            <span id="voiceStatusText">Listening... Speak clearly into your mic</span>
+                        </div>
+
+                    </div>
+
+                    <!-- Problem Photo Scope (Optional) -->
+                    <div class="modal-form-group">
+                        <label class="modal-label">
+                            <i class="bi bi-camera me-1"></i> Attach Problem Photo <small style="color:#64748b; font-weight:normal;">(Optional)</small>
+                        </label>
+                        <div class="problem-photo-uploader">
+                            <input type="file" id="modalProblemPhotoInput" accept="image/*" style="display:none;" onchange="previewProblemPhoto(this)">
+                            <button type="button" class="photo-upload-trigger-btn" onclick="document.getElementById('modalProblemPhotoInput').click()">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                                <span>Add Photo of Work Area</span>
+                            </button>
+                            <div id="photoPreviewContainer" class="photo-preview-container" style="display:none;">
+                                <img id="photoPreviewElement" src="" alt="Work area preview">
+                                <button type="button" class="photo-delete-btn" onclick="clearProblemPhoto()" title="Remove photo">&times;</button>
+                                <span class="photo-status-badge"><i class="bi bi-check2-circle"></i> Attached</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Contact Number -->
@@ -544,6 +632,17 @@ function openBookingModal(button) {
     document.getElementById("modalServiceTitle").textContent = serviceName;
     document.getElementById("modalSelectedServiceText").textContent = serviceName;
 
+    const workerRate = parseFloat(button.dataset.workerRate || button.dataset.rate || "250") || 250;
+    window._currentWorkerRate = workerRate;
+    const rateDisplay = document.getElementById("modalWorkerRateDisplay");
+    if (rateDisplay) {
+        rateDisplay.textContent = "₹" + workerRate + "/hr";
+    }
+    const activeChip = document.querySelector('.estimate-chip.active') || document.querySelector('.estimate-chip');
+    if (typeof applyEstimateScope === 'function' && activeChip) {
+        applyEstimateScope(activeChip, parseFloat(activeChip.dataset.hours || 1));
+    }
+
     const image = document.getElementById("modalWorkerImage");
     const fallback = document.getElementById("modalWorkerFallback");
 
@@ -672,19 +771,39 @@ function selectModalBookingType(element) {
     var oneTimeOptions = document.getElementById('oneTimeOptions');
     var recurringTopOptions = document.getElementById('recurringTopOptions');
     var recurringBottomOptions = document.getElementById('recurringBottomOptions');
+    var emergencyOptions = document.getElementById('emergencyOptions');
 
     var bookingDate = document.getElementById('modalBookingDate');
     var startDate = document.getElementById('modalStartDate');
     var endDate = document.getElementById('modalEndDate');
 
-    if (bookingType === 'Recurring') {
+    if (bookingType === 'Emergency') {
+        if (oneTimeOptions) oneTimeOptions.style.display = 'block';
+        if (recurringTopOptions) recurringTopOptions.style.display = 'none';
+        if (recurringBottomOptions) recurringBottomOptions.style.display = 'none';
+        if (emergencyOptions) emergencyOptions.style.display = 'flex';
+
+        if (bookingDate) {
+            bookingDate.required = true;
+            var today = new Date();
+            var yyyy = today.getFullYear();
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var dd = String(today.getDate()).padStart(2, '0');
+            bookingDate.value = yyyy + '-' + mm + '-' + dd;
+            bookingDate.readOnly = true;
+        }
+        if (startDate) { startDate.required = false; startDate.value = ''; }
+        if (endDate) { endDate.required = false; endDate.value = ''; }
+    } else if (bookingType === 'Recurring') {
         if (oneTimeOptions) oneTimeOptions.style.display = 'none';
         if (recurringTopOptions) recurringTopOptions.style.display = 'block';
         if (recurringBottomOptions) recurringBottomOptions.style.display = 'block';
+        if (emergencyOptions) emergencyOptions.style.display = 'none';
 
         if (bookingDate) {
             bookingDate.required = false;
             bookingDate.value = '';
+            bookingDate.readOnly = false;
         }
         if (startDate) startDate.required = true;
         if (endDate) endDate.required = true;
@@ -692,16 +811,14 @@ function selectModalBookingType(element) {
         if (oneTimeOptions) oneTimeOptions.style.display = 'block';
         if (recurringTopOptions) recurringTopOptions.style.display = 'none';
         if (recurringBottomOptions) recurringBottomOptions.style.display = 'none';
+        if (emergencyOptions) emergencyOptions.style.display = 'none';
 
-        if (bookingDate) bookingDate.required = true;
-        if (startDate) {
-            startDate.required = false;
-            startDate.value = '';
+        if (bookingDate) {
+            bookingDate.required = true;
+            bookingDate.readOnly = false;
         }
-        if (endDate) {
-            endDate.required = false;
-            endDate.value = '';
-        }
+        if (startDate) { startDate.required = false; startDate.value = ''; }
+        if (endDate) { endDate.required = false; endDate.value = ''; }
     }
 }
 
@@ -1055,4 +1172,117 @@ document.addEventListener("DOMContentLoaded", function() {
 
     }
 );
+// =========================================================
+// ESTIMATOR, VOICE RECOGNITION & PHOTO SCOPE HELPERS
+// =========================================================
+
+function applyEstimateScope(chipEl, hours) {
+    if (!chipEl) return;
+    document.querySelectorAll('.estimate-chip').forEach(function(c) {
+        c.classList.remove('active');
+    });
+    chipEl.classList.add('active');
+
+    var rate = window._currentWorkerRate || 250;
+    var total = Math.round(rate * hours);
+    var display = document.getElementById('calculatedCostDisplay');
+    var input = document.getElementById('modalEstimatedCostInput');
+    if (display) display.textContent = total;
+    if (input) input.value = total.toFixed(2);
+}
+
+var _recognitionInstance = null;
+var _isRecordingVoice = false;
+
+function toggleVoiceDescription() {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var btn = document.getElementById('voiceDescribeBtn');
+    var btnText = document.getElementById('voiceBtnText');
+    var statusWrap = document.getElementById('voiceRecordingStatus');
+    var statusText = document.getElementById('voiceStatusText');
+    var textarea = document.getElementById('modalDescriptionTextarea');
+
+    if (!SpeechRecognition) {
+        alert("Voice recognition is supported in modern browsers like Chrome, Edge, and Safari. You can type directly into the description box.");
+        return;
+    }
+
+    if (_isRecordingVoice && _recognitionInstance) {
+        _recognitionInstance.stop();
+        return;
+    }
+
+    try {
+        _recognitionInstance = new SpeechRecognition();
+        _recognitionInstance.continuous = false;
+        _recognitionInstance.interimResults = false;
+        _recognitionInstance.lang = 'en-IN';
+
+        _recognitionInstance.onstart = function() {
+            _isRecordingVoice = true;
+            if (btn) btn.classList.add('recording');
+            if (btnText) btnText.textContent = 'Listening...';
+            if (statusWrap) statusWrap.style.display = 'flex';
+            if (statusText) statusText.textContent = 'Listening... Speak clearly into your mic';
+        };
+
+        _recognitionInstance.onresult = function(event) {
+            var transcript = '';
+            for (var i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            if (textarea && transcript.trim()) {
+                var currentText = textarea.value.trim();
+                textarea.value = currentText ? (currentText + ' ' + transcript) : transcript;
+            }
+        };
+
+        _recognitionInstance.onerror = function(event) {
+            console.warn("Speech recognition error:", event.error);
+            if (statusText) statusText.textContent = 'Could not catch voice. Please try speaking again.';
+            setTimeout(function() {
+                if (statusWrap) statusWrap.style.display = 'none';
+            }, 3000);
+        };
+
+        _recognitionInstance.onend = function() {
+            _isRecordingVoice = false;
+            if (btn) btn.classList.remove('recording');
+            if (btnText) btnText.textContent = 'Speak to Describe';
+            if (statusWrap) statusWrap.style.display = 'none';
+        };
+
+        _recognitionInstance.start();
+    } catch (err) {
+        console.error("Speech recognition error:", err);
+    }
+}
+
+function previewProblemPhoto(input) {
+    if (input.files && input.files[0]) {
+        var file = input.files[0];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var container = document.getElementById('photoPreviewContainer');
+            var img = document.getElementById('photoPreviewElement');
+            if (img) img.src = e.target.result;
+            if (container) container.style.display = 'inline-flex';
+
+            var textarea = document.getElementById('modalDescriptionTextarea');
+            if (textarea && !textarea.value.includes('[Photo Attached]')) {
+                textarea.value = (textarea.value.trim() ? textarea.value.trim() + '\n' : '') + '[Photo of problem attached for worker]';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearProblemPhoto() {
+    var input = document.getElementById('modalProblemPhotoInput');
+    var container = document.getElementById('photoPreviewContainer');
+    var img = document.getElementById('photoPreviewElement');
+    if (input) input.value = '';
+    if (img) img.src = '';
+    if (container) container.style.display = 'none';
+}
 </script>

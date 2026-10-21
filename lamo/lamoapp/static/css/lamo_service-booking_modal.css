@@ -507,9 +507,15 @@
 
 .modal-booking-types {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 18px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 480px) {
+    .modal-booking-types {
+        grid-template-columns: 1fr;
+    }
 }
 
 .modal-booking-type {
@@ -519,7 +525,7 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    padding: 12px 8px;
+    padding: 10px 6px;
     border: 1.5px solid #e0e7e4;
     border-radius: var(--lamo-radius);
     background: #ffffff;
@@ -531,7 +537,7 @@
 
 .modal-booking-type i {
     color: var(--lamo-green);
-    font-size: 18px;
+    font-size: 17px;
 }
 
 .modal-booking-type span {
@@ -540,7 +546,7 @@
 }
 
 .modal-booking-type small {
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--lamo-text-secondary);
     font-weight: 500;
 }
@@ -558,6 +564,313 @@
 
 .modal-booking-type.active span {
     color: var(--lamo-green);
+}
+
+/* EMERGENCY BOOKING TYPE */
+.modal-booking-emergency i {
+    color: #ea580c;
+}
+
+.modal-booking-emergency:hover {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.modal-booking-emergency.active {
+    border-color: #ea580c !important;
+    background: #fff7ed !important;
+    box-shadow: inset 0 0 0 1px #ea580c, 0 4px 14px rgba(234, 88, 12, 0.16) !important;
+}
+
+.modal-booking-emergency.active span {
+    color: #c2410c !important;
+}
+
+.modal-booking-emergency.active i {
+    color: #ea580c !important;
+}
+
+/* EMERGENCY BADGE BANNER */
+.emergency-badge-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border: 1.5px solid #fed7aa;
+    border-radius: var(--lamo-radius);
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    animation: emergencyPulseBorder 2s infinite ease-in-out;
+}
+
+@keyframes emergencyPulseBorder {
+    0%, 100% { border-color: #fed7aa; }
+    50% { border-color: #ea580c; }
+}
+
+.emergency-banner-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: #ea580c;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.emergency-banner-content strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 750;
+    color: #9a3412;
+}
+
+.emergency-banner-content p {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #b45309;
+    line-height: 1.4;
+}
+
+/* =========================================================
+   TRANSPARENT COST ESTIMATOR
+========================================================= */
+.modal-estimate-box {
+    padding: 13px 14px;
+    border: 1.5px solid #e0e7e4;
+    border-radius: var(--lamo-radius);
+    background: #f8fafc;
+    margin-bottom: 15px;
+    transition: all 0.2s ease;
+}
+
+.modal-estimate-box:hover {
+    border-color: #cbd5e1;
+}
+
+.estimate-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+}
+
+.estimate-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 750;
+    color: var(--lamo-text);
+}
+
+.estimate-title i {
+    color: var(--lamo-green);
+    font-size: 14px;
+}
+
+.estimate-badge {
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--lamo-green);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(8, 127, 91, 0.2);
+}
+
+.estimate-chips {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.estimate-chip {
+    padding: 6px 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #ffffff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.estimate-chip:hover {
+    background: var(--lamo-green-soft);
+    border-color: #b8d4c8;
+}
+
+.estimate-chip.active {
+    background: var(--lamo-green-light);
+    border-color: var(--lamo-green);
+    box-shadow: 0 0 0 2px rgba(8, 127, 91, 0.15);
+}
+
+.estimate-chip span {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--lamo-text);
+}
+
+.estimate-chip small {
+    font-size: 8.5px;
+    color: var(--lamo-text-secondary);
+}
+
+.estimate-chip.active span {
+    color: var(--lamo-green);
+}
+
+.estimate-subtext {
+    font-size: 10.5px;
+    color: var(--lamo-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* =========================================================
+   VOICE TO TEXT HELPER
+========================================================= */
+.voice-describe-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid #b8d4c8;
+    background: var(--lamo-green-soft);
+    color: var(--lamo-green);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.voice-describe-btn:hover {
+    background: var(--lamo-green-light);
+    border-color: var(--lamo-green);
+}
+
+.voice-describe-btn.recording {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #dc2626;
+    animation: micPulseAnim 1.2s infinite ease-in-out;
+}
+
+@keyframes micPulseAnim {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+.voice-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 11px;
+}
+
+.voice-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dc2626;
+    animation: dotPulseAnim 1s infinite alternate;
+}
+
+@keyframes dotPulseAnim {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    100% { transform: scale(1.3); opacity: 1; }
+}
+
+/* =========================================================
+   PHOTO SCOPE ATTACHMENT
+========================================================= */
+.problem-photo-uploader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.photo-upload-trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.photo-upload-trigger-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+.photo-preview-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 8px 3px 3px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+.photo-preview-container img {
+    width: 40px;
+    height: 40px;
+    border-radius: 7px;
+    object-fit: cover;
+}
+
+.photo-delete-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #ffffff;
+    border: none;
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.photo-status-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #059669;
 }
 
 /* =========================================================
