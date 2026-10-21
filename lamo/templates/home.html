@@ -1282,106 +1282,191 @@ LAMO | Labour Management System - Our Services
 
 
 <!-- =========================================================
-     AUTOMATIC LOGIN POPUP
+     AUTOMATIC & ON-DEMAND AUTH MODAL (LOGIN & REGISTER)
      ========================================================= -->
 
 <div id="lamoLoginOverlay" class="lamo-login-overlay" aria-hidden="true">
 
   <div class="lamo-login-modal" role="dialog" aria-modal="true" aria-labelledby="lamoLoginTitle">
 
-    <button type="button" class="lamo-login-close" id="lamoLoginClose" aria-label="Close login">
+    <button type="button" class="lamo-login-close" id="lamoLoginClose" aria-label="Close dialog">
       <i class="bi bi-x-lg"></i>
     </button>
 
-
     <div class="lamo-login-brand">
-
       <div class="lamo-login-brand-icon">
         <i class="bi bi-person-check-fill"></i>
       </div>
-
       <span>LAMO</span>
+    </div>
+
+    <!-- AUTH TABS -->
+    <div class="lamo-auth-tabs" role="tablist">
+      <button type="button" class="lamo-auth-tab active" id="tabBtnLogin" role="tab" aria-selected="true" aria-controls="authPaneLogin">
+        <i class="bi bi-box-arrow-in-right"></i>
+        <span>Sign In</span>
+      </button>
+      <button type="button" class="lamo-auth-tab" id="tabBtnRegister" role="tab" aria-selected="false" aria-controls="authPaneRegister">
+        <i class="bi bi-person-plus"></i>
+        <span>Create Account</span>
+      </button>
+    </div>
+
+    <!-- =====================================================
+         PANE 1: LOGIN
+         ===================================================== -->
+    <div class="lamo-auth-pane active" id="authPaneLogin" role="tabpanel" aria-labelledby="tabBtnLogin">
+
+      <h2 id="lamoLoginTitle" class="lamo-login-title">
+        Welcome Back 👋
+      </h2>
+
+      <p class="lamo-login-subtitle">
+        Login to continue using LAMO and manage your services easily.
+      </p>
+
+      <form method="POST" action="{% url 'login' %}" class="lamo-login-form" id="lamoAutoLoginForm">
+        {% csrf_token %}
+
+        <div class="lamo-login-field">
+          <label for="lamoLoginEmail">
+            Username
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-person"></i>
+            <input type="text" name="username" id="lamoLoginEmail" class="lamo-login-input"
+              placeholder="Enter your username" autocomplete="username" required>
+          </div>
+        </div>
+
+        <div class="lamo-login-field">
+          <label for="lamoLoginPassword">
+            Password
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-lock"></i>
+            <input type="password" name="password" id="lamoLoginPassword" class="lamo-login-input"
+              placeholder="Enter your password" autocomplete="current-password" required>
+            <button type="button" class="lamo-password-toggle" id="lamoPasswordToggle" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="lamo-login-row">
+          <label for="lamoRememberMe">
+            <input type="checkbox" name="remember_me" id="lamoRememberMe">
+            <span>Remember me</span>
+          </label>
+          <a href="{% url 'forgot_password' %}">Forgot Password?</a>
+        </div>
+
+        <div id="lamoLoginError" class="lamo-login-error">
+          Please enter your username and password.
+        </div>
+
+        <button type="submit" class="lamo-login-submit">
+          Login
+          <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+
+        <p class="lamo-login-register">
+          Don't have an account?
+          <button type="button" class="lamo-switch-tab-btn" data-switch-to="register">
+            Create account
+          </button>
+        </p>
+
+      </form>
 
     </div>
 
+    <!-- =====================================================
+         PANE 2: REGISTER
+         ===================================================== -->
+    <div class="lamo-auth-pane" id="authPaneRegister" role="tabpanel" aria-labelledby="tabBtnRegister">
 
-    <h2 id="lamoLoginTitle" class="lamo-login-title">
-      Welcome Back 👋
-    </h2>
+      <h2 id="lamoRegisterTitle" class="lamo-login-title">
+        Join LAMO ✨
+      </h2>
 
-
-    <p class="lamo-login-subtitle">
-      Login to continue using LAMO and manage your services easily.
-    </p>
-
-
-    <form method="POST" action="{% url 'login' %}" class="lamo-login-form" id="lamoAutoLoginForm">
-
-      {% csrf_token %}
-
-
-      <div class="lamo-login-field">
-
-        <label for="lamoLoginEmail">
-          Username
-        </label>
-
-        <div class="lamo-login-input-wrap">
-
-          <i class="bi bi-envelope"></i>
-
-          <input type="text" name="username" id="lamoLoginEmail" class="lamo-login-input"
-            placeholder="Enter your username" autocomplete="username" required>
-
-        </div>
-
-      </div>
-
-
-      <div class="lamo-login-field">
-
-        <label for="lamoLoginPassword">
-          Password
-        </label>
-
-        <div class="lamo-login-input-wrap">
-
-          <i class="bi bi-lock"></i>
-
-          <input type="password" name="password" id="lamoLoginPassword" class="lamo-login-input"
-            placeholder="Enter your password" autocomplete="current-password" required>
-
-          <button type="button" class="lamo-password-toggle" id="lamoPasswordToggle" aria-label="Show password">
-            <i class="bi bi-eye"></i>
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <div id="lamoLoginError" class="lamo-login-error">
-        Please enter your username and password.
-      </div>
-
-
-      <button type="submit" class="lamo-login-submit">
-        Login
-        <i class="bi bi-arrow-right ms-1"></i>
-      </button>
-
-
-      <p class="lamo-login-register">
-
-        Don't have an account?
-
-        <a href="{% url 'register' %}">
-          Create account
-        </a>
-
+      <p class="lamo-login-subtitle">
+        Create a free account to book trusted, verified services across Kerala.
       </p>
 
-    </form>
+      <form method="POST" action="{% url 'register' %}" class="lamo-login-form" id="lamoModalRegisterForm">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="USER">
+
+        <div class="lamo-login-field">
+          <label for="lamoRegUsername">
+            Username
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-person"></i>
+            <input type="text" name="username" id="lamoRegUsername" class="lamo-login-input"
+              placeholder="Choose a username" autocomplete="username" required>
+          </div>
+        </div>
+
+        <div class="lamo-login-field">
+          <label for="lamoRegEmail">
+            Email Address
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-envelope"></i>
+            <input type="email" name="email" id="lamoRegEmail" class="lamo-login-input"
+              placeholder="Enter your email address" autocomplete="email" required>
+          </div>
+        </div>
+
+        <div class="lamo-login-field">
+          <label for="lamoRegPassword">
+            Password
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-lock"></i>
+            <input type="password" name="password" id="lamoRegPassword" class="lamo-login-input"
+              placeholder="At least 8 characters" autocomplete="new-password" required minlength="8">
+            <button type="button" class="lamo-password-toggle" id="lamoRegPasswordToggle" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="lamo-login-field">
+          <label for="lamoRegConfirmPassword">
+            Confirm Password
+          </label>
+          <div class="lamo-login-input-wrap">
+            <i class="bi bi-shield-check"></i>
+            <input type="password" name="confirm_password" id="lamoRegConfirmPassword" class="lamo-login-input"
+              placeholder="Re-enter your password" autocomplete="new-password" required minlength="8">
+          </div>
+        </div>
+
+        <div id="lamoRegisterError" class="lamo-login-error"></div>
+
+        <button type="submit" class="lamo-login-submit">
+          Create Account
+          <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+
+        <div class="lamo-auth-worker-callout">
+          <i class="bi bi-tools"></i>
+          <span>Want to offer services? <a href="{% url 'register' %}">Register as a Worker →</a></span>
+        </div>
+
+        <p class="lamo-login-register">
+          Already have an account?
+          <button type="button" class="lamo-switch-tab-btn" data-switch-to="login">
+            Sign In
+          </button>
+        </p>
+
+      </form>
+
+    </div>
 
   </div>
 
@@ -1397,82 +1482,101 @@ LAMO | Labour Management System - Our Services
 
 
     /* =====================================================
-       LOGIN POPUP
+       LAMO AUTH MODAL (LOGIN & REGISTER)
        ===================================================== */
 
-    const overlay =
-      document.getElementById("lamoLoginOverlay");
+    const overlay = document.getElementById("lamoLoginOverlay");
+    const closeBtn = document.getElementById("lamoLoginClose");
 
-    const closeBtn =
-      document.getElementById("lamoLoginClose");
+    const tabBtnLogin = document.getElementById("tabBtnLogin");
+    const tabBtnRegister = document.getElementById("tabBtnRegister");
+    const paneLogin = document.getElementById("authPaneLogin");
+    const paneRegister = document.getElementById("authPaneRegister");
 
-    const passwordInput =
-      document.getElementById("lamoLoginPassword");
+    const loginPasswordInput = document.getElementById("lamoLoginPassword");
+    const loginPasswordToggle = document.getElementById("lamoPasswordToggle");
+    const loginForm = document.getElementById("lamoAutoLoginForm");
+    const loginErrorBox = document.getElementById("lamoLoginError");
 
-    const passwordToggle =
-      document.getElementById("lamoPasswordToggle");
-
-    const form =
-      document.getElementById("lamoAutoLoginForm");
-
-    const errorBox =
-      document.getElementById("lamoLoginError");
-
+    const regPasswordInput = document.getElementById("lamoRegPassword");
+    const regPasswordToggle = document.getElementById("lamoRegPasswordToggle");
+    const regForm = document.getElementById("lamoModalRegisterForm");
+    const regErrorBox = document.getElementById("lamoRegisterError");
 
     /* -----------------------------------------------------
-       OPEN LOGIN POPUP
+       TAB SWITCHING
        ----------------------------------------------------- */
+    function switchAuthTab(targetTab) {
+      const isLogin = targetTab === "login";
 
-    function openLoginPopup() {
-
-      if (!overlay) {
-        return;
+      if (tabBtnLogin) {
+        tabBtnLogin.classList.toggle("active", isLogin);
+        tabBtnLogin.setAttribute("aria-selected", isLogin ? "true" : "false");
+      }
+      if (tabBtnRegister) {
+        tabBtnRegister.classList.toggle("active", !isLogin);
+        tabBtnRegister.setAttribute("aria-selected", !isLogin ? "true" : "false");
       }
 
-      overlay.classList.add("show");
+      if (paneLogin) {
+        paneLogin.classList.toggle("active", isLogin);
+      }
+      if (paneRegister) {
+        paneRegister.classList.toggle("active", !isLogin);
+      }
 
-      overlay.setAttribute(
-        "aria-hidden",
-        "false"
-      );
-
-      document.body.style.overflow =
-        "hidden";
+      if (loginErrorBox) loginErrorBox.classList.remove("show");
+      if (regErrorBox) regErrorBox.classList.remove("show");
 
       setTimeout(function () {
-
-        const emailInput =
-          document.getElementById(
-            "lamoLoginEmail"
-          );
-
-        if (emailInput) {
-
-          emailInput.focus();
-
+        if (isLogin) {
+          const emailInput = document.getElementById("lamoLoginEmail");
+          if (emailInput) emailInput.focus();
+        } else {
+          const regUserInput = document.getElementById("lamoRegUsername");
+          if (regUserInput) regUserInput.focus();
         }
-
-      }, 350);
+      }, 100);
     }
 
+    if (tabBtnLogin) {
+      tabBtnLogin.addEventListener("click", function () {
+        switchAuthTab("login");
+      });
+    }
+
+    if (tabBtnRegister) {
+      tabBtnRegister.addEventListener("click", function () {
+        switchAuthTab("register");
+      });
+    }
+
+    document.querySelectorAll("[data-switch-to]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        const target = btn.getAttribute("data-switch-to");
+        switchAuthTab(target);
+      });
+    });
 
     /* -----------------------------------------------------
-       CLOSE LOGIN POPUP
+       OPEN & CLOSE AUTH MODAL
        ----------------------------------------------------- */
+    function openAuthModal(tabName) {
+      if (!overlay) return;
 
-    function closeLoginPopup() {
+      switchAuthTab(tabName || "login");
 
-      if (!overlay) {
-        return;
-      }
+      overlay.classList.add("show");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeAuthModal() {
+      if (!overlay) return;
 
       overlay.classList.remove("show");
-
-      overlay.setAttribute(
-        "aria-hidden",
-        "true"
-      );
-
+      overlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
 
       try {
@@ -1483,22 +1587,46 @@ LAMO | Labour Management System - Our Services
       } catch (e) { }
     }
 
+    /* -----------------------------------------------------
+       NAVBAR BUTTON INTERCEPTION (OPEN MODAL ON HOMEPAGE)
+       ----------------------------------------------------- */
+    document.querySelectorAll(".btn-login").forEach(function (btn) {
+      btn.addEventListener("click", function (event) {
+        event.preventDefault();
+        openAuthModal("login");
+      });
+    });
+
+    document.querySelectorAll(".btn-register").forEach(function (btn) {
+      btn.addEventListener("click", function (event) {
+        event.preventDefault();
+        openAuthModal("register");
+      });
+    });
+
+    /* -----------------------------------------------------
+       URL HASH & PARAMS TRIGGER (e.g. #login, #register)
+       ----------------------------------------------------- */
+    (function checkUrlAuthTrigger() {
+      try {
+        var hash = window.location.hash;
+        var search = new URLSearchParams(window.location.search);
+        var authParam = search.get("auth") || search.get("action");
+
+        if (hash === "#register" || authParam === "register" || search.has("register")) {
+          setTimeout(function () { openAuthModal("register"); }, 300);
+        } else if (hash === "#login" || authParam === "login" || search.has("login")) {
+          setTimeout(function () { openAuthModal("login"); }, 300);
+        }
+      } catch (e) { }
+    })();
 
     /* -----------------------------------------------------
        AUTOMATIC LOGIN POPUP (SESSION-SCOPED)
-       Unauthenticated visitors only:
-       - If arriving from splash screen, open promptly (450ms)
-       - If opened directly, open after a short delay (1500ms)
-       - Dismissal is remembered for the current browsing session
-    ----------------------------------------------------- */
-
+       ----------------------------------------------------- */
     {% if not user.is_authenticated %}
-
     if (overlay) {
-
       (function () {
-
-        // Clean up any stale legacy localStorage key so returning visitors are not blocked
         try {
           if (window.localStorage && localStorage.getItem("lamo_login_popup_shown")) {
             localStorage.removeItem("lamo_login_popup_shown");
@@ -1506,8 +1634,6 @@ LAMO | Labour Management System - Our Services
         } catch (e) { }
 
         var isFromSplash = false;
-
-        // 1. Check sessionStorage flag from splash transition
         try {
           if (window.sessionStorage && sessionStorage.getItem("lamo_from_splash") === "true") {
             isFromSplash = true;
@@ -1515,7 +1641,6 @@ LAMO | Labour Management System - Our Services
           }
         } catch (e) { }
 
-        // 2. Check URL query param (?from_splash=1) and clean it from the address bar
         try {
           var urlParams = new URLSearchParams(window.location.search);
           if (urlParams.get("from_splash") === "1") {
@@ -1526,7 +1651,6 @@ LAMO | Labour Management System - Our Services
           }
         } catch (e) { }
 
-        // 3. Check if already shown or dismissed in this browsing session
         var popupShown = window.__lamo_popup_shown || false;
         try {
           if (window.sessionStorage) {
@@ -1538,11 +1662,10 @@ LAMO | Labour Management System - Our Services
 
         if (!popupShown) {
           window.__lamo_popup_shown = true;
-          // If arriving from splash, smooth 450ms entrance delay; otherwise 1500ms
           var delay = isFromSplash ? 450 : 1500;
 
           setTimeout(function () {
-            openLoginPopup();
+            openAuthModal("login");
 
             try {
               if (window.sessionStorage) {
@@ -1551,208 +1674,133 @@ LAMO | Labour Management System - Our Services
             } catch (e) { }
           }, delay);
         }
-
       })();
-
     }
-
     {% endif %}
 
-
     /* -----------------------------------------------------
-       HOME SEARCH — CLEAR BUTTON
-       Clears search input, removes ?q= from URL,
-       does NOT reload the page.
-    ----------------------------------------------------- */
-
-    (function () {
-
-      var searchInput = document.getElementById("homeSearchInput");
-      var clearButton = document.getElementById("homeSearchClear");
-
-      if (!clearButton) return;
-
-      clearButton.addEventListener("click", function (event) {
-
-        event.preventDefault();
-
-        if (searchInput) {
-          searchInput.value = "";
-        }
-
-        // Remove ?q= from URL without reloading
-        try {
-          var url = new URL(window.location.href);
-          url.searchParams.delete("q");
-          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-        } catch (e) {
-          // ignore
-        }
-
-        // Focus the search input for convenience
-        if (searchInput) {
-          searchInput.focus();
-        }
-
-      });
-
-    })();
-
-
-    /* -----------------------------------------------------
-       CLOSE BUTTON
+       CLOSE BUTTON, BACKDROP CLICK, & ESC KEY
        ----------------------------------------------------- */
-
     if (closeBtn) {
-
-      closeBtn.addEventListener(
-        "click",
-        closeLoginPopup
-      );
-
+      closeBtn.addEventListener("click", closeAuthModal);
     }
-
-
-    /* -----------------------------------------------------
-       CLICK OUTSIDE LOGIN POPUP
-       ----------------------------------------------------- */
 
     if (overlay) {
-
-      overlay.addEventListener(
-        "click",
-        function (event) {
-
-          if (
-            event.target === overlay
-          ) {
-
-            closeLoginPopup();
-
-          }
-
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) {
+          closeAuthModal();
         }
-      );
-
+      });
     }
 
-
-    /* -----------------------------------------------------
-       ESC KEY
-       ----------------------------------------------------- */
-
-    document.addEventListener(
-      "keydown",
-      function (event) {
-
-        if (
-          event.key === "Escape" &&
-          overlay &&
-          overlay.classList.contains("show")
-        ) {
-
-          closeLoginPopup();
-
-        }
-
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && overlay && overlay.classList.contains("show")) {
+        closeAuthModal();
       }
-    );
-
+    });
 
     /* -----------------------------------------------------
-       PASSWORD SHOW / HIDE
+       PASSWORD SHOW / HIDE TOGGLES
        ----------------------------------------------------- */
-
-    if (
-      passwordToggle &&
-      passwordInput
-    ) {
-
-      passwordToggle.addEventListener(
-        "click",
-        function () {
-
-          const isPassword =
-            passwordInput.type ===
-            "password";
-
-          passwordInput.type =
-            isPassword
-              ? "text"
-              : "password";
-
-          passwordToggle.innerHTML =
-            isPassword
-              ? '<i class="bi bi-eye-slash"></i>'
-              : '<i class="bi bi-eye"></i>';
-
-          passwordToggle.setAttribute(
-            "aria-label",
-            isPassword
-              ? "Hide password"
-              : "Show password"
-          );
-
-        }
-      );
-
+    function wirePasswordToggle(toggleBtn, inputField) {
+      if (!toggleBtn || !inputField) return;
+      toggleBtn.addEventListener("click", function () {
+        const isPassword = inputField.type === "password";
+        inputField.type = isPassword ? "text" : "password";
+        toggleBtn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+        toggleBtn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+      });
     }
 
+    wirePasswordToggle(loginPasswordToggle, loginPasswordInput);
+    wirePasswordToggle(regPasswordToggle, regPasswordInput);
 
     /* -----------------------------------------------------
        LOGIN FORM VALIDATION
        ----------------------------------------------------- */
+    if (loginForm) {
+      loginForm.addEventListener("submit", function (event) {
+        const emailInput = document.getElementById("lamoLoginEmail");
+        const username = emailInput ? emailInput.value.trim() : "";
+        const password = loginPasswordInput ? loginPasswordInput.value.trim() : "";
 
-    if (form) {
-
-      form.addEventListener(
-        "submit",
-        function (event) {
-
-          const emailInput =
-            document.getElementById(
-              "lamoLoginEmail"
-            );
-
-          const username =
-            emailInput
-              ? emailInput.value.trim()
-              : "";
-
-          const password =
-            passwordInput
-              ? passwordInput.value.trim()
-              : "";
-
-          if (
-            !username ||
-            !password
-          ) {
-
-            event.preventDefault();
-
-            if (errorBox) {
-
-              errorBox.classList.add(
-                "show"
-              );
-
-            }
-
-            return;
+        if (!username || !password) {
+          event.preventDefault();
+          if (loginErrorBox) {
+            loginErrorBox.textContent = "Please enter both username and password.";
+            loginErrorBox.classList.add("show");
           }
-
-          if (errorBox) {
-
-            errorBox.classList.remove(
-              "show"
-            );
-
-          }
-
+          return;
         }
-      );
 
+        if (loginErrorBox) {
+          loginErrorBox.classList.remove("show");
+        }
+      });
+    }
+
+    /* -----------------------------------------------------
+       REGISTER FORM CLIENT-SIDE VALIDATION
+       ----------------------------------------------------- */
+    if (regForm) {
+      regForm.addEventListener("submit", function (event) {
+        const usernameInput = document.getElementById("lamoRegUsername");
+        const emailInput = document.getElementById("lamoRegEmail");
+        const passInput = document.getElementById("lamoRegPassword");
+        const confirmPassInput = document.getElementById("lamoRegConfirmPassword");
+
+        const username = usernameInput ? usernameInput.value.trim() : "";
+        const email = emailInput ? emailInput.value.trim() : "";
+        const pass = passInput ? passInput.value : "";
+        const confirmPass = confirmPassInput ? confirmPassInput.value : "";
+
+        function showRegError(msg) {
+          if (regErrorBox) {
+            regErrorBox.textContent = msg;
+            regErrorBox.classList.add("show");
+          }
+        }
+
+        if (!username) {
+          event.preventDefault();
+          showRegError("Please enter a username.");
+          if (usernameInput) usernameInput.focus();
+          return;
+        }
+
+        if (!email) {
+          event.preventDefault();
+          showRegError("Please enter your email address.");
+          if (emailInput) emailInput.focus();
+          return;
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+          event.preventDefault();
+          showRegError("Please enter a valid email address.");
+          if (emailInput) emailInput.focus();
+          return;
+        }
+
+        if (!pass || pass.length < 8) {
+          event.preventDefault();
+          showRegError("Password must contain at least 8 characters.");
+          if (passInput) passInput.focus();
+          return;
+        }
+
+        if (pass !== confirmPass) {
+          event.preventDefault();
+          showRegError("Passwords do not match. Please re-enter.");
+          if (confirmPassInput) confirmPassInput.focus();
+          return;
+        }
+
+        if (regErrorBox) {
+          regErrorBox.classList.remove("show");
+        }
+      });
     }
 
     /* CSRF helper: read token from <meta name="csrf-token"> or <input name="csrfmiddlewaretoken"> */

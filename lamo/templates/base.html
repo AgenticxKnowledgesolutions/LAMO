@@ -20,7 +20,8 @@
     {% endblock %}
   </title>
 
-  <meta name="description" content="{% block meta_description %}LAMO connects customers across Kerala with verified, skilled service workers for home repairs, electrical, plumbing, cleaning, and essential services.{% endblock %}">
+  <meta name="description"
+    content="{% block meta_description %}LAMO connects customers across Kerala with verified, skilled service workers for home repairs, electrical, plumbing, cleaning, and essential services.{% endblock %}">
 
   <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
 
@@ -34,14 +35,16 @@
   <meta property="og:site_name" content="LAMO">
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:title" content="{% block og_title %}LAMO | Labour Management System{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
+  <meta property="og:description"
+    content="{% block og_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
   <meta property="og:url" content="{{ request.build_absolute_uri }}">
   <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{% block twitter_title %}LAMO | Labour Management System{% endblock %}">
-  <meta name="twitter:description" content="{% block twitter_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
+  <meta name="twitter:description"
+    content="{% block twitter_description %}Connecting customers with verified service workers across Kerala for everyday home repairs and essential services.{% endblock %}">
   <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/logoo.png' %}">
 
   <!-- =====================================================
@@ -585,26 +588,28 @@
        GLOBAL FLOATING ANNOUNCEMENT PILL (Linear / Apple Style)
        ====================================================== -->
   {% if request.user.is_authenticated and global_notifications %}
-    {% for notif in global_notifications %}
-      {% if notif.notification_type == 'SYSTEM' and not notif.is_read and '📢' in notif.message %}
-        {% if forloop.first %}
-        <aside class="lamo-floating-announcement" id="lamoFloatingAnnouncement" role="alert" aria-live="polite" data-notif-id="{{ notif.id }}">
-          <div class="lamo-announcement-pill">
-            <span class="lamo-announcement-badge">
-              <span class="lamo-pulse-dot"></span>
-              <span>ANNOUNCEMENT</span>
-            </span>
-            <div class="lamo-announcement-content">
-              <span class="lamo-announcement-text">{{ notif.message|slice:"2:" }}</span>
-            </div>
-            <button type="button" class="lamo-announcement-close" id="closeFloatingAnnouncement" aria-label="Dismiss announcement">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </aside>
-        {% endif %}
-      {% endif %}
-    {% endfor %}
+  {% for notif in global_notifications %}
+  {% if notif.notification_type == 'SYSTEM' and not notif.is_read and '📢' in notif.message %}
+  {% if forloop.first %}
+  <aside class="lamo-floating-announcement" id="lamoFloatingAnnouncement" role="alert" aria-live="polite"
+    data-notif-id="{{ notif.id }}">
+    <div class="lamo-announcement-pill">
+      <span class="lamo-announcement-badge">
+        <span class="lamo-pulse-dot"></span>
+        <span>ANNOUNCEMENT</span>
+      </span>
+      <div class="lamo-announcement-content">
+        <span class="lamo-announcement-text">{{ notif.message|slice:"2:" }}</span>
+      </div>
+      <button type="button" class="lamo-announcement-close" id="closeFloatingAnnouncement"
+        aria-label="Dismiss announcement">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </aside>
+  {% endif %}
+  {% endif %}
+  {% endfor %}
   {% endif %}
 
   <!-- =====================================================
@@ -940,7 +945,7 @@
 
         <p class="mb-1">
 
-          &copy; © 2026 AgenticX. All rights reserved.
+          &copy; 2026 AgenticX. All rights reserved.
 
         </p>
 
@@ -1191,7 +1196,8 @@
     </ul>
 
     <div class="lamo-notif-foot">
-      <a class="lamo-notif-viewall" href="{% if user.is_authenticated and user.role == 'WORKER' %}{% url 'worker_notifications' %}{% elif user.is_authenticated and user.role == 'ADMIN' %}{% url 'admin_notifications' %}{% else %}{% url 'notifications' %}{% endif %}">
+      <a class="lamo-notif-viewall"
+        href="{% if user.is_authenticated and user.role == 'WORKER' %}{% url 'worker_notifications' %}{% elif user.is_authenticated and user.role == 'ADMIN' %}{% url 'admin_notifications' %}{% else %}{% url 'notifications' %}{% endif %}">
         View all notifications <i class="bi bi-arrow-right"></i>
       </a>
     </div>

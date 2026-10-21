@@ -1279,9 +1279,13 @@
 
 .lamo-login-modal {
   position: relative;
-  width: min(430px, 100%);
+  width: min(440px, 100%);
+  max-height: min(92vh, 680px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c2dcd2 transparent;
 
-  padding: 30px;
+  padding: 30px 28px;
 
   border: 1px solid rgba(255,255,255,.22);
   border-radius: 26px;
@@ -1298,8 +1302,15 @@
   transition:
     transform .55s cubic-bezier(.2,.8,.2,1),
     opacity .4s ease;
+}
 
-  overflow: hidden;
+.lamo-login-modal::-webkit-scrollbar {
+  width: 5px;
+}
+
+.lamo-login-modal::-webkit-scrollbar-thumb {
+  background: #c2dcd2;
+  border-radius: 4px;
 }
 
 .lamo-login-overlay.show .lamo-login-modal {
@@ -1578,13 +1589,143 @@
   font-size: 10px;
 }
 
-.lamo-login-register a {
+.lamo-login-register a,
+.lamo-switch-tab-btn {
   color: #087f5b;
   font-weight: 850;
   text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  display: inline;
 }
 
-.lamo-login-register a:hover {
+.lamo-login-register a:hover,
+.lamo-switch-tab-btn:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================
+   AUTH MODAL TABS (SIGN IN / CREATE ACCOUNT)
+   ========================================================= */
+
+.lamo-auth-tabs {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  background: #eef6f2;
+  border-radius: 14px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #dcebe4;
+}
+
+.lamo-auth-tab {
+  flex: 1;
+  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  color: #527067;
+  font-size: 11.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.lamo-auth-tab:hover {
+  color: #087f5b;
+}
+
+.lamo-auth-tab.active {
+  background: #fff;
+  color: #087f5b;
+  box-shadow: 0 4px 12px rgba(8, 127, 91, .12);
+}
+
+.lamo-auth-pane {
+  display: none;
+}
+
+.lamo-auth-pane.active {
+  display: block;
+  animation: lamoFadeIn .28s ease;
+}
+
+@keyframes lamoFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lamo-login-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0 14px;
+  font-size: 11px;
+}
+
+.lamo-login-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #527067;
+  cursor: pointer;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lamo-login-row a {
+  color: #087f5b;
+  text-decoration: none;
+  font-weight: 750;
+  font-size: 11px;
+}
+
+.lamo-login-row a:hover {
+  text-decoration: underline;
+}
+
+.lamo-auth-worker-callout {
+  position: relative;
+  z-index: 2;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #f0faf5;
+  border: 1px dashed #b8e2d3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  color: #2b5648;
+}
+
+.lamo-auth-worker-callout i {
+  color: #087f5b;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lamo-auth-worker-callout a {
+  color: #087f5b;
+  font-weight: 800;
   text-decoration: underline;
 }
 
