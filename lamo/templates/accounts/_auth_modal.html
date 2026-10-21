@@ -1,0 +1,1468 @@
+{% load static %}
+
+<!-- =========================================================
+     SPLIT-CARD AUTH MODAL (EXACT SCREENSHOTS: 1 = LOGIN, 2 = REGISTER)
+     ========================================================= -->
+
+<style>
+/* =========================================================
+   LAMO AUTH MODAL - PIXEL-PERFECT SPLIT CARDS (LOGIN & REGISTER)
+   ========================================================= */
+
+.lamo-auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(3, 28, 21, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.lamo-auth-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.lamo-auth-modal-container {
+    position: relative;
+    width: 100%;
+    max-width: 880px;
+    max-height: min(92vh, 720px);
+    display: flex;
+    animation: modalCardPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes modalCardPop {
+    from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.lamo-auth-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.95);
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
+    transition: all 0.25s ease;
+}
+
+.lamo-auth-modal-close:hover {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+    transform: rotate(90deg);
+}
+
+/* SPLIT CARD SHELL (DUAL CARDS: LOGIN & REGISTER) */
+.auth-split-card {
+    display: none;
+    width: 100%;
+    grid-template-columns: 46% 54%;
+    background: #ffffff;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 25px 70px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+    max-height: min(92vh, 720px);
+}
+
+.auth-split-card.active {
+    display: grid;
+    animation: authCardFade 0.3s ease;
+}
+
+@keyframes authCardFade {
+    from { opacity: 0; transform: scale(0.99); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* LEFT BANNER */
+.auth-split-card .card-left {
+    position: relative;
+    padding: 34px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #ffffff;
+    background-image:
+        linear-gradient(
+            145deg,
+            rgba(2, 55, 38, 0.96),
+            rgba(3, 100, 62, 0.90),
+            rgba(22, 163, 74, 0.72)
+        ),
+        url("{% static 'img/image.webp' %}");
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+.auth-split-card .card-left .brand-logo {
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.auth-split-card .card-left .left-content {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 16px 0 6px;
+}
+
+.auth-split-card .card-left .small-title {
+    color: #86efac;
+    font-size: 11.5px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.auth-split-card .card-left h1 {
+    font-size: 29px;
+    font-weight: 800;
+    line-height: 1.18;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+}
+
+.auth-split-card .card-left h1 span {
+    color: #4ade80;
+}
+
+.auth-split-card .card-left p {
+    font-size: 12.5px;
+    color: #d1fae5;
+    line-height: 1.55;
+    margin-bottom: 22px;
+}
+
+/* IMAGE 1 (LOGIN) — STACKED HORIZONTAL BENEFIT PILLS */
+.login-benefits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.login-benefit-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.25s ease;
+}
+
+.login-benefit-pill:hover {
+    background: rgba(255, 255, 255, 0.14);
+    transform: translateX(3px);
+}
+
+.login-benefit-pill .pill-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(74, 222, 128, 0.18);
+    color: #4ade80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.login-benefit-pill .pill-text strong {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 1px;
+}
+
+.login-benefit-pill .pill-text span {
+    display: block;
+    font-size: 11px;
+    color: #a7f3d0;
+    line-height: 1.25;
+}
+
+/* IMAGE 2 (REGISTER) — 3-COLUMN BENEFIT GRID */
+.register-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+}
+
+.register-benefit-box {
+    padding: 12px 9px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+}
+
+.register-benefit-box i {
+    font-size: 18px;
+    color: #4ade80;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.register-benefit-box strong {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+.register-benefit-box span {
+    font-size: 9.5px;
+    color: #a7f3d0;
+    display: block;
+    line-height: 1.2;
+}
+
+/* RIGHT SIDE (FORM PANE) */
+.auth-split-card .card-right {
+    position: relative;
+    padding: 34px 36px;
+    background: #ffffff;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.auth-split-card .card-right::-webkit-scrollbar {
+    width: 5px;
+}
+.auth-split-card .card-right::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* Vertical centering specifically for Login card */
+#modalCardLogin .card-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 38px 42px;
+}
+
+.auth-heading {
+    margin-bottom: 18px;
+}
+
+.auth-heading h2 {
+    margin: 0 0 5px;
+    color: #0f172a;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.auth-heading p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* FORM FIELDS */
+.auth-input-group {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+#modalCardLogin .auth-input-group {
+    margin-bottom: 16px;
+}
+
+.auth-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.auth-input-wrap {
+    position: relative;
+}
+
+.auth-input-wrap > i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 15px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.auth-field-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 40px 0 42px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 11px;
+    outline: none;
+    font-size: 13.5px;
+    color: #0f172a;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+#modalCardLogin .auth-field-input {
+    height: 48px;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.auth-field-input:focus {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.auth-pass-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.auth-pass-toggle:hover {
+    color: #16a34a;
+}
+
+.auth-field-error {
+    display: none;
+    color: #dc2626;
+    font-size: 11px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+.auth-field-error.show {
+    display: block;
+}
+
+/* ROLE SELECTOR */
+.auth-role-label {
+    display: block;
+    margin: 12px 0 6px;
+    color: #334155;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.auth-role-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.auth-role-card {
+    position: relative;
+    padding: 14px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.auth-role-card:hover {
+    border-color: #cbd5e1;
+}
+
+.auth-role-card.active {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 1px #16a34a;
+    background: #ffffff;
+}
+
+.auth-role-card .role-main-icon {
+    font-size: 22px;
+    color: #64748b;
+    transition: color 0.2s ease;
+}
+
+.auth-role-card.active .role-main-icon {
+    color: #0f172a;
+}
+
+.auth-role-card .role-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* PRIMARY ACTION BUTTON */
+.auth-btn-main {
+    width: 100%;
+    height: 44px;
+    margin-top: 6px;
+    border: 0;
+    border-radius: 11px;
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+    transition: all 0.25s ease;
+}
+
+#modalCardLogin .auth-btn-main {
+    height: 48px;
+    font-size: 14px;
+    border-radius: 12px;
+    margin-top: 10px;
+}
+
+.auth-btn-main:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(22, 163, 74, 0.32);
+}
+
+.auth-btn-main:active {
+    transform: translateY(0);
+}
+
+/* FORGOT PASSWORD CENTER LINK */
+.auth-forgot-center {
+    text-align: center;
+    margin-top: 14px;
+}
+
+.auth-forgot-center a {
+    color: #16a34a;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.auth-forgot-center a:hover {
+    text-decoration: underline;
+}
+
+/* DIVIDER */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 18px 0;
+    color: #94a3b8;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.auth-divider span {
+    padding: 0 12px;
+}
+
+/* BOTTOM SWITCH FOOTER */
+.auth-switch-footer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: #475569;
+}
+
+.auth-switch-trigger {
+    color: #16a34a;
+    font-weight: 750;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+}
+
+.auth-switch-trigger:hover {
+    text-decoration: underline;
+}
+
+.auth-terms-disclaimer {
+    margin: 12px 0 0;
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.auth-terms-disclaimer a {
+    color: #16a34a;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+/* WORKER STEPS & FIELDS */
+.auth-step-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.auth-step-title {
+    margin: 0 0 3px;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.auth-step-subtitle {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+.auth-step-count {
+    padding: 3px 8px;
+    background: #ecfdf5;
+    color: #059669;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 8px;
+}
+.auth-worker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+}
+.auth-worker-full {
+    grid-column: span 2;
+}
+.auth-step-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 18px;
+}
+.auth-step-btn-back {
+    padding: 10px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12.5px;
+    font-weight: 650;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.auth-step-btn-back:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.auth-worker-offer-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 11px;
+    color: #166534;
+    font-size: 11.5px;
+    margin-bottom: 12px;
+}
+.auth-worker-offer-badge i {
+    font-size: 18px;
+    color: #16a34a;
+}
+.auth-worker-offer-badge strong {
+    display: block;
+    font-size: 11.5px;
+    color: #14532d;
+}
+.auth-worker-offer-badge span {
+    display: block;
+    font-size: 10.5px;
+    color: #15803d;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+    .auth-split-card {
+        grid-template-columns: 1fr;
+        max-height: 90vh;
+    }
+    .auth-split-card .card-left {
+        display: none;
+    }
+    .auth-split-card .card-right,
+    #modalCardLogin .card-right {
+        padding: 24px 20px;
+    }
+    .auth-worker-grid {
+        grid-template-columns: 1fr;
+    }
+    .auth-worker-full {
+        grid-column: span 1;
+    }
+}
+</style>
+
+<div id="lamoAuthOverlay" class="lamo-auth-modal-overlay" aria-hidden="true">
+
+  <div class="lamo-auth-modal-container" role="dialog" aria-modal="true" aria-labelledby="modalActiveHeading">
+
+    <!-- FLOATING CLOSE BUTTON -->
+    <button type="button" class="lamo-auth-modal-close" id="lamoAuthCloseBtn" aria-label="Close dialog">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <!-- =======================================================
+         CARD 1: LOGIN POPUP (EXACT FIRST IMAGE)
+         ======================================================= -->
+    <div class="auth-split-card" id="modalCardLogin">
+
+      <!-- LEFT COLUMN: LOGIN BANNER -->
+      <div class="card-left">
+        <div class="brand">
+          <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo">
+        </div>
+
+        <div class="left-content">
+          <div class="small-title">
+            <i class="bi bi-stars"></i>
+            WELCOME BACK
+          </div>
+
+          <h1>
+            Your Work.<br>
+            <span>Your People.</span><br>
+            One Platform.
+          </h1>
+
+          <p>
+            Manage your work, connect with skilled professionals and discover opportunities through LAMO.
+          </p>
+
+          <div class="login-benefits-list">
+            <div class="login-benefit-pill">
+              <div class="pill-icon">
+                <i class="bi bi-person-check-fill"></i>
+              </div>
+              <div class="pill-text">
+                <strong>Verified Workforce</strong>
+                <span>Connect with trusted professionals</span>
+              </div>
+            </div>
+
+            <div class="login-benefit-pill">
+              <div class="pill-icon">
+                <i class="bi bi-clipboard2-check-fill"></i>
+              </div>
+              <div class="pill-text">
+                <strong>Easy Management</strong>
+                <span>Manage your work in one place</span>
+              </div>
+            </div>
+
+            <div class="login-benefit-pill">
+              <div class="pill-icon">
+                <i class="bi bi-shield-fill-check"></i>
+              </div>
+              <div class="pill-text">
+                <strong>Secure Platform</strong>
+                <span>Simple and reliable platform</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: LOGIN FORM -->
+      <div class="card-right">
+        <div class="auth-heading">
+          <h2>Welcome back</h2>
+          <p>Sign in to continue to your LAMO account.</p>
+        </div>
+
+        <form method="POST" action="{% url 'login' %}" id="modalLoginForm">
+          {% csrf_token %}
+
+          <div class="auth-input-group">
+            <div class="auth-input-wrap">
+              <i class="bi bi-person"></i>
+              <input type="text" name="username" id="modalLoginUsername" class="auth-field-input"
+                placeholder="Username" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <div class="auth-input-wrap">
+              <i class="bi bi-lock"></i>
+              <input type="password" name="password" id="modalLoginPassword" class="auth-field-input"
+                placeholder="Password" autocomplete="current-password" required>
+              <button type="button" class="auth-pass-toggle" data-toggle-target="modalLoginPassword" aria-label="Toggle password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <small class="auth-field-error" id="modalLoginError"></small>
+
+          <button type="submit" class="auth-btn-main" id="modalLoginSubmitBtn">
+            Sign In <i class="bi bi-arrow-right"></i>
+          </button>
+
+          <div class="auth-forgot-center">
+            <a href="{% url 'forgot_password' %}">Forgot Password?</a>
+          </div>
+
+          <div class="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <div class="auth-switch-footer" style="margin-top: 0;">
+            Don't have an account?
+            <button type="button" class="auth-switch-trigger" data-switch-to="register">Create an account</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- =======================================================
+         CARD 2: REGISTER POPUP (EXACT SECOND IMAGE)
+         ======================================================= -->
+    <div class="auth-split-card" id="modalCardRegister">
+
+      <!-- LEFT COLUMN: REGISTER BANNER -->
+      <div class="card-left">
+        <div class="brand">
+          <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-logo">
+        </div>
+
+        <div class="left-content">
+          <div class="small-title">
+            <i class="bi bi-stars"></i>
+            ONE PLATFORM. MANY OPPORTUNITIES.
+          </div>
+
+          <h1>
+            Build Your <span>Future</span><br>
+            With LAMO.
+          </h1>
+
+          <p>
+            Whether you're looking to book service workers or offer your services,
+            LAMO brings customers and service workers together in one simple platform.
+          </p>
+
+          <div class="register-benefits-grid">
+            <div class="register-benefit-box">
+              <i class="bi bi-shield-check"></i>
+              <strong>Trusted</strong>
+              <span>Verified users</span>
+            </div>
+
+            <div class="register-benefit-box">
+              <i class="bi bi-people"></i>
+              <strong>Connected</strong>
+              <span>Find opportunities</span>
+            </div>
+
+            <div class="register-benefit-box">
+              <i class="bi bi-lightning-charge"></i>
+              <strong>Simple</strong>
+              <span>Easy to use</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: REGISTER FORM -->
+      <div class="card-right">
+
+        <div class="auth-heading">
+          <h2>Create your account</h2>
+          <p>Get started with LAMO in just a few steps.</p>
+        </div>
+
+        <form method="POST" action="{% url 'register' %}" enctype="multipart/form-data" id="modalRegisterForm">
+          {% csrf_token %}
+
+          <!-- STEP 1: ACCOUNT DETAILS (USER & INITIAL WORKER) -->
+          <div id="modalStepAccount" class="modal-form-step">
+
+            <div class="auth-input-group">
+              <label for="modalRegUsername">Username</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-person"></i>
+                <input type="text" name="username" id="modalRegUsername" class="auth-field-input"
+                  placeholder="Username" autocomplete="username" required>
+              </div>
+              <small class="auth-field-error" id="modalRegUsernameError"></small>
+            </div>
+
+            <div class="auth-input-group">
+              <label for="modalRegEmail">Email Address</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-envelope"></i>
+                <input type="email" name="email" id="modalRegEmail" class="auth-field-input"
+                  placeholder="Email address" autocomplete="email" required>
+              </div>
+              <small class="auth-field-error" id="modalRegEmailError"></small>
+            </div>
+
+            <div class="auth-input-group">
+              <label for="modalRegPassword">Password</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-lock"></i>
+                <input type="password" name="password" id="modalRegPassword" class="auth-field-input"
+                  placeholder="Password" required minlength="8" autocomplete="new-password">
+                <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegPassword" aria-label="Toggle password">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              <small class="auth-field-error" id="modalRegPasswordError"></small>
+            </div>
+
+            <div class="auth-input-group">
+              <label for="modalRegConfirmPassword">Confirm Password</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-shield-check"></i>
+                <input type="password" name="confirm_password" id="modalRegConfirmPassword" class="auth-field-input"
+                  placeholder="Confirm password" required minlength="8" autocomplete="new-password">
+                <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegConfirmPassword" aria-label="Toggle password">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+              <small class="auth-field-error" id="modalRegConfirmPasswordError"></small>
+            </div>
+
+            <!-- ROLE SELECTOR -->
+            <label class="auth-role-label">How will you use LAMO?</label>
+            <div class="auth-role-selector">
+              <div class="auth-role-card active" data-role="USER" tabindex="0">
+                <i class="bi bi-person-square role-main-icon"></i>
+                <div class="role-title">User</div>
+              </div>
+
+              <div class="auth-role-card" data-role="WORKER" tabindex="0">
+                <i class="bi bi-tools role-main-icon"></i>
+                <div class="role-title">Worker</div>
+              </div>
+            </div>
+
+            <select name="role" id="modalRoleSelect" hidden>
+              <option value="USER" selected>User</option>
+              <option value="WORKER">Worker</option>
+            </select>
+
+            <!-- WORKER OFFER BANNER -->
+            <div id="modalWorkerOfferBanner" class="auth-worker-offer-badge" style="display: none;">
+              <i class="bi bi-gift-fill"></i>
+              <div>
+                <strong>30-Day Launch Partner Benefit Active!</strong>
+                <span>₹0 Fee &bull; 0% Commission &bull; Keep 100% of earnings</span>
+              </div>
+            </div>
+
+            <button type="button" class="auth-btn-main" id="modalContinueBtn">
+              Continue <i class="bi bi-arrow-right"></i>
+            </button>
+
+            <p class="auth-terms-disclaimer">
+              By continuing, you agree to LAMO's <a href="{% url 'terms' %}">Terms</a> &amp; <a href="{% url 'privacy' %}">Privacy Policy</a>.
+            </p>
+
+            <div class="auth-switch-footer">
+              Already have an account?
+              <button type="button" class="auth-switch-trigger" data-switch-to="login">Login</button>
+            </div>
+
+          </div>
+
+          <!-- STEP 2: WORKER PROFILE -->
+          <div id="modalStepWorkerOne" class="modal-form-step" style="display: none;">
+
+            <div class="auth-step-head">
+              <div>
+                <h3 class="auth-step-title">Worker Profile</h3>
+                <p class="auth-step-subtitle">Tell us about your work.</p>
+              </div>
+              <span class="auth-step-count">2 of 3</span>
+            </div>
+
+            <div class="auth-worker-grid">
+              <div>
+                <label for="modalWorkerPhone" class="form-label">Phone Number</label>
+                <input type="tel" name="phone" id="modalWorkerPhone" class="auth-field-input"
+                  placeholder="10-digit Phone" maxlength="10" minlength="10" pattern="[6-9][0-9]{9}" inputmode="numeric">
+                <small class="auth-field-error" id="modalWorkerPhoneError"></small>
+              </div>
+
+              <div>
+                <label for="modalWorkerService" class="form-label">Service</label>
+                <select name="service" id="modalWorkerService" class="auth-field-input">
+                  <option value="">Select Service</option>
+                  {% for s in services %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                  {% empty %}
+                  <option value="1">Electrician</option>
+                  <option value="2">Plumber</option>
+                  <option value="3">Carpenter</option>
+                  <option value="4">Painter</option>
+                  <option value="5">AC Repair</option>
+                  <option value="6">Cleaning</option>
+                  <option value="7">Appliance Repair</option>
+                  {% endfor %}
+                  <option value="other">Other</option>
+                </select>
+                <small class="auth-field-error" id="modalWorkerServiceError"></small>
+              </div>
+
+              <div>
+                <label for="modalWorkerDistrict" class="form-label">District</label>
+                <select name="district" id="modalWorkerDistrict" class="auth-field-input">
+                  <option value="">Select District</option>
+                  <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                  <option value="Kollam">Kollam</option>
+                  <option value="Pathanamthitta">Pathanamthitta</option>
+                  <option value="Alappuzha">Alappuzha</option>
+                  <option value="Kottayam">Kottayam</option>
+                  <option value="Idukki">Idukki</option>
+                  <option value="Ernakulam">Ernakulam</option>
+                  <option value="Thrissur">Thrissur</option>
+                  <option value="Palakkad">Palakkad</option>
+                  <option value="Malappuram">Malappuram</option>
+                  <option value="Kozhikode">Kozhikode</option>
+                  <option value="Wayanad">Wayanad</option>
+                  <option value="Kannur">Kannur</option>
+                  <option value="Kasaragod">Kasaragod</option>
+                </select>
+                <small class="auth-field-error" id="modalWorkerDistrictError"></small>
+              </div>
+
+              <div>
+                <label for="modalWorkerExp" class="form-label">Experience (Years)</label>
+                <input type="number" name="experience_years" id="modalWorkerExp" class="auth-field-input"
+                  placeholder="Years (0-60)" min="0" max="60">
+                <small class="auth-field-error" id="modalWorkerExpError"></small>
+              </div>
+
+              <div>
+                <label for="modalWorkerAvailability" class="form-label">Availability</label>
+                <select name="availability" id="modalWorkerAvailability" class="auth-field-input">
+                  <option value="">Availability</option>
+                  <option value="Full Time">Full Time</option>
+                  <option value="Part Time">Part Time</option>
+                  <option value="Weekends">Weekends</option>
+                  <option value="Flexible">Flexible</option>
+                </select>
+                <small class="auth-field-error" id="modalWorkerAvailError"></small>
+              </div>
+
+              <div class="auth-worker-full">
+                <label for="modalWorkerAddress" class="form-label">Full Address</label>
+                <textarea name="address" id="modalWorkerAddress" class="auth-field-input"
+                  style="height: 64px; padding: 8px 12px; line-height: 1.4;" placeholder="Full Address"></textarea>
+                <small class="auth-field-error" id="modalWorkerAddressError"></small>
+              </div>
+
+              <div id="modalCustomServiceWrap" class="auth-worker-full" style="display: none;">
+                <label for="modalCustomService" class="form-label">Other Service Name</label>
+                <input type="text" name="custom_service" id="modalCustomService" class="auth-field-input"
+                  placeholder="Enter your service (e.g. AC Repair)">
+              </div>
+            </div>
+
+            <div class="auth-step-actions">
+              <button type="button" class="auth-step-btn-back" id="modalWorkerBackOne">
+                <i class="bi bi-arrow-left"></i> Back
+              </button>
+              <button type="button" class="auth-btn-main" style="width: auto; padding: 0 24px; margin-top: 0;" id="modalWorkerNextOne">
+                Next <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- STEP 3: PRICING & VERIFICATION -->
+          <div id="modalStepWorkerTwo" class="modal-form-step" style="display: none;">
+
+            <div class="auth-step-head">
+              <div>
+                <h3 class="auth-step-title">Pricing & Verification</h3>
+                <p class="auth-step-subtitle">Set your pricing and upload verification details.</p>
+              </div>
+              <span class="auth-step-count">3 of 3</span>
+            </div>
+
+            <div class="auth-worker-grid">
+              <div>
+                <label for="modalPricingType" class="form-label">Pricing Type</label>
+                <select name="pricing_type" id="modalPricingType" class="auth-field-input">
+                  <option value="hour">Per Hour</option>
+                  <option value="day">Per Day</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="modalPricingAmount" class="form-label">Pricing Amount (₹)</label>
+                <input type="number" name="pricing_amount" id="modalPricingAmount" class="auth-field-input"
+                  placeholder="Amount (₹)" min="0.01" step="0.01">
+                <small class="auth-field-error" id="modalPricingAmountError"></small>
+              </div>
+
+              <div class="auth-worker-full">
+                <label for="modalProofType" class="form-label">Proof Type</label>
+                <select name="proof_type" id="modalProofType" class="auth-field-input">
+                  <option value="">Select Proof Type</option>
+                  <option value="aadhaar">Aadhaar</option>
+                  <option value="pan">PAN</option>
+                  <option value="voter_id">Voter ID</option>
+                </select>
+                <small class="auth-field-error" id="modalProofTypeError"></small>
+              </div>
+
+              <div class="auth-worker-full">
+                <label for="modalProofDoc" class="form-label">Proof Document (PDF, JPG, PNG &lt; 5MB)</label>
+                <input type="file" name="proof_document" id="modalProofDoc" class="auth-field-input"
+                  accept=".pdf,.jpg,.jpeg,.png" style="padding: 6px 12px;">
+                <small class="auth-field-error" id="modalProofDocError"></small>
+              </div>
+
+              <div class="auth-worker-full">
+                <label for="modalProfileImg" class="form-label">Profile Image (Optional)</label>
+                <input type="file" name="profile_image" id="modalProfileImg" class="auth-field-input"
+                  accept=".jpg,.jpeg,.png,.webp" style="padding: 6px 12px;">
+              </div>
+            </div>
+
+            <div class="auth-step-actions">
+              <button type="button" class="auth-step-btn-back" id="modalWorkerBackTwo">
+                <i class="bi bi-arrow-left"></i> Back
+              </button>
+              <button type="button" class="auth-btn-main" style="width: auto; padding: 0 24px; margin-top: 0;" id="modalSubmitWorkerBtn">
+                Create Account <i class="bi bi-check2"></i>
+              </button>
+            </div>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =========================================================
+     AUTH MODAL CLIENT SCRIPT (TABS, VALIDATION & WORKFLOWS)
+     ========================================================= -->
+<script>
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('lamoAuthOverlay');
+    var closeBtn = document.getElementById('lamoAuthCloseBtn');
+
+    var cardLogin = document.getElementById('modalCardLogin');
+    var cardRegister = document.getElementById('modalCardRegister');
+
+    var registerForm = document.getElementById('modalRegisterForm');
+    var loginForm = document.getElementById('modalLoginForm');
+
+    var stepAccount = document.getElementById('modalStepAccount');
+    var stepWorkerOne = document.getElementById('modalStepWorkerOne');
+    var stepWorkerTwo = document.getElementById('modalStepWorkerTwo');
+
+    var roleCards = document.querySelectorAll('.auth-role-card');
+    var roleSelect = document.getElementById('modalRoleSelect');
+    var continueBtn = document.getElementById('modalContinueBtn');
+
+    var workerOfferBanner = document.getElementById('modalWorkerOfferBanner');
+    var workerService = document.getElementById('modalWorkerService');
+    var customServiceWrap = document.getElementById('modalCustomServiceWrap');
+
+    var workerNextOne = document.getElementById('modalWorkerNextOne');
+    var workerBackOne = document.getElementById('modalWorkerBackOne');
+    var workerNextTwo = document.getElementById('modalSubmitWorkerBtn');
+    var workerBackTwo = document.getElementById('modalWorkerBackTwo');
+
+    // -------------------------------------------------------
+    // SWITCH BETWEEN LOGIN (IMAGE 1) AND REGISTER (IMAGE 2)
+    // -------------------------------------------------------
+    function showModalView(view) {
+      if (!overlay || !cardLogin || !cardRegister) return;
+
+      if (view === 'login') {
+        cardLogin.classList.add('active');
+        cardRegister.classList.remove('active');
+        var loginUserInput = document.getElementById('modalLoginUsername');
+        if (loginUserInput) setTimeout(function() { loginUserInput.focus(); }, 120);
+      } else {
+        cardRegister.classList.add('active');
+        cardLogin.classList.remove('active');
+        // Reset worker multi-step to step 1
+        if (stepAccount) stepAccount.style.display = 'block';
+        if (stepWorkerOne) stepWorkerOne.style.display = 'none';
+        if (stepWorkerTwo) stepWorkerTwo.style.display = 'none';
+        var regUserInput = document.getElementById('modalRegUsername');
+        if (regUserInput) setTimeout(function() { regUserInput.focus(); }, 120);
+      }
+    }
+
+    // Switch triggers inside cards ("Create an account" <-> "Login")
+    document.querySelectorAll('[data-switch-to]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var targetView = btn.getAttribute('data-switch-to');
+        showModalView(targetView);
+      });
+    });
+
+    // -------------------------------------------------------
+    // OPEN & CLOSE MODAL API
+    // -------------------------------------------------------
+    window.openLamoAuthModal = function(initialView) {
+      if (!overlay) return;
+      showModalView(initialView === 'login' ? 'login' : 'register');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    };
+
+    window.closeLamoAuthModal = function() {
+      if (!overlay) return;
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+      if (cardLogin) cardLogin.classList.remove('active');
+      if (cardRegister) cardRegister.classList.remove('active');
+      document.body.style.overflow = '';
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', window.closeLamoAuthModal);
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+          window.closeLamoAuthModal();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && overlay && overlay.classList.contains('show')) {
+        window.closeLamoAuthModal();
+      }
+    });
+
+    // -------------------------------------------------------
+    // INTERCEPT NAVBAR LOGIN & REGISTER BUTTONS
+    // -------------------------------------------------------
+    document.querySelectorAll('.btn-login').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.openLamoAuthModal('login');
+      });
+    });
+
+    document.querySelectorAll('.btn-register').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.openLamoAuthModal('register');
+      });
+    });
+
+    // Check URL triggers (?auth=register, #register, ?auth=login, #login)
+    try {
+      var hash = window.location.hash;
+      var params = new URLSearchParams(window.location.search);
+      if (hash === '#register' || params.get('auth') === 'register' || params.has('register')) {
+        setTimeout(function() { window.openLamoAuthModal('register'); }, 300);
+      } else if (hash === '#login' || params.get('auth') === 'login' || params.has('login')) {
+        setTimeout(function() { window.openLamoAuthModal('login'); }, 300);
+      }
+    } catch(err) {}
+
+    // -------------------------------------------------------
+    // PASSWORD EYE TOGGLE
+    // -------------------------------------------------------
+    document.querySelectorAll('.auth-pass-toggle').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var targetId = btn.getAttribute('data-toggle-target');
+        var input = document.getElementById(targetId);
+        if (!input) return;
+        var isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        btn.innerHTML = isPass ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+      });
+    });
+
+    // -------------------------------------------------------
+    // ROLE CARDS SELECTION (USER vs WORKER)
+    // -------------------------------------------------------
+    roleCards.forEach(function(card) {
+      card.addEventListener('click', function() {
+        roleCards.forEach(function(c) { c.classList.remove('active'); });
+        card.classList.add('active');
+        var role = card.getAttribute('data-role');
+        if (roleSelect) roleSelect.value = role;
+
+        if (workerOfferBanner) {
+          workerOfferBanner.style.display = (role === 'WORKER') ? 'flex' : 'none';
+        }
+      });
+    });
+
+    // Other service dropdown toggle
+    if (workerService && customServiceWrap) {
+      workerService.addEventListener('change', function() {
+        customServiceWrap.style.display = (this.value === 'other') ? 'block' : 'none';
+      });
+    }
+
+    // -------------------------------------------------------
+    // REGISTER STEP 1 VALIDATION & CONTINUE BUTTON
+    // -------------------------------------------------------
+    if (continueBtn) {
+      continueBtn.addEventListener('click', function() {
+        var username = document.getElementById('modalRegUsername').value.trim();
+        var email = document.getElementById('modalRegEmail').value.trim();
+        var pass = document.getElementById('modalRegPassword').value;
+        var confirmPass = document.getElementById('modalRegConfirmPassword').value;
+        var role = roleSelect ? roleSelect.value : 'USER';
+
+        var userErr = document.getElementById('modalRegUsernameError');
+        var emailErr = document.getElementById('modalRegEmailError');
+        var passErr = document.getElementById('modalRegPasswordError');
+        var confirmErr = document.getElementById('modalRegConfirmPasswordError');
+
+        [userErr, emailErr, passErr, confirmErr].forEach(function(el) {
+          if (el) { el.textContent = ''; el.classList.remove('show'); }
+        });
+
+        var hasError = false;
+
+        if (!username) {
+          userErr.textContent = 'Username is required.';
+          userErr.classList.add('show');
+          hasError = true;
+        }
+
+        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+          emailErr.textContent = 'Email is required.';
+          emailErr.classList.add('show');
+          hasError = true;
+        } else if (!emailRegex.test(email)) {
+          emailErr.textContent = 'Please enter a valid email address.';
+          emailErr.classList.add('show');
+          hasError = true;
+        }
+
+        if (!pass) {
+          passErr.textContent = 'Password is required.';
+          passErr.classList.add('show');
+          hasError = true;
+        } else if (pass.length < 8) {
+          passErr.textContent = 'Password must contain at least 8 characters.';
+          passErr.classList.add('show');
+          hasError = true;
+        }
+
+        if (pass !== confirmPass) {
+          confirmErr.textContent = 'Passwords do not match.';
+          confirmErr.classList.add('show');
+          hasError = true;
+        }
+
+        if (hasError) return;
+
+        // If USER role: submit form directly to create user & send OTP
+        if (role === 'USER') {
+          registerForm.submit();
+          return;
+        }
+
+        // If WORKER role: advance to Step 2
+        stepAccount.style.display = 'none';
+        stepWorkerOne.style.display = 'block';
+      });
+    }
+
+    // Worker Step 2 -> Step 3
+    if (workerNextOne) {
+      workerNextOne.addEventListener('click', function() {
+        var phone = document.getElementById('modalWorkerPhone').value.trim();
+        var service = document.getElementById('modalWorkerService').value;
+        var district = document.getElementById('modalWorkerDistrict').value;
+        var address = document.getElementById('modalWorkerAddress').value.trim();
+        var exp = document.getElementById('modalWorkerExp').value.trim();
+        var avail = document.getElementById('modalWorkerAvailability').value;
+
+        if (!/^[6-9][0-9]{9}$/.test(phone)) {
+          alert('Please enter a valid 10-digit Indian phone number.');
+          document.getElementById('modalWorkerPhone').focus();
+          return;
+        }
+        if (!service) {
+          alert('Please select your service.');
+          document.getElementById('modalWorkerService').focus();
+          return;
+        }
+        if (!district) {
+          alert('Please select your district.');
+          document.getElementById('modalWorkerDistrict').focus();
+          return;
+        }
+        if (!address) {
+          alert('Please enter your address.');
+          document.getElementById('modalWorkerAddress').focus();
+          return;
+        }
+        if (exp === '') {
+          alert('Please enter your years of experience.');
+          document.getElementById('modalWorkerExp').focus();
+          return;
+        }
+        if (!avail) {
+          alert('Please select your availability.');
+          document.getElementById('modalWorkerAvailability').focus();
+          return;
+        }
+
+        stepWorkerOne.style.display = 'none';
+        stepWorkerTwo.style.display = 'block';
+      });
+    }
+
+    if (workerBackOne) {
+      workerBackOne.addEventListener('click', function() {
+        stepWorkerOne.style.display = 'none';
+        stepAccount.style.display = 'block';
+      });
+    }
+
+    if (workerBackTwo) {
+      workerBackTwo.addEventListener('click', function() {
+        stepWorkerTwo.style.display = 'none';
+        stepWorkerOne.style.display = 'block';
+      });
+    }
+
+    if (workerNextTwo) {
+      workerNextTwo.addEventListener('click', function() {
+        var pricingAmt = document.getElementById('modalPricingAmount').value.trim();
+        var proofType = document.getElementById('modalProofType').value;
+        var proofDoc = document.getElementById('modalProofDoc');
+
+        if (!pricingAmt || Number(pricingAmt) <= 0) {
+          alert('Please enter a valid pricing amount greater than 0.');
+          document.getElementById('modalPricingAmount').focus();
+          return;
+        }
+        if (!proofType) {
+          alert('Please select a proof type.');
+          document.getElementById('modalProofType').focus();
+          return;
+        }
+        if (!proofDoc.files || !proofDoc.files.length) {
+          alert('Please select your verification proof document.');
+          proofDoc.focus();
+          return;
+        }
+
+        registerForm.submit();
+      });
+    }
+
+    // -------------------------------------------------------
+    // LOGIN FORM SUBMISSION
+    // -------------------------------------------------------
+    if (loginForm) {
+      loginForm.addEventListener('submit', function(e) {
+        var u = document.getElementById('modalLoginUsername').value.trim();
+        var p = document.getElementById('modalLoginPassword').value.trim();
+        var err = document.getElementById('modalLoginError');
+
+        if (!u || !p) {
+          e.preventDefault();
+          if (err) {
+            err.textContent = 'Please enter both username and password.';
+            err.classList.add('show');
+          }
+        }
+      });
+    }
+
+  });
+})();
+</script>

@@ -1,0 +1,676 @@
+/* =========================================================
+   LAMO AUTH MODAL - PIXEL-PERFECT SPLIT CARDS (LOGIN & REGISTER)
+   ========================================================= */
+
+.lamo-auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(3, 28, 21, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.lamo-auth-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.lamo-auth-modal-container {
+    position: relative;
+    width: 100%;
+    max-width: 880px;
+    max-height: min(92vh, 720px);
+    display: flex;
+    animation: modalCardPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes modalCardPop {
+    from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.lamo-auth-modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.95);
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
+    transition: all 0.25s ease;
+}
+
+.lamo-auth-modal-close:hover {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+    transform: rotate(90deg);
+}
+
+/* =========================================================
+   SPLIT CARD SHELL (DUAL CARDS: LOGIN & REGISTER)
+   ========================================================= */
+
+.auth-split-card {
+    display: none;
+    width: 100%;
+    grid-template-columns: 46% 54%;
+    background: #ffffff;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 25px 70px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+    max-height: min(92vh, 720px);
+}
+
+.auth-split-card.active {
+    display: grid;
+    animation: authCardFade 0.3s ease;
+}
+
+@keyframes authCardFade {
+    from { opacity: 0; transform: scale(0.99); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* =========================================================
+   LEFT BANNER (SHARED BACKGROUND & BRAND LOGO)
+   ========================================================= */
+
+.auth-split-card .card-left {
+    position: relative;
+    padding: 34px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #ffffff;
+    background-image:
+        linear-gradient(
+            145deg,
+            rgba(2, 55, 38, 0.96),
+            rgba(3, 100, 62, 0.90),
+            rgba(22, 163, 74, 0.72)
+        ),
+        url('../img/image.webp');
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+.auth-split-card .card-left .brand-logo {
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.auth-split-card .card-left .left-content {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 16px 0 6px;
+}
+
+.auth-split-card .card-left .small-title {
+    color: #86efac;
+    font-size: 11.5px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.auth-split-card .card-left h1 {
+    font-size: 29px;
+    font-weight: 800;
+    line-height: 1.18;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+}
+
+.auth-split-card .card-left h1 span {
+    color: #4ade80;
+}
+
+.auth-split-card .card-left p {
+    font-size: 12.5px;
+    color: #d1fae5;
+    line-height: 1.55;
+    margin-bottom: 22px;
+}
+
+/* ---------------------------------------------------------
+   IMAGE 1 (LOGIN) — STACKED HORIZONTAL BENEFIT PILLS
+   --------------------------------------------------------- */
+.login-benefits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.login-benefit-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.25s ease;
+}
+
+.login-benefit-pill:hover {
+    background: rgba(255, 255, 255, 0.14);
+    transform: translateX(3px);
+}
+
+.login-benefit-pill .pill-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(74, 222, 128, 0.18);
+    color: #4ade80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.login-benefit-pill .pill-text strong {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 1px;
+}
+
+.login-benefit-pill .pill-text span {
+    display: block;
+    font-size: 11px;
+    color: #a7f3d0;
+    line-height: 1.25;
+}
+
+/* ---------------------------------------------------------
+   IMAGE 2 (REGISTER) — 3-COLUMN BENEFIT GRID
+   --------------------------------------------------------- */
+.register-benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+}
+
+.register-benefit-box {
+    padding: 12px 9px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+}
+
+.register-benefit-box i {
+    font-size: 18px;
+    color: #4ade80;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.register-benefit-box strong {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+.register-benefit-box span {
+    font-size: 9.5px;
+    color: #a7f3d0;
+    display: block;
+    line-height: 1.2;
+}
+
+/* =========================================================
+   RIGHT SIDE (FORM PANE)
+   ========================================================= */
+
+.auth-split-card .card-right {
+    position: relative;
+    padding: 34px 36px;
+    background: #ffffff;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.auth-split-card .card-right::-webkit-scrollbar {
+    width: 5px;
+}
+.auth-split-card .card-right::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* Vertical centering specifically for Login card */
+#modalCardLogin .card-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 38px 42px;
+}
+
+.auth-heading {
+    margin-bottom: 18px;
+}
+
+.auth-heading h2 {
+    margin: 0 0 5px;
+    color: #0f172a;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.auth-heading p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* FORM FIELDS */
+.auth-input-group {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+#modalCardLogin .auth-input-group {
+    margin-bottom: 16px;
+}
+
+.auth-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.auth-input-wrap {
+    position: relative;
+}
+
+.auth-input-wrap > i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 15px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.auth-field-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 40px 0 42px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 11px;
+    outline: none;
+    font-size: 13.5px;
+    color: #0f172a;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+#modalCardLogin .auth-field-input {
+    height: 48px;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.auth-field-input:focus {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.auth-pass-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.auth-pass-toggle:hover {
+    color: #16a34a;
+}
+
+.auth-field-error {
+    display: none;
+    color: #dc2626;
+    font-size: 11px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+.auth-field-error.show {
+    display: block;
+}
+
+/* ROLE SELECTOR (USER vs WORKER — EXACT SCREENSHOT 2) */
+.auth-role-label {
+    display: block;
+    margin: 12px 0 6px;
+    color: #334155;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.auth-role-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.auth-role-card {
+    position: relative;
+    padding: 14px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.auth-role-card:hover {
+    border-color: #cbd5e1;
+}
+
+.auth-role-card.active {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 1px #16a34a;
+    background: #ffffff;
+}
+
+.auth-role-card .role-main-icon {
+    font-size: 22px;
+    color: #64748b;
+    transition: color 0.2s ease;
+}
+
+.auth-role-card.active .role-main-icon {
+    color: #0f172a;
+}
+
+.auth-role-card .role-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* PRIMARY ACTION BUTTON */
+.auth-btn-main {
+    width: 100%;
+    height: 44px;
+    margin-top: 6px;
+    border: 0;
+    border-radius: 11px;
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+    transition: all 0.25s ease;
+}
+
+#modalCardLogin .auth-btn-main {
+    height: 48px;
+    font-size: 14px;
+    border-radius: 12px;
+    margin-top: 10px;
+}
+
+.auth-btn-main:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(22, 163, 74, 0.32);
+}
+
+.auth-btn-main:active {
+    transform: translateY(0);
+}
+
+/* FORGOT PASSWORD CENTER LINK */
+.auth-forgot-center {
+    text-align: center;
+    margin-top: 14px;
+}
+
+.auth-forgot-center a {
+    color: #16a34a;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.auth-forgot-center a:hover {
+    text-decoration: underline;
+}
+
+/* DIVIDER */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 18px 0;
+    color: #94a3b8;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.auth-divider span {
+    padding: 0 12px;
+}
+
+/* BOTTOM SWITCH FOOTER */
+.auth-switch-footer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: #475569;
+}
+
+.auth-switch-trigger {
+    color: #16a34a;
+    font-weight: 750;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+}
+
+.auth-switch-trigger:hover {
+    text-decoration: underline;
+}
+
+.auth-terms-disclaimer {
+    margin: 12px 0 0;
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.auth-terms-disclaimer a {
+    color: #16a34a;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+/* WORKER STEPS & FIELDS */
+.auth-step-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.auth-step-title {
+    margin: 0 0 3px;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.auth-step-subtitle {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+.auth-step-count {
+    padding: 3px 8px;
+    background: #ecfdf5;
+    color: #059669;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 8px;
+}
+.auth-worker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+}
+.auth-worker-full {
+    grid-column: span 2;
+}
+.auth-step-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 18px;
+}
+.auth-step-btn-back {
+    padding: 10px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12.5px;
+    font-weight: 650;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.auth-step-btn-back:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.auth-worker-offer-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 11px;
+    color: #166534;
+    font-size: 11.5px;
+    margin-bottom: 12px;
+}
+.auth-worker-offer-badge i {
+    font-size: 18px;
+    color: #16a34a;
+}
+.auth-worker-offer-badge strong {
+    display: block;
+    font-size: 11.5px;
+    color: #14532d;
+}
+.auth-worker-offer-badge span {
+    display: block;
+    font-size: 10.5px;
+    color: #15803d;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+    .auth-split-card {
+        grid-template-columns: 1fr;
+        max-height: 90vh;
+    }
+    .auth-split-card .card-left {
+        display: none;
+    }
+    .auth-split-card .card-right,
+    #modalCardLogin .card-right {
+        padding: 24px 20px;
+    }
+    .auth-worker-grid {
+        grid-template-columns: 1fr;
+    }
+    .auth-worker-full {
+        grid-column: span 1;
+    }
+}
