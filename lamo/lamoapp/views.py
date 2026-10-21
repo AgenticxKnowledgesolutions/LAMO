@@ -5441,17 +5441,21 @@ def admin_delete_worker(request, worker_id):
     worker_profile = get_object_or_404(WorkerProfile, id=worker_id)
     username = worker_profile.user.username
 
-    # Check if worker has any existing bookings (PROTECT constraint)
-    has_bookings = Booking.objects.filter(worker=worker_profile).exists()
-    if has_bookings:
+    # Check if worker has active or completed bookings that must be preserved
+    active_or_completed = Booking.objects.filter(
+        worker=worker_profile,
+        status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED']
+    ).exists()
+    if active_or_completed:
         messages.error(
             request,
-            f'Cannot delete worker "{username}" because they have existing booking records. '
-            f'Please suspend the worker instead to preserve booking history.'
+            f'Cannot delete worker "{username}" because they have active or completed bookings. '
+            f'Please suspend the worker instead to preserve customer history.'
         )
         return redirect('workers_list')
 
-    # Safe to delete - no bookings exist
+    # Safe to delete - disassociate any inactive/rejected/expired bookings so PROTECT constraint doesn't block deletion
+    Booking.objects.filter(worker=worker_profile).update(worker=None)
     worker_profile.user.delete()
     messages.success(request, f'Worker "{username}" has been deleted successfully.')
     return redirect('workers_list')

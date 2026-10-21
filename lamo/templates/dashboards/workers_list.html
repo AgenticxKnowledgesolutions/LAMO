@@ -63,558 +63,359 @@
 
 <div class="workers-page">
 
-
     <!-- =====================================================
          HEADER
     ===================================================== -->
-
     <div class="workers-header">
-
         <div class="workers-heading">
-            <h2>Workers</h2>
-            <p>Manage and verify registered workers.</p>
+            <div class="heading-title-row">
+                <h2>Workers</h2>
+                <span class="worker-count-badge" title="Total registered workers">
+                    {{ workers.paginator.count }} Registered
+                </span>
+            </div>
+            <p>Manage, verify, and monitor registered platform workers.</p>
         </div>
-
-
-        <span class="worker-count" title="Total registered workers">
-            {{ workers.paginator.count }}
-        </span>
-
     </div>
 
-
     <!-- =====================================================
-         SEARCH
-         Plain GET form - read-only query, so no CSRF is needed and the
-         search stays in the URL (survives reload, can be shared/bookmarked).
+         SEARCH BAR
     ===================================================== -->
-
     <form method="GET" action="{% url 'workers_list' %}" class="workers-search">
-
-        <input
-            type="search"
-            name="q"
-            value="{{ search }}"
-            placeholder="Search by name, email, phone, district or trade"
-            aria-label="Search workers"
-            class="workers-search-input"
-        >
+        <div class="workers-search-wrap">
+            <i class="bi bi-search search-lead-icon"></i>
+            <input
+                type="search"
+                name="q"
+                value="{{ search }}"
+                placeholder="Search by name, email, phone, district or trade..."
+                aria-label="Search workers"
+                class="workers-search-input"
+            >
+            {% if search %}
+                <a href="{% url 'workers_list' %}" class="workers-search-clear" title="Clear search">
+                    <i class="bi bi-x-circle-fill"></i>
+                </a>
+            {% endif %}
+        </div>
 
         <button type="submit" class="workers-search-btn">
             <i class="bi bi-search"></i>
-            Search
+            <span>Search</span>
         </button>
-
-        {% if search %}
-            <a href="{% url 'workers_list' %}" class="workers-search-clear">
-                <i class="bi bi-x-circle"></i>
-                Clear
-            </a>
-        {% endif %}
-
     </form>
 
-
     <!-- =====================================================
-         WORKER CARDS
+         WORKER CARDS GRID
     ===================================================== -->
-
     <div class="workers-grid">
-
 
         {% for worker in workers %}
 
-
         <div class="worker-card">
 
-
             <!-- =================================================
-                 TOP
+                 CARD TOP: AVATAR, NAME, STATUS
             ================================================= -->
-
             <div class="worker-top">
 
-
-                <!-- PROFILE IMAGE -->
-
                 <div class="worker-avatar">
-
                     {% if worker.profile_image %}
-
                         <img
                             src="{{ worker.profile_image.url }}"
                             alt="{{ worker.user.username }}"
                         >
-
                     {% else %}
-
                         {{ worker.user.username|first|upper }}
-
                     {% endif %}
-
                 </div>
-
-
-                <!-- NAME -->
 
                 <div class="worker-name">
-
-                    <h4>
-                        {{ worker.user.username }}
+                    <h4 title="{{ worker.user.get_full_name|default:worker.user.username }}">
+                        {{ worker.user.get_full_name|default:worker.user.username }}
                     </h4>
-
-                    <p>
+                    <p title="{{ worker.user.email }}">
                         {{ worker.user.email }}
                     </p>
-
                 </div>
 
+                <div class="worker-top-badges">
+                    {% if not worker.user.is_active %}
+                        <span class="status-badge status-suspended">
+                            Suspended
+                        </span>
+                    {% elif worker.is_verified %}
+                        <span class="status-badge status-verified">
+                            Verified
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-pending">
+                            Pending
+                        </span>
+                    {% endif %}
 
-                <!-- STATUS -->
-
-                {% if not worker.user.is_active %}
-
-                    <span class="status-badge status-suspended">
-                        Suspended
-                    </span>
-
-                {% elif worker.is_verified %}
-
-                    <span class="status-badge status-verified">
-                        Verified
-                    </span>
-
-                {% else %}
-
-                    <span class="status-badge status-pending">
-                        Pending
-                    </span>
-
-                {% endif %}
-
-                {% if worker.strikes_count >= 3 %}
-                    <span class="strike-pill strike-danger" title="{{ worker.strikes_count }} strikes recorded - suspended">
-                        <i class="bi bi-shield-slash-fill"></i> {{ worker.strikes_count }}/3 Strikes
-                    </span>
-                {% elif worker.strikes_count > 0 %}
-                    <span class="strike-pill strike-warning" title="{{ worker.strikes_count }} strike(s) recorded">
-                        <i class="bi bi-exclamation-triangle-fill"></i> {{ worker.strikes_count }}/3 Strikes
-                    </span>
-                {% endif %}
-
+                    {% if worker.strikes_count >= 3 %}
+                        <span class="strike-pill strike-danger" title="{{ worker.strikes_count }} strikes recorded - suspended">
+                            <i class="bi bi-shield-slash-fill"></i> {{ worker.strikes_count }}/3 Strikes
+                        </span>
+                    {% elif worker.strikes_count > 0 %}
+                        <span class="strike-pill strike-warning" title="{{ worker.strikes_count }} strike(s) recorded">
+                            <i class="bi bi-exclamation-triangle-fill"></i> {{ worker.strikes_count }}/3 Strikes
+                        </span>
+                    {% endif %}
+                </div>
 
             </div>
 
-
             <!-- =================================================
-                 DETAILS
+                 CARD DETAILS: 2-COLUMN BALANCED GRID
             ================================================= -->
-
             <div class="worker-details">
 
-
-                <!-- SERVICE -->
-
+                <!-- 1. SERVICE -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
                         <i class="bi bi-tools"></i>
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Service
-                        </span>
-
+                        <span class="detail-label">Service</span>
                         <span class="detail-value">
-
                             {% if worker.service %}
-
                                 {{ worker.service.name|title }}
-
                             {% elif worker.custom_service %}
-
-                                <span style="color:#087f5b; font-weight:700;">Other</span>
-
+                                <span style="color:#087f5b; font-weight:700;">{{ worker.custom_service }}</span>
                             {% else %}
-
-                                No service
-
+                                General
                             {% endif %}
-
                         </span>
-
                     </div>
-
                 </div>
 
-
-                <!-- CUSTOM SERVICE (only if "Other" was selected) -->
-
-                {% if worker.custom_service %}
-
-                <div class="detail-row">
-
-                    <div class="detail-icon">
-                        <i class="bi bi-tag-fill"></i>
-                    </div>
-
-                    <div class="detail-content">
-
-                        <span class="detail-label">
-                            Custom Service
-                        </span>
-
-                        <span class="detail-value" style="color:#087f5b; font-weight:600;">
-                            {{ worker.custom_service }}
-                        </span>
-
-                    </div>
-
-                </div>
-
-                {% endif %}
-
-
-                <!-- PHONE -->
-
+                <!-- 2. PHONE -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
                         <i class="bi bi-telephone-fill"></i>
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Phone
-                        </span>
-
+                        <span class="detail-label">Phone</span>
                         <span class="detail-value">
-                            {{ worker.phone }}
+                            <a href="tel:{{ worker.phone }}" style="color:inherit; text-decoration:none;">
+                                {{ worker.phone }}
+                            </a>
                         </span>
-
                     </div>
-
                 </div>
 
-
-                <!-- EXPERIENCE -->
-
+                <!-- 3. EXPERIENCE -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
                         <i class="bi bi-briefcase-fill"></i>
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Experience
-                        </span>
-
+                        <span class="detail-label">Experience</span>
                         <span class="detail-value">
-
-                            {{ worker.experience_years }}
-                            year{{ worker.experience_years|pluralize }}
-
+                            {{ worker.experience_years }} year{{ worker.experience_years|pluralize }}
                         </span>
-
                     </div>
-
                 </div>
 
-
-                <!-- DISTRICT -->
-
+                <!-- 4. DISTRICT -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
                         <i class="bi bi-geo-alt-fill"></i>
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            District
-                        </span>
-
+                        <span class="detail-label">District</span>
                         <span class="detail-value">
                             {{ worker.district }}
                         </span>
-
                     </div>
-
                 </div>
 
-                <!-- RATING -->
-
+                <!-- 5. RATING -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
                         <i class="bi bi-star-fill"></i>
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Rating
-                        </span>
-
+                        <span class="detail-label">Rating</span>
                         <span class="detail-value">
-                            {% with avg=worker.reviews_received.all|length %}
-                                {% if avg > 0 %}
+                            {% with count=worker.reviews_received.count %}
+                                {% if count > 0 %}
                                     <i class="bi bi-star-fill" style="color:#f59e0b; font-size:11px;"></i>
-                                    {{ worker.reviews_received.all|length }} review{{ worker.reviews_received.all|length|pluralize }}
+                                    {{ count }} review{{ count|pluralize }}
                                 {% else %}
                                     No reviews yet
                                 {% endif %}
                             {% endwith %}
                         </span>
-
                     </div>
-
                 </div>
-                <!-- AVAILABILITY -->
 
+                <!-- 6. AVAILABILITY -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
-
                         <i class="bi bi-clock-fill"></i>
-
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Availability
-                        </span>
-
+                        <span class="detail-label">Availability</span>
                         <span class="detail-value">
                             {{ worker.availability }}
                         </span>
-
                     </div>
-
                 </div>
 
-
-                <!-- PRICING -->
-
+                <!-- 7. RATE -->
                 <div class="detail-item">
-
                     <div class="detail-icon">
-
                         <i class="bi bi-cash-stack"></i>
-
                     </div>
-
                     <div class="detail-content">
-
-                        <span class="detail-label">
-                            Rate
-                        </span>
-
+                        <span class="detail-label">Rate</span>
                         <span class="detail-value">
                             ₹{{ worker.pricing_amount|default:"0" }} / {{ worker.get_pricing_type_display|default:"Hour" }}
                         </span>
-
                     </div>
-
                 </div>
 
+                <!-- 8. ID PROOF TYPE -->
+                <div class="detail-item">
+                    <div class="detail-icon">
+                        <i class="bi bi-person-vcard-fill"></i>
+                    </div>
+                    <div class="detail-content">
+                        <span class="detail-label">ID Proof</span>
+                        <span class="detail-value">
+                            {% if worker.proof_type == 'aadhaar' %}
+                                Aadhaar
+                            {% elif worker.proof_type == 'pan' %}
+                                PAN
+                            {% elif worker.proof_type == 'voter_id' %}
+                                Voter ID
+                            {% elif worker.proof_type %}
+                                {{ worker.proof_type|title }}
+                            {% else %}
+                                Not provided
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
 
             </div>
 
-
             <!-- =================================================
-                 ACTIONS
+                 ACTIONS BAR (ZERO OVERFLOW, PERFECTLY ALIGNED)
             ================================================= -->
-
             <div class="worker-actions">
 
-
-                <!-- PROOF TYPE -->
-
-                {% if worker.proof_type %}
-
-                    <span
-                        class="proof-type-badge"
-                        style="background:#e7f7ef; color:#087f5b; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700; margin-bottom:6px; display:inline-block;"
-                    >
-
-                        Proof Type:
-
-                        {% if worker.proof_type == 'aadhaar' %}
-                            Aadhaar
-                        {% elif worker.proof_type == 'pan' %}
-                            PAN
-                        {% elif worker.proof_type == 'voter_id' %}
-                            Voter ID
-                        {% else %}
-                            {{ worker.proof_type }}
-                        {% endif %}
-
-                    </span>
-
-                {% endif %}
-
-
-                <!-- PROOF -->
-
-                {% if worker.proof_document %}
-
-                    <a
-                        href="{% url 'worker_proof_document' worker.pk %}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="proof-btn"
-                    >
-
-                        <i class="bi bi-file-earmark-text"></i>
-
-                        View Proof
-
-                    </a>
-
-                {% else %}
-
-                    <span class="proof-btn">
-                        No Proof
-                    </span>
-
-                {% endif %}
-
-
-                <!-- VERIFICATION -->
-
-                {% if worker.is_verified %}
-
-                    <span class="verified-label">
-
-                        <i class="bi bi-patch-check-fill"></i>
-
-                        Verified
-
-                    </span>
-
-                {% else %}
-
-                    <form
-                        method="POST"
-                        action="{% url 'worker_verify' worker.id %}"
-                        onsubmit="return confirm('Are you sure you want to verify this worker?');"
-                        style="display:inline;"
-                    >
-
-                        {% csrf_token %}
-
-                        <button
-                            type="submit"
-                            class="verify-btn"
+                <!-- PRIMARY: PROOF & VERIFY -->
+                <div class="actions-primary">
+                    {% if worker.proof_document %}
+                        <a
+                            href="{% url 'worker_proof_document' worker.pk %}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="proof-btn"
                         >
+                            <i class="bi bi-file-earmark-text"></i>
+                            View Proof
+                        </a>
+                    {% else %}
+                        <span class="proof-btn disabled">
+                            <i class="bi bi-file-earmark-x"></i>
+                            No Proof
+                        </span>
+                    {% endif %}
 
-                            <i class="bi bi-check-lg"></i>
-
-                            Verify
-
-                        </button>
-
-                    </form>
-
-                {% endif %}
-
-
-                <!-- SUSPEND/UNSUSPEND -->
-
-                {% if worker.user.is_active %}
-
-                    <form
-                        method="POST"
-                        action="{% url 'admin_suspend_worker' worker.id %}"
-                        onsubmit="return confirm('Are you sure you want to suspend this worker?');"
-                        style="display:inline;"
-                    >
-
-                        {% csrf_token %}
-
-                        <input type="hidden" name="action" value="suspend">
-
-                        <button
-                            type="submit"
-                            class="suspend-btn"
-                            title="Suspend Worker"
+                    {% if not worker.is_verified %}
+                        <form
+                            method="POST"
+                            action="{% url 'worker_verify' worker.id %}"
+                            onsubmit="return confirm('Are you sure you want to verify this worker?');"
+                            style="display:inline;"
                         >
+                            {% csrf_token %}
+                            <button type="submit" class="verify-btn">
+                                <i class="bi bi-check-lg"></i>
+                                Verify
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
 
-                            <i class="bi bi-pause-circle"></i>
+                <!-- MANAGEMENT ACTIONS: SUSPEND, STRIKE, DELETE -->
+                <div class="actions-manage">
 
-                        </button>
-
-                    </form>
-
-                {% else %}
-
-                    <form
-                        method="POST"
-                        action="{% url 'admin_suspend_worker' worker.id %}"
-                        onsubmit="return confirm('Are you sure you want to unsuspend this worker?');"
-                        style="display:inline;"
-                    >
-
-                        {% csrf_token %}
-
-                        <input type="hidden" name="action" value="unsuspend">
-
-                        <button
-                            type="submit"
-                            class="unsuspend-btn"
-                            title="Unsuspend Worker"
+                    <!-- SUSPEND / UNSUSPEND -->
+                    {% if worker.user.is_active %}
+                        <form
+                            method="POST"
+                            action="{% url 'admin_suspend_worker' worker.id %}"
+                            onsubmit="return confirm('Are you sure you want to suspend this worker?');"
+                            style="display:inline;"
                         >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="suspend">
+                            <button
+                                type="submit"
+                                class="action-icon-btn suspend-btn"
+                                title="Suspend Worker"
+                                aria-label="Suspend Worker"
+                            >
+                                <i class="bi bi-pause-circle"></i>
+                            </button>
+                        </form>
+                    {% else %}
+                        <form
+                            method="POST"
+                            action="{% url 'admin_suspend_worker' worker.id %}"
+                            onsubmit="return confirm('Are you sure you want to unsuspend this worker?');"
+                            style="display:inline;"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="unsuspend">
+                            <button
+                                type="submit"
+                                class="action-icon-btn unsuspend-btn"
+                                title="Unsuspend Worker"
+                                aria-label="Unsuspend Worker"
+                            >
+                                <i class="bi bi-play-circle"></i>
+                            </button>
+                        </form>
+                    {% endif %}
 
-                            <i class="bi bi-play-circle"></i>
-
-                        </button>
-
-                    </form>
-
-                {% endif %}
-
-
-                <!-- STRIKE / WARNING -->
-                <button
-                    type="button"
-                    class="strike-btn"
-                    data-bs-toggle="modal"
-                    data-bs-target="#strikeModal{{ worker.id }}"
-                    title="Issue Warning or Strike"
-                >
-                    <i class="bi bi-shield-exclamation"></i>
-                </button>
-
-                <!-- DELETE -->
-
-                <form
-                    method="POST"
-                    action="{% url 'admin_delete_worker' worker.id %}"
-                    onsubmit="return confirm('Are you sure you want to delete this worker? This action cannot be undone.');"
-                    style="display:inline;"
-                >
-
-                    {% csrf_token %}
-
+                    <!-- STRIKE / WARNING -->
                     <button
-                        type="submit"
-                        class="delete-btn"
-                        title="Delete Worker"
+                        type="button"
+                        class="action-icon-btn strike-btn"
+                        data-bs-toggle="modal"
+                        data-bs-target="#strikeModal{{ worker.id }}"
+                        title="Issue Warning or Strike"
+                        aria-label="Issue Warning or Strike"
                     >
-
-                        <i class="bi bi-trash"></i>
-
+                        <i class="bi bi-shield-exclamation"></i>
                     </button>
 
-                </form>
+                    <!-- DELETE -->
+                    <form
+                        method="POST"
+                        action="{% url 'admin_delete_worker' worker.id %}"
+                        onsubmit="return confirm('Are you sure you want to delete this worker? This action cannot be undone.');"
+                        style="display:inline;"
+                    >
+                        {% csrf_token %}
+                        <button
+                            type="submit"
+                            class="action-icon-btn delete-btn"
+                            title="Delete Worker"
+                            aria-label="Delete Worker"
+                        >
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </form>
+
+                </div>
 
             </div>
 
@@ -623,9 +424,9 @@
             ================================================= -->
             <div class="modal fade" id="strikeModal{{ worker.id }}" tabindex="-1" aria-labelledby="strikeModalLabel{{ worker.id }}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content" style="border-radius:16px; border:none; box-shadow:0 20px 40px rgba(0,0,0,0.15); overflow:hidden;">
+                    <div class="modal-content" style="border-radius:18px; border:none; box-shadow:0 20px 50px rgba(0,0,0,0.18); overflow:hidden;">
                         <div class="modal-header" style="background:#fef7ee; border-bottom:1px solid #fed7aa; padding:18px 24px;">
-                            <h5 class="modal-title" id="strikeModalLabel{{ worker.id }}" style="font-size:16px; font-weight:700; color:#9a3412;">
+                            <h5 class="modal-title" id="strikeModalLabel{{ worker.id }}" style="font-size:16px; font-weight:750; color:#9a3412;">
                                 <i class="bi bi-shield-exclamation me-2"></i> Worker Warning & Strike Action
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -634,10 +435,10 @@
                             {% csrf_token %}
                             <div class="modal-body" style="padding:22px 24px;">
                                 <!-- WORKER SUMMARY -->
-                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:12px; background:#f8fafc; border-radius:10px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:12px 14px; background:#f8fafc; border: 1px solid #e2e8f0; border-radius:12px;">
                                     <div>
-                                        <div style="font-weight:700; color:#1e293b;">{{ worker.user.get_full_name|default:worker.user.username }}</div>
-                                        <div style="font-size:12px; color:#64748b;">{{ worker.service.name|default:'General Service' }} • {{ worker.district }}</div>
+                                        <div style="font-weight:750; color:#0f172a; font-size:14px;">{{ worker.user.get_full_name|default:worker.user.username }}</div>
+                                        <div style="font-size:12px; color:#64748b;">{{ worker.service.name|default:'General Service' }} &bull; {{ worker.district }}</div>
                                     </div>
                                     <div style="text-align:right;">
                                         <span class="strike-pill {% if worker.strikes_count >= 3 %}strike-danger{% elif worker.strikes_count > 0 %}strike-warning{% else %}strike-clean{% endif %}">
@@ -710,7 +511,7 @@
                                         rows="3"
                                         placeholder="e.g. Unjustified no-show for booking #102, customer dispute, policy breach..."
                                         required
-                                        style="font-size:13px;"
+                                        style="font-size:13px; border-radius:10px;"
                                     ></textarea>
                                 </div>
 
@@ -724,7 +525,7 @@
                             </div>
                             <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:14px 24px;">
                                 <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark px-3">
+                                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark px-3" style="border-radius:9px;">
                                     <i class="bi bi-check2-circle me-1"></i> Confirm Action
                                 </button>
                             </div>
@@ -735,53 +536,38 @@
 
         </div>
 
-
         {% empty %}
-
 
         <!-- =================================================
              EMPTY STATE
         ================================================= -->
-
         <div class="empty-workers">
-
             <div class="empty-icon">
-
                 <i class="bi bi-person-workspace"></i>
-
             </div>
-
-            <h4>
-                No workers found
-            </h4>
-
-            <p>
-                Registered workers will appear here.
-            </p>
-
+            <h4>No workers found</h4>
+            <p>Registered workers will appear here.</p>
         </div>
-
 
         {% endfor %}
 
-
     </div>
 
+    <!-- =====================================================
+         PAGINATION
+    ===================================================== -->
     {% if workers.has_other_pages %}
-    <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:30px;">
+    <div class="workers-pagination">
         {% if workers.has_previous %}
-            <a href="?page={{ workers.previous_page_number }}" style="padding:8px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; text-decoration:none; color:#374151; font-weight:600;">&laquo; Prev</a>
+            <a href="?page={{ workers.previous_page_number }}{% if search %}&q={{ search }}{% endif %}" class="workers-page-link">&laquo; Prev</a>
         {% endif %}
-        <span style="padding:8px 16px; color:#64748b; font-size:14px;">Page {{ workers.number }} of {{ workers.paginator.num_pages }}</span>
+        <span class="workers-page-info">Page {{ workers.number }} of {{ workers.paginator.num_pages }}</span>
         {% if workers.has_next %}
-            <a href="?page={{ workers.next_page_number }}" style="padding:8px 16px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; text-decoration:none; color:#374151; font-weight:600;">Next &raquo;</a>
+            <a href="?page={{ workers.next_page_number }}{% if search %}&q={{ search }}{% endif %}" class="workers-page-link">Next &raquo;</a>
         {% endif %}
     </div>
     {% endif %}
 
 </div>
 
-
 {% endblock %}
-
-
