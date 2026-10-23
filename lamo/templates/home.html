@@ -186,61 +186,61 @@
     <div class="category-pills-container" data-aos="fade-up">
       
       <!-- All Services (Active) -->
-      <a href="#services" class="cat-ribbon-item active cat-item-btn" data-category="all">
+      <a href="#services" class="cat-ribbon-item {% if not category or category == 'all' %}active{% endif %} cat-item-btn" data-category="all">
         <span class="cat-icon"><i class="bi bi-grid-fill"></i></span>
         <span>All Services</span>
       </a>
 
       <!-- Plumbing -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="plumb">
+      <a href="#services" class="cat-ribbon-item {% if category == 'plumb' or category == 'plumbing' %}active{% endif %} cat-item-btn" data-category="plumb">
         <span class="cat-icon" style="color:#2563EB;">🚰</span>
         <span>Plumbing</span>
       </a>
 
       <!-- Electrical -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="electrician">
+      <a href="#services" class="cat-ribbon-item {% if category == 'electrician' or category == 'electrical' %}active{% endif %} cat-item-btn" data-category="electrician">
         <span class="cat-icon" style="color:#D97706;">⚡</span>
         <span>Electrical</span>
       </a>
 
       <!-- Cleaning -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="clean">
+      <a href="#services" class="cat-ribbon-item {% if category == 'clean' or category == 'cleaning' %}active{% endif %} cat-item-btn" data-category="clean">
         <span class="cat-icon" style="color:#059669;">🧹</span>
         <span>Cleaning</span>
       </a>
 
       <!-- Painting -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="paint">
+      <a href="#services" class="cat-ribbon-item {% if category == 'paint' or category == 'painting' %}active{% endif %} cat-item-btn" data-category="paint">
         <span class="cat-icon" style="color:#DC2626;">🖌️</span>
         <span>Painting</span>
       </a>
 
       <!-- AC Service -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="ac">
+      <a href="#services" class="cat-ribbon-item {% if category == 'ac' or category == 'ac service' %}active{% endif %} cat-item-btn" data-category="ac">
         <span class="cat-icon" style="color:#0284C7;">❄️</span>
         <span>AC Service</span>
       </a>
 
       <!-- Carpentry -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="carpenter">
+      <a href="#services" class="cat-ribbon-item {% if category == 'carpenter' or category == 'carpentry' %}active{% endif %} cat-item-btn" data-category="carpenter">
         <span class="cat-icon" style="color:#92400E;">🔨</span>
         <span>Carpentry</span>
       </a>
 
       <!-- Appliance Repair -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="appliance">
+      <a href="#services" class="cat-ribbon-item {% if category == 'appliance' or category == 'appliances' %}active{% endif %} cat-item-btn" data-category="appliance">
         <span class="cat-icon" style="color:#4B5563;">🧺</span>
         <span>Appliance Repair</span>
       </a>
 
       <!-- Pest Control -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="pest">
+      <a href="#services" class="cat-ribbon-item {% if category == 'pest' %}active{% endif %} cat-item-btn" data-category="pest">
         <span class="cat-icon" style="color:#16A34A;">🪲</span>
         <span>Pest Control</span>
       </a>
 
       <!-- Gardening -->
-      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="garden">
+      <a href="#services" class="cat-ribbon-item {% if category == 'garden' or category == 'gardening' %}active{% endif %} cat-item-btn" data-category="garden">
         <span class="cat-icon" style="color:#15803D;">🪴</span>
         <span>Gardening</span>
       </a>

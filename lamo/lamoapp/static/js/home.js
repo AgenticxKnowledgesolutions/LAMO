@@ -74,8 +74,8 @@
     // DOM Elements
     const heroForm = document.getElementById("heroLocationForm");
     const districtSelect = document.getElementById("heroDistrictSelect");
-    const searchInput = document.getElementById("heroServiceSearch");
-    const clearSearchBtn = document.getElementById("clearHeroSearchBtn");
+    const searchInput = document.getElementById("liveServiceSearch") || document.getElementById("heroServiceSearch");
+    const clearSearchBtn = document.getElementById("clearSearchBtn") || document.getElementById("clearHeroSearchBtn");
     const btnUseLocation = document.getElementById("btnHeroUseLocation");
 
     const servicesGrid = document.getElementById("servicesGrid");
@@ -85,7 +85,7 @@
 
     const activeDistrictTitle = document.getElementById("activeDistrictTitle");
     const servicesCountBadge = document.getElementById("servicesCountBadge");
-    const noServicesDistrictMessage = document.getElementById("noServicesDistrictMessage");
+    const emptyDistrictState = document.getElementById("emptyDistrictState") || document.getElementById("noServicesDistrictMessage");
     const noMatchServicesMessage = document.getElementById("noMatchServicesMessage");
     const btnSelectKollam = document.getElementById("btnSelectKollam");
     const btnResetSearch = document.getElementById("btnResetSearch");
@@ -146,9 +146,10 @@
         return;
       }
 
-      // Do NOT duplicate cards when there are fewer than 4 unique services!
-      // When there is 1, 2, or 3 services, show only the real verified services without fake duplicates.
-      const shouldStream = cards.length >= 4;
+      // Do NOT duplicate or stream cards when filtering by category or searching!
+      // When filtering or searching, display clean static result cards without repetition.
+      const isFiltered = (currentCategory && currentCategory !== "all") || (searchInput && searchInput.value.trim().length > 0);
+      const shouldStream = !isFiltered && cards.length >= 4;
 
       if (!shouldStream) {
         singleSetWidth = 0;
@@ -159,7 +160,7 @@
         return;
       }
 
-      // If 4 or more cards, duplicate once to guarantee seamless infinite continuity
+      // If 4 or more cards (and browsing all services without search), clone once for infinite loop
       cards.forEach(function (card) {
         const clone = card.cloneNode(true);
         clone.setAttribute("data-clone", "true");
@@ -368,12 +369,15 @@
     // -------------------------------------------------------------
     // 2. DYNAMIC CARD BUILDER (Real Database Data)
     // -------------------------------------------------------------
+    // 2. DYNAMIC CARD BUILDER (Real Database Data)
+    // -------------------------------------------------------------
     function renderServiceCards(services, selectedDistrict) {
       if (!servicesGrid) return;
 
       if (!services || services.length === 0) {
         servicesGrid.innerHTML = "";
         servicesGrid.style.display = "none";
+        stopInfiniteKineticStream();
         if (btnPrevService) btnPrevService.style.display = "none";
         if (btnNextService) btnNextService.style.display = "none";
         return;
@@ -381,10 +385,23 @@
 
       servicesGrid.style.display = "flex";
 
-      let html = "";
+      // Strict de-duplication by service.id
+      const seenIds = new Set();
+      const uniqueServices = [];
       services.forEach(function (s) {
-        const pluralPros = s.worker_count === 1 ? "" : "s";
-        const districtBadgeText = `${s.worker_count} Pro${pluralPros} in ${escapeHtml(selectedDistrict)}`;
+        if (!seenIds.has(s.id)) {
+          seenIds.add(s.id);
+          uniqueServices.push(s);
+        }
+      });
+
+      let html = "";
+      uniqueServices.forEach(function (s) {
+        const workerCount = s.worker_count !== undefined ? s.worker_count : 0;
+        const pluralPros = workerCount === 1 ? "" : "s";
+        const districtBadgeText = selectedDistrict
+          ? `${workerCount} worker${pluralPros} available`
+          : "Verified Service";
 
         // Rating HTML (Actual reviews only)
         let ratingHtml = "";
@@ -414,10 +431,20 @@
           `;
         }
 
-        // Image or placeholder
-        const fallbackImg = "/static/img/general.png";
-        let imageSrc = s.image_url || fallbackImg;
-        let imageHtml = `<img src="${imageSrc}" alt="${escapeHtml(s.name)}" loading="lazy" onerror="this.onerror=null;this.src='${fallbackImg}';">`;
+        // Image with category fallback
+        let imageSrc = s.image_url;
+        if (!imageSrc) {
+          const n = (s.name || "").toLowerCase();
+          if (n.includes("plumb")) imageSrc = "/static/img/plumber.webp";
+          else if (n.includes("electr")) imageSrc = "/static/img/electrician.webp";
+          else if (n.includes("clean")) imageSrc = "/static/img/cleaning.png";
+          else if (n.includes("paint")) imageSrc = "/static/img/painter.webp";
+          else if (n.includes("ac")) imageSrc = "/static/img/ac-repair.webp";
+          else if (n.includes("carpent")) imageSrc = "/static/img/carpenter.webp";
+          else if (n.includes("appliance")) imageSrc = "/static/img/appliance.webp";
+          else imageSrc = "/static/img/general.png";
+        }
+        let imageHtml = `<img src="${imageSrc}" alt="${escapeHtml(s.name)}" loading="lazy" onerror="this.onerror=null;this.src='/static/img/general.png';">`;
 
         html += `
           <a href="${s.url}" 
@@ -444,7 +471,7 @@
                 <div class="service-mockup-price">
                   ${priceHtml}
                 </div>
-                <div class="service-mockup-arrow" title="View available workers">
+                <div class="service-mockup-arrow" title="${selectedDistrict ? 'View available workers' : 'View service details'}">
                   <i class="bi bi-arrow-right"></i>
                 </div>
               </div>
@@ -464,7 +491,7 @@
     // -------------------------------------------------------------
     function fetchFilteredServices(options) {
       const opts = options || {};
-      const district = opts.district || (districtSelect ? districtSelect.value : "Kollam");
+      const district = opts.district !== undefined ? opts.district : (districtSelect ? districtSelect.value : "");
       const query = opts.query !== undefined ? opts.query : (searchInput ? searchInput.value.trim() : "");
       const category = opts.category !== undefined ? opts.category : currentCategory;
       const updateUrl = opts.updateUrl !== false;
@@ -510,11 +537,10 @@
 
             // 1. Update Heading and Badge
             if (activeDistrictTitle) {
-              activeDistrictTitle.textContent = selectedDistrict;
+              activeDistrictTitle.textContent = selectedDistrict || "All Kerala";
             }
             if (servicesCountBadge) {
-              const pluralS = count === 1 ? "" : "s";
-              servicesCountBadge.textContent = `${count} Verified Service${pluralS}`;
+              servicesCountBadge.textContent = `${count} Available`;
             }
 
             // 2. Update district name in all empty-state notices
@@ -524,20 +550,39 @@
 
             // 3. Update Empty State displays
             if (count === 0) {
+              if (servicesGrid) {
+                servicesGrid.innerHTML = "";
+                servicesGrid.style.display = "none";
+              }
               if (query) {
-                if (noMatchServicesMessage) noMatchServicesMessage.style.display = "block";
-                if (noServicesDistrictMessage) noServicesDistrictMessage.style.display = "none";
+                if (noMatchServicesMessage) {
+                  noMatchServicesMessage.style.display = "block";
+                  const qHeading = noMatchServicesMessage.querySelector("h4");
+                  if (qHeading) {
+                    qHeading.textContent = selectedDistrict
+                      ? `No matching services found in ${selectedDistrict}`
+                      : "No matching services found";
+                  }
+                }
+                if (emptyDistrictState) emptyDistrictState.style.display = "none";
               } else {
-                if (noServicesDistrictMessage) noServicesDistrictMessage.style.display = "block";
+                if (emptyDistrictState) {
+                  emptyDistrictState.style.display = "block";
+                  const dHeading = emptyDistrictState.querySelector("h4");
+                  if (dHeading) {
+                    dHeading.textContent = selectedDistrict
+                      ? `No services available in ${selectedDistrict} yet. Try another district.`
+                      : "No services match your criteria.";
+                  }
+                }
                 if (noMatchServicesMessage) noMatchServicesMessage.style.display = "none";
               }
             } else {
-              if (noServicesDistrictMessage) noServicesDistrictMessage.style.display = "none";
+              if (emptyDistrictState) emptyDistrictState.style.display = "none";
               if (noMatchServicesMessage) noMatchServicesMessage.style.display = "none";
+              // 4. Render actual cards
+              renderServiceCards(data.services, selectedDistrict);
             }
-
-            // 4. Render actual cards
-            renderServiceCards(data.services, selectedDistrict);
 
             // 5. Update browser history URL cleanly without reload
             if (updateUrl) {
@@ -571,9 +616,13 @@
     let searchDebounceTimer = null;
     if (searchInput) {
       searchInput.addEventListener("input", function () {
+        const val = searchInput.value.trim();
+        if (clearSearchBtn) {
+          clearSearchBtn.style.display = val.length > 0 ? "inline-flex" : "none";
+        }
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(function () {
-          fetchFilteredServices({ query: searchInput.value.trim() });
+          fetchFilteredServices({ query: val });
         }, 280);
       });
 
@@ -584,6 +633,7 @@
           fetchFilteredServices({ query: searchInput.value.trim() });
         } else if (e.key === "Escape") {
           searchInput.value = "";
+          if (clearSearchBtn) clearSearchBtn.style.display = "none";
           fetchFilteredServices({ query: "" });
         }
       });
@@ -606,6 +656,7 @@
           searchInput.value = "";
           searchInput.focus();
         }
+        clearSearchBtn.style.display = "none";
         fetchFilteredServices({ query: "" });
       });
     }
@@ -616,7 +667,11 @@
           searchInput.value = "";
           searchInput.focus();
         }
-        fetchFilteredServices({ query: "" });
+        if (clearSearchBtn) {
+          clearSearchBtn.style.display = "none";
+        }
+        setActiveCategoryPill("all");
+        fetchFilteredServices({ query: "", category: "all" });
       });
     }
 
@@ -624,6 +679,8 @@
       btnSelectKollam.addEventListener("click", function () {
         districtSelect.value = "Kollam";
         if (searchInput) searchInput.value = "";
+        if (clearSearchBtn) clearSearchBtn.style.display = "none";
+        setActiveCategoryPill("all");
         fetchFilteredServices({ district: "Kollam", query: "", category: "all" });
       });
     }
@@ -688,11 +745,15 @@
     // -------------------------------------------------------------
     // 6. CATEGORY FILTERING & "MORE SERVICES" EXPANSION
     // -------------------------------------------------------------
-    const primaryPills = document.querySelectorAll(".cat-pill-btn:not(#btnMoreCategories)");
+    const primaryPills = document.querySelectorAll(".cat-ribbon-item:not(#btnMoreCategories), .cat-item-btn:not(#btnMoreCategories)");
     const extraPills = document.querySelectorAll(".more-cat-pill");
+    const hiddenCategoryInput = document.getElementById("hiddenCategoryInput");
 
     function setActiveCategoryPill(category) {
       currentCategory = category || "all";
+      if (hiddenCategoryInput) {
+        hiddenCategoryInput.value = currentCategory;
+      }
 
       primaryPills.forEach(function (p) {
         if (p.getAttribute("data-category") === currentCategory) {
@@ -767,10 +828,15 @@
     quickTags.forEach(function (tag) {
       tag.addEventListener("click", function (e) {
         e.preventDefault();
-        const query = this.getAttribute("data-tag") || "";
-        if (searchInput) searchInput.value = query;
+        const searchText = this.textContent.trim();
+        if (searchInput) {
+          searchInput.value = searchText;
+        }
+        if (clearSearchBtn) {
+          clearSearchBtn.style.display = "inline-flex";
+        }
         setActiveCategoryPill("all");
-        fetchFilteredServices({ query: query, category: "all" });
+        fetchFilteredServices({ query: searchText, category: "all" });
 
         const target = document.getElementById("services");
         if (target) {

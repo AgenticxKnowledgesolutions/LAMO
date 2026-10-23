@@ -1093,15 +1093,23 @@ def home(request):
 
     CATEGORY_KEYWORD_MAP = {
         'plumb': ['plumb'],
+        'plumbing': ['plumb'],
         'electrician': ['electr'],
+        'electrical': ['electr'],
         'clean': ['clean', 'shampoo'],
+        'cleaning': ['clean', 'shampoo'],
         'paint': ['paint', 'whitewash'],
+        'painting': ['paint', 'whitewash'],
         'ac': ['ac ', 'ac repair', 'air condition'],
+        'ac service': ['ac ', 'ac repair', 'air condition'],
         'carpenter': ['carpent', 'wood'],
+        'carpentry': ['carpent', 'wood'],
         'appliance': ['appliance', 'electronics', 'tv', 'refrigerator', 'washing machine'],
         'pest': ['pest'],
         'garden': ['garden', 'grass', 'bush', 'landscape'],
+        'gardening': ['garden', 'grass', 'bush', 'landscape'],
     }
+    PRIMARY_CATEGORY_SLUGS = ['plumb', 'electrician', 'clean', 'paint', 'ac', 'carpenter', 'appliance', 'pest', 'garden']
     ALL_STANDARD_KEYWORDS = [kw for kws in CATEGORY_KEYWORD_MAP.values() for kw in kws]
 
     # Task 4: When a district is set, restrict services with the same rules service_workers uses
@@ -1126,9 +1134,25 @@ def home(request):
         services_qs = Service.objects.filter(is_active=True)
 
     if query:
-        services_qs = services_qs.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
+        query_lower = query.lower()
+        if query_lower in ('ac', 'a/c', 'a.c.'):
+            services_qs = services_qs.filter(
+                Q(name__icontains='ac ') | Q(name__icontains='ac repair') | Q(name__icontains='air condition') | Q(description__icontains='air condition')
+            )
+        elif query_lower in ('plumber', 'plumbers'):
+            services_qs = services_qs.filter(Q(name__icontains='plumb') | Q(description__icontains='plumb'))
+        elif query_lower in ('electrician', 'electricians', 'electrical'):
+            services_qs = services_qs.filter(Q(name__icontains='electr') | Q(description__icontains='electr'))
+        elif query_lower in ('carpenter', 'carpenters', 'carpentry'):
+            services_qs = services_qs.filter(Q(name__icontains='carpent') | Q(description__icontains='carpent'))
+        elif query_lower in ('painter', 'painters', 'painting'):
+            services_qs = services_qs.filter(Q(name__icontains='paint') | Q(description__icontains='paint'))
+        elif query_lower in ('cleaner', 'cleaners', 'cleaning'):
+            services_qs = services_qs.filter(Q(name__icontains='clean') | Q(description__icontains='clean'))
+        else:
+            services_qs = services_qs.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
 
     if category and category != 'all':
         if category == 'more':
@@ -1148,8 +1172,14 @@ def home(request):
 
     services_qs = services_qs.order_by('-is_featured', 'name')
 
+    # De-duplicate services by service.id to ensure each service card is displayed only once
+    seen_service_ids = set()
     services_list = []
     for s in services_qs:
+        if s.id in seen_service_ids:
+            continue
+        seen_service_ids.add(s.id)
+
         cnt = getattr(s, 'worker_count', None)
         if cnt is None:
             cnt = district_worker_counts.get(s.id, 0)
@@ -1177,8 +1207,8 @@ def home(request):
         # Slug for category classification
         name_lower = s.name.lower()
         matched_cat = 'other'
-        for cat_slug, kws in CATEGORY_KEYWORD_MAP.items():
-            if any(kw in name_lower for kw in kws):
+        for cat_slug in PRIMARY_CATEGORY_SLUGS:
+            if any(kw in name_lower for kw in CATEGORY_KEYWORD_MAP[cat_slug]):
                 matched_cat = cat_slug
                 break
         s.category_slug = matched_cat
@@ -1208,6 +1238,7 @@ def home(request):
                 'description': s.description,
                 'image_url': s.image.url if s.image else '',
                 'worker_count': s.district_worker_count,
+                'starting_price': s.starting_price,
                 'rating': s.actual_rating,
                 'review_count': s.actual_review_count,
                 'category': s.category_slug,
@@ -5987,7 +6018,10 @@ def service_workers(request, pk):
 
     district = request.GET.get('district', '').strip()
     if not district:
-        district = request.session.get('lamo_selected_district', 'Kollam')
+        district = request.session.get('district') or request.session.get('lamo_selected_district')
+    if not district:
+        messages.error(request, 'Please select a district to find workers.')
+        return redirect('service_detail', pk=service.id)
     ai_requirement = request.GET.get('ai_requirement', '').strip()
 
     # Task 2: AI recommendation path (external API calls) is logged-in only.
