@@ -2749,9 +2749,10 @@ def booking_messages(request, booking_id):
         return redirect('booking_messages', booking_id=booking.id)
 
     thread = BookingMessage.objects.filter(booking=booking).select_related('sender').order_by('created_at')
+    template_name = 'workers/booking_messages_worker.html' if getattr(request.user, 'role', None) == 'WORKER' else 'booking_messages.html'
     return render(
         request,
-        'booking_messages.html',
+        template_name,
         {
             'booking': booking,
             'chat_messages': thread,
