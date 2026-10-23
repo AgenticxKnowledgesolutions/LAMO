@@ -456,6 +456,20 @@
               </li>
 
 
+              <!-- BECOME A PRO -->
+
+              <li class="nav-item">
+
+                <a class="nav-link {% if request.resolver_match.url_name == 'register' and request.GET.role == 'worker' %}active{% endif %}"
+                  href="{% url 'register' %}?role=worker">
+
+                  Become a Pro
+
+                </a>
+
+              </li>
+
+
             </ul>
 
           </div>
@@ -778,7 +792,7 @@
 
             <li>
 
-              <a href="{% url 'register' %}">
+              <a href="{% url 'register' %}?role=worker">
                 Find Bookings
               </a>
 

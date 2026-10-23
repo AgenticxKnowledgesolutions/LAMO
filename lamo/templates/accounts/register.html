@@ -1181,6 +1181,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     syncBannerAndOffer(false);
+
+    // Task 6: Read role from query string; if 'worker' or 'user' and not re-rendering POST errors, select role.
+    {% if request.method != 'POST' %}
+    var requestedRole = "{{ request.GET.role|default:''|escapejs }}".toLowerCase();
+    if (requestedRole === 'worker' || requestedRole === 'user') {
+        var targetRole = requestedRole === 'worker' ? 'WORKER' : 'USER';
+        var targetCard = document.querySelector('.role-card[data-role="' + targetRole + '"]');
+        if (targetCard) {
+            targetCard.click();
+        }
+    }
+    {% endif %}
 });
 </script>
 {% endblock %}
