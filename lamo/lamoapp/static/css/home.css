@@ -569,6 +569,9 @@ body {
   width: 100%;
   overflow: hidden;
   padding: 16px 0 28px;
+}
+
+.kinetic-stream-wrapper.has-overflow {
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
@@ -585,8 +588,8 @@ body {
   );
 }
 
-.kinetic-stream-wrapper::before,
-.kinetic-stream-wrapper::after {
+.kinetic-stream-wrapper.has-overflow::before,
+.kinetic-stream-wrapper.has-overflow::after {
   content: "";
   position: absolute;
   top: 0;
@@ -597,12 +600,12 @@ body {
   transition: opacity 0.3s ease;
 }
 
-.kinetic-stream-wrapper::before {
+.kinetic-stream-wrapper.has-overflow::before {
   left: 0;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
 }
 
-.kinetic-stream-wrapper::after {
+.kinetic-stream-wrapper.has-overflow::after {
   right: 0;
   background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
 }
@@ -618,14 +621,18 @@ body {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-  cursor: grab;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.services-carousel-track:active,
-.services-grid-4x2:active,
-.services-carousel-track.is-dragging {
+.kinetic-stream-wrapper.has-overflow .services-carousel-track,
+.kinetic-stream-wrapper.has-overflow .services-grid-4x2 {
+  cursor: grab;
+}
+
+.kinetic-stream-wrapper.has-overflow .services-carousel-track:active,
+.kinetic-stream-wrapper.has-overflow .services-grid-4x2:active,
+.kinetic-stream-wrapper.has-overflow .services-carousel-track.is-dragging {
   cursor: grabbing !important;
 }
 
@@ -722,6 +729,8 @@ body {
   position: absolute;
   top: 12px;
   left: 12px;
+  z-index: 6;
+  pointer-events: none;
   background: rgba(232, 245, 233, 0.94);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);

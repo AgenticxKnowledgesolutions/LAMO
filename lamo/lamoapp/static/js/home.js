@@ -146,17 +146,31 @@
         return;
       }
 
-      // Duplicate cards to guarantee seamless infinite continuity
-      const duplicateCount = cards.length < 3 ? 3 : 1;
-      for (let d = 0; d < duplicateCount; d++) {
-        cards.forEach(function (card) {
-          const clone = card.cloneNode(true);
-          clone.setAttribute("data-clone", "true");
-          clone.setAttribute("aria-hidden", "true");
-          clone.setAttribute("tabindex", "-1");
-          servicesGrid.appendChild(clone);
-        });
+      // Do NOT duplicate cards when there are fewer than 4 unique services!
+      // When there is 1, 2, or 3 services, show only the real verified services without fake duplicates.
+      const shouldStream = cards.length >= 4;
+
+      if (!shouldStream) {
+        singleSetWidth = 0;
+        servicesGrid.scrollLeft = 0;
+        if (kineticStreamWrapper) kineticStreamWrapper.classList.remove("has-overflow");
+        if (btnPrevService) btnPrevService.style.display = "none";
+        if (btnNextService) btnNextService.style.display = "none";
+        return;
       }
+
+      // If 4 or more cards, duplicate once to guarantee seamless infinite continuity
+      cards.forEach(function (card) {
+        const clone = card.cloneNode(true);
+        clone.setAttribute("data-clone", "true");
+        clone.setAttribute("aria-hidden", "true");
+        clone.setAttribute("tabindex", "-1");
+        servicesGrid.appendChild(clone);
+      });
+
+      if (kineticStreamWrapper) kineticStreamWrapper.classList.add("has-overflow");
+      if (btnPrevService) btnPrevService.style.display = "inline-flex";
+      if (btnNextService) btnNextService.style.display = "inline-flex";
 
       // Re-measure singleSetWidth after DOM update
       requestAnimationFrame(function () {
@@ -228,7 +242,7 @@
 
       // Pointer Drag (Mouse)
       servicesGrid.addEventListener("mousedown", function (e) {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || singleSetWidth <= 0) return;
         isDragging = true;
         hasDragged = false;
         dragStartX = e.pageX;
@@ -366,8 +380,6 @@
       }
 
       servicesGrid.style.display = "flex";
-      if (btnPrevService) btnPrevService.style.display = "flex";
-      if (btnNextService) btnNextService.style.display = "flex";
 
       let html = "";
       services.forEach(function (s) {
