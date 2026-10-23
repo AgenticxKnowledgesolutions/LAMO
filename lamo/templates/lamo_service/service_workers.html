@@ -71,11 +71,11 @@
             </button>
         </form>
     {% else %}
-        <a href="{% url 'login' %}" class="workers-page-nav-link">
+        <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" class="workers-page-nav-link">
             <i class="bi bi-person"></i>
             Login
         </a>
-        <a href="{% url 'register' %}" class="workers-page-nav-link">
+        <a href="{% url 'register' %}?next={{ request.get_full_path|urlencode }}" class="workers-page-nav-link">
             Register
         </a>
     {% endif %}
@@ -104,9 +104,15 @@
                     <p>Need urgent help? Find any available {{ service.name|lower }} instantly.</p>
                 </div>
             </div>
+            {% if user.is_authenticated %}
             <button type="button" class="emergency-action-btn" onclick="openEmergencyModal()">
                 🚨 Find Emergency Help <i class="bi bi-arrow-right"></i>
             </button>
+            {% else %}
+            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" class="emergency-action-btn" style="text-decoration:none;">
+                🚨 Find Emergency Help <i class="bi bi-arrow-right"></i>
+            </a>
+            {% endif %}
         </div>
 
         {% if ai_requirement %}

@@ -5802,92 +5802,118 @@ def worker_accept_booking(request, booking_id):
             booking.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
             booking.cancelled_by = 'SYSTEM'
             booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-            Notification.objects.create(
-                recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
-                message=f'Your {booking.service.name} booking request #{booking.id} has expired because it was not accepted within 30 minutes.'
-            )
-            messages.error(request, 'This booking request has expired (30-minute response timer elapsed).')
-            return redirect('worker_dashboard')
+            Notification.def service_workers(request, pk):
 
-        # Re-check worker leave status at acceptance time
+    service = get_object_or_404(
+        Service,
+        pk=pk,
+        is_active=True
+    )
+
+    district = request.GET.get('district', '').strip()
+    if not district:
+        district = request.session.get('lamo_selected_district', 'Kollam')
+    ai_requirement = request.GET.get('ai_requirement', '').strip()
+
+    # Task 2: AI recommendation path (external API calls) is logged-in only.
+    # Clear ai_requirement for guests so build_worker_recommendations is never
+    # invoked and no external cost is incurred.
+    if not request.user.is_authenticated:
+        ai_requirement = ''
+
+    # The customer may narrow the list to a specific date/time before booking.
+    # Anything invalid or in the past simply falls back to "no date chosen",
+    # in which case only the status rules below apply.
+    from datetime import datetime
+    from django.utils import timezone as django_timezone
+
+    selected_date = None
+    raw_date = request.GET.get('date', '').strip()
+    if raw_date:
         try:
-            worker_on_leave = WorkerLeave.objects.filter(
-                worker=locked_worker, leave_date=booking.date
-            ).exists()
-            if worker_on_leave:
-                messages.error(request, 'Cannot accept booking - you are marked as on leave for this date.')
-                return redirect('worker_dashboard')
-        except Exception:
-            # WorkerLeave table may not exist yet (migration not applied)
-            pass
+            parsed_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            parsed_date = None
+        if parsed_date and parsed_date >= django_timezone.now().date():
+            selected_date = parsed_date
 
-        if booking.start_time and booking.end_time:
-            has_conflict = has_worker_schedule_conflict(
-                locked_worker,
-                booking_date=booking.date,
-                start_time=booking.start_time,
-                end_time=booking.end_time,
-                exclude_booking_id=booking.id,
-            )
-        else:
-            has_conflict = has_worker_schedule_conflict(
-                locked_worker,
-                booking_date=booking.date,
-                time_value=booking.time,
-                exclude_booking_id=booking.id,
-            )
+    raw_time = request.GET.get('time', '').strip()
+    selected_start, selected_end = parse_time_range(raw_time) if raw_time else (None, None)
+    selected_time_value = raw_time or None
 
-        if has_conflict:
-            messages.error(request, 'Cannot accept - overlaps with another booking.')
-            return redirect('worker_dashboard')
-
-        booking.status = 'ACCEPTED'
-        booking.generate_arrival_otp()
-        booking.save(update_fields=['status', 'arrival_otp', 'updated_at'])
-
-    Notification.objects.create(
-        recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
-        message=f'Good news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.'
+    # Leave + existing bookings are resolved once for the whole page (two
+    # queries) instead of once per rendered worker.
+    leave_worker_ids, busy_by_worker = build_worker_availability_maps(
+        selected_date,
+        selected_start,
+        selected_end,
     )
 
-    # Booking accepted (Resend-aware; failures are logged, never raised)
-    send_email_safely(
-        subject=f'Good News! Your Booking #{booking.id} is Confirmed',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'Great news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.\n\n'
-            f'Booking Details:\n'
-            f'  Date: {booking.date}\n'
-            f'  Time: {booking.time}\n\n'
-            f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='booking_accepted',
+    # book_service refuses any worker whose work_status is not AVAILABLE, so
+    # those workers must not be offered as bookable here either. Suspended and
+    # unverified workers stay hidden entirely.
+    workers = (
+        WorkerProfile.objects
+        .select_related('user', 'service')
+        .filter(
+            service=service,
+            is_verified=True,
+            work_status='AVAILABLE',
+            district__iexact=district,
+        )
+        .annotate(
+            avg_rating=Avg('reviews_received__rating'),
+            review_count=Count('reviews_received')
+        )
+        .order_by('-is_verified', 'user__username')
     )
 
-    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
-    for admin in admins:
-        Notification.objects.create(
-            recipient=admin, booking=booking, notification_type='BOOKING_UPDATE',
-            message=f'Booking #{booking.id} has been accepted by {request.user.get_full_name() or request.user.username}.'
+    # Attach the authoritative, backend-computed reason list to every worker so
+    # the template can disable exactly the cards the booking view would reject.
+    workers = list(workers)
+    for worker in workers:
+        worker.unavailable_reasons = get_worker_unavailability_reasons(
+            worker,
+            leave_worker_ids=leave_worker_ids,
+            busy_by_worker=busy_by_worker,
+            start_time=selected_start,
+            end_time=selected_end,
+            time_value=selected_time_value,
+        )
+        worker.is_bookable = not worker.unavailable_reasons
+
+    bookable_workers = [w for w in workers if w.is_bookable]
+
+    ai_recommendations = []
+    if ai_requirement:
+        from .ai_utils import build_worker_recommendations
+        ai_recommendations = build_worker_recommendations(
+            service,
+            district=district,
+            requirement=ai_requirement,
         )
 
-    messages.success(request, 'Booking accepted successfully.')
-    return redirect('worker_dashboard')
+    district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673))
 
+    return render(
+        request,
+        'lamo_service/service_workers.html',
+        {
+            'service': service,
+            'district': district,
+            'district_lat': district_lat,
+            'district_lng': district_lng,
+            'workers': workers,
+            'bookable_workers': bookable_workers,
+            'bookable_count': len(bookable_workers),
+            'selected_date': selected_date,
+            'selected_time': raw_time,
+            'ai_requirement': ai_requirement,
+            'ai_recommendations': ai_recommendations,
+        }
+    )
 
-@login_required
-def worker_reject_booking(request, booking_id):
-    if request.user.role != 'WORKER':
-        messages.error(request, 'You are not authorized.')
-        return redirect('dashboard')
-
-    worker = get_object_or_404(WorkerProfile, user=request.user)
-
-    # Check worker verification
-    is_verified, error_msg = _check_worker_verification(worker)
-    if not is_verified:
+rified:
         messages.error(request, error_msg)
         return redirect('worker_dashboard')
 
