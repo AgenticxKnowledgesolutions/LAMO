@@ -170,52 +170,44 @@
              NAVBAR
         ================================================== -->
 
-    {% if user.is_authenticated and user.role == 'WORKER' %}
+    {% if user.is_authenticated and user.role != 'USER' %}
 
     <!-- =====================================================
-           WORKER NAVIGATION
-           Separate from the existing user/public navbar.
+           MINIMAL FALLBACK NAVBAR FOR WORKER / ADMIN
+           Used only on neutral shared pages (about, contact, terms, privacy, etc.)
            ===================================================== -->
 
     <nav class="worker-navbar" id="workerNavbar">
 
+      {% if user.role == 'WORKER' %}
       <a href="{% url 'worker_dashboard' %}" class="worker-brand">
-
         <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
           style="height: 46px; width: auto; object-fit: contain; display: block;">
-
-
         <div class="worker-brand-text">
           <small>LABOUR MANAGEMENT SYSTEM</small>
         </div>
-
       </a>
 
-
-      <!-- <div class="worker-center-label">
-          <i class="bi bi-tools"></i>
-          LAMO WORKER CENTER
-        </div> -->
-
+      <div class="worker-nav-links">
+        <a href="{% url 'worker_dashboard' %}">
+          <i class="bi bi-arrow-left"></i> Back to dashboard
+        </a>
+      </div>
+      {% else %}
+      <a href="{% url 'admin_dashboard' %}" class="worker-brand">
+        <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
+          style="height: 46px; width: auto; object-fit: contain; display: block;">
+        <div class="worker-brand-text">
+          <small>LABOUR MANAGEMENT SYSTEM</small>
+        </div>
+      </a>
 
       <div class="worker-nav-links">
-
-        <a href="{% url 'worker_dashboard' %}"
-          class="{% if request.resolver_match.url_name == 'worker_dashboard' %}active{% endif %}">
-          Home
+        <a href="{% url 'admin_dashboard' %}">
+          <i class="bi bi-arrow-left"></i> Back to dashboard
         </a>
-
-        <a href="{% url 'worker_manage_dashboard' %}">
-          Dashboard
-        </a>
-
-        <a href="{% url 'worker_jobs' %}"
-          class="{% if request.resolver_match.url_name == 'worker_jobs' %}active{% endif %}">
-          Services
-        </a>
-
       </div>
-
+      {% endif %}
 
       <form method="POST" action="{% url 'logout' %}" class="worker-logout-form">
 
@@ -320,23 +312,6 @@
 
               </li>
 
-              <!-- MY BOOKINGS OR ADMIN CONSOLE -->
-
-              {% if user.role == 'ADMIN' %}
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}"
-                  href="{% url 'admin_dashboard' %}">
-
-                  Admin Dashboard
-
-                </a>
-
-              </li>
-
-              {% else %}
-
               <!-- MY BOOKINGS -->
 
               <li class="nav-item">
@@ -349,8 +324,6 @@
                 </a>
 
               </li>
-
-              {% endif %}
               <!-- NOTIFICATIONS (slide-over drawer trigger) -->
 
               <li class="nav-item">
@@ -392,18 +365,6 @@
 
               <div class="user-dropdown" id="userDropdown">
 
-                {% if user.role == 'ADMIN' %}
-
-                <a href="{% url 'admin_dashboard' %}">
-
-                  <i class="bi bi-speedometer2"></i>
-
-                  Dashboard
-
-                </a>
-
-                {% else %}
-
                 <a href="{% url 'user_dashboard' %}">
 
                   <i class="bi bi-house"></i>
@@ -411,8 +372,6 @@
                   Dashboard
 
                 </a>
-
-                {% endif %}
                 <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
                   {% csrf_token %}
                   <button type="submit" class="logout-item">
