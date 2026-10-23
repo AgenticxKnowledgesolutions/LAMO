@@ -311,7 +311,7 @@
 
               <li class="nav-item">
 
-                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' %}active{% endif %}"
+                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' %}active{% endif %}"
                   href="{% url 'service_page' %}">
 
                   Services
@@ -473,7 +473,8 @@
 
               <li class="nav-item">
 
-                <a class="nav-link" data-section="services" href="{% url 'service_page' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' %}active{% endif %}"
+                  href="{% url 'service_page' %}">
 
                   Services
 
@@ -482,38 +483,12 @@
               </li>
 
 
-              <!-- WORKERS -->
-              <!-- 
-              <li class="nav-item">
-
-                <a class="nav-link" data-section="workers" href="{% url 'home' %}#workers">
-
-                  For Workers
-
-                </a>
-
-              </li>
-
-
-              <!-- EMPLOYERS -->
-
-              <!-- <li class="nav-item">
-
-                <a class="nav-link" data-section="employers" href="{% url 'home' %}#employers">
-
-                  For Employers
-
-                </a>
-
-              </li> -->
-
-
               <!-- CONTACT -->
 
               <li class="nav-item">
 
                 <a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}"
-                  data-section="contact" href="{% url 'contact' %}">
+                  href="{% url 'contact' %}">
 
                   Contact
 

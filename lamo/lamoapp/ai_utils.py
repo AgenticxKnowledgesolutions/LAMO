@@ -180,6 +180,9 @@ def detect_user_language(text):
 
 # Common Malayalam and Manglish service synonym maps
 SERVICE_SYNONYM_MAP = {
+    # ------------------------------------------------------
+    # CORE SERVICES
+    # ------------------------------------------------------
     'electrician': [
         'electrician', 'electrical', 'wiring', 'fuse', 'light', 'fan', 'switch', 'inverter',
         'current', 'plug', 'current poyi', 'current illa', 'short circuit',
@@ -226,6 +229,200 @@ SERVICE_SYNONYM_MAP = {
         # Malayalam
         'മെക്കാനിക്', 'റിപ്പയർ', 'യന്ത്രപ്പണി'
     ],
+
+    # ------------------------------------------------------
+    # EXISTING EXPANDED SERVICES
+    # ------------------------------------------------------
+    'ac_repair': [
+        'ac repair', 'air conditioner', 'ac service', 'ac servicing', 'ac gas', 'ac filter',
+        # Manglish
+        'ac pani', 'ac thudangilla', 'ac thanuppu illa', 'ac leak',
+        # Malayalam
+        'എസി റിപ്പയർ', 'എസി സർവീസ്', 'എയർ കണ്ടീഷണർ', 'എസി തണുപ്പില്ല'
+    ],
+    'pest_control': [
+        'pest control', 'termite', 'cockroach', 'bed bugs', 'pest service',
+        # Manglish
+        'chedda', 'paatta', 'karappan', 'moota', 'pest spray',
+        # Malayalam
+        'കീടനിയന്ത്രണം', 'ചിതൽ', 'പാറ്റ', 'മൂട്ട'
+    ],
+    'appliance_repair': [
+        'appliance repair', 'washing machine repair', 'refrigerator repair', 'fridge repair', 'microwave repair',
+        # Manglish
+        'fridge pani', 'washing machine thകരാർ', 'mixie repair', 'grinder repair',
+        # Malayalam
+        'അപ്ലയൻസ്', 'ഫ്രിഡ്ജ് റിപ്പയർ', 'വാഷിംഗ് മെഷീൻ'
+    ],
+    'cctv_security': [
+        'cctv', 'security camera', 'cctv installation', 'surveillance', 'video doorbell',
+        # Manglish
+        'cctv vekkan', 'camera vekkan', 'cctv pani',
+        # Malayalam
+        'സിസിടിവി', 'ക്യാമറ സ്ഥാപിക്കാൻ'
+    ],
+    'masonry_tile': [
+        'masonry', 'tile work', 'brickwork', 'plastering', 'mason',
+        # Manglish
+        'kettupani', 'theppu pani', 'tile idan', 'thara pani',
+        # Malayalam
+        'കെട്ടുപണി', 'തേപ്പ് പണി', 'ടൈൽ പണി'
+    ],
+    'roofing': [
+        'roofing', 'waterproofing', 'truss work', 'roof leak', 'terrace leak',
+        # Manglish
+        'roof leak', 'choraal', 'truss work', 'waterproof cheyyan',
+        # Malayalam
+        'റൂഫിംഗ്', 'വാട്ടർപ്രൂഫിംഗ്', 'ചോർച്ച'
+    ],
+    'gardening': [
+        'gardening', 'landscaping', 'tree pruning', 'garden maintenance', 'lawn care',
+        # Manglish
+        'thottam pani', 'garden maintenance', 'cheti nattan', 'maram vettan',
+        # Malayalam
+        'തോട്ടപ്പണി', 'ഗാർഡനിംഗ്', 'മരം വെട്ടാൻ'
+    ],
+    'solar': [
+        'solar installation', 'solar panel', 'solar repair', 'solar rooftop',
+        # Manglish
+        'solar vekkan', 'solar panel repair', 'solar connection',
+        # Malayalam
+        'സോളാർ', 'സോളാർ പാനൽ'
+    ],
+    'welding': [
+        'welding', 'metal fabrication', 'gate repair', 'window grill',
+        # Manglish
+        'welding pani', 'gate pani', 'grill pani', 'iron fabrication',
+        # Malayalam
+        'വെൽഡിംഗ്', 'ഫാബ്രിക്കേഷൻ', 'ഗ്രിൽ'
+    ],
+    'water_tank': [
+        'water tank cleaning', 'sump cleaning', 'tank wash', 'water tank',
+        # Manglish
+        'tank kazhukan', 'water tank clean', 'sump clean', 'tankil cheli',
+        # Malayalam
+        'വാട്ടർ ടാങ്ക് ക്ലീനിങ്', 'സംപ് വൃത്തിയാക്കൽ'
+    ],
+    'packers_movers': [
+        'packers and movers', 'packers movers', 'house shifting', 'moving service',
+        # Manglish
+        'veedu maral', 'shifting sahayi', 'saadhangal mattan', 'packers',
+        # Malayalam
+        'പാക്കേഴ്‌സ്', 'താമസം മാറാൻ', 'ഷിഫ്റ്റിംഗ്'
+    ],
+    'vehicle_wash': [
+        'vehicle detailing', 'car wash', 'bike wash', 'vehicle wash', 'car detailing',
+        # Manglish
+        'car kazhukan', 'vandi kazhukan', 'bike wash', 'car clean',
+        # Malayalam
+        'വാഹനം കഴുകാൻ', 'കാർ വാഷ്'
+    ],
+
+    # ------------------------------------------------------
+    # 10 NEW PROPOSED HIGH-DEMAND SERVICES
+    # ------------------------------------------------------
+    'coconut_climbing': [
+        'coconut tree climbing', 'coconut harvesting', 'coconut picker', 'harvest coconuts',
+        # Manglish
+        'thenga idal', 'thenga idan', 'thengukayattam', 'thengu kayattam', 'thengukayaran', 'thengukaran', 'thenga parikkan',
+        # Malayalam
+        'തേങ്ങയിടൽ', 'തെങ്ങ് കയറ്റം', 'തേങ്ങ പറിക്കാൻ', 'തേങ്ങയിടാൻ', 'തെങ്ങുകയറ്റക്കാരൻ'
+    ],
+    'well_cleaning': [
+        'well cleaning', 'water chlorination', 'well desilting', 'clean well',
+        # Manglish
+        'kinar kazhukan', 'kinar clean', 'kinar vritiyakkal', 'vellam bleaching', 'kinattil vellam',
+        # Malayalam
+        'കിണർ വൃത്തിയാക്കൽ', 'കിണർ വൃത്തിയാക്കാൻ', 'കിണർ കഴുകാൻ', 'ക്ലോറിനേഷൻ'
+    ],
+    'elderly_care': [
+        'elderly care', 'home nursing', 'patient care', 'bedside care', 'nursing assistant',
+        # Manglish
+        'elder care', 'home nurse', 'home nursing', 'vayassaya aale nokkan', 'caregiver',
+        # Malayalam
+        'ഹോം നേഴ്‌സിങ്', 'ഹോം നഴ്സിംഗ്', 'രോഗി പരിചരണം', 'മുതിർന്നവരെ പരിചരിക്കാൻ'
+    ],
+    'inverter_battery': [
+        'inverter repair', 'battery servicing', 'ups repair', 'inverter battery', 'power backup',
+        # Manglish
+        'inverter repair', 'battery water', 'ups service', 'inverter pani',
+        # Malayalam
+        'ഇൻവെർട്ടർ', 'ബാറ്ററി സർവീസ്', 'യുപിഎസ് റിപ്പയർ'
+    ],
+    'chimney_cleaning': [
+        'chimney cleaning', 'kitchen chimney', 'exhaust cleaning', 'chimney degreasing',
+        # Manglish
+        'chimney clean', 'chimney kazhukan', 'exhaust fan clean', 'kitchen chimney',
+        # Malayalam
+        'ചിമ്മിനി ക്ലീനിങ്', 'ചിമ്മിനി വൃത്തിയാക്കൽ', 'എക്സ്ഹോസ്റ്റ് ഫാൻ'
+    ],
+    'floor_polishing': [
+        'tile polishing', 'marble polishing', 'granite polishing', 'floor buffing',
+        # Manglish
+        'tile polish', 'marble polish', 'granite polish', 'thara polish',
+        # Malayalam
+        'ടൈൽ പോളിഷിംഗ്', 'മാർബിൾ പോളിഷിംഗ്', 'ഗ്രാനൈറ്റ് പോളിഷിംഗ്', 'തറ പോളിഷ്'
+    ],
+    'septic_tank': [
+        'septic tank cleaning', 'waste evacuation', 'sewage suction', 'drainage cleaning',
+        # Manglish
+        'septic tank', 'septic tank clean', 'tank ozhivakkan', 'malinyam mattal', 'drainage block',
+        # Malayalam
+        'സെപ്റ്റിക് ടാങ്ക്', 'മാലിന്യം മാറ്റൽ', 'സെപ്റ്റിക് ടാങ്ക് ക്ലീനിങ്'
+    ],
+    'grass_cutting': [
+        'grass cutting', 'bush clearing', 'brush cutter', 'weed removal', 'lawn mowing',
+        # Manglish
+        'pullu vettan', 'pullu vettu', 'parambu thekkal', 'kadu vettan', 'parambu clean',
+        # Malayalam
+        'പുല്ലുവെട്ട്', 'പുല്ല് വെട്ടാൻ', 'പറമ്പ് തെളിക്കാൻ', 'കാടുവെട്ട്'
+    ],
+    'sofa_cleaning': [
+        'sofa cleaning', 'carpet cleaning', 'mattress shampooing', 'upholstery cleaning',
+        # Manglish
+        'sofa clean', 'sofa wash', 'carpet clean', 'mattress clean',
+        # Malayalam
+        'സോഫ ക്ലീനിങ്', 'കാർപെറ്റ് ക്ലീനിങ്', 'സോഫ കഴുകാൻ'
+    ],
+    'electronics_repair': [
+        'smart tv repair', 'tv repair', 'electronics repair', 'soundbar repair', 'television repair',
+        # Manglish
+        'tv repair', 'smart tv', 'tv display', 'tv pani', 'tv shariyyakkan',
+        # Malayalam
+        'ടിവി റിപ്പയർ', 'ടെലിവിഷൻ', 'ഇലക്ട്രോണിക്സ് റിപ്പയർ'
+    ],
+}
+
+# Category to Service model name keyword mapping
+CATEGORY_SERVICE_MAP = {
+    'electrician': ['electric', 'wiring'],
+    'plumber': ['plumb', 'pipe'],
+    'carpenter': ['carpent', 'wood'],
+    'cleaner': ['clean'],
+    'painter': ['paint', 'whitewash'],
+    'mechanic': ['appliance', 'mechanic', 'repair'],
+    'ac_repair': ['ac repair', 'air conditioner', 'ac servicing'],
+    'pest_control': ['pest control', 'pest'],
+    'appliance_repair': ['appliance repair', 'appliance'],
+    'cctv_security': ['cctv', 'smart security', 'camera'],
+    'masonry_tile': ['masonry', 'tile work', 'mason'],
+    'roofing': ['roofing', 'waterproofing', 'roof'],
+    'gardening': ['gardening', 'landscaping', 'garden', 'lawn'],
+    'solar': ['solar'],
+    'welding': ['welding', 'fabrication'],
+    'water_tank': ['water tank', 'sump cleaning', 'tank'],
+    'packers_movers': ['packers', 'movers', 'shifting'],
+    'vehicle_wash': ['vehicle detailing', 'car wash', 'vehicle wash', 'wash'],
+    'coconut_climbing': ['coconut', 'tree climbing', 'harvesting'],
+    'well_cleaning': ['well cleaning', 'chlorination', 'kinar'],
+    'elderly_care': ['elderly care', 'nursing', 'patient care'],
+    'inverter_battery': ['inverter', 'battery'],
+    'chimney_cleaning': ['chimney', 'exhaust'],
+    'floor_polishing': ['polishing', 'marble', 'granite'],
+    'septic_tank': ['septic', 'waste evacuation', 'sewage'],
+    'grass_cutting': ['grass cutting', 'bush clearing', 'brush cutter', 'pullu'],
+    'sofa_cleaning': ['sofa', 'carpet', 'mattress', 'shampooing'],
+    'electronics_repair': ['smart tv', 'electronics repair', 'tv repair'],
 }
 
 
@@ -339,8 +536,12 @@ def match_service_and_workers(user_query, district=None, customer_lat=None, cust
                 break
 
         if matched_category:
+            target_keywords = CATEGORY_SERVICE_MAP.get(matched_category, [matched_category])
             for s in services:
                 s_name_lower = s.name.lower()
+                if any(kw in s_name_lower for kw in target_keywords):
+                    matched_service = s
+                    break
                 if matched_category in s_name_lower or s_name_lower in matched_category:
                     matched_service = s
                     break

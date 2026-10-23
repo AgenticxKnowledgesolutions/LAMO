@@ -160,7 +160,7 @@
       background-size: 200% 100%;
       animation: lamoStreak 4.5s linear infinite;
       pointer-events: none;
-      opacity: 0.65;
+      opacity: 0;
       z-index: 1055;
       transition: opacity 0.35s ease;
     }

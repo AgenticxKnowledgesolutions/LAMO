@@ -1,1086 +1,719 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}
-LAMO | Labour Management System - Our Services
-{% endblock %}
+{% block title %}Our Services, Your Experts | LAMO{% endblock %}
 
-{% block meta_description %}LAMO connects you with verified service workers across Kerala. Book certified electricians, plumbers, cleaners, and home technicians with transparent pricing.{% endblock %}
+{% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/home.js' %}" defer></script>
 {% endblock %}
 
-
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/auth-modal.css' %}">
-{% endblock %}
 {% block page_css %}
 <link rel="stylesheet" href="{% static 'css/home.css' %}">
 {% endblock %}
 
-
 {% block hero %}
-
 <!-- =========================================================
-     HERO
+     HERO SECTION
+     Exact Match to About Us Hero: Full 620px Banner,
+     Workers Banner with Tools, "Get Started" & 3 Trust Badges
 ========================================================= -->
+<section class="about-hero lamo-page-hero" id="home">
 
-<section class="hero-section lamo-page-hero" id="home">
+  <!-- Background Overlay & Subtle Dot Pattern (Same as About Us) -->
+  <div class="about-hero-overlay"></div>
+  <div class="about-hero-pattern"></div>
 
   <div class="container">
-
     <div class="row align-items-center">
 
-      <!-- =================================================
-                 LEFT
-            ================================================= -->
+      <!-- LEFT CONTENT -->
+      <div class="col-lg-7 col-xl-6">
+        <div class="about-hero-content" data-aos="fade-right" data-aos-duration="900">
 
-      <div class="col-lg-6">
-
-        <div class="hero-left">
-
-
-          <!-- =================================================
-                         THREE FEATURE BOXES
-                    ================================================= -->
-
-          <div class="hero-badges">
-
-            <!-- BOX 1 -->
-
-            <div class="hero-badge">
-
-              <i class="bi bi-shield-check"></i>
-
-              <div>
-                Verified<br>
-                Professionals
-              </div>
-
-            </div>
-
-
-            <!-- BOX 2 -->
-
-            <div class="hero-badge">
-
-              <i class="bi bi-clock-history"></i>
-
-              <div>
-                On-Time<br>
-                Service
-              </div>
-
-            </div>
-
-
-            <!-- BOX 3 -->
-
-            <div class="hero-badge">
-
-              <i class="bi bi-shield-lock"></i>
-
-              <div>
-                Safe &<br>
-                Reliable
-              </div>
-
-            </div>
-
+          <!-- SMALL LABEL PILL -->
+          <div class="about-label">
+            <i class="bi bi-shield-check"></i>
+            VERIFIED PROFESSIONALS ACROSS KERALA
           </div>
 
+          <!-- TITLE (White with green accent, matching About Us) -->
+        
+        <h1 class="about-hero-title">
+             Your Home.
+           <span>Our Trusted Hands.</span>
+        </h1>
 
-          <!-- =================================================
-                         TITLE
-                    ================================================= -->
+        <p class="about-hero-text">
+  LAMO connects you with trusted local professionals for all your home service needs. Find, book, and relax!
+</p>
 
-          <h1 class="hero-title">
-            {% if user.is_authenticated and user.role == 'USER' %}
-            Welcome back, {{ user.username }}!
-            <br>
-            <span>Find the perfect <span class="hero-rotator" id="heroRotator" data-words='["service", "electrician", "plumber", "carpenter", "cleaner", "painter"]'>service</span></span>
+
+
+          <!-- LOCATION SEARCH BAR DIRECTLY ON HERO SECTION IMAGE -->
+          <form method="GET" action="{% url 'home' %}#services" class="search-capsule-card mb-3" id="heroLocationForm">
+            <input type="hidden" name="from_splash" value="1">
+            <input type="hidden" name="category" id="hiddenCategoryInput" value="{{ category|default:'all' }}">
+
+            <!-- District Selector -->
+            <div class="district-picker-wrap">
+              <i class="bi bi-geo-alt-fill pin-ico"></i>
+              <select name="district" id="heroDistrictSelect" class="district-select-clean" aria-label="Select District">
+                {% for code, name in kerala_districts %}
+                <option value="{{ code }}" {% if selected_district == code %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Divider -->
+            <div class="search-v-divider"></div>
+
+            <!-- Search Query Input -->
+            <div class="query-input-wrap">
+              <i class="bi bi-search search-ico"></i>
+              <input type="text" name="q" id="liveServiceSearch" placeholder="What service do you need? (e.g. plumbing, AC repair...)" aria-label="Search services" value="{{ query|default:'' }}">
+              <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Clear search" style="{% if not query %}display:none;{% endif %} border:none; background:none; color:#9ca3af; cursor:pointer;">
+                <i class="bi bi-x-circle-fill"></i>
+              </button>
+            </div>
+
+            <!-- Circular Green Search Button -->
+            <button type="submit" class="btn-search-circle" id="btnHeroSearchSubmit" aria-label="Search">
+              <i class="bi bi-search"></i>
+            </button>
+
+            <!-- Hidden button for Geolocation JS compatibility -->
+            <button type="button" id="btnHeroUseLocation" style="display:none;" aria-hidden="true"></button>
+          </form>
+
+          <!-- Popular Quick Search Tags -->
+          <div class="hero-popular-tags mb-3">
+            <span class="popular-label" style="color: #a7f3d0; font-weight: 600;">Popular:</span>
+            <button type="button" class="popular-tag-btn hero-quick-tag" data-tag="ac">AC Repair</button>
+            <button type="button" class="popular-tag-btn hero-quick-tag" data-tag="clean">Home Cleaning</button>
+            <button type="button" class="popular-tag-btn hero-quick-tag" data-tag="plumb">Plumbing</button>
+            <button type="button" class="popular-tag-btn hero-quick-tag" data-tag="electrician">Electrician</button>
+            <button type="button" class="popular-tag-btn hero-quick-tag" data-tag="paint">Painting</button>
+          </div>
+
+          <!-- BUTTONS -->
+          <div class="about-buttons">
+            {% if user.is_authenticated %}
+            <a href="#services" class="about-btn-primary">
+              Explore Services
+              <i class="bi bi-arrow-right"></i>
+            </a>
             {% else %}
-            Our Services,
-            <br>
-            <span>Your <span class="hero-rotator" id="heroRotator" data-words='["Solutions", "Electricians", "Plumbers", "Carpenters", "Cleaners", "Experts"]'>Solutions</span></span>
+            <a href="{% url 'register' %}" class="about-btn-primary">
+              Get Started
+              <i class="bi bi-arrow-right"></i>
+            </a>
             {% endif %}
-          </h1>
+          </div>
 
-
-          <!-- =================================================
-                         DESCRIPTION
-                    ================================================= -->
-
-          <p class="hero-text">
-
-            Skilled professionals for every need.
-
-            <br>
-
-            Quality work, on time, every time.
-
-            <br>
-
-            <strong>
-              We make work get done.
-            </strong>
-
-          </p>
-
+          <!-- FEATURES ROW (Matching About Us) -->
+          <div class="about-hero-features">
+            <div class="hero-feature">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>Verified Service Workers</span>
+            </div>
+            <div class="hero-feature">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>Easy Service Booking</span>
+            </div>
+            <div class="hero-feature">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>Secure Booking Management</span>
+            </div>
+          </div>
 
         </div>
-
       </div>
 
-
-      <!-- =================================================
-                 RIGHT
-                 IMAGE IS ALREADY THE HEADER BACKGROUND
-            ================================================= -->
-
-      <div class="col-lg-6 d-none d-lg-block">
-
+      <!-- RIGHT SIDE: Clear space for workers in image.webp -->
+      <div class="col-lg-5 col-xl-6">
+        <div class="about-hero-space"></div>
       </div>
 
     </div>
-
   </div>
 
-</section>
+  <!-- Organic Bottom Wave (Same as About Us) -->
+  <div class="hero-bottom-wave"></div>
 
+</section>
 {% endblock %}
 
-
 {% block content %}
-
+<!-- TOAST NOTIFICATIONS (Preserved Django messages) -->
 {% if messages %}
 <div class="lamo-toast-container" id="lamoToastContainer">
   {% for message in messages %}
-  <div class="lamo-toast
-      {% if 'error' in message.tags %}toast-error
-      {% elif 'warning' in message.tags %}toast-warning
-      {% elif 'success' in message.tags %}toast-success
-      {% else %}toast-info{% endif %}" role="alert" aria-live="polite">
-
+  <div class="lamo-toast {% if 'error' in message.tags %}toast-error{% elif 'warning' in message.tags %}toast-warning{% elif 'success' in message.tags %}toast-success{% else %}toast-info{% endif %}" role="alert">
     <div class="toast-icon">
-      {% if 'error' in message.tags %}
-      <i class="bi bi-x-circle-fill"></i>
-      {% elif 'warning' in message.tags %}
-      <i class="bi bi-exclamation-triangle-fill"></i>
-      {% elif 'success' in message.tags %}
-      <i class="bi bi-check-circle-fill"></i>
-      {% else %}
-      <i class="bi bi-info-circle-fill"></i>
-      {% endif %}
+      {% if 'error' in message.tags %}<i class="bi bi-x-circle-fill"></i>
+      {% elif 'warning' in message.tags %}<i class="bi bi-exclamation-triangle-fill"></i>
+      {% elif 'success' in message.tags %}<i class="bi bi-check-circle-fill"></i>
+      {% else %}<i class="bi bi-info-circle-fill"></i>{% endif %}
     </div>
-
     <div class="toast-content">
       <div class="toast-title">
-        {% if 'error' in message.tags %}
-        Something went wrong
-        {% elif 'warning' in message.tags %}
-        Attention
-        {% elif 'success' in message.tags %}
-        Success
-        {% else %}
-        Information
-        {% endif %}
+        {% if 'error' in message.tags %}Notice{% elif 'warning' in message.tags %}Warning{% elif 'success' in message.tags %}Success{% else %}Information{% endif %}
       </div>
-
       <div class="toast-message">{{ message }}</div>
     </div>
-
     <button type="button" class="toast-close" onclick="closeLamoToast(this)" aria-label="Close notification">
       <i class="bi bi-x-lg"></i>
     </button>
-
-    <div class="toast-progress"></div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
 <!-- =========================================================
-     SERVICES
+     10-CATEGORY HORIZONTAL RIBBON (Mockup Strip)
 ========================================================= -->
-<section id="services" class="services-section">
+<section class="category-strip-section">
   <div class="container">
-    <div class="services-heading text-center" data-aos="fade-up">
-      <span class="services-eyebrow"><i class="bi bi-grid-3x3-gap-fill"></i> WHAT WE OFFER</span>
-      <h2>Find the Right Service<br><span style="color:var(--primary);">for Your Need</span></h2>
-      <p>From everyday home repairs to professional services, find trusted workers for almost every task in one place.
-      </p>
+    <div class="category-pills-container" data-aos="fade-up">
+      
+      <!-- All Services (Active) -->
+      <a href="#services" class="cat-ribbon-item active cat-item-btn" data-category="all">
+        <span class="cat-icon"><i class="bi bi-grid-fill"></i></span>
+        <span>All Services</span>
+      </a>
 
-      <form method="GET" action="{% url 'home' %}#services" id="homeSearchForm"
-        style="max-width: 500px; margin: 20px auto; display: flex; gap: 8px;">
-        <input type="text" name="q" id="homeSearchInput" value="{{ query|default:'' }}"
-          aria-label="Search services by name or description"
-          placeholder="Search services by name or description..."
-          style="flex:1; border-radius:30px; padding:10px 20px; border:1px solid #dce7e2; outline:none;">
-        <button type="submit" id="homeSearchButton"
-          aria-label="Submit service search"
-          style="border-radius:30px; padding:10px 22px; background:#087f5b; color:white; border:none; font-weight:600; cursor:pointer;">
-          Search
-        </button>
-        <button type="button" id="homeSearchClear"
-          aria-label="Clear service search"
-          style="border-radius:30px; padding:10px 18px; background:#e5f6ee; color:#087f5b; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center;">
-          Clear
-        </button>
-      </form>
+      <!-- Plumbing -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="plumb">
+        <span class="cat-icon" style="color:#2563EB;">🚰</span>
+        <span>Plumbing</span>
+      </a>
+
+      <!-- Electrical -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="electrician">
+        <span class="cat-icon" style="color:#D97706;">⚡</span>
+        <span>Electrical</span>
+      </a>
+
+      <!-- Cleaning -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="clean">
+        <span class="cat-icon" style="color:#059669;">🧹</span>
+        <span>Cleaning</span>
+      </a>
+
+      <!-- Painting -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="paint">
+        <span class="cat-icon" style="color:#DC2626;">🖌️</span>
+        <span>Painting</span>
+      </a>
+
+      <!-- AC Service -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="ac">
+        <span class="cat-icon" style="color:#0284C7;">❄️</span>
+        <span>AC Service</span>
+      </a>
+
+      <!-- Carpentry -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="carpenter">
+        <span class="cat-icon" style="color:#92400E;">🔨</span>
+        <span>Carpentry</span>
+      </a>
+
+      <!-- Appliance Repair -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="appliance">
+        <span class="cat-icon" style="color:#4B5563;">🧺</span>
+        <span>Appliance Repair</span>
+      </a>
+
+      <!-- Pest Control -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="pest">
+        <span class="cat-icon" style="color:#16A34A;">🪲</span>
+        <span>Pest Control</span>
+      </a>
+
+      <!-- Gardening -->
+      <a href="#services" class="cat-ribbon-item cat-item-btn" data-category="garden">
+        <span class="cat-icon" style="color:#15803D;">🪴</span>
+        <span>Gardening</span>
+      </a>
+
+      <!-- More Services -->
+      <button type="button" class="cat-ribbon-item cat-item-btn {% if category == 'more' %}active{% endif %}" id="btnMoreCategories" data-category="more">
+        <span class="cat-icon" style="color:#6B7280;">•••</span>
+        <span>More Services</span>
+      </button>
+
     </div>
 
-    {% if services %}
-    <div class="coverflow-stage-wrapper" id="servicesCoverflowStage">
-      <!-- 3D STAGE & COVERFLOW CAROUSEL -->
-      <div class="coverflow-carousel-container" id="coverflowContainer">
-        <!-- Floating Left Arrow -->
-        <button type="button" class="coverflow-nav-btn prev" id="coverflowPrevBtn" aria-label="Previous Service">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-
-        <!-- 3D Track -->
-        <div class="coverflow-track" id="coverflowTrack">
-          {% for service in services %}
-          <div class="coverflow-slide" data-index="{{ forloop.counter0 }}">
-            <div class="modern-service-card">
-              <div class="modern-service-image">
-                {% if service.image %}
-                <img src="{{ service.image.url }}" alt="{{ service.name }}" class="service-db-image" loading="lazy">
-                {% else %}
-                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e7f7ef,#f7fbf9);">
-                  <i class="bi bi-tools" style="font-size:55px;color:#087f5b;"></i>
-                </div>
-                {% endif %}
-                <div class="service-type-badge"><i class="bi bi-tools"></i> Service</div>
-                {% if service.is_featured %}<div class="featured-badge"><i class="bi bi-star-fill"></i> Featured</div>{% endif %}
-              </div>
-
-              <div class="modern-service-content">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <h3 style="margin:0;">{{ service.name }}</h3>
-                  {% if service.price %}<span style="background:#e5f6ee; color:#087f5b; padding:3px 10px; border-radius:15px; font-weight:700; font-size:13px;">₹{{ service.price }}</span>{% endif %}
-                </div>
-                <p class="modern-service-desc">{{ service.description }}</p>
-                <div class="service-card-footer">
-                  <div class="service-availability"><span></span> Available</div>
-                  {% if user.is_authenticated and user.role == 'WORKER' %}
-                  <a href="{% url 'worker_dashboard' %}" class="modern-book-btn">
-                    Worker Portal <i class="bi bi-arrow-right"></i>
-                  </a>
-                  {% elif user.is_authenticated and user.role == 'ADMIN' %}
-                  <a href="{% url 'admin_dashboard' %}" class="modern-book-btn">
-                    Admin Portal <i class="bi bi-arrow-right"></i>
-                  </a>
-                  {% elif user.is_authenticated %}
-                  <a href="{% url 'service_detail' service.id %}" class="modern-book-btn">
-                    View Service <i class="bi bi-arrow-right"></i>
-                  </a>
-                  {% else %}
-                  <a href="{% url 'register' %}?next={% url 'service_detail' service.id %}" class="modern-book-btn">
-                    View Service <i class="bi bi-arrow-right"></i>
-                  </a>
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-
-        <!-- Floating Right Arrow -->
-        <button type="button" class="coverflow-nav-btn next" id="coverflowNextBtn" aria-label="Next Service">
-          <i class="bi bi-chevron-right"></i>
+    <!-- Expanded More Categories Drawer (Revealed when 'More Services' is clicked) -->
+    <div class="more-categories-container" id="moreCategoriesContainer" style="display:none;">
+      <div class="more-categories-header mb-2 d-flex justify-content-between align-items-center">
+        <span style="font-size: 0.82rem; font-weight: 700; color: #087f5b; text-transform: uppercase; letter-spacing: 1px;">
+          <i class="bi bi-grid-3x3-gap-fill me-1"></i> Additional Available Services in Kerala
+        </span>
+        <button type="button" class="btn-close-more-cats" id="btnCloseMoreCats" aria-label="Close" style="border:none; background:none; color:#64748b; font-size:1.1rem; cursor:pointer;">
+          <i class="bi bi-x-lg"></i>
         </button>
       </div>
-
-      <!-- Spotlight Floor Glow -->
-      <div class="coverflow-floor-glow"></div>
-
-      <!-- Pagination Indicator Dots -->
-      <div class="coverflow-pagination" id="coverflowPagination">
-        {% for service in services %}
-        <button type="button" class="coverflow-dot {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Service {{ forloop.counter }}"></button>
+      <div class="more-categories-grid">
+        {% for mc in more_categories %}
+        <button type="button" class="more-cat-pill cat-item-btn" data-category="{{ mc.name|lower }}">
+          <i class="bi bi-check2-circle text-success"></i>
+          <span>{{ mc.name }}</span>
+        </button>
+        {% empty %}
+        <span style="color: #64748b; font-size: 0.85rem;">All available categories are displayed above.</span>
         {% endfor %}
       </div>
     </div>
-    {% else %}
-    <div class="services-empty" data-aos="fade-up">
-      <div class="services-empty-icon"><i class="bi bi-tools"></i></div>
-      <h4>No services available yet</h4>
-      <p>Our team is adding new services. Please check back soon.</p>
-    </div>
-    {% endif %}
 
-    {% if has_more_services or services %}
-    <div class="services-more" data-aos="fade-up">
-      <a href="{% url 'service_page' %}" class="services-more-btn">
-        Explore All Services <i class="bi bi-arrow-right"></i>
+  </div>
+</section>
+
+<!-- =========================================================
+     SERVICES SINGLE HORIZONTAL CAROUSEL SECTION (Dynamic Backend Data)
+========================================================= -->
+<section id="services" class="services-main-section">
+  <div class="container">
+
+    <!-- Section Header Row -->
+    <div class="services-header-row" data-aos="fade-up">
+      <div>
+        <span class="section-kicker">— LOCATION-BASED VERIFIED SERVICES</span>
+        <h2 class="services-heading-main">
+          Services Available in <span style="color:var(--brand-green);" id="activeDistrictTitle">{{ selected_district }}</span>
+          <span id="servicesCountBadge" class="badge-count-pill ms-2" style="font-size: 0.85rem; font-weight: 600; padding: 4px 12px; background: #e8f5e9; color: #087f5b; border-radius: 20px; border: 1px solid #a7f3d0;">
+            {{ services|length }} Available
+          </span>
+        </h2>
+        <p class="services-sub-main">Only background-checked, verified technicians currently available in {{ selected_district }}.</p>
+      </div>
+
+      <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'service_page' %}" class="view-all-link">
+          <span>View All Services</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+        <div class="carousel-nav-arrows d-inline-flex">
+          <button type="button" class="arrow-circle-btn" id="btnPrevService" aria-label="Previous service card">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button type="button" class="arrow-circle-btn" id="btnNextService" aria-label="Next service card">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFINITE KINETIC STREAM WRAPPER (Continuous ribbon with faded edges) -->
+    <div class="kinetic-stream-wrapper" id="kineticStreamWrapper">
+      <div class="services-carousel-track services-grid-4x2" id="servicesGrid">
+        {% for service in services %}
+      <a href="{% url 'service_workers' service.id %}?district={{ selected_district|urlencode }}" 
+         class="service-card-mockup" 
+         data-id="{{ service.id }}"
+         data-name="{{ service.name|lower }}" 
+         data-desc="{{ service.description|lower }}"
+         data-category="{{ service.category_slug }}">
+
+        <!-- Card Image with Real Pro Count Badge -->
+        <div class="service-mockup-thumb">
+          <span class="available-pros-pill">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            {{ service.district_worker_count }} Pro{{ service.district_worker_count|pluralize }} in {{ selected_district }}
+          </span>
+
+          {% if service.image %}
+          <img src="{{ service.image.url }}" alt="{{ service.name }}" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+          <div class="thumb-fallback" style="display:none; width:100%; height:100%; align-items:center; justify-content:center; background:#eef7f2; color:#087f5b; font-size:2rem;"><i class="bi bi-tools"></i></div>
+          {% elif 'plumb' in service.name|lower %}
+          <img src="{% static 'img/plumber.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'electr' in service.name|lower %}
+          <img src="{% static 'img/electrician.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'clean' in service.name|lower %}
+          <img src="{% static 'img/cleaning.png' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'paint' in service.name|lower %}
+          <img src="{% static 'img/painter.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'ac' in service.name|lower %}
+          <img src="{% static 'img/ac-repair.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'carpent' in service.name|lower %}
+          <img src="{% static 'img/carpenter.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% elif 'appliance' in service.name|lower %}
+          <img src="{% static 'img/appliance.webp' %}" alt="{{ service.name }}" loading="lazy">
+          {% else %}
+          <img src="{% static 'img/general.png' %}" alt="{{ service.name }}" loading="lazy">
+          {% endif %}
+        </div>
+
+        <!-- Card Body -->
+        <div class="service-mockup-body">
+          <h3 class="service-mockup-title">{{ service.name }}</h3>
+
+          <!-- Real Rating & Reviews from Actual Database -->
+          <div class="service-mockup-rating">
+            {% if service.actual_rating and service.actual_review_count > 0 %}
+            <i class="bi bi-star-fill text-warning"></i>
+            <strong>{{ service.actual_rating|floatformat:1 }}</strong>
+            <span>({{ service.actual_review_count }} review{{ service.actual_review_count|pluralize }})</span>
+            {% else %}
+            <i class="bi bi-patch-check-fill" style="color: #16a34a;"></i>
+            <span style="color: #065f46; font-weight: 600; font-size: 0.82rem;">Verified Service</span>
+            {% endif %}
+          </div>
+
+          <!-- Real Price from Actual Database & Action Arrow -->
+          <div class="service-mockup-footer">
+            <div class="service-mockup-price">
+              {% if service.starting_price %}
+              <span>From </span><strong>₹{{ service.starting_price|floatformat:0 }}</strong>
+              {% else %}
+              <span style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Price on request</span>
+              {% endif %}
+            </div>
+            <div class="service-mockup-arrow" title="View available workers">
+              <i class="bi bi-arrow-right"></i>
+            </div>
+          </div>
+        </div>
+
       </a>
-    </div>
-    {% endif %}
-  </div>
-</section>
-
-
-<!-- =========================================================
-     ABOUT LAMO
-========================================================= -->
-
-<section id="about" class="about-section">
-
-  <div class="container">
-
-    <div class="row align-items-center g-5">
-
-
-      <!-- IMAGE -->
-
-      <div class="col-lg-6" data-aos="fade-right">
-
-        <div class="about-img-container">
-
-          <img src="{% static 'img/lamo_hero_workers_1786301168127.webp' %}" alt="About LAMO" loading="lazy" onerror="
-                        this.src='https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?w=800&q=80'
-                        ">
-
-
-          <div class="experience-badge" data-aos="zoom-in" data-aos-delay="300">
-
-            <div class="exp-top">
-
-              <span class="exp-number">
-                5+
-              </span>
-
-              <span class="exp-label">
-                Years of<br>
-                Experience
-              </span>
-
-            </div>
-
-
-            <div class="exp-bottom">
-
-              <span class="exp-label" style="
-                                  color:#9ca3af;
-                                  font-size:0.75rem;
-                                  ">
-
-                Trusted by
-
-              </span>
-
-              <span class="exp-number" style="
-                                  font-size:1.5rem;
-                                  margin:4px 0;
-                                  ">
-
-                1000+
-
-              </span>
-
-              <span class="exp-label">
-
-                Happy Clients
-
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- CONTENT -->
-
-      <div class="col-lg-6" data-aos="fade-left">
-
-        <span class="section-subtitle">
-          About Us
-        </span>
-
-        <h2 class="section-title">
-          About LAMO
-        </h2>
-
-        <p class="text-muted mb-3">
-
-          LAMO is a service-booking platform
-          that helps customers find verified
-          and skilled service workers for all
-          kinds of everyday services.
-
+      {% empty %}
+      <div class="empty-services-state" id="emptyDistrictState" style="grid-column: 1 / -1; width: 100%; min-width: 100%; padding: 48px 24px; text-align: center; background: #ffffff; border-radius: 16px; border: 1.5px dashed #cbd5e1; margin: 15px 0;">
+        <i class="bi bi-geo-alt-fill" style="font-size: 2.8rem; color: #087f5b; display: block; margin-bottom: 12px; opacity: 0.85;"></i>
+        <h4 style="font-weight: 750; color: #111827; margin-bottom: 8px;">No verified workers currently available in {{ selected_district }}</h4>
+        <p style="color: #64748b; max-width: 520px; margin: 0 auto 20px; font-size: 0.95rem; line-height: 1.55;">
+          We only display services that have background-checked, verified professionals ready to take bookings in {{ selected_district }}. Please select another district to explore available services.
         </p>
-
-
-        <p class="text-muted mb-4">
-
-          Our mission is to make booking
-          services easy, secure and reliable
-          for everyone.
-
-        </p>
-
-
-        <ul class="about-features">
-
-          <li>
-            <i class="bi bi-check-circle-fill"></i>
-            Verified & experienced service workers
-          </li>
-
-          <li>
-            <i class="bi bi-check-circle-fill"></i>
-            Easy booking and management
-          </li>
-
-          <li>
-            <i class="bi bi-check-circle-fill"></i>
-            Affordable pricing with no hidden charges
-          </li>
-
-          <li>
-            <i class="bi bi-check-circle-fill"></i>
-            Reliable customer support
-          </li>
-
-        </ul>
-
-
-        {% if user.is_authenticated %}
-
-        <a href="{% url 'about' %}" class="btn-learn">
-
-          Explore LAMO
-
-          <i class="bi bi-arrow-right ms-1"></i>
-
-        </a>
-
-        {% else %}
-
-        <a href="{% url 'register' %}" class="btn-learn">
-
-          Learn More About Us
-
-          <i class="bi bi-arrow-right ms-1"></i>
-
-        </a>
-
-        {% endif %}
-
+        <button type="button" class="btn-reset-search" id="btnSelectKollam" style="display: inline-flex; align-items: center; gap: 8px; border: none; padding: 10px 24px; background: #087f5b; color: #fff; border-radius: 25px; font-weight: 600; font-size: 0.9rem; cursor: pointer;">
+          <i class="bi bi-geo-alt"></i> Switch to Kollam
+        </button>
       </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     HOW IT WORKS
-========================================================= -->
-
-<section id="how" class="how-section">
-
-  <div class="container">
-
-
-    <div class="text-center mb-5" data-aos="fade-up">
-
-      <span class="section-subtitle">
-        Simple Process
-      </span>
-
-      <h2 class="section-title">
-        How It Works
-      </h2>
-
-      <div style="
-                width:50px;
-                height:3px;
-                background:var(--primary);
-                margin:0 auto;
-                border-radius:2px;
-            "></div>
-
-    </div>
-
-
-    <div class="row g-4 position-relative">
-
-
-      <!-- CONNECTING LINE -->
-
-      <div class="d-none d-lg-block position-absolute" style="
-                 width:65%;
-                 height:2px;
-                 background:#e5e7eb;
-                 left:17.5%;
-                 top:40px;
-                 z-index:1;
-                 ">
-
-      </div>
-
-
-      <!-- STEP 1 -->
-
-      <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
-
-        <div class="how-step">
-
-          <div class="how-icon">
-
-            <i class="bi bi-search"></i>
-
-          </div>
-
-          <h4>
-            1. Find a Service
-          </h4>
-
-          <p>
-
-            Browse service categories and
-            choose the right professional
-            for your service need.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-      <!-- STEP 2 -->
-
-      <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
-
-        <div class="how-step active">
-
-          <div class="how-icon">
-
-            <i class="bi bi-calendar-check"></i>
-
-          </div>
-
-          <h4>
-            2. Book Service
-          </h4>
-
-          <p>
-
-            Select your preferred date,
-            time and service and confirm
-            your booking.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-      <!-- STEP 3 -->
-
-      <div class="col-lg-4" data-aos="fade-up" data-aos-delay="300">
-
-        <div class="how-step">
-
-          <div class="how-icon">
-
-            <i class="bi bi-check-circle-fill"></i>
-
-          </div>
-
-          <h4>
-            3. Service Completed
-          </h4>
-
-          <p>
-
-            Sit back and relax while
-            the service worker completes
-            your service.
-
-          </p>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     FOR WORKERS
-========================================================= -->
-
-<section id="workers" class="role-section light">
-
-  <div class="container">
-
-    <div class="row g-5 align-items-center">
-
-
-      <!-- IMAGE -->
-
-      <div class="col-lg-6" data-aos="fade-right">
-
-        <div class="role-image">
-
-          <img src="{% static 'img/lamo_role_worker_1786301200621.webp' %}" alt="For Workers" loading="lazy" onerror="
-                        this.src='https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=80'
-                        ">
-
-
-          <div class="role-badge" style="
-                         right:20px;
-                         bottom:20px;
-                         border-left:4px solid var(--primary);
-                         ">
-
-            <h5>
-              Earn More
-            </h5>
-
-            <p>
-              Flexible timings & regular bookings
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- CONTENT -->
-
-      <div class="col-lg-6" data-aos="fade-left">
-
-        <span class="section-subtitle">
-          For Workers
-        </span>
-
-        <h2 class="section-title">
-          Grow Your Service Business with LAMO
-        </h2>
-
-        <p class="text-muted mb-4">
-
-          Join service workers who are
-          finding customers and growing
-          their income through our platform.
-
-        </p>
-
-
-        <ul class="list-unstyled mb-4">
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-
-            Access to hundreds of service bookings
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-
-            Manage your availability easily
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-
-            Flexible working hours
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-
-            Build your professional profile
-
-          </li>
-
-        </ul>
-
-
-        <a href="{% url 'register' %}" class="btn px-4 py-2 rounded-pill fw-bold" style="
-                   background:var(--primary);
-                   color:white;
-                   ">
-
-          Join as Service Worker
-
-          <i class="bi bi-arrow-right ms-1"></i>
-
-        </a>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     FOR CUSTOMERS
-========================================================= -->
-
-<section id="customers" class="role-section white">
-
-  <div class="container">
-
-    <div class="row g-5 align-items-center flex-row-reverse">
-
-
-      <!-- IMAGE -->
-
-      <div class="col-lg-6" data-aos="fade-left">
-
-        <div class="role-image">
-
-          <img src="{% static 'img/lamo_role_employer_1786301184375.webp' %}" alt="For Customers" loading="lazy" onerror="
-                        this.src='https://images.unsplash.com/photo-1504307651254-35680f356f90?w=800&q=80'
-                        ">
-
-
-          <div class="role-badge" style="
-                         left:20px;
-                         top:20px;
-                         border-left:4px solid var(--dark-green);
-                         ">
-
-            <h5>
-              Trusted Service Workers
-            </h5>
-
-            <p>
-              Verified service professionals
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- CONTENT -->
-
-      <div class="col-lg-6" data-aos="fade-right">
-
-        <span class="section-subtitle">
-          For Customers
-        </span>
-
-        <h2 class="section-title">
-          Book Services with Confidence
-        </h2>
-
-        <p class="text-muted mb-4">
-
-          Finding reliable and skilled service
-          workers has never been this simple.
-
-        </p>
-
-
-        <ul class="list-unstyled mb-4">
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-shield-fill-check text-success me-3 fs-5"></i>
-
-            Verified service workers
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-lightning-fill text-success me-3 fs-5"></i>
-
-            Quick and easy booking
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-wallet-fill text-success me-3 fs-5"></i>
-
-            Transparent pricing
-
-          </li>
-
-
-          <li class="mb-3 d-flex align-items-center">
-
-            <i class="bi bi-headset text-success me-3 fs-5"></i>
-
-            Customer support
-
-          </li>
-
-        </ul>
-
-
-        <a href="{% url 'register' %}" class="btn px-4 py-2 rounded-pill fw-bold" style="
-                   background:var(--dark-green);
-                   color:white;
-                   ">
-
-          Book a Service
-
-          <i class="bi bi-arrow-right ms-1"></i>
-
-        </a>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- =========================================================
-     REVIEWS / TESTIMONIALS
-========================================================= -->
-
-<section id="testimonials" class="testimonials-section">
-
-  <div class="container">
-
-
-    <div class="text-center mb-5" data-aos="fade-up">
-
-      <span class="section-subtitle">
-        What Our Customers Say
-      </span>
-
-      <h2 class="section-title">
-        Reviews from Our Customers
-      </h2>
-
-      <div style="
-                width:50px;
-                height:3px;
-                background:var(--primary);
-                margin:0 auto;
-                border-radius:2px;
-            "></div>
-
-    </div>
-
-
-    <div class="row g-4 justify-content-center">
-
-      {% if reviews %}
-
-      {% for review in reviews %}
-
-      <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
-        <div class="testimonial-card">
-          <div class="quote-icon">
-            <i class="bi bi-quote"></i>
-          </div>
-          <p class="testimonial-text">
-            "{% if review.comment %}{{ review.comment }}{% else %}Great service experience with LAMO!{% endif %}"
-          </p>
-          <div class="testimonial-author">
-            <div class="author-info">
-              <div class="author-avatar">
-                {{ review.customer.username|first|upper }}
-              </div>
-              <div>
-
-                <h5 class="author-name">
-                  {{ review.customer.get_full_name|default:review.customer.username }}
-                </h5>
-
-                <p class="author-role">
-                  {% if review.booking.service %}{{ review.booking.service.name }}{% else %}Customer{% endif %}
-                </p>
-
-              </div>
-
-            </div>
-
-
-            <div class="stars">
-
-              {% for i in "12345" %}
-              {% if forloop.counter <= review.rating %} <i class="bi bi-star-fill"></i>
-                {% else %}
-                <i class="bi bi-star"></i>
-                {% endif %}
-                {% endfor %}
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
       {% endfor %}
-
-      {% else %}
-
-      <div class="col-12 text-center" data-aos="fade-up">
-        <div class="empty-reviews-state">
-          <i class="bi bi-chat-quote" style="font-size:48px;color:#087f5b;opacity:0.5;"></i>
-          <h4 class="mt-3" style="color:#17231f;">No reviews yet</h4>
-          <p class="text-muted">Be the first to share your experience with LAMO.</p>
-        </div>
       </div>
+    </div>
 
-      {% endif %}
-
+    <!-- Live Search No-Results Feedback (Hidden by default) -->
+    <div id="noMatchServicesMessage" class="empty-services-message" style="display: none; margin-top: 24px; text-align: center; padding: 40px; background: #ffffff; border-radius: 16px; border: 1px dashed #cbd5e1;">
+      <i class="bi bi-search" style="font-size: 2.5rem; color: #087f5b; margin-bottom: 10px; display: inline-block;"></i>
+      <h4 style="font-weight: 750; color: #111827;">No matching services found in {{ selected_district }}</h4>
+      <p style="color: #64748b; margin-bottom: 14px;">Try searching for a different keyword or reset your query to view all available services.</p>
+      <button type="button" class="btn-reset-search" id="btnResetSearch" style="padding: 8px 22px; background: #087f5b; color: white; border: none; border-radius: 20px; font-weight: 600; cursor: pointer;">
+        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Search
+      </button>
     </div>
 
   </div>
-
 </section>
 
+<!-- =========================================================
+     3 TRUST & GUARANTEE BENTO CARDS (Mockup Reference)
+========================================================= -->
+<section class="bento-trust-section">
+  <div class="container">
+    <div class="bento-trust-grid" data-aos="fade-up">
+
+      <!-- Card 1: Transparent Pricing -->
+      <div class="bento-trust-card">
+        <div class="bento-trust-content">
+          <h4>Transparent Pricing</h4>
+          <p>Know exactly what you're paying for. No hidden charges.</p>
+          <a href="{% url 'about' %}" class="bento-learn-link">
+            <span>Learn more</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        <div class="bento-graphic-wrap text-success">
+          <i class="bi bi-file-earmark-check-fill"></i>
+        </div>
+      </div>
+
+      <!-- Card 2: Verified Professionals -->
+      <div class="bento-trust-card">
+        <div class="bento-trust-content">
+          <h4>Verified Professionals</h4>
+          <p>All workers go through verification and skill checks.</p>
+          <a href="{% url 'about' %}" class="bento-learn-link">
+            <span>Learn more</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        <div class="bento-graphic-wrap text-success">
+          <i class="bi bi-person-badge-fill"></i>
+        </div>
+      </div>
+
+      <!-- Card 3: Your Number Stays Private -->
+      <div class="bento-trust-card">
+        <div class="bento-trust-content">
+          <h4>Your Number Stays Private</h4>
+          <p>Your contact details are shared only after booking is confirmed.</p>
+          <a href="{% url 'about' %}" class="bento-learn-link">
+            <span>Learn more</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        <div class="bento-graphic-wrap text-success">
+          <i class="bi bi-phone-vibrate-fill"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
 
 <!-- =========================================================
-     SERVICE COVERAGE (KERALA 14 DISTRICTS - GEO / LOCAL SEO)
+     HOW IT WORKS (Mockup Stepper)
 ========================================================= -->
-<section id="coverage" class="coverage-section py-5" style="background:#f8fafc; border-top:1px solid #e5e9e7; border-bottom:1px solid #e5e9e7;">
+<section id="how" class="stepper-clean-section">
+  <div class="container">
+    <div class="stepper-header-row" data-aos="fade-up">
+      <div>
+        <span class="section-kicker">— SIMPLE PROCESS</span>
+        <h2 class="services-heading-main">How It Works</h2>
+        <p class="services-sub-main">Get skilled everyday assistance delivered directly to your doorstep in 3 straightforward steps.</p>
+      </div>
+      <div class="carousel-nav-arrows d-none d-md-inline-flex">
+        <button type="button" class="arrow-circle-btn" aria-label="Previous">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button type="button" class="arrow-circle-btn" aria-label="Next">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="stepper-grid-3col" data-aos="fade-up" data-aos-delay="100">
+      <!-- Step 01 -->
+      <div class="stepper-clean-card">
+        <div class="stepper-top-bar">
+          <div class="stepper-icon-circle">
+            <i class="bi bi-geo-alt-fill"></i>
+          </div>
+          <span class="stepper-step-idx">01</span>
+        </div>
+        <h4>Find a Service</h4>
+        <p>Browse service categories and choose the right professional in your district.</p>
+      </div>
+
+      <!-- Step 02 -->
+      <div class="stepper-clean-card">
+        <div class="stepper-top-bar">
+          <div class="stepper-icon-circle">
+            <i class="bi bi-calendar2-check-fill"></i>
+          </div>
+          <span class="stepper-step-idx">02</span>
+        </div>
+        <h4>Book Service</h4>
+        <p>Select your preferred date, time and confirm your booking with upfront details.</p>
+      </div>
+
+      <!-- Step 03 -->
+      <div class="stepper-clean-card">
+        <div class="stepper-top-bar">
+          <div class="stepper-icon-circle">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <span class="stepper-step-idx">03</span>
+        </div>
+        <h4>Arrival OTP &amp; Done</h4>
+        <p>Worker verifies arrival with OTP, completes the task with quality, and you pay securely.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     SMART AI ASSISTANT BANNER (Mockup Capsule Bar)
+========================================================= -->
+<section class="ai-capsule-section">
+  <div class="container">
+    <div class="ai-capsule-bar" data-aos="zoom-in">
+      <div class="ai-capsule-left">
+        <div class="ai-bot-avatar">
+          <i class="bi bi-robot"></i>
+        </div>
+        <div>
+          <h4 class="ai-capsule-title">Not sure what service you need?</h4>
+          <p class="ai-capsule-sub">Describe your problem to LAMO AI and get the right service suggestion.</p>
+        </div>
+      </div>
+
+      <div class="ai-capsule-right">
+        <input type="text" class="ai-capsule-input" id="aiServiceProblemInput" placeholder="e.g. My AC is not cooling properly..." aria-label="Describe problem to AI">
+        <button type="button" class="btn-ai-submit" onclick="if(window.toggleLamoAiDrawer){window.toggleLamoAiDrawer();}else{window.location.href='#services';}">
+          <span>Ask LAMO AI</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     KERALA 14 DISTRICTS COVERAGE (Preserved Backend URLs)
+========================================================= -->
+<section id="coverage" class="py-5" style="background:#ffffff; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9;">
   <div class="container">
     <div class="text-center mb-4" data-aos="fade-up">
-      <span class="section-subtitle">Local Coverage</span>
-      <h2 class="section-title">Serving All 14 Districts of Kerala</h2>
-      <p class="text-muted" style="max-width: 680px; margin: 0 auto; font-size: 0.95rem;">
-        LAMO connects customers with verified, skilled local professionals across all 14 administrative districts of Kerala.
+      <span class="section-kicker">LOCAL HUBS</span>
+      <h3 style="font-weight: 800; color: #111827;">Serving All 14 Districts of Kerala</h3>
+      <p style="color: #6b7280; font-size: 0.94rem; max-width: 640px; margin: 0 auto;">
+        Click your district to instantly filter verified workers in your neighbourhood.
       </p>
     </div>
 
-    <div class="d-flex flex-wrap justify-content-center gap-2 mt-4" data-aos="fade-up" data-aos-delay="100" style="max-width: 900px; margin: 0 auto;">
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Thiruvananthapuram</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#087f5b; color:#ffffff; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kollam (HQ)</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Pathanamthitta</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Alappuzha</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kottayam</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Idukki</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Ernakulam</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Thrissur</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Palakkad</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Malappuram</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kozhikode</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Wayanad</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kannur</span>
-      <span class="badge rounded-pill px-3 py-2" style="background:#e8f5e9; color:#1b5e20; font-size:0.88rem; font-weight:600;"><i class="bi bi-geo-alt-fill me-1"></i> Kasaragod</span>
+    <div class="d-flex flex-wrap justify-content-center gap-2 mt-4" data-aos="fade-up">
+      {% for code, name in kerala_districts %}
+      <a href="?district={{ code }}#services" class="text-decoration-none">
+        <span class="badge rounded-pill px-3 py-2" style="{% if selected_district == code %}background:#087f5b; color:#ffffff; box-shadow: 0 4px 12px rgba(8,127,91,0.25);{% else %}background:#f3f4f6; color:#374151;{% endif %} font-size:0.86rem; font-weight:600; transition: all 0.2s;">
+          <i class="bi bi-geo-alt-fill me-1"></i> {{ name }}{% if code == 'Kollam' %} (HQ){% endif %}
+        </span>
+      </a>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-
 <!-- =========================================================
-     FREQUENTLY ASKED QUESTIONS (GEO & AI SEARCH Q&A)
+     FREQUENTLY ASKED QUESTIONS (Matched to Mockup Image 2)
 ========================================================= -->
-<section id="faqs" class="py-5" style="background:#ffffff;">
-  <div class="container" style="max-width: 860px;">
-    <div class="text-center mb-5" data-aos="fade-up">
-      <span class="section-subtitle">Common Questions</span>
-      <h2 class="section-title">Frequently Asked Questions</h2>
+<section id="faqs" class="faq-clean-section">
+  <div class="container">
+    <div class="text-center mb-4" data-aos="fade-up">
+      <span class="faq-section-kicker">COMMON QUESTIONS</span>
+      <h2 class="faq-section-title">Frequently Asked Questions</h2>
     </div>
 
-    <div class="accordion" id="lamoFaqAccordion" data-aos="fade-up">
-      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
-        <h3 class="accordion-header" id="faqHeading1">
-          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="false" aria-controls="faqCollapse1">
-            What is LAMO and how does it work?
-          </button>
-        </h3>
-        <div id="faqCollapse1" class="accordion-collapse collapse" aria-labelledby="faqHeading1" data-bs-parent="#lamoFaqAccordion">
-          <div class="accordion-body text-muted">
-            LAMO is a service-booking platform connecting customers across Kerala with verified service workers for home repairs, electrical, plumbing, cleaning, and essential services. You select a service, choose an available date and time slot, and confirm your booking.
+    <div class="row justify-content-center">
+      <div class="col-lg-9 col-xl-8">
+        <div class="accordion" id="lamoFaqAccordion" data-aos="fade-up" data-aos-delay="100">
+
+          <!-- FAQ 1 -->
+          <div class="faq-clean-item">
+            <button class="faq-clean-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCol1" aria-expanded="false" aria-controls="faqCol1">
+              <span>What is LAMO and how does it work?</span>
+              <i class="bi bi-chevron-down faq-chevron"></i>
+            </button>
+            <div id="faqCol1" class="collapse" data-bs-parent="#lamoFaqAccordion">
+              <div class="faq-clean-body">
+                LAMO is a verified service-booking platform connecting customers across Kerala with background-checked service workers for home repairs, electrical, plumbing, cleaning, and essential maintenance. Simply select your service, enter your location, and connect directly with skilled local professionals.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 2 -->
+          <div class="faq-clean-item">
+            <button class="faq-clean-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCol2" aria-expanded="false" aria-controls="faqCol2">
+              <span>Where does LAMO provide services?</span>
+              <i class="bi bi-chevron-down faq-chevron"></i>
+            </button>
+            <div id="faqCol2" class="collapse" data-bs-parent="#lamoFaqAccordion">
+              <div class="faq-clean-body">
+                LAMO operates across all 14 administrative districts of Kerala, with active local service clusters in Kollam, Thiruvananthapuram, Ernakulam, Kozhikode, and surrounding regions.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 3 -->
+          <div class="faq-clean-item">
+            <button class="faq-clean-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCol3" aria-expanded="false" aria-controls="faqCol3">
+              <span>How are service workers verified on LAMO?</span>
+              <i class="bi bi-chevron-down faq-chevron"></i>
+            </button>
+            <div id="faqCol3" class="collapse" data-bs-parent="#lamoFaqAccordion">
+              <div class="faq-clean-body">
+                Every technician and service partner undergoes strict multi-step vetting, including government-issued identity proof verification (Aadhaar/PAN), trade skill assessment, and background screening before being approved on the platform.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 4 -->
+          <div class="faq-clean-item">
+            <button class="faq-clean-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCol4" aria-expanded="false" aria-controls="faqCol4">
+              <span>How is worker arrival verified on-site?</span>
+              <i class="bi bi-chevron-down faq-chevron"></i>
+            </button>
+            <div id="faqCol4" class="collapse" data-bs-parent="#lamoFaqAccordion">
+              <div class="faq-clean-body">
+                To ensure maximum security and transparency, every confirmed booking generates a unique 4-digit arrival OTP in your customer panel. When the technician reaches your doorstep, they must enter this OTP to formally initiate the service session.
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 5 -->
+          <div class="faq-clean-item">
+            <button class="faq-clean-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCol5" aria-expanded="false" aria-controls="faqCol5">
+              <span>How do I contact customer support?</span>
+              <i class="bi bi-chevron-down faq-chevron"></i>
+            </button>
+            <div id="faqCol5" class="collapse" data-bs-parent="#lamoFaqAccordion">
+              <div class="faq-clean-body">
+                You can reach our dedicated support desk directly via phone at <a href="tel:+919496552094" style="color:var(--brand-green); font-weight:700; text-decoration:none;">+91 9496552094</a>, or visit our central headquarters at 3rd Floor, Raj Plaza, Town Limit, Kollam.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     CONTACT US SECTION (Matched to Mockup Image 2)
+========================================================= -->
+<section id="contact" class="contact-clean-section">
+  <div class="container">
+    <div class="row align-items-center g-5 justify-content-between">
+      
+      <!-- Left Column: Information -->
+      <div class="col-lg-6" data-aos="fade-right">
+        <span class="contact-section-kicker">CONTACT US</span>
+        <h2 class="contact-section-title">
+          We Are Here to Help<br>You
+        </h2>
+        <p class="contact-section-sub">
+          Have any questions or need help?<br>
+          Our team is always ready to assist you.
+        </p>
+
+        <div class="contact-clean-list">
+          <!-- Phone Row -->
+          <div class="contact-clean-row">
+            <div class="contact-circle-ico">
+              <i class="bi bi-telephone-fill"></i>
+            </div>
+            <a href="tel:+919496552094" class="contact-clean-val text-decoration-none">
+              +91 9496552094
+            </a>
+          </div>
+
+          <!-- Address Row -->
+          <div class="contact-clean-row">
+            <div class="contact-circle-ico">
+              <i class="bi bi-geo-alt-fill"></i>
+            </div>
+            <span class="contact-clean-val">
+              3rd Floor, Raj Plaza, Town Limit, Kollam
+            </span>
           </div>
         </div>
       </div>
 
-      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
-        <h3 class="accordion-header" id="faqHeading2">
-          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
-            Where does LAMO provide services?
-          </button>
-        </h3>
-        <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#lamoFaqAccordion">
-          <div class="accordion-body text-muted">
-            LAMO operates across all 14 districts in Kerala (Thiruvananthapuram, Kollam, Pathanamthitta, Alappuzha, Kottayam, Idukki, Ernakulam, Thrissur, Palakkad, Malappuram, Kozhikode, Wayanad, Kannur, and Kasaragod), with central support based in Kollam.
+      <!-- Right Column: Phone Mockup with 24/7 Badge -->
+      <div class="col-lg-5 text-center" data-aos="fade-left">
+        <div class="phone-mockup-wrapper">
+          <img src="{% static 'img/lamo_phone_mockup_1786301236223.webp' %}" 
+               alt="LAMO App Mobile Experience" 
+               class="phone-mockup-img" 
+               loading="lazy">
+          <div class="badge-247-circle">
+            24/7
           </div>
         </div>
       </div>
 
-      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
-        <h3 class="accordion-header" id="faqHeading3">
-          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
-            How are service workers verified on LAMO?
-          </button>
-        </h3>
-        <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#lamoFaqAccordion">
-          <div class="accordion-body text-muted">
-            Every service worker registered on LAMO submits proof documents and undergoes administrative verification before they can accept customer bookings.
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
-        <h3 class="accordion-header" id="faqHeading4">
-          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse4" aria-expanded="false" aria-controls="faqCollapse4">
-            How is worker arrival verified on-site?
-          </button>
-        </h3>
-        <div id="faqCollapse4" class="accordion-collapse collapse" aria-labelledby="faqHeading4" data-bs-parent="#lamoFaqAccordion">
-          <div class="accordion-body text-muted">
-            When a booking is confirmed, a secure 4-digit arrival OTP code is generated for the customer. When the worker arrives at the designated location, they enter this 4-digit code to formally start the job.
-          </div>
-        </div>
-      </div>
-
-      <div class="accordion-item mb-3 border rounded-3 overflow-hidden shadow-sm">
-        <h3 class="accordion-header" id="faqHeading5">
-          <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse5" aria-expanded="false" aria-controls="faqCollapse5">
-            How do I contact customer support?
-          </button>
-        </h3>
-        <div id="faqCollapse5" class="accordion-collapse collapse" aria-labelledby="faqHeading5" data-bs-parent="#lamoFaqAccordion">
-          <div class="accordion-body text-muted">
-            You can reach LAMO customer support by phone at +91 9496552094, or visit our office at 3rd Floor, Raj Plaza, Town Limit, Kollam, Kerala.
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </section>
@@ -1098,7 +731,7 @@ LAMO | Labour Management System - Our Services
       "name": "What is LAMO and how does it work?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "LAMO is a service-booking platform connecting customers across Kerala with verified service workers for home repairs, electrical, plumbing, cleaning, and essential services."
+        "text": "LAMO is a verified service-booking platform connecting customers across Kerala with background-checked service workers for home repairs, electrical, plumbing, cleaning, and essential maintenance."
       }
     },
     {
@@ -1106,7 +739,7 @@ LAMO | Labour Management System - Our Services
       "name": "Where does LAMO provide services?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "LAMO operates across all 14 districts in Kerala (Thiruvananthapuram, Kollam, Pathanamthitta, Alappuzha, Kottayam, Idukki, Ernakulam, Thrissur, Palakkad, Malappuram, Kozhikode, Wayanad, Kannur, and Kasaragod), with central support based in Kollam."
+        "text": "LAMO operates across all 14 administrative districts in Kerala, with central support headquarters based in Kollam."
       }
     },
     {
@@ -1114,15 +747,15 @@ LAMO | Labour Management System - Our Services
       "name": "How are service workers verified on LAMO?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Every service worker registered on LAMO submits proof documents and undergoes administrative verification before they can accept customer bookings."
+        "text": "Every technician registered on LAMO submits official government identity proofs and undergoes manual administrative vetting before being approved."
       }
     },
     {
       "@type": "Question",
-      "name": "How is worker arrival verified on-site?",
+      "name": "How does the 4-digit arrival OTP work?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "When a booking is confirmed, a secure 4-digit arrival OTP code is generated for the customer. When the worker arrives at the designated location, they enter this 4-digit code to formally start the job."
+        "text": "When your booking is confirmed, a confidential 4-digit OTP code is generated in your dashboard. When the worker arrives on site, they enter this secret code to officially begin the job."
       }
     },
     {
@@ -1130,252 +763,11 @@ LAMO | Labour Management System - Our Services
       "name": "How do I contact customer support?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "You can reach LAMO customer support by phone at +91 9496552094, or visit our office at 3rd Floor, Raj Plaza, Town Limit, Kollam, Kerala."
+        "text": "You can reach our support desk directly by telephone at +91 9496552094, or visit our central office at 3rd Floor, Raj Plaza, Town Limit, Kollam, Kerala."
       }
     }
   ]
 }
 </script>
-
-
-<!-- =========================================================
-     CONTACT
-========================================================= -->
-
-<section id="contact" class="contact-section">
-
-  <div class="container">
-
-    <div class="row align-items-center g-5">
-
-
-      <!-- CONTACT INFO -->
-
-      <div class="col-lg-4" data-aos="fade-right">
-
-        <span class="section-subtitle">
-          Contact Us
-        </span>
-
-        <h2 class="section-title">
-          We Are Here to Help You
-        </h2>
-
-        <p class="text-muted mt-3">
-
-          Have any questions or need help?
-
-          <br>
-
-          Our team is always ready to assist you.
-
-        </p>
-
-
-        <ul class="contact-info-list mt-4">
-
-          <li>
-
-            <div class="contact-icon">
-
-              <i class="bi bi-telephone-fill"></i>
-
-            </div>
-
-            +91 9496552094
-
-          </li>
-
-
-          <!-- <li>
-
-            <div class="contact-icon">
-
-              <i class="bi bi-envelope-fill"></i>
-
-            </div>
-
-            support@lamo.com
-
-          </li> -->
-
-
-          <li>
-
-            <div class="contact-icon">
-
-              <i class="bi bi-geo-alt-fill"></i>
-
-            </div>
-
-            3rd Floor, Raj Plaza, Town Limit, Kollam
-
-          </li>
-
-        </ul>
-
-      </div>
-
-
-      <!-- SUPPORT IMAGE -->
-
-      <div class="col-lg-4 text-center" data-aos="zoom-in">
-
-        <div class="support-graphic">
-
-          <img src="{% static 'img/lamo_phone_mockup_1786301236223.webp' %}" alt="24/7 Support" class="img-fluid" loading="lazy"
-            onerror="
-                        this.src='https://images.unsplash.com/photo-1596524430615-b46475ddff6e?w=500&q=80'
-                        ">
-
-
-          <div class="support-badge">
-            24/7
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- CONTACT FORM
-
-      <div class="col-lg-4" data-aos="fade-left">
-
-        <div class="contact-form-wrap">
-
-          <form id="contactForm" onsubmit="
-                        event.preventDefault();
-                        alert('Message sent successfully!');
-                        ">
-
-            <div class="row g-2">
-
-
-              <div class="col-sm-6">
-
-                <input type="text" class="form-control" placeholder="Your Name" required>
-
-              </div>
-
-
-              <div class="col-sm-6">
-
-                <input type="email" class="form-control" placeholder="Your Email" required>
-
-              </div>
-
-
-              <div class="col-12">
-
-                <input type="tel" class="form-control" placeholder="Phone Number">
-
-              </div>
-
-
-              <div class="col-12">
-
-                <textarea class="form-control" rows="3" placeholder="Your Message" required></textarea>
-
-              </div>
-
-
-              <div class="col-12 mt-2">
-
-                <button type="submit" class="btn-submit">
-
-                  Send Message
-
-                  <i class="bi bi-arrow-right"></i>
-
-                </button>
-
-              </div> -->
-
-    </div>
-
-    </form>
-
-  </div>
-
-  </div>
-
-  </div>
-
-  </div>
-
-</section>
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-
-    /* -----------------------------------------------------
-       HOME SEARCH — CLEAR BUTTON
-       ----------------------------------------------------- */
-    (function () {
-      var searchInput = document.getElementById("homeSearchInput");
-      var clearButton = document.getElementById("homeSearchClear");
-      if (!clearButton) return;
-      clearButton.addEventListener("click", function (event) {
-        event.preventDefault();
-        if (searchInput) searchInput.value = "";
-        try {
-          var url = new URL(window.location.href);
-          url.searchParams.delete("q");
-          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-        } catch (e) {}
-        if (searchInput) searchInput.focus();
-      });
-    })();
-
-    /* CSRF helper: read token from <meta name="csrf-token"> or <input name="csrfmiddlewaretoken"> */
-    function getCsrfToken() {
-      const meta = document.querySelector('meta[name="csrf-token"]');
-      if (meta && meta.content) return meta.content;
-      const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
-      if (input && input.value) return input.value;
-      return "";
-    }
-
-    /* -----------------------------------------------------
-       HERO ROTATING TRADE TEXT (Smooth Vertical Transition)
-       ----------------------------------------------------- */
-    (function initHeroRotator() {
-      const rotator = document.getElementById('heroRotator');
-      if (!rotator) return;
-      let words = [];
-      try {
-        words = JSON.parse(rotator.getAttribute('data-words') || '[]');
-      } catch (e) { }
-      if (!words || words.length < 2) return;
-
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        return;
-      }
-
-      let currentIndex = 0;
-      setInterval(function () {
-        rotator.classList.remove('is-entering', 'is-visible');
-        rotator.classList.add('is-exiting');
-
-        setTimeout(function () {
-          currentIndex = (currentIndex + 1) % words.length;
-          rotator.textContent = words[currentIndex];
-          rotator.classList.remove('is-exiting');
-          rotator.classList.add('is-entering');
-
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              rotator.classList.remove('is-entering');
-              rotator.classList.add('is-visible');
-            });
-          });
-        }, 320);
-      }, 2600);
-    })();
-
-  });
-</script>
-
 
 {% endblock %}

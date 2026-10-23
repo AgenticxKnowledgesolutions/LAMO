@@ -7796,6 +7796,18 @@ class MultilingualServiceSynonymTest(TestCase):
             name='Painting', description='Wall painting and whitewash',
             price=800.00, is_active=True
         )
+        self.coconut_service = Service.objects.create(
+            name='Coconut Tree Climbing & Harvesting', description='Coconut tree climbing and harvesting',
+            price=350.00, is_active=True
+        )
+        self.well_service = Service.objects.create(
+            name='Well Cleaning & Water Chlorination', description='Well cleaning and bleaching',
+            price=1200.00, is_active=True
+        )
+        self.sofa_service = Service.objects.create(
+            name='Sofa, Carpet & Mattress Shampooing', description='Sofa and carpet cleaning',
+            price=799.00, is_active=True
+        )
 
     @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
     def test_english_electrician(self, _):
@@ -7862,6 +7874,24 @@ class MultilingualServiceSynonymTest(TestCase):
     def test_malayalam_carpenter_ashary(self, _):
         res = match_service_and_workers('\u0d12\u0d30\u0d41 \u0d06\u0d36\u0d3e\u0d30\u0d3f \u0d35\u0d47\u0d23\u0d02')
         self.assertIsNotNone(res['service'])
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_thenga_idal_coconut(self, _):
+        res = match_service_and_workers('thenga idan aale venam')
+        self.assertIsNotNone(res['service'])
+        self.assertIn('coconut', res['service'].name.lower())
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_kinar_clean(self, _):
+        res = match_service_and_workers('kinar kazhukan aalu undo')
+        self.assertIsNotNone(res['service'])
+        self.assertIn('well', res['service'].name.lower())
+
+    @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
+    def test_manglish_sofa_clean(self, _):
+        res = match_service_and_workers('sofa clean cheyyam')
+        self.assertIsNotNone(res['service'])
+        self.assertIn('sofa', res['service'].name.lower())
 
     @patch('lamoapp.ai_utils._call_gemini_api', return_value=None)
     def test_unrecognised_query_returns_none(self, _):

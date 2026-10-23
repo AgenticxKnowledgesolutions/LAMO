@@ -11,7 +11,7 @@ from decimal import Decimal
 from functools import lru_cache
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum, Avg, Count, Case, When, Value, IntegerField, Prefetch, ProtectedError
+from django.db.models import Q, Sum, Avg, Count, Min, Case, When, Value, IntegerField, Prefetch, ProtectedError
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -979,43 +979,212 @@ def home(request):
         elif getattr(request.user, 'role', None) == 'WORKER':
             return redirect('worker_dashboard')
 
-    is_from_splash = bool(request.GET.get('from_splash'))
-    force_splash = request.GET.get('splash') == '1'
-    if is_from_splash:
-        request.session['lamo_splash_shown'] = True
-        if not request.user.is_authenticated:
-            request.session.set_expiry(0)
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        or request.GET.get('ajax') == '1'
+        or 'application/json' in request.headers.get('Accept', '')
+    )
 
-    query = request.GET.get('q', '').strip()
+    query = (request.GET.get('search') or request.GET.get('q') or '').strip()
+    category = request.GET.get('category', '').strip().lower()
+    has_district = bool(request.GET.get('district', '').strip())
 
-    # Check for search engine crawlers and bots so they always receive clean,
-    # immediate semantic HTML without client-side animation delays.
-    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
-    is_crawler = any(
-        bot in user_agent
-        for bot in ('bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'headless', 'gptbot', 'claudebot')
-    ) or request.GET.get('crawler') == '1'
+    if not is_ajax:
+        is_from_splash = bool(request.GET.get('from_splash'))
+        force_splash = request.GET.get('splash') == '1'
+        has_seen_splash = bool(
+            request.session.get('lamo_splash_shown')
+            or request.COOKIES.get('lamo_splash_seen') == '1'
+            or is_from_splash
+        )
+        if is_from_splash or has_seen_splash:
+            request.session['lamo_splash_shown'] = True
+            if not request.user.is_authenticated:
+                request.session.set_expiry(0)
 
-    # Search engine crawlers receive home.html directly with complete semantic HTML and Schema.org markup.
-    # Regular unauthenticated human visitors receive splash.html to preserve the animated brand intro.
-    if force_splash or (not is_crawler and not request.user.is_authenticated and not is_from_splash and not query):
-        request.session['lamo_splash_shown'] = True
-        response = render(request, 'splash.html')
-        response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
-        return response
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_crawler = any(
+            bot in user_agent
+            for bot in ('bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'headless', 'gptbot', 'claudebot')
+        ) or request.GET.get('crawler') == '1'
 
-    services = Service.objects.filter(is_active=True)
+        if force_splash or (not is_crawler and not request.user.is_authenticated and not has_seen_splash and not query and not has_district and not category):
+            request.session['lamo_splash_shown'] = True
+            response = render(request, 'splash.html')
+            response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
+            return response
+
+    # ---------------------------------------------------------
+    # DISTRICT FILTERING & WORKER COUNTS
+    # ---------------------------------------------------------
+    kerala_districts = WorkerProfile.DISTRICT_CHOICES
+    district_names = [d[0] for d in kerala_districts]
+
+    raw_district = request.GET.get('district', '').strip()
+    if raw_district and any(d.lower() == raw_district.lower() for d in district_names):
+        selected_district = next(d for d in district_names if d.lower() == raw_district.lower())
+        request.session['lamo_selected_district'] = selected_district
+    elif request.user.is_authenticated and hasattr(request.user, 'user_profile') and getattr(request.user.user_profile, 'district', None):
+        selected_district = request.user.user_profile.district
+    else:
+        selected_district = request.session.get('lamo_selected_district', 'Kollam')
+
+    # Exclude workers on leave today or paused for dues
+    today = timezone.localdate()
+    try:
+        workers_on_leave_ids = set(
+            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
+        )
+    except Exception:
+        workers_on_leave_ids = set()
+
+    eligible_workers_qs = WorkerProfile.objects.filter(
+        is_verified=True,
+        work_status='AVAILABLE',
+        user__is_active=True,
+        is_paused_for_dues=False,
+    ).exclude(id__in=workers_on_leave_ids)
+
+    district_worker_counts = dict(
+        eligible_workers_qs.filter(
+            district__iexact=selected_district,
+        ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+    )
+
+    total_worker_counts = dict(
+        eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+    )
+
+    # Worker minimum pricing in selected district
+    worker_min_prices = dict(
+        eligible_workers_qs.filter(
+            district__iexact=selected_district,
+            pricing_amount__gt=0
+        ).values('service_id').annotate(
+            min_price=Min('pricing_amount')
+        ).values_list('service_id', 'min_price')
+    )
+
+    # Real review statistics per service from DB
+    review_stats = {}
+    for row in Review.objects.filter(worker__service__isnull=False).values('worker__service_id').annotate(avg_rating=Avg('rating'), review_count=Count('id')):
+        review_stats[row['worker__service_id']] = {
+            'avg': round(row['avg_rating'], 1) if row['avg_rating'] else None,
+            'count': row['review_count']
+        }
+
+    CATEGORY_KEYWORD_MAP = {
+        'plumb': ['plumb'],
+        'electrician': ['electr'],
+        'clean': ['clean', 'shampoo'],
+        'paint': ['paint', 'whitewash'],
+        'ac': ['ac ', 'ac repair', 'air condition'],
+        'carpenter': ['carpent', 'wood'],
+        'appliance': ['appliance', 'electronics', 'tv', 'refrigerator', 'washing machine'],
+        'pest': ['pest'],
+        'garden': ['garden', 'grass', 'bush', 'landscape'],
+    }
+    ALL_STANDARD_KEYWORDS = [kw for kws in CATEGORY_KEYWORD_MAP.values() for kw in kws]
+
+    services_qs = Service.objects.filter(is_active=True)
     if query:
-        services = services.filter(
+        services_qs = services_qs.filter(
             Q(name__icontains=query) | Q(description__icontains=query)
         )
-    services = services.order_by('-created_at')
 
-    # Show only 8 services on the home page preview
-    home_services = services[:8]
-    has_more_services = services.count() > 8
+    if category and category != 'all':
+        if category == 'more':
+            q_exclude = Q()
+            for kw in ALL_STANDARD_KEYWORDS:
+                q_exclude |= Q(name__icontains=kw)
+            services_qs = services_qs.exclude(q_exclude)
+        elif category in CATEGORY_KEYWORD_MAP:
+            q_cat = Q()
+            for kw in CATEGORY_KEYWORD_MAP[category]:
+                q_cat |= Q(name__icontains=kw)
+            services_qs = services_qs.filter(q_cat)
+        else:
+            services_qs = services_qs.filter(
+                Q(name__icontains=category) | Q(description__icontains=category)
+            )
 
-    # Fetch real reviews from database
+    services_qs = services_qs.order_by('-is_featured', 'name')
+
+    services_list = []
+    for s in services_qs:
+        cnt = district_worker_counts.get(s.id, 0)
+        # CRITICAL: Only show services with actual verified available workers in the selected district
+        if cnt > 0:
+            s.district_worker_count = cnt
+            s.total_worker_count = total_worker_counts.get(s.id, 0)
+
+            # Starting price from actual DB data
+            if s.price and s.price > 0:
+                s.starting_price = float(s.price)
+            elif s.id in worker_min_prices:
+                s.starting_price = float(worker_min_prices[s.id])
+            else:
+                s.starting_price = None
+
+            # Actual rating and review count from DB
+            rev = review_stats.get(s.id)
+            if rev and rev['count'] > 0:
+                s.actual_rating = rev['avg']
+                s.actual_review_count = rev['count']
+            else:
+                s.actual_rating = None
+                s.actual_review_count = 0
+
+            # Slug for category classification
+            name_lower = s.name.lower()
+            matched_cat = 'other'
+            for cat_slug, kws in CATEGORY_KEYWORD_MAP.items():
+                if any(kw in name_lower for kw in kws):
+                    matched_cat = cat_slug
+                    break
+            s.category_slug = matched_cat
+
+            services_list.append(s)
+
+    services_list.sort(key=lambda x: (x.is_featured, x.name.lower()), reverse=True)
+
+    # Extra categories for "More Services"
+    all_active_services = Service.objects.filter(is_active=True).order_by('name')
+    more_categories = []
+    for asvc in all_active_services:
+        aname_lower = asvc.name.lower()
+        if not any(kw in aname_lower for kw in ALL_STANDARD_KEYWORDS):
+            more_categories.append({
+                'id': asvc.id,
+                'name': asvc.name,
+                'slug': asvc.name.lower().replace(' ', '-'),
+            })
+
+    if is_ajax:
+        services_data = []
+        for s in services_list:
+            services_data.append({
+                'id': s.id,
+                'name': s.name,
+                'description': s.description,
+                'image_url': s.image.url if s.image else '',
+                'worker_count': s.district_worker_count,
+                'rating': s.actual_rating,
+                'review_count': s.actual_review_count,
+                'starting_price': s.starting_price,
+                'category': s.category_slug,
+                'url': reverse('service_workers', args=[s.id]) + f'?district={urllib.parse.quote(selected_district)}',
+            })
+        return JsonResponse({
+            'status': 'success',
+            'selected_district': selected_district,
+            'query': query,
+            'category': category or 'all',
+            'services_count': len(services_list),
+            'services': services_data,
+        })
+
+    # Fetch reviews for the testimonial section
     reviews = (
         Review.objects
         .select_related('customer', 'worker__user', 'booking__service')
@@ -1023,10 +1192,13 @@ def home(request):
     )
 
     response = render(request, 'home.html', {
-        'services': home_services,
-        'has_more_services': has_more_services,
+        'services': services_list,
+        'selected_district': selected_district,
+        'kerala_districts': kerala_districts,
         'query': query,
+        'category': category or 'all',
         'reviews': reviews,
+        'more_categories': more_categories,
     })
     if request.COOKIES.get('lamo_splash_seen') != '1':
         response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
@@ -5744,7 +5916,6 @@ def service_detail(request, pk):
         }
     )
 
-@login_required
 def service_workers(request, pk):
 
     service = get_object_or_404(
@@ -5754,11 +5925,9 @@ def service_workers(request, pk):
     )
 
     district = request.GET.get('district', '').strip()
-    ai_requirement = request.GET.get('ai_requirement', '').strip()
-
     if not district:
-        messages.error(request, 'Please select a district to find workers.')
-        return redirect('service_detail', pk=service.id)
+        district = request.session.get('lamo_selected_district', 'Kollam')
+    ai_requirement = request.GET.get('ai_requirement', '').strip()
 
     # The customer may narrow the list to a specific date/time before booking.
     # Anything invalid or in the past simply falls back to "no date chosen",
