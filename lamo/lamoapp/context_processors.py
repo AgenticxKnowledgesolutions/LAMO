@@ -19,26 +19,46 @@ def map_config(request):
         'map_tile_max_zoom': getattr(settings, 'MAP_TILE_MAX_ZOOM', 19),
     }
 
+
 def global_notifications(request):
-    """Expose the user's notifications to every template if authenticated."""
+    """Expose the user's notifications and location context to every template."""
+    from .models import WorkerProfile
+
+    current_district = (
+        request.session.get('district')
+        or request.session.get('lamo_selected_district')
+        or (
+            getattr(request.user.user_profile, 'district', '')
+            if request.user.is_authenticated and hasattr(request.user, 'user_profile')
+            else ''
+        )
+        or ''
+    )
+
+    kerala_districts = WorkerProfile.DISTRICT_CHOICES
+
     if request.user.is_authenticated:
         from .models import Notification
-        
+
         notifications = Notification.objects.filter(
             recipient=request.user
         ).select_related(
             'booking'
         ).order_by('-created_at')[:10]  # Get top 10 for dropdown
-        
+
         unread_count = Notification.objects.filter(
             recipient=request.user, is_read=False
         ).count()
-        
+
         return {
             'global_notifications': notifications,
             'global_unread_count': unread_count,
+            'kerala_districts': kerala_districts,
+            'current_district': current_district,
         }
     return {
         'global_notifications': [],
         'global_unread_count': 0,
+        'kerala_districts': kerala_districts,
+        'current_district': current_district,
     }

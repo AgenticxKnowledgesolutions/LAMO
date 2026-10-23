@@ -136,6 +136,7 @@
   <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
 
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/location-modal.css' %}">
 
   <script src="{% static 'js/base.js' %}" defer></script>
 
@@ -234,12 +235,25 @@
                      LOGO
                 ========================================== -->
 
-        <a class="brand-logo" href="{% url 'home' %}" data-aos="fade-down">
+        <div class="d-flex align-items-center">
+          <a class="brand-logo" href="{% url 'home' %}" data-aos="fade-down">
+            <img src="{% static 'img/logoo.png' %}" alt="LAMO" class="lamo-navbar-logo">
+          </a>
 
-          <img src="{% static 'img/logoo.png' %}" alt="LAMO" class="lamo-navbar-logo">
-        </a>
-
-
+          <!-- Location Selector in Navbar -->
+          <div class="nav-location-capsule" data-aos="fade-down">
+            <button type="button" class="btn-nav-location" id="navLocationBtn" aria-label="Choose your district location" title="Change district">
+              <span class="nav-loc-icon-bubble"><i class="bi bi-geo-alt-fill"></i></span>
+              <span class="nav-loc-content">
+                <small class="nav-loc-sub d-none d-sm-block">Location</small>
+                <span class="nav-loc-name" id="navCurrentDistrict">
+                  {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
+                </span>
+              </span>
+              <i class="bi bi-chevron-down nav-loc-caret"></i>
+            </button>
+          </div>
+        </div>
 
         <!-- =========================================
                      MOBILE TOGGLE
@@ -266,6 +280,22 @@
             <button type="button" class="mobile-drawer-close" data-bs-toggle="collapse" data-bs-target="#mainNav"
               aria-label="Close menu">
               <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <!-- Mobile Drawer Location Trigger -->
+          <div class="mobile-drawer-location d-lg-none">
+            <button type="button" class="mobile-nav-location-btn" id="mobileNavLocationBtn" aria-label="Choose your district location">
+              <div class="d-flex align-items-center gap-2">
+                <span class="nav-loc-icon-bubble"><i class="bi bi-geo-alt-fill"></i></span>
+                <div class="text-start">
+                  <small class="nav-loc-sub d-block text-muted" style="font-size:0.72rem; font-weight:600; text-transform:uppercase;">Your Location</small>
+                  <span class="nav-loc-name d-block" id="mobileNavCurrentDistrict" style="font-weight:700; color:#111827;">
+                    {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
+                  </span>
+                </div>
+              </div>
+              <span class="loc-change-badge">Change <i class="bi bi-chevron-right"></i></span>
             </button>
           </div>
 
@@ -1312,6 +1342,10 @@
   {% if not user.is_authenticated and request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'register' %}
     {% include 'accounts/_auth_modal.html' %}
   {% endif %}
+
+  <!-- Location Selection Modal Partial -->
+  {% include 'includes/location_modal.html' %}
+  <script src="{% static 'js/location-modal.js' %}" defer></script>
 
 </body>
 

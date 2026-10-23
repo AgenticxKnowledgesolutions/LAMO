@@ -1,0 +1,87 @@
+{% load static %}
+
+<!-- =========================================================
+     CHOOSE YOUR LOCATION POPUP MODAL (14 KERALA DISTRICTS)
+     ========================================================= -->
+<div class="location-modal-overlay" 
+     id="locationModalOverlay" 
+     aria-modal="true" 
+     role="dialog" 
+     aria-labelledby="locModalTitle" 
+     style="display: none;" 
+     data-initial-district="{{ selected_district|default:current_district|default:'' }}">
+
+  <div class="location-modal-card" id="locationModalCard">
+
+    <!-- Close Button (active when district is already set or on change) -->
+    <button type="button" 
+            class="loc-modal-close" 
+            id="locModalCloseBtn" 
+            aria-label="Close location selector" 
+            title="Close">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <!-- Modal Header -->
+    <div class="loc-modal-header text-center">
+      <div class="loc-icon-bubble">
+        <i class="bi bi-geo-alt-fill"></i>
+      </div>
+      <h3 id="locModalTitle" class="loc-modal-title">Choose Your Location</h3>
+      <p class="loc-modal-subtitle">Find trusted home services available in your area.</p>
+    </div>
+
+    <!-- Quick Search Filter Box -->
+    <div class="loc-search-box">
+      <i class="bi bi-search loc-search-icon"></i>
+      <input type="text" 
+             id="locDistrictFilterInput" 
+             class="loc-search-input" 
+             placeholder="Search your district (e.g. Kollam, Ernakulam...)" 
+             autocomplete="off"
+             aria-label="Search your district">
+      <button type="button" 
+              id="locClearFilterBtn" 
+              class="loc-clear-filter-btn" 
+              style="display: none;" 
+              aria-label="Clear filter">
+        <i class="bi bi-x-circle-fill"></i>
+      </button>
+    </div>
+
+    <!-- Validation Error Alert Message -->
+    <div class="loc-validation-alert" id="locValidationAlert" style="display: none;" role="alert">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>Please select your district to continue.</span>
+    </div>
+
+    <!-- 14 Kerala Districts Interactive Grid -->
+    <div class="loc-district-grid" id="locDistrictGrid">
+      {% for code, name in kerala_districts %}
+      <button type="button" 
+              class="loc-district-chip {% if selected_district == code or current_district == code %}selected{% endif %}" 
+              data-district="{{ code }}" 
+              aria-pressed="{% if selected_district == code or current_district == code %}true{% else %}false{% endif %}">
+        <span class="loc-chip-icon"><i class="bi bi-geo-alt"></i></span>
+        <span class="loc-chip-name">{{ name }}</span>
+        <span class="loc-chip-check"><i class="bi bi-check-circle-fill"></i></span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- No match state for search input -->
+    <div class="loc-no-match" id="locNoMatchState" style="display: none;">
+      <i class="bi bi-geo-slash loc-no-match-icon"></i>
+      <p>No district matching "<span id="locSearchTerm"></span>" found in Kerala.</p>
+    </div>
+
+    <!-- Footer Action -->
+    <div class="loc-modal-footer">
+      <button type="button" class="btn-continue-location" id="btnContinueLocation">
+        <span id="btnContinueLocationText">Continue</span>
+        <i class="bi bi-arrow-right" id="btnContinueLocationIcon"></i>
+      </button>
+    </div>
+
+  </div>
+</div>

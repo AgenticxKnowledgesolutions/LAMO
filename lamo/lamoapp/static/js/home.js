@@ -543,6 +543,19 @@
               servicesCountBadge.textContent = `${count} Available`;
             }
 
+            // Sync navbar and modal state
+            if (selectedDistrict) {
+              const navCurrent = document.getElementById("navCurrentDistrict");
+              if (navCurrent) navCurrent.textContent = selectedDistrict;
+              const mobileNavCurrent = document.getElementById("mobileNavCurrentDistrict");
+              if (mobileNavCurrent) mobileNavCurrent.textContent = selectedDistrict;
+              const modalOverlay = document.getElementById("locationModalOverlay");
+              if (modalOverlay) modalOverlay.setAttribute("data-initial-district", selectedDistrict);
+              if (districtSelect && districtSelect.value !== selectedDistrict) {
+                districtSelect.value = selectedDistrict;
+              }
+            }
+
             // 2. Update district name in all empty-state notices
             document.querySelectorAll(".no-services-district-name").forEach(function (el) {
               el.textContent = selectedDistrict;
@@ -879,5 +892,8 @@
       window.addEventListener("scroll", handleNavbarScroll, { passive: true });
       handleNavbarScroll();
     }
+
+    // Expose for external controls such as the location modal
+    window.fetchFilteredServices = fetchFilteredServices;
   });
 })();

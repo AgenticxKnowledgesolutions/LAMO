@@ -1,0 +1,523 @@
+/* =========================================================
+   LAMO CHOOSE YOUR LOCATION MODAL - PREMIUM STYLING
+   ========================================================= */
+
+:root {
+  --loc-brand-green: #087f5b;
+  --loc-brand-green-hover: #06694a;
+  --loc-brand-light-green: #ecfdf5;
+  --loc-brand-border-green: #a7f3d0;
+  --loc-text-dark: #111827;
+  --loc-text-muted: #64748b;
+  --loc-bg-card: #ffffff;
+}
+
+/* Prevent background scrolling when location popup is active */
+body.location-modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/* =========================================================
+   NAVBAR LOCATION CAPSULE CONTROL
+   ========================================================= */
+.nav-location-capsule {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 12px;
+}
+
+.btn-nav-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 6px 14px;
+  color: var(--loc-text-dark);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.btn-nav-location:hover {
+  background: var(--loc-brand-light-green);
+  border-color: var(--loc-brand-border-green);
+  color: var(--loc-brand-green);
+  box-shadow: 0 4px 12px rgba(8, 127, 91, 0.12);
+  transform: translateY(-1px);
+}
+
+.nav-loc-icon-bubble {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--loc-brand-light-green);
+  color: var(--loc-brand-green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.nav-loc-content {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.nav-loc-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--loc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nav-loc-name {
+  font-weight: 700;
+  color: var(--loc-text-dark);
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-nav-location:hover .nav-loc-name {
+  color: var(--loc-brand-green);
+}
+
+.nav-loc-caret {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.btn-nav-location:hover .nav-loc-caret {
+  color: var(--loc-brand-green);
+  transform: translateY(1px);
+}
+
+/* Mobile Drawer Location Trigger */
+.mobile-drawer-location {
+  padding: 12px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.mobile-nav-location-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobile-nav-location-btn:hover {
+  border-color: var(--loc-brand-green);
+  background: var(--loc-brand-light-green);
+}
+
+.loc-change-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--loc-brand-green);
+  background: var(--loc-brand-light-green);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--loc-brand-border-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* =========================================================
+   LOCATION MODAL OVERLAY
+   ========================================================= */
+.location-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(3, 28, 21, 0.76);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.location-modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Modal Card */
+.location-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  max-height: min(90vh, 740px);
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.28);
+  padding: 32px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(22px) scale(0.97);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.location-modal-overlay.show .location-modal-card {
+  transform: translateY(0) scale(1);
+}
+
+/* Shaking animation for validation */
+.location-modal-card.shake {
+  animation: locCardShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes locCardShake {
+  10%, 90% { transform: translate3d(-3px, 0, 0); }
+  20%, 80% { transform: translate3d(5px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+  40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+/* Close Button */
+.loc-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.loc-modal-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+/* Header */
+.loc-modal-header {
+  margin-bottom: 20px;
+}
+
+.loc-icon-bubble {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--loc-brand-light-green);
+  color: var(--loc-brand-green);
+  border: 2px solid var(--loc-brand-border-green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 20px rgba(8, 127, 91, 0.15);
+}
+
+.loc-modal-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--loc-text-dark);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.loc-modal-subtitle {
+  font-size: 0.92rem;
+  color: var(--loc-text-muted);
+  margin-bottom: 0;
+}
+
+/* Quick Search Filter Box */
+.loc-search-box {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.loc-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.loc-search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 38px 0 38px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: var(--loc-text-dark);
+  font-size: 0.92rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.loc-search-input:focus {
+  background: #ffffff;
+  border-color: var(--loc-brand-green);
+  box-shadow: 0 0 0 3.5px rgba(8, 127, 91, 0.12);
+}
+
+.loc-clear-filter-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 0.95rem;
+}
+
+.loc-clear-filter-btn:hover {
+  color: #475569;
+}
+
+/* Validation Alert Message */
+.loc-validation-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  animation: locAlertFade 0.25s ease-out;
+}
+
+@keyframes locAlertFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 14 Kerala Districts Interactive Grid */
+.loc-district-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+  overflow-y: auto;
+  max-height: 290px;
+  padding: 3px 2px 8px;
+  margin-bottom: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.loc-district-grid::-webkit-scrollbar {
+  width: 5px;
+}
+.loc-district-grid::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.loc-district-grid::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.loc-district-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.loc-district-chip:hover {
+  border-color: var(--loc-brand-border-green);
+  background: #f0fdf4;
+  color: var(--loc-brand-green);
+  transform: translateY(-1px);
+}
+
+.loc-chip-icon {
+  color: #94a3b8;
+  font-size: 0.88rem;
+  margin-right: 8px;
+  transition: color 0.2s;
+}
+
+.loc-district-chip:hover .loc-chip-icon {
+  color: var(--loc-brand-green);
+}
+
+.loc-chip-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loc-chip-check {
+  font-size: 1rem;
+  color: var(--loc-brand-green);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Selected District Chip */
+.loc-district-chip.selected {
+  background: var(--loc-brand-light-green);
+  border-color: var(--loc-brand-green);
+  color: var(--loc-brand-green);
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(8, 127, 91, 0.15);
+}
+
+.loc-district-chip.selected .loc-chip-icon {
+  color: var(--loc-brand-green);
+}
+
+.loc-district-chip.selected .loc-chip-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* No Match State */
+.loc-no-match {
+  text-align: center;
+  padding: 24px 12px;
+  color: #64748b;
+}
+
+.loc-no-match-icon {
+  font-size: 1.8rem;
+  color: #94a3b8;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Footer & Continue Button */
+.loc-modal-footer {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.btn-continue-location {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 24px;
+  background: var(--loc-brand-green);
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(8, 127, 91, 0.28);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-continue-location:hover {
+  background: var(--loc-brand-green-hover);
+  box-shadow: 0 12px 28px rgba(8, 127, 91, 0.36);
+  transform: translateY(-2px);
+}
+
+.btn-continue-location:active {
+  transform: translateY(0);
+}
+
+.btn-continue-location i {
+  transition: transform 0.2s ease;
+}
+
+.btn-continue-location:hover i {
+  transform: translateX(4px);
+}
+
+.btn-continue-location:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Breakpoints */
+@media (min-width: 540px) {
+  .loc-district-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .location-modal-card {
+    padding: 24px 18px 20px;
+    border-radius: 20px;
+  }
+  .loc-modal-title {
+    font-size: 1.35rem;
+  }
+  .loc-modal-subtitle {
+    font-size: 0.86rem;
+  }
+  .loc-district-grid {
+    grid-template-columns: 1fr;
+    max-height: 250px;
+  }
+  .btn-continue-location {
+    padding: 12px 20px;
+    font-size: 0.98rem;
+  }
+  .nav-loc-name {
+    max-width: 90px;
+  }
+}
