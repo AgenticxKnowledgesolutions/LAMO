@@ -521,12 +521,21 @@
                     </div>
 
                     <!-- Submit Button -->
+                    {% if user.is_authenticated %}
                     <button type="submit"
                             class="modal-confirm"
                             id="modalConfirmButton">
                         Continue Booking
                         <i class="bi bi-arrow-right"></i>
                     </button>
+                    {% else %}
+                    <button type="submit"
+                            class="modal-confirm"
+                            id="modalConfirmButton">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Log in to confirm
+                    </button>
+                    {% endif %}
 
                 </form>
 
@@ -538,6 +547,12 @@
 
 
 <script>
+/* =========================================================
+   LAMO AUTH FLAGS (Task 3)
+======================================================== */
+const LAMO_AUTH = {{ user.is_authenticated|yesno:"true,false" }};
+const LAMO_ROLE = "{{ user.role|default:''|escapejs }}";
+
 /* =========================================================
    BOOKING MODAL
 ======================================================== */
@@ -1085,6 +1100,46 @@ document.addEventListener("DOMContentLoaded", function() {
                         }
                     }
 
+                    // Task 3: Guest hand-off — save form to sessionStorage and
+                    // redirect to login BEFORE creating FormData/fetch.
+                    if (!LAMO_AUTH) {
+                        try {
+                            var pendingFields = {};
+                            var formEl = document.getElementById('bookingModalForm');
+                            if (formEl) {
+                                Array.from(formEl.elements).forEach(function(el) {
+                                    if (!el.name) return;
+                                    if (el.name === 'csrfmiddlewaretoken') return;
+                                    if (el.type === 'file') return;
+                                    pendingFields[el.name] = el.value;
+                                });
+                            }
+                            var pendingBooking = {
+                                v: 1,
+                                ts: Date.now(),
+                                path: location.pathname + location.search,
+                                workerId: (document.getElementById('modalWorkerId') || {}).value || '',
+                                serviceId: (document.getElementById('modalServiceId') || {}).value || '',
+                                fields: pendingFields
+                            };
+                            sessionStorage.setItem('lamo_pending_booking', JSON.stringify(pendingBooking));
+                        } catch (e) {
+                            // sessionStorage failure — proceed to login without saving
+                        }
+                        window.location.href = "{% url 'login' %}?next=" + encodeURIComponent(location.pathname + location.search);
+                        return;
+                    }
+
+                    // Task 3: Block non-USER roles from booking.
+                    if (LAMO_AUTH && LAMO_ROLE !== 'USER') {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = origHtml;
+                        }
+                        showBookingError(modalErrorBox, 'Please sign in with a customer account to book a service.');
+                        return;
+                    }
+
                     const formData = new FormData(form);
 
                     fetch(form.action, {
@@ -1129,6 +1184,91 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
         setModalMinimumDate();
+
+        // Task 3: Restore pending booking after login.
+        // Runs only for authenticated USERs; any failure silently clears the key.
+        if (LAMO_AUTH && LAMO_ROLE === 'USER') {
+            try {
+                var raw = sessionStorage.getItem('lamo_pending_booking');
+                if (raw) {
+                    var pending = JSON.parse(raw);
+                    var AGE_LIMIT_MS = 30 * 60 * 1000;
+                    var currentPath = location.pathname + location.search;
+                    if (
+                        pending &&
+                        pending.v === 1 &&
+                        typeof pending.ts === 'number' &&
+                        (Date.now() - pending.ts) < AGE_LIMIT_MS &&
+                        pending.path === currentPath &&
+                        pending.workerId
+                    ) {
+                        // Find the bookable Book button for this worker.
+                        var btn = document.querySelector(
+                            '[data-worker-id="' + pending.workerId + '"].btn-book-primary:not([disabled])'
+                        );
+                        if (btn) {
+                            openBookingModal(btn);
+                            // Restore saved field values.
+                            var fields = pending.fields || {};
+                            Object.keys(fields).forEach(function(name) {
+                                var el = document.querySelector('[name="' + name + '"]');
+                                if (!el) return;
+                                try { el.value = fields[name]; } catch(e) {}
+                                // Dispatch change/input so UI widgets refresh.
+                                el.dispatchEvent(new Event('change', {bubbles: true}));
+                                el.dispatchEvent(new Event('input', {bubbles: true}));
+                            });
+                            // Sync booking type display.
+                            var bTypeVal = fields.booking_type || 'One Time';
+                            var bTypeBtn = document.querySelector(
+                                '.modal-booking-type[data-booking-type="' + bTypeVal + '"]'
+                            );
+                            if (bTypeBtn && typeof selectModalBookingType === 'function') {
+                                selectModalBookingType(bTypeBtn);
+                            }
+                            // Sync time toggle (slot vs custom).
+                            if (fields.time_slot !== undefined && fields.time_slot !== '') {
+                                if (typeof toggleTimeSlot === 'function') toggleTimeSlot(true);
+                                var slotEl = document.getElementById('modalTimeSlot');
+                                if (slotEl) {
+                                    slotEl.value = fields.time_slot;
+                                    slotEl.dispatchEvent(new Event('change'));
+                                }
+                            } else if (fields.custom_time) {
+                                if (typeof toggleTimeSlot === 'function') toggleTimeSlot(false);
+                                var ctEl = document.getElementById('modalCustomTime');
+                                if (ctEl) {
+                                    ctEl.value = fields.custom_time;
+                                    ctEl.dispatchEvent(new Event('input'));
+                                }
+                            }
+                            // Restore final time hidden field.
+                            var ftEl = document.getElementById('modalFinalTime');
+                            if (ftEl && fields.time) ftEl.value = fields.time;
+                            // Show welcome-back notice.
+                            var errBox = document.getElementById('modalBookingError');
+                            if (errBox) {
+                                errBox.textContent = '';
+                                var icon = document.createElement('i');
+                                icon.className = 'bi bi-check-circle-fill';
+                                icon.style.color = '#087f5b';
+                                errBox.appendChild(icon);
+                                errBox.appendChild(document.createTextNode(
+                                    ' Welcome back. Your details are restored \u2014 review and confirm.'
+                                ));
+                                errBox.style.display = 'block';
+                                errBox.style.background = '#f0fdf4';
+                                errBox.style.borderColor = '#087f5b';
+                                errBox.style.color = '#065f46';
+                            }
+                        }
+                    }
+                    sessionStorage.removeItem('lamo_pending_booking');
+                }
+            } catch (e) {
+                try { sessionStorage.removeItem('lamo_pending_booking'); } catch(e2) {}
+            }
+        }
 
     }
 );
