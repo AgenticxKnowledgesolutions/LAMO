@@ -4312,6 +4312,3017 @@ def forgot_password_view(request, token=None):
     return render(request, 'accounts/forgot_password.html', context)
 
 @never_cache
+def verify_otp_view(request):
+    if request.user.is_authenticated and request.user.is_email_verified:
+        return redirect('home')
+
+    from datetime import datetime
+
+    # Get the user being verified (per-user tracking, NOT global session)
+    user_id = request.session.get('otp_user_id')
+    verified_user = None
+    if user_id:
+        try:
+            verified_user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            request.session.pop('otp_user_id', None)
+            user_id = None
+
+    # Resend/attempt limits are NOT kept in the session: see _resend_otp_for_user
+    # and register_failure(), both of which use the server-side cache.
+
+    # Check if THIS user is locked out (per-user, stored in DB)
+    if verified_user and verified_user.otp_locked_until:
+        if timezone.now() < verified_user.otp_locked_until:
+            remaining = int((verified_user.otp_locked_until - timezone.now()).total_seconds() / 60)
+            messages.error(
+                request,
+                f'Too many failed attempts for this account. Please try again in {remaining} minute(s).'
+            )
+            return render(request, 'accounts/verify_otp.html', {
+                'user_email': verified_user.email,
+                'locked_out': True
+            })
+        else:
+            # Lockout expired, reset THIS user's counters
+            verified_user.otp_failed_attempts = 0
+            verified_user.otp_locked_until = None
+            verified_user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'verify')
+        otp_input = request.POST.get('otp', '').strip()
+
+        if action == 'verify':
+            if not user_id:
+                messages.error(request, 'Session expired. Please register again.')
+                return redirect('register')
+
+            try:
+                user = CustomUser.objects.get(id=user_id)
+            except CustomUser.DoesNotExist:
+                messages.error(request, 'User not found. Please register again.')
+                return redirect('register')
+
+            # Check max attempts for THIS user. The counter lives in the
+            # database (not the session), so wiping cookies cannot reset it.
+            if user.otp_failed_attempts >= OTP_VERIFY_MAX_ATTEMPTS:
+                # Lock out THIS user
+                lockout_time = timezone.now() + timedelta(
+                    seconds=OTP_VERIFY_LOCKOUT_SECONDS
+                )
+                user.otp_locked_until = lockout_time
+                user.save(update_fields=['otp_locked_until'])
+                messages.error(
+                    request,
+                    'Too many failed attempts for this account. Please try again in 15 minutes.'
+                )
+                return render(request, 'accounts/verify_otp.html', {
+                    'user_email': user.email,
+                    'locked_out': True
+                })
+
+            if user.is_otp_valid(otp_input):
+                user.is_email_verified = True
+                user.email_verification_otp = None
+                user.otp_created_at = None
+                user.otp_failed_attempts = 0
+                user.otp_locked_until = None
+                user.save(update_fields=[
+                    'is_email_verified', 'email_verification_otp',
+                    'otp_created_at', 'otp_failed_attempts', 'otp_locked_until'
+                ])
+
+                if user.role == 'USER':
+                    UserProfile.objects.get_or_create(user=user)
+
+                # Clear OTP session data and the server-side resend
+                # counters on success.
+                request.session.pop('otp_user_id', None)
+                clear(otp_resend_user_key(user.id) + ':window')
+                clear(otp_resend_user_key(user.id))
+                clear(otp_resend_ip_key(request))
+
+                messages.success(request, 'Email verified successfully! You can now login.')
+                return redirect('login')
+            else:
+                # Increment attempts ONLY for this user
+                user.otp_failed_attempts += 1
+                user.save(update_fields=['otp_failed_attempts'])
+                remaining_attempts = (
+                    OTP_VERIFY_MAX_ATTEMPTS - user.otp_failed_attempts
+                )
+                messages.error(
+                    request,
+                    f'Invalid or expired OTP. {remaining_attempts} attempt(s) remaining for this account.'
+                )
+                return render(request, 'accounts/verify_otp.html', {'user_email': user.email})
+
+        elif action == 'resend':
+            if not user_id:
+                messages.error(request, 'Session expired. Please register again.')
+                return redirect('register')
+            try:
+                user = CustomUser.objects.get(id=user_id)
+            except CustomUser.DoesNotExist:
+                messages.error(request, 'User not found. Please register again.')
+                return redirect('register')
+
+            # Resend limits live on the server, not in the session: deleting
+            # the session cookie used to reset the counter and allow unlimited
+            # OTP emails to the same inbox.
+            sent, result_message = _resend_otp_for_user(request, user)
+
+            if not sent:
+                messages.error(request, result_message)
+                return render(request, 'accounts/verify_otp.html', {
+                    'user_email': user.email,
+                    'locked_out': True
+                })
+
+            # A resend issues a brand new code, so the previous guesses must
+            # not carry over - otherwise "guess 4 times, resend, guess 4 more"
+            # would be an unlimited oracle against a 6-digit space.
+            user.otp_failed_attempts = 0
+            user.otp_locked_until = None
+            user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
+
+            messages.success(request, result_message)
+            return render(request, 'accounts/verify_otp.html', {'user_email': user.email})
+
+    user_email = None
+    if verified_user:
+        user_email = verified_user.email
+
+    return render(request, 'accounts/verify_otp.html', {'user_email': user_email})
+
+
+# def register_view(request):
+
+#     if request.user.is_authenticated:
+#         return redirect('dashboard')
+
+#     if request.method == 'POST':
+
+#         username = request.POST.get('username')
+#         email = request.POST.get('email')
+#         password = request.POST.get('password')
+#         confirm_password = request.POST.get('confirm_password')
+#         role = request.POST.get('role')
+
+#         # Password validation
+#         if password != confirm_password:
+#             messages.error(request, 'Passwords do not match.')
+#             return redirect('register')
+
+#         # Username validation
+#         if CustomUser.objects.filter(username=username).exists():
+#             messages.error(request, 'Username already exists.')
+#             return redirect('register')
+
+#         # Email validation
+#         if CustomUser.objects.filter(email=email).exists():
+#             messages.error(request, 'Email already exists.')
+#             return redirect('register')
+
+#         # Create user
+#         user = CustomUser.objects.create_user(
+#             username=username,
+#             email=email,
+#             password=password,
+#             role=role
+#         )
+
+#         messages.success(
+#             request,
+#             'Account created successfully. Please login.'
+#         )
+
+#         return redirect('login')
+
+#     return render(request, 'accounts/register.html')
+
+def about(request):
+    return render(request, 'about.html')
+
+
+def contact(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        subject = request.POST.get('subject', '').strip()
+        message = request.POST.get('message', '').strip()
+
+        context = {
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'subject': subject,
+            'message': message,
+        }
+
+        if not name or not email or not subject or not message:
+            messages.error(request, 'Please fill in all required fields.')
+            return render(request, 'contact.html', context)
+
+        # Abuse guard. The form is reachable without an account and each accepted
+        # submission stores a row AND sends an e-mail to the admin mailbox, so an
+        # unbounded loop is both a storage-growth vector and a way to flood the
+        # admin inbox. Counted per IP on the server, so clearing cookies or opening
+        # a private window changes nothing. Counted per address too, so a script
+        # rotating victim addresses from one host is still stopped.
+        contact_ip_key = contact_ip_rate_key(request)
+        contact_email_key = contact_email_rate_key(email)
+
+        for limit_key in (contact_ip_key, contact_email_key):
+            if is_rate_limited(limit_key, CONTACT_MAX_SUBMISSIONS):
+                logger.warning(
+                    'Contact form rate limited (ip=%s)', client_ip(request)
+                )
+                messages.error(
+                    request,
+                    'You have sent several messages recently. Please wait a '
+                    'little before sending another one.',
+                )
+                return render(request, 'contact.html', context)
+
+        register_attempt_within_window(
+            contact_ip_key, CONTACT_MAX_SUBMISSIONS, CONTACT_WINDOW_SECONDS
+        )
+        register_attempt_within_window(
+            contact_email_key, CONTACT_MAX_SUBMISSIONS, CONTACT_WINDOW_SECONDS
+        )
+
+        # CR/LF in a header value is a classic mail-header injection vector.
+        # The subject is echoed into the admin notification e-mail, so any
+        # newline is stripped before it is stored or mailed.
+        subject = _sanitize_mail_header(subject)
+        name = _sanitize_mail_header(name) or 'LAMO visitor'
+        clean_phone = phone[:15] if phone else None
+
+        # Save the enquiry to the database for admin visibility
+        try:
+            enquiry = ContactEnquiry.objects.create(
+                name=name,
+                email=email,
+                phone=clean_phone,
+                subject=subject,
+                message=message,
+                user=request.user if request.user.is_authenticated else None,
+            )
+
+            # Notify the admin team by e-mail. This is best-effort: the
+            # enquiry is already persisted and visible in the admin panel, so a
+            # mail failure must not lose the customer's message.
+            admin_mailbox = getattr(
+                settings, 'CONTACT_NOTIFICATION_EMAIL', ''
+            ) or settings.DEFAULT_FROM_EMAIL
+            if admin_mailbox:
+                full_message = (
+                    f"New Contact Enquiry\n"
+                    f"{'='*40}\n\n"
+                    f"Name: {name}\n"
+                    f"Email: {email}\n"
+                    f"Phone: {phone or 'Not provided'}\n"
+                    f"Subject: {subject}\n\n"
+                    f"Message:\n{message}\n\n"
+                    f"{'='*40}\n"
+                    f"Enquiry ID: #{enquiry.id}\n"
+                    f"Sent from LAMO Contact Form"
+                )
+
+                send_email_safely(
+                    subject=f'LAMO Contact Enquiry #{enquiry.id}: {subject}',
+                    message=full_message,
+                    recipient_list=[admin_mailbox],
+                    purpose='contact_enquiry',
+                )
+            else:
+                logger.warning(
+                    'contact_enquiry_notification_skipped enquiry_id=%s '
+                    'reason=no_admin_mailbox_configured',
+                    enquiry.id,
+                )
+
+            messages.success(
+                request,
+                'Your enquiry has been sent successfully. We will get back to you soon.'
+            )
+            # Clear fields after successful submission
+            context = {}
+        except Exception:
+            logger.exception('Failed to process contact enquiry')
+            messages.error(request, 'Failed to send your enquiry. Please try again later.')
+
+        return render(request, 'contact.html', context)
+
+    initial_context = {}
+    if request.user.is_authenticated:
+        initial_context['name'] = request.user.get_full_name() or request.user.username
+        initial_context['email'] = request.user.email
+    return render(request, 'contact.html', initial_context)
+
+
+def terms_view(request):
+    return render(request, 'legal/terms.html')
+
+
+def privacy_view(request):
+    return render(request, 'legal/privacy.html')
+
+
+terms = terms_view
+privacy = privacy_view
+
+
+def _get_or_create_review(booking, customer, rating, comment):
+    """Create the single review for *booking*, race-safe.
+
+    ``Review.booking`` is a ``OneToOneField``, so the database already
+    enforces "one review per booking" with a UNIQUE index. That is the final
+    authority - the ``Review.objects.filter(...).first()`` check in the views
+    is only a UX shortcut, and two concurrent requests can both pass it before
+    either inserts.
+
+    Instead of trusting that check, let the INSERT race and resolve it:
+
+    * the happy path inserts;
+    * if a concurrent request wins, MySQL/SQLite/Postgres raise
+      ``IntegrityError`` for the unique index, which is caught here and the
+      already-existing review is returned instead.
+
+    Returns ``(review, created)`` where ``created`` is ``False`` when the
+    review already existed. No schema change is required - the constraint is
+    already in the database.
+    """
+    from django.db import IntegrityError, transaction
+
+    try:
+        with transaction.atomic():
+            return Review.objects.create(
+                booking=booking,
+                customer=customer,
+                worker=booking.worker,
+                rating=rating,
+                comment=comment,
+            ), True
+    except IntegrityError:
+        # Lost the race: the unique index rejected the duplicate insert.
+        existing = Review.objects.filter(booking=booking).first()
+        if existing is not None:
+            logger.info(
+                'Duplicate review rejected by unique constraint '
+                '(booking=%s customer=%s)',
+                booking.id,
+                customer.pk,
+            )
+            return existing, False
+        # Not a uniqueness problem (e.g. a bad FK) - let it surface.
+        raise
+
+
+def _get_or_create_complaint(booking, customer, subject, description, severity='MEDIUM'):
+    """Same race-safe pattern for complaints.
+
+    ``Complaint`` has ``unique_together = ('booking', 'customer')``
+    (migration 0023), so the database is again the final authority.
+
+    Returns ``(complaint, created)``.
+    """
+    from django.db import IntegrityError, transaction
+
+    try:
+        with transaction.atomic():
+            return Complaint.objects.create(
+                booking=booking,
+                customer=customer,
+                subject=subject,
+                description=description,
+                severity=severity,
+                status='OPEN',
+            ), True
+    except IntegrityError:
+        existing = Complaint.objects.filter(
+            booking=booking, customer=customer
+        ).first()
+        if existing is not None:
+            logger.info(
+                'Duplicate complaint rejected by unique constraint '
+                '(booking=%s customer=%s)',
+                booking.id,
+                customer.pk,
+            )
+            return existing, False
+        raise
+
+
+def _notify_worker_of_review(request, booking, rating):
+    """Tell the worker a review landed. Never fails the submission."""
+    if not booking.worker:
+        return
+    try:
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=(
+                f'{request.user.get_full_name() or request.user.username} '
+                f'left a {rating}-star review for your '
+                f'{booking.service.name} service.'
+            )
+        )
+    except Exception as exc:
+        # A failed notification must never discard a valid review.
+        # Class name only: Notification.objects.create() failure can echo the
+        # bound message text, and exc_info=True would reprint it again.
+        logger.warning(
+            'review_worker_notification_failed booking=%s exc_type=%s',
+            booking.id,
+            type(exc).__name__,
+        )
+
+
+def _check_worker_verification(worker):
+    """Check if worker is verified and not suspended. Returns (is_allowed, error_message)"""
+    if not worker.is_verified:
+        return False, 'Your worker account is not verified. Please wait for admin verification.'
+    if worker.work_status == 'SUSPENDED':
+        return False, 'Your worker account has been suspended. Please contact support.'
+    return True, None
+
+
+def _sanitize_mail_header(value, max_length=200):
+    """Make a user-supplied string safe to place in an e-mail header.
+
+    A CR or LF inside a header value terminates that header and lets an
+    attacker append arbitrary headers (Bcc:, extra recipients). Django's
+    ``send_mail`` defends against this itself, but the raw value is also stored
+    in the database and re-rendered in the admin panel, so it is normalised at
+    the boundary instead of being trusted downstream.
+
+    Newlines become spaces, remaining control characters are dropped, and the
+    result is length-capped to match the model field.
+    """
+    if value is None:
+        return ''
+    text = str(value)
+    # Newlines/CR first: they are the actual header-splitting characters.
+    text = re.sub(r'[\r\n]+', ' ', text)
+    # Any remaining control characters (tab, NUL, etc.) are stripped.
+    text = ''.join(ch for ch in text if ord(ch) >= 32 or ch == '\t')
+    text = ' '.join(text.split())
+    return text[:max_length].strip()
+
+
+def _emergency_unavailable_reason(worker_profile, user):
+    """Return a short, user-facing reason a worker cannot see emergency jobs.
+
+    Only conditions the backend can state with certainty are reported - the
+    worker can check all of them on their own profile. Anything finer (which
+    filters excluded which rows) is deliberately NOT exposed, so the message
+    cannot be used to infer other customers' activity.
+
+    Returns ``None`` when the worker is simply eligible and there just happens
+    to be nothing open right now.
+    """
+    if not user.is_active:
+        return 'Your account is currently inactive. Please contact support.'
+    if not worker_profile.is_verified:
+        return (
+            'Emergency requests appear once an admin has verified your worker '
+            'account.'
+        )
+    if not worker_profile.service_id:
+        return (
+            'Emergency requests appear once a service or trade has been '
+            'assigned to your profile.'
+        )
+    if worker_profile.work_status == 'SUSPENDED':
+        return 'Your worker account has been suspended. Please contact support.'
+    if worker_profile.work_status == 'LEAVE':
+        return 'You are currently marked as on leave, so emergency requests are paused.'
+    if worker_profile.work_status == 'ON_DUTY':
+        return 'You are marked on duty. Switch to Available to receive emergency requests.'
+    return None
+
+
+def _safe_internal_path(request, raw_next, fallback):
+    """Return a *local* redirect target from untrusted input, else ``fallback``.
+
+    Generic sibling of :func:`_safe_post_login_redirect` for flows that start
+    before the user is authenticated (e.g. register -> OTP -> login -> back to
+    the service the guest was viewing).
+
+    Only same-site relative paths are accepted. ``next`` arrives from the query
+    string or a hidden form field, both fully attacker-controlled, so an
+    absolute URL to another host, a protocol-relative ``//evil.com`` and a
+    backslash-smuggled path are all rejected in favour of ``fallback``.
+    """
+    # An empty fallback is meaningful: the callers that pass '' want "no usable
+    # destination" so they can fall back to their own normal behaviour. Do not
+    # coerce it to '/', or an unsafe ``next`` would silently become a redirect
+    # to the home page instead of being discarded.
+    fallback = '' if not fallback else str(fallback)
+    if not raw_next:
+        return fallback
+
+    candidate = str(raw_next).strip()
+    if not candidate:
+        return fallback
+
+    # Reject anything that is not an obvious local path before the host check,
+    # so a scheme-relative or backslash variant can never slip through.
+    if not candidate.startswith('/') or candidate.startswith('//'):
+        return fallback
+    if '\\' in candidate or '\n' in candidate or '\r' in candidate:
+        return fallback
+
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+
+    return fallback
+
+
+def _safe_post_login_redirect(request, raw_next):
+    """Return a *local* redirect target from untrusted ``next`` input.
+
+    ``request.POST['next']`` and the ``Referer`` header are attacker-controlled,
+    so they must never be passed to ``redirect()`` unchecked. Only relative
+    paths (``/worker-dashboard/``) or absolute URLs whose host matches the
+    current request are allowed; anything else falls back to the worker
+    dashboard. ``redirect()`` accepts both view names and paths, so returning
+    a resolved path keeps every caller working.
+    """
+    fallback = reverse('worker_dashboard')
+    if not raw_next:
+        return fallback
+    candidate = str(raw_next).strip()
+    if not candidate:
+        return fallback
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return fallback
+
+
+def _is_valid_booking_transition(current_status, new_status):
+    """Check if a booking status transition is valid."""
+    valid_transitions = {
+        'PENDING': ['ACCEPTED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
+        'ACCEPTED': ['IN_PROGRESS', 'CANCELLED'],
+        'IN_PROGRESS': ['COMPLETION_REQUESTED', 'CANCELLED'],
+        'COMPLETION_REQUESTED': ['COMPLETED', 'DISPUTED', 'IN_PROGRESS'],
+        'DISPUTED': ['COMPLETED', 'CANCELLED'],
+        'COMPLETED': [],  # Terminal state
+        'REJECTED': [],  # Terminal state
+        'CANCELLED': [],  # Terminal state
+        'EXPIRED': [],  # Terminal state
+        'EMERGENCY_PENDING': ['ACCEPTED', 'CANCELLED', 'EXPIRED'],  # Emergency bookings can be accepted or cancelled
+    }
+    return new_status in valid_transitions.get(current_status, [])
+
+
+def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
+    """Expire PENDING bookings whose 30-minute worker response window has lapsed.
+
+    Notifies customer and worker, updates booking status to EXPIRED, and records
+    the reason. Returns the list of expired bookings.
+    """
+    from datetime import timedelta
+    from django.utils import timezone as dj_timezone
+
+    expiry_threshold = dj_timezone.now() - timedelta(minutes=30)
+    qs = Booking.objects.filter(
+        status__in=['PENDING', 'EMERGENCY_PENDING'],
+        created_at__lt=expiry_threshold
+    )
+    if booking:
+        qs = qs.filter(id=booking.id)
+    elif customer:
+        qs = qs.filter(customer=customer)
+    elif worker:
+        qs = qs.filter(worker=worker)
+
+    expired_list = []
+    for candidate in qs.select_related('customer', 'service', 'worker__user'):
+        with transaction.atomic():
+            b = Booking.objects.select_for_update().filter(id=candidate.id).first()
+            if not b or b.status not in ('PENDING', 'EMERGENCY_PENDING'):
+                continue
+            b.status = 'EXPIRED'
+            b.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            b.cancelled_by = 'SYSTEM'
+            b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            expired_list.append(b)
+
+            # Notify customer
+            Notification.objects.create(
+                recipient=b.customer,
+                booking=b,
+                notification_type='BOOKING_UPDATE',
+                message=(
+                    f"Your booking request #{b.id} for {b.service.name} has expired because "
+                    f"the worker did not respond within 30 minutes. You can choose another worker or pick another time."
+                )
+            )
+
+            # Send email safely
+            send_email_safely(
+                subject=f"Booking Request #{b.id} Expired",
+                message=(
+                    f"Hi {b.customer.username},\n\n"
+                    f"Your booking request #{b.id} for {b.service.name} has expired because "
+                    f"it was not accepted within the 30-minute response window.\n\n"
+                    f"You can choose another available worker or reschedule your service on LAMO.\n\n"
+                    f"Best regards,\nTeam LAMO"
+                ),
+                recipient_list=[b.customer.email],
+                purpose='booking_expired',
+                async_send=True,
+            )
+
+            # Also notify worker if one was assigned
+            if b.worker and b.worker.user:
+                Notification.objects.create(
+                    recipient=b.worker.user,
+                    booking=b,
+                    notification_type='BOOKING_UPDATE',
+                    message=f"Booking request #{b.id} for {b.service.name} has expired due to no response within 30 minutes."
+                )
+    return expired_list
+
+
+def _generate_recurring_dates(start_date, end_date, frequency, preferred_day):
+    """Generate a list of dates for a recurring booking series."""
+    from datetime import timedelta
+    import calendar
+
+    dates = []
+    current = start_date
+    day_map = {
+        'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3,
+        'Friday': 4, 'Saturday': 5, 'Sunday': 6
+    }
+    target_weekday = day_map.get(preferred_day, 0)
+
+    if frequency == 'Daily':
+        while current <= end_date:
+            dates.append(current)
+            current += timedelta(days=1)
+    elif frequency == 'Weekly':
+        # Find first occurrence of preferred_day on or after start_date
+        while current.weekday() != target_weekday and current <= end_date:
+            current += timedelta(days=1)
+        while current <= end_date:
+            dates.append(current)
+            current += timedelta(weeks=1)
+    elif frequency == 'Monthly':
+        # Same day of month as start_date
+        day_of_month = start_date.day
+        while current <= end_date:
+            dates.append(current)
+            # Move to next month
+            if current.month == 12:
+                current = current.replace(year=current.year + 1, month=1)
+            else:
+                # Handle months with fewer days
+                last_day = calendar.monthrange(current.year, current.month + 1)[1]
+                next_day = min(day_of_month, last_day)
+                current = current.replace(month=current.month + 1, day=next_day)
+
+    return dates
+
+
+def _handle_recurring_booking(request, worker, service, form_data, respond_error,
+                               start_date_str, end_date_str, frequency, preferred_day, time,
+                               location, latitude, longitude, description, phone):
+    """Handle recurring booking - create series and individual bookings."""
+    from datetime import datetime, date as date_type, timedelta
+
+    # Validate required fields
+    if not start_date_str:
+        return respond_error('Please select a start date for the recurring booking.')
+    if not end_date_str:
+        return respond_error('Please select an end date for the recurring booking.')
+    if not time:
+        return respond_error('Please select a time.')
+    if not location:
+        return respond_error('Please enter the service location.')
+    if not phone:
+        return respond_error('Please enter your phone number.')
+
+    # Parse dates
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return respond_error('Invalid start date format.')
+    try:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return respond_error('Invalid end date format.')
+
+    now_local = timezone.localtime()
+
+    # Validate date range
+    if start_date < now_local.date():
+        return respond_error('Start date cannot be in the past.')
+    if end_date <= start_date:
+        return respond_error('End date must be after start date.')
+
+    # Limit recurring bookings to 90 days max
+    max_end_date = start_date + timedelta(days=90)
+    if end_date > max_end_date:
+        return respond_error('Recurring bookings cannot exceed 90 days.')
+
+    # Generate all booking dates
+    booking_dates = _generate_recurring_dates(start_date, end_date, frequency, preferred_day)
+
+    if not booking_dates:
+        return respond_error('No valid booking dates could be generated. Please check your frequency and date range.')
+
+    # Limit max occurrences
+    if len(booking_dates) > 30:
+        return respond_error('Too many booking occurrences. Please reduce the date range or change frequency.')
+
+    if worker.work_status != 'AVAILABLE':
+        return respond_error('This worker is currently unavailable. Please choose another worker.')
+
+    lat_val = _safe_coord(latitude)
+    lng_val = _safe_coord(longitude)
+
+    if lat_val is not None and lng_val is not None:
+        location_district = _validate_location_in_district(lat_val, lng_val, worker.district)
+        if location_district is None:
+            return respond_error(f'Please select a service location within {worker.district}.')
+
+    start_t, end_t = parse_time_range(time)
+
+    # A recurring booking is always at a slot the customer picked, so an
+    # unusable value must be rejected rather than quietly degraded to an
+    # exact-string comparison (which misses two different spellings of the
+    # same slot and would allow a double booking).
+    if start_t is None or end_t is None:
+        return respond_error('Please select a valid time slot.')
+
+    if booking_dates and booking_dates[0] == now_local.date() and start_t <= now_local.time():
+        return respond_error('Cannot book a time slot that has already passed today.')
+
+    with transaction.atomic():
+        locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+
+        # Check for conflicts on each date
+        for booking_date in booking_dates:
+            # Check worker leave
+            try:
+                worker_on_leave = WorkerLeave.objects.filter(
+                    worker=locked_worker, leave_date=booking_date
+                ).exists()
+                if worker_on_leave:
+                    return respond_error(
+                        f'Worker is on leave on {booking_date.strftime("%Y-%m-%d")}. '
+                        f'Please adjust the date range.'
+                    )
+            except Exception:
+                pass
+
+            # Check duplicate user booking
+            duplicate_user_booking = Booking.objects.filter(
+                customer=request.user, worker=locked_worker, service=service,
+                date=booking_date,
+                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
+            ).exists()
+            if duplicate_user_booking:
+                return respond_error(
+                    f'You already have an active booking with this worker on '
+                    f'{booking_date.strftime("%Y-%m-%d")}.'
+                )
+
+            # Check worker availability
+            if start_t and end_t:
+                existing_booking = Booking.objects.filter(
+                    worker=locked_worker, date=booking_date,
+                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED'],
+                    start_time__lt=end_t, end_time__gt=start_t
+                ).exists()
+            else:
+                existing_booking = Booking.objects.filter(
+                    worker=locked_worker, date=booking_date, time=time,
+                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED']
+                ).exists()
+
+            if existing_booking:
+                return respond_error(
+                    f'Worker is already booked on {booking_date.strftime("%Y-%m-%d")} '
+                    f'at the selected time.'
+                )
+
+        # Create the booking series
+        series = BookingSeries.objects.create(
+            customer=request.user,
+            worker=locked_worker,
+            service=service,
+            frequency=frequency,
+            preferred_day=preferred_day,
+            time=time,
+            start_time=start_t,
+            end_time=end_t,
+            location=location,
+            latitude=lat_val,
+            longitude=lng_val,
+            description=description,
+            phone=phone,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Create individual bookings for each date
+        bookings_created = []
+        for booking_date in booking_dates:
+            booking = Booking.objects.create(
+                customer=request.user,
+                worker=locked_worker,
+                service=service,
+                booking_type='Recurring',
+                date=booking_date,
+                time=time,
+                start_time=start_t,
+                end_time=end_t,
+                location=location,
+                description=description,
+                phone=phone,
+                latitude=lat_val,
+                longitude=lng_val,
+                district=worker.district,
+                estimated_cost=service.price,
+                status='PENDING',
+                series=series,
+            )
+            bookings_created.append(booking)
+
+        # Notify worker about the series
+        Notification.objects.create(
+            recipient=worker.user,
+            booking=bookings_created[0],
+            notification_type='BOOKING',
+            message=(
+                f'New recurring booking request from '
+                f'{request.user.get_full_name() or request.user.username} '
+                f'for {service.name}. '
+                f'{frequency} from {start_date_str} to {end_date_str}. '
+                f'{len(bookings_created)} occurrences.'
+            )
+        )
+
+        # Notify admins
+        admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+        for admin in admins:
+            Notification.objects.create(
+                recipient=admin,
+                booking=bookings_created[0],
+                notification_type='BOOKING',
+                message=(
+                    f'New recurring booking series #{series.id}: '
+                    f'{service.name} booked by '
+                    f'{request.user.get_full_name() or request.user.username}. '
+                    f'{len(bookings_created)} occurrences.'
+                )
+            )
+
+    # Send email confirmation (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Recurring Booking Confirmed - Series #{series.id}',
+        message=(
+            f'Hi {request.user.username},\n\n'
+            f'Your recurring booking has been submitted successfully.\n\n'
+            f'Series ID: #{series.id}\n'
+            f'Service: {service.name}\n'
+            f'Worker: {worker.user.get_full_name() or worker.user.username}\n'
+            f'Frequency: {frequency}\n'
+            f'Start Date: {start_date_str}\n'
+            f'End Date: {end_date_str}\n'
+            f'Time: {time}\n'
+            f'Total Occurrences: {len(bookings_created)}\n\n'
+            f'The worker will review your request and accept bookings.\n\n'
+            f'Thanks for choosing LAMO!'
+        ),
+        recipient_list=[request.user.email],
+        purpose='booking_recurring_confirmation',
+    )
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+    messages.success(
+        request,
+        f'Recurring booking created successfully! {len(bookings_created)} occurrences scheduled.'
+    )
+
+    if is_ajax:
+        return JsonResponse({
+            'success': True,
+            'redirect_url': reverse('my_bookings'),
+            'message': f'Recurring booking created! {len(bookings_created)} occurrences scheduled.'
+        })
+
+    return redirect('my_bookings')
+
+
+@login_required
+def book_service(request):
+    if request.user.role != 'USER':
+        messages.error(request, 'Only users can book services.')
+        return redirect('dashboard')
+
+    if request.method == 'GET':
+        worker_id = request.GET.get('worker')
+        service_id = request.GET.get('service')
+
+        worker = None
+        service = None
+        district = ''
+
+        # A bare /book-service/ with no service can only come from a stale or
+        # hand-typed URL. The booking form is built entirely around one specific
+        # service, so send the customer back to the catalogue instead of
+        # rendering a page whose "Back to <service> Workers" link has no id to
+        # reverse (which raised NoReverseMatch and produced an HTTP 500).
+        if not service_id and not worker_id:
+            messages.info(
+                request,
+                'Please choose a service first, then pick a worker to book.',
+            )
+            return redirect('service_page')
+
+        if worker_id:
+            worker = get_object_or_404(
+                WorkerProfile.objects.select_related('user', 'service'),
+                id=worker_id,
+                is_verified=True
+            )
+            district = worker.district
+
+        if service_id:
+            service = get_object_or_404(Service, id=service_id, is_active=True)
+
+        if worker and service:
+            if worker.service_id != service.id:
+                messages.error(request, 'Selected worker does not provide this service.')
+                return redirect('service_detail', service.id)
+
+        district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673)) if district else (9.9312, 76.2673)
+
+        from django.conf import settings
+        map_tile_url = getattr(settings, 'MAP_TILE_URL', '')
+        map_tile_attribution = getattr(settings, 'MAP_TILE_ATTRIBUTION', '')
+        map_tile_subdomains = getattr(settings, 'MAP_TILE_SUBDOMAINS', '')
+        map_tile_max_zoom = getattr(settings, 'MAP_TILE_MAX_ZOOM', 20)
+
+        prefill_data = {
+            'date': request.GET.get('date', '').strip(),
+            'time': request.GET.get('time', '').strip(),
+            'location': request.GET.get('location', '').strip(),
+            'phone': request.GET.get('phone', '').strip(),
+        }
+
+        return render(request, 'user/book_service.html', {
+            'worker': worker,
+            'service': service,
+            'district': district,
+            'district_lat': district_lat,
+            'district_lng': district_lng,
+            'prefill_data': prefill_data,
+            'map_tile_url': map_tile_url,
+            'map_tile_attribution': map_tile_attribution,
+            'map_tile_subdomains': map_tile_subdomains,
+            'map_tile_max_zoom': map_tile_max_zoom,
+        })
+
+    if request.method == 'POST':
+        worker_id = request.POST.get('worker')
+        service_id = request.POST.get('service')
+        booking_type = request.POST.get('booking_type', 'One Time')
+        date = request.POST.get('date')
+        time = request.POST.get('time')
+        time_slot = request.POST.get('time_slot', '').strip()
+        custom_time = request.POST.get('custom_time', '').strip()
+        location = request.POST.get('location', '').strip()
+        latitude = request.POST.get('latitude', '').strip()
+        longitude = request.POST.get('longitude', '').strip()
+        description = request.POST.get('description', '').strip()
+        phone = request.POST.get('phone', '').strip()
+
+        start_date = request.POST.get('start_date', '').strip()
+        end_date = request.POST.get('end_date', '').strip()
+        frequency = request.POST.get('frequency', 'Weekly').strip()
+        preferred_day = request.POST.get('preferred_day', '').strip()
+        payment_method = request.POST.get('payment_method', 'CASH').strip().upper()
+        if payment_method not in ['ONLINE', 'CASH']:
+            payment_method = 'CASH'
+
+        if not time:
+            if custom_time:
+                time = custom_time
+            elif time_slot:
+                time = time_slot
+
+        is_emergency = (not worker_id and request.POST.get('problem'))
+
+        if is_emergency:
+            return _handle_emergency_booking(request, service_id, time, location, latitude, longitude, description, phone)
+
+        form_data = {
+            'booking_type': booking_type,
+            'date': date,
+            'time': time,
+            'location': location,
+            'latitude': latitude,
+            'longitude': longitude,
+            'description': description,
+            'phone': phone,
+            'start_date': start_date,
+            'end_date': end_date,
+            'frequency': frequency,
+            'preferred_day': preferred_day,
+            'payment_method': payment_method,
+        }
+
+        if not worker_id:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error_message': 'Please select a worker.'}, status=400)
+            messages.error(request, 'Please select a worker.')
+            return redirect('service_list')
+
+        worker = get_object_or_404(
+            WorkerProfile.objects.select_related('user', 'service'),
+            id=worker_id,
+            is_verified=True
+        )
+
+        if not service_id:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error_message': 'Please select a service.'}, status=400)
+            messages.error(request, 'Please select a service.')
+            return redirect('service_list')
+
+        service = get_object_or_404(Service, id=service_id, is_active=True)
+
+        if worker.service_id != service.id:
+            messages.error(request, 'This worker is not assigned to the selected service.')
+            return redirect('service_detail', service.id)
+
+        district = worker.district
+
+        other_workers = WorkerProfile.objects.filter(
+            service=service, is_verified=True, work_status='AVAILABLE'
+        ).exclude(id=worker.id).select_related('user')[:4]
+
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+        def respond_error(err_msg):
+            if is_ajax:
+                return JsonResponse({'success': False, 'error_message': err_msg}, status=400)
+            district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673)) if district else (9.9312, 76.2673)
+            return render(request, 'user/book_service.html', {
+                'worker': worker,
+                'service': service,
+                'district': district,
+                'district_lat': district_lat,
+                'district_lng': district_lng,
+                'error_message': err_msg,
+                'form_data': form_data,
+                'other_workers': list(other_workers),
+            })
+
+        if booking_type == 'Recurring':
+            return _handle_recurring_booking(
+                request, worker, service, form_data, respond_error,
+                start_date, end_date, frequency, preferred_day, time,
+                location, latitude, longitude, description, phone
+            )
+
+        if not date:
+            return respond_error('Please select a date.')
+        if not time:
+            return respond_error('Please select a time.')
+        if not location:
+            return respond_error('Please enter the service location.')
+        if not phone:
+            return respond_error('Please enter your phone number.')
+
+        if worker.work_status != 'AVAILABLE':
+            return respond_error('This worker is currently unavailable. Please choose another worker.')
+
+        from datetime import datetime
+        try:
+            booking_date = datetime.strptime(date, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return respond_error('Invalid date format.')
+
+        now_local = timezone.localtime()
+        if booking_date < now_local.date():
+            return respond_error('Cannot book for past dates.')
+
+        worker_on_leave = False
+        try:
+            worker_on_leave = WorkerLeave.objects.filter(
+                worker=worker, leave_date=booking_date
+            ).exists()
+        except Exception:
+            pass
+
+        if worker_on_leave:
+            return respond_error('This worker is on leave on the selected date. Please choose another date.')
+
+        start_t, end_t = parse_time_range(time)
+
+        # Same rule as the recurring path: this is a customer-scheduled slot,
+        # so anything that is not a real, non-empty same-day window is
+        # rejected instead of falling back to exact-string matching.
+        if start_t is None or end_t is None:
+            return respond_error('Please select a valid time slot.')
+
+        if booking_date == now_local.date() and start_t <= now_local.time():
+            return respond_error('Cannot book a time slot that has already passed today.')
+
+        with transaction.atomic():
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+
+            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+                return respond_error('This service professional is temporarily unavailable for new requests. Please choose another available worker.')
+
+            duplicate_user_booking = Booking.objects.filter(
+                customer=request.user, worker=locked_worker, service=service, date=date,
+                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
+            ).exists()
+
+            if duplicate_user_booking:
+                return respond_error('You already have an active booking with this worker for the same service and date.')
+
+            if start_t and end_t:
+                existing_booking = has_worker_schedule_conflict(
+                    locked_worker,
+                    booking_date=booking_date,
+                    start_time=start_t,
+                    end_time=end_t,
+                    exclude_booking_id=None,
+                )
+            else:
+                existing_booking = has_worker_schedule_conflict(
+                    locked_worker,
+                    booking_date=booking_date,
+                    time_value=time,
+                    exclude_booking_id=None,
+                )
+
+            if existing_booking:
+                return respond_error('This worker is already booked for the selected time.')
+
+            lat_val = _safe_coord(latitude)
+            lng_val = _safe_coord(longitude)
+
+            if lat_val is not None and lng_val is not None:
+                location_district = _validate_location_in_district(lat_val, lng_val, district)
+                if location_district is None:
+                    return respond_error(f'Please select a service location within {district}.')
+
+            booking = Booking.objects.create(
+                customer=request.user, worker=locked_worker, service=service,
+                booking_type=booking_type, date=date, time=time,
+                start_time=start_t, end_time=end_t,
+                location=location, description=description, phone=phone,
+                latitude=lat_val,
+                longitude=lng_val,
+                district=district,
+                estimated_cost=service.price, status='PENDING',
+                payment_method=payment_method
+            )
+            booking.generate_arrival_otp()
+
+            Notification.objects.create(
+                recipient=worker.user, booking=booking, notification_type='BOOKING',
+                message=f'New booking request from {request.user.get_full_name() or request.user.username} for {service.name} on {date}.'
+            )
+            send_web_push_async(
+                user=worker.user,
+                title=f"🔔 New Job: {service.name}",
+                body=f"New booking from {request.user.get_full_name() or request.user.username} for {date} ({time}). Tap to accept!",
+                url="/worker-dashboard/"
+            )
+
+            admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+            for admin in admins:
+                Notification.objects.create(
+                    recipient=admin, booking=booking, notification_type='BOOKING',
+                    message=f'New booking #{booking.id}: {service.name} booked by {request.user.get_full_name() or request.user.username}.'
+                )
+
+        # Booking request confirmation (Resend-aware; failures are logged, never raised)
+        send_email_safely(
+            subject=f'Booking Confirmed - #{booking.id}',
+            message=(
+                f'Hi {request.user.username},\n\n'
+                f'Great! Your booking request has been submitted successfully.\n\n'
+                f'Here are the details:\n'
+                f'  Booking ID: #{booking.id}\n'
+                f'  Service: {service.name}\n'
+                f'  Worker: {worker.user.get_full_name() or worker.user.username}\n'
+                f'  District: {district}\n'
+                f'  Date: {date}\n'
+                f'  Time: {time}\n\n'
+                f'The worker will review your request and accept it shortly. We\'ll notify you once it\'s confirmed.\n\n'
+                f'Thanks for choosing LAMO!'
+            ),
+            recipient_list=[request.user.email],
+            purpose='booking_request',
+        )
+
+        messages.success(request, 'Booking submitted successfully!')
+
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('my_bookings'),
+                'message': 'Booking submitted successfully!'
+            })
+
+        return redirect('my_bookings')
+
+
+# ============================================================
+# MANUAL PAYMENT CONFIRMATION
+# ============================================================
+# LAMO has no payment-gateway integration. A customer submission is only a
+# manual payment report; an admin must verify it before the booking is paid.
+
+# A booking can only be paid once a worker has accepted it.
+MANUAL_PAYMENT_ALLOWED_STATUSES = (
+    'ACCEPTED',
+    'IN_PROGRESS',
+    'COMPLETION_REQUESTED',
+    'COMPLETED',
+)
+
+# Payment methods the UI offers. Anything else falls back to UPI.
+MANUAL_PAYMENT_METHODS = ('UPI', 'CARD', 'NETBANKING', 'CASH')
+
+
+@login_required
+def confirm_payment(request, booking_id):
+    """Record a customer's manual payment report for their own booking."""
+    if request.user.role != 'USER':
+        messages.error(request, 'Only customers can confirm payments.')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('my_bookings')
+
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'service'),
+        id=booking_id,
+        customer=request.user
+    )
+
+    # Cancelled / rejected / not-yet-accepted bookings are never payable.
+    if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES:
+        messages.error(
+            request,
+            'This booking cannot be paid for at its current status. Please '
+            'wait until the request is accepted by a worker.'
+        )
+        return redirect('my_bookings')
+
+    if booking.is_paid:
+        messages.info(request, 'This booking has already been paid.')
+        return redirect('my_bookings')
+
+    # The amount always comes from the server, never from the request.
+    amount = booking.estimated_cost or booking.service.price
+    if amount is None or amount <= 0:
+        messages.error(
+            request,
+            'The payable amount for this booking is not available yet. '
+            'Please contact support.'
+        )
+        return redirect('my_bookings')
+
+    payment_method = request.POST.get('payment_method', '').strip().upper()
+    if payment_method not in MANUAL_PAYMENT_METHODS:
+        payment_method = 'UPI'
+
+    # A reference typed by the customer is kept only when it is unique.
+    # Payment.payment_reference is unique, so a clash must never reach the DB.
+    client_reference = request.POST.get('payment_reference', '').strip()[:100]
+
+    def build_server_reference():
+        return 'LAMO-{0}-{1}'.format(
+            booking.id,
+            timezone.now().strftime('%Y%m%d%H%M%S%f'),
+        )
+
+    with transaction.atomic():
+        # Lock the booking so two rapid submissions cannot both write a payment.
+        locked_booking = Booking.objects.select_for_update().get(id=booking.id)
+
+        payment, created = Payment.objects.get_or_create(booking=locked_booking)
+
+        if not created and payment.status == 'PENDING':
+            messages.info(
+                request,
+                'Your manual payment report is awaiting admin verification.'
+            )
+            return redirect('my_bookings')
+
+        if payment.status == 'PAID':
+            messages.info(request, 'This booking has already been paid.')
+            return redirect('my_bookings')
+
+        reference = client_reference
+        if reference and Payment.objects.filter(
+            payment_reference=reference
+        ).exclude(pk=payment.pk).exists():
+            reference = ''
+
+        payment.amount = amount
+        payment.payment_method = payment_method
+        payment.payment_reference = reference or build_server_reference()
+        payment.gateway = 'manual'
+        payment.status = 'PENDING'
+        payment.paid_at = None
+
+        try:
+            payment.save()
+        except IntegrityError:
+            # Another payment took the same reference in the meantime.
+            payment.payment_reference = build_server_reference()
+            payment.save()
+
+        locked_booking.payment_method = payment_method
+        locked_booking.save(update_fields=['payment_method', 'updated_at'])
+
+    messages.success(
+        request,
+        'Your manual payment report was submitted and is awaiting admin '
+        'verification. The booking will remain unpaid until it is verified.'
+    )
+    return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def admin_confirm_payment(request, payment_id):
+    if request.user.role != 'ADMIN':
+        messages.error(request, 'You are not authorized to confirm payments.')
+        return redirect('dashboard')
+
+    payment = get_object_or_404(
+        Payment,
+        pk=payment_id,
+        gateway='manual',
+    )
+
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().get(
+            pk=payment.booking_id
+        )
+        payment = Payment.objects.select_for_update().get(pk=payment.pk)
+
+        if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES:
+            messages.error(
+                request,
+                'This booking cannot be marked paid at its current status.'
+            )
+            return redirect('admin_payments')
+
+        if payment.status != 'PENDING':
+            messages.info(request, 'This payment is no longer awaiting verification.')
+            return redirect('admin_payments')
+
+        payment.status = 'PAID'
+        payment.paid_at = timezone.now()
+        payment.save(update_fields=['status', 'paid_at', 'updated_at'])
+
+        booking.is_paid = True
+        booking.payment_method = payment.payment_method
+        booking.save(update_fields=['is_paid', 'payment_method', 'updated_at'])
+
+    messages.success(request, 'Payment verified and booking marked as paid.')
+    return redirect('admin_payments')
+
+
+@login_required
+def booking_messages(request, booking_id):
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'worker__user', 'service'),
+        id=booking_id,
+    )
+
+    allowed_users = [booking.customer]
+    if booking.worker and booking.worker.user:
+        allowed_users.append(booking.worker.user)
+
+    if request.user not in allowed_users:
+        return HttpResponseForbidden('You are not authorized to view this booking conversation.')
+
+    if booking.status not in {'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'COMPLETED', 'DISPUTED'}:
+        return HttpResponseForbidden('Chat is available only for accepted, in-progress, completed, or disputed bookings.')
+
+    if request.method == 'POST':
+        text = request.POST.get('message', '').strip()
+        if not text:
+            messages.error(request, 'Please enter a message.')
+            return redirect('booking_messages', booking_id=booking.id)
+
+        BookingMessage.objects.create(
+            booking=booking,
+            sender=request.user,
+            message=text,
+        )
+
+        if request.user == booking.customer:
+            recipient = booking.worker.user if booking.worker else None
+        else:
+            recipient = booking.customer
+        if recipient and recipient != request.user:
+            Notification.objects.create(
+                recipient=recipient,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f"New booking message from {request.user.get_full_name() or request.user.username} for Booking #{booking.id}."
+            )
+
+        messages.success(request, 'Message sent successfully.')
+        return redirect('booking_messages', booking_id=booking.id)
+
+    thread = BookingMessage.objects.filter(booking=booking).select_related('sender').order_by('created_at')
+    template_name = 'workers/booking_messages_worker.html' if getattr(request.user, 'role', None) == 'WORKER' else 'booking_messages.html'
+    return render(
+        request,
+        template_name,
+        {
+            'booking': booking,
+            'chat_messages': thread,
+        }
+    )
+
+
+@login_required
+def worker_accept_booking(request, booking_id):
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+
+    # Check worker verification and suspension
+    is_verified, error_msg = _check_worker_verification(worker)
+    if not is_verified:
+        messages.error(request, error_msg)
+        return redirect('worker_dashboard')
+
+    with transaction.atomic():
+        locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+        booking = get_object_or_404(
+            Booking.objects.select_related('customer', 'worker__user', 'service'),
+            id=booking_id, worker=locked_worker
+        )
+
+        if booking.status != 'PENDING':
+            messages.warning(request, 'This booking has already been processed.')
+            return redirect('worker_dashboard')
+
+        # Check 30-minute response timer expiry
+        if booking.created_at and timezone.now() > booking.created_at + timedelta(minutes=30):
+            booking.status = 'EXPIRED'
+            booking.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            booking.cancelled_by = 'SYSTEM'
+            booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            Notification.objects.create(
+                recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
+                message=f'Your {booking.service.name} booking request #{booking.id} has expired because it was not accepted within 30 minutes.'
+            )
+            messages.error(request, 'This booking request has expired (30-minute response timer elapsed).')
+            return redirect('worker_dashboard')
+
+        # Re-check worker leave status at acceptance time
+        try:
+            worker_on_leave = WorkerLeave.objects.filter(
+                worker=locked_worker, leave_date=booking.date
+            ).exists()
+            if worker_on_leave:
+                messages.error(request, 'Cannot accept booking - you are marked as on leave for this date.')
+                return redirect('worker_dashboard')
+        except Exception:
+            # WorkerLeave table may not exist yet (migration not applied)
+            pass
+
+        if booking.start_time and booking.end_time:
+            has_conflict = has_worker_schedule_conflict(
+                locked_worker,
+                booking_date=booking.date,
+                start_time=booking.start_time,
+                end_time=booking.end_time,
+                exclude_booking_id=booking.id,
+            )
+        else:
+            has_conflict = has_worker_schedule_conflict(
+                locked_worker,
+                booking_date=booking.date,
+                time_value=booking.time,
+                exclude_booking_id=booking.id,
+            )
+
+        if has_conflict:
+            messages.error(request, 'Cannot accept - overlaps with another booking.')
+            return redirect('worker_dashboard')
+
+        booking.status = 'ACCEPTED'
+        booking.generate_arrival_otp()
+        booking.save(update_fields=['status', 'arrival_otp', 'updated_at'])
+
+    Notification.objects.create(
+        recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
+        message=f'Good news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.'
+    )
+
+    # Booking accepted (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Good News! Your Booking #{booking.id} is Confirmed',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Great news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.\n\n'
+            f'Booking Details:\n'
+            f'  Date: {booking.date}\n'
+            f'  Time: {booking.time}\n\n'
+            f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='booking_accepted',
+    )
+
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin in admins:
+        Notification.objects.create(
+            recipient=admin, booking=booking, notification_type='BOOKING_UPDATE',
+            message=f'Booking #{booking.id} has been accepted by {request.user.get_full_name() or request.user.username}.'
+        )
+
+    messages.success(request, 'Booking accepted successfully.')
+    return redirect('worker_dashboard')
+
+
+@login_required
+def worker_reject_booking(request, booking_id):
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+
+    # Check worker verification
+    is_verified, error_msg = _check_worker_verification(worker)
+    if not is_verified:
+        messages.error(request, error_msg)
+        return redirect('worker_dashboard')
+
+    # Handle Emergency pending request rejection / dismissal
+    emergency_booking = Booking.objects.filter(
+        id=booking_id,
+        status='EMERGENCY_PENDING',
+        worker__isnull=True
+    ).first()
+
+    if emergency_booking:
+        Notification.objects.filter(
+            recipient=request.user,
+            booking=emergency_booking,
+            notification_type='EMERGENCY'
+        ).update(is_read=True)
+        messages.info(request, 'Emergency request dismissed.')
+        return redirect('worker_dashboard')
+
+    booking = get_object_or_404(Booking, id=booking_id, worker=worker)
+
+    if booking.status != 'PENDING':
+        messages.warning(request, 'This booking has already been processed.')
+        return redirect('worker_dashboard')
+
+    rejection_reason = request.POST.get('rejection_reason', '').strip() or request.GET.get('reason', '').strip() or 'Worker declined the booking request.'
+    booking.status = 'REJECTED'
+    booking.cancellation_reason = rejection_reason
+    booking.cancelled_by = 'WORKER'
+    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+
+    Notification.objects.create(
+        recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
+        message=f'Your {booking.service.name} booking has been declined by the worker.'
+    )
+
+    # Booking rejected (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Update on Booking #{booking.id}',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Unfortunately, your {booking.service.name} booking on {booking.date} has been declined by the worker.\n\n'
+            f'Don\'t worry! You can browse and book another available worker on our platform.\n\n'
+            f'If you need any assistance, we\'re here to help.\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='booking_rejected',
+    )
+
+    messages.success(request, 'Booking rejected.')
+    return redirect('worker_dashboard')
+
+
+@login_required
+def worker_accept_emergency(request, booking_id):
+    """Worker accepts an emergency request - first accept wins"""
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+
+    # Check worker verification
+    is_verified, error_msg = _check_worker_verification(worker)
+    if not is_verified:
+        messages.error(request, error_msg)
+        return redirect('worker_dashboard')
+
+    try:
+        with transaction.atomic():
+            # Lock the booking row to prevent race conditions
+            booking = Booking.objects.select_for_update().select_related(
+                'customer', 'service'
+            ).get(
+                id=booking_id,
+                status='EMERGENCY_PENDING',
+                worker__isnull=True
+            )
+
+            # Double-check status after locking (prevent race condition)
+            if booking.status != 'EMERGENCY_PENDING' or booking.worker is not None:
+                messages.warning(request, 'This emergency request has already been accepted by another worker.')
+                return redirect('worker_dashboard')
+
+            # Only workers offering this trade may take the job. Without this
+            # check any worker could accept any other trade's emergency
+            # request (an electrician accepting a plumbing job, etc.).
+            if worker.service_id is None or worker.service_id != booking.service_id:
+                messages.error(request, 'This emergency request is for a different service than yours.')
+                return redirect('worker_dashboard')
+
+            # The emergency broadcast is dateless, so check leave/conflicts
+            # against the acceptance day and then stamp it onto the booking.
+            # Stamping Booking.date is what makes the accepted job visible to
+            # later has_worker_schedule_conflict() checks (they filter on
+            # date=) and to WorkerLeave matching.
+            today = timezone.localdate()
+
+            # Re-check worker leave status at acceptance time
+            try:
+                worker_on_leave = WorkerLeave.objects.filter(
+                    worker=worker, leave_date=today
+                ).exists()
+                if worker_on_leave:
+                    messages.error(request, 'Cannot accept emergency booking - you are marked as on leave for this date.')
+                    return redirect('worker_dashboard')
+            except Exception:
+                # WorkerLeave table may not exist yet (migration not applied)
+                pass
+
+            # Check for time conflicts with existing active bookings
+            start_t, end_t = parse_time_range(booking.time)
+
+            if start_t and end_t:
+                existing_booking = has_worker_schedule_conflict(
+                    worker,
+                    booking_date=today,
+                    start_time=start_t,
+                    end_time=end_t,
+                    exclude_booking_id=booking.id,
+                )
+            else:
+                existing_booking = has_worker_schedule_conflict(
+                    worker,
+                    booking_date=today,
+                    time_value=booking.time,
+                    exclude_booking_id=booking.id,
+                )
+
+            if existing_booking:
+                messages.error(request, 'Cannot accept emergency booking - you already have an active booking at this time today.')
+                return redirect('worker_dashboard')
+
+            # Assign this worker to the booking. Stamping date=today (the
+            # acceptance day) makes this job block the worker's calendar for
+            # later conflict checks and lets WorkerLeave matching see it.
+            booking.worker = worker
+            booking.date = today
+            booking.status = 'ACCEPTED'
+            booking.save(update_fields=['worker', 'date', 'status', 'updated_at'])
+
+            # Notify the customer
+            Notification.objects.create(
+                recipient=booking.customer,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f'Emergency request accepted! {request.user.get_full_name() or request.user.username} will assist you for {booking.service.name}.'
+            )
+
+            # Notify other eligible workers that request is taken
+            other_workers = WorkerProfile.objects.filter(
+                service=booking.service,
+                is_verified=True,
+                work_status='AVAILABLE',
+                user__is_active=True
+            ).exclude(id=worker.id)
+
+            for other_worker in other_workers:
+                try:
+                    Notification.objects.create(
+                        recipient=other_worker.user,
+                        booking=booking,
+                        notification_type='SYSTEM',
+                        message=f'Emergency request #{booking.id} for {booking.service.name} has been accepted by another worker.'
+                    )
+                except Exception:
+                    continue
+
+            # Notify admins
+            admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+            for admin in admins:
+                try:
+                    Notification.objects.create(
+                        recipient=admin,
+                        booking=booking,
+                        notification_type='BOOKING_UPDATE',
+                        message=f'Emergency booking #{booking.id} accepted by {request.user.username}.'
+                    )
+                except Exception:
+                    continue
+
+    except Booking.DoesNotExist:
+        messages.warning(request, 'This emergency request has already been accepted by another worker.')
+        return redirect('worker_dashboard')
+
+    # Send email to customer (Resend-aware; failures are logged, never raised)
+    send_email_safely(
+        subject=f'Worker Assigned - Emergency Request #{booking.id}',
+        message=(
+            f'Hi {booking.customer.username},\n\n'
+            f'Great news! We\'ve found a worker for your emergency {booking.service.name} request.\n\n'
+            f'Worker Details:\n'
+            f'  Name: {request.user.get_full_name() or request.user.username}\n'
+            f'  Location: {booking.location}\n\n'
+            f'The worker will contact you shortly. Please keep your phone reachable.\n\n'
+            f'Thanks for trusting LAMO in your time of need!\n\n'
+            f'Best regards,\nTeam LAMO'
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='emergency_worker_assigned',
+    )
+
+    messages.success(request, f'Emergency request accepted! You have been assigned to this booking.')
+    return redirect('worker_dashboard')
+
+
+@login_required
+def service_create(request):
+
+    is_admin = (
+        request.user.role == 'ADMIN'
+        or getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'is_staff', False)
+    )
+    if not is_admin:
+        messages.error(request, 'You are not authorized to access this page.')
+        return redirect('dashboard')
+    if request.user.role != 'ADMIN':
+        request.user.role = 'ADMIN'
+        request.user.save(update_fields=['role'])
+    if request.method == 'POST':
+        form = ServiceForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                # Storage (Cloudinary) or DB failures must surface as a
+                # friendly re-render, never an unhandled HTTP 500 from the
+                # admin Add Service flow. The storage layer logs the scrubbed
+                # detail; only the exception type is recorded here so a
+                # credential-bearing SDK message can never reach this log.
+                with transaction.atomic():
+                    form.save()
+            except Exception as exc:
+                logger.error(
+                    'service_create_save_failed user=%s exc_type=%s',
+                    getattr(request.user, 'pk', None), type(exc).__name__,
+                )
+                messages.error(
+                    request,
+                    'Could not save the service. If you attached an image, '
+                    'it may have failed to upload - please try again.',
+                )
+                return render(request, 'lamo_service/service_form.html', {
+                    'form': form, 'title': 'Add Service',
+                })
+            messages.success(request, 'Service created successfully.')
+            return redirect('service_list')
+    else:
+        form = ServiceForm()
+
+    return render(request, 'lamo_service/service_form.html', {
+        'form': form, 'title': 'Add Service'
+    })
+
+
+def register_view(request):
+
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    services = Service.objects.filter(
+        is_active=True
+    ).order_by('-created_at')
+
+    # Where the guest was heading before they were asked to sign up. The public
+    # templates link here as {% url 'register' %}?next={% url 'service_detail' ... %}
+    # so the intent survives registration. It is validated immediately and
+    # stored server-side in the session; login_view consumes it once. Anything
+    # unsafe is dropped here and the normal role-based destination is used.
+    requested_next = request.POST.get('next') or request.GET.get('next')
+    if requested_next:
+        safe_next = _safe_internal_path(request, requested_next, '')
+        if safe_next:
+            request.session['registration_next'] = safe_next
+        else:
+            # An unsafe value is discarded outright, not downgraded to a
+            # default here - the role-based destination is applied at login.
+            request.session.pop('registration_next', None)
+    # A POST that simply does not repeat the parameter keeps whatever the GET
+    # already established; clearing it here would break the normal
+    # register-from-a-link flow.
+
+    if request.method == 'POST':
+
+        username = request.POST.get(
+            'username',
+            ''
+        ).strip()
+
+        email = request.POST.get(
+            'email',
+            ''
+        ).strip()
+
+        password = request.POST.get(
+            'password',
+            ''
+        )
+
+        confirm_password = request.POST.get(
+            'confirm_password',
+            ''
+        )
+
+        role = request.POST.get(
+            'role',
+            ''
+        ).strip()
+
+        # ==================================================
+        # BASIC VALIDATION
+        # ==================================================
+
+        if not username:
+
+            messages.error(
+                request,
+                'Username is required.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        if not email:
+
+            messages.error(
+                request,
+                'Email is required.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # EMAIL FORMAT
+
+        try:
+
+            validate_email(email)
+
+        except ValidationError:
+
+            messages.error(
+                request,
+                'Please enter a valid email address.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # PASSWORD
+
+        if password != confirm_password:
+
+            messages.error(
+                request,
+                'Passwords do not match.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        if len(password) < 8:
+
+            messages.error(
+                request,
+                'Password must contain at least 8 characters.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # ROLE
+
+        if role not in [
+            'USER',
+            'WORKER'
+        ]:
+
+            messages.error(
+                request,
+                'Please select User or Worker.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # ==================================================
+        # USERNAME VALIDATION
+        # ==================================================
+
+        if CustomUser.objects.filter(
+            username=username
+        ).exists():
+
+            messages.error(
+                request,
+                'Username already exists.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # ==================================================
+        # EMAIL VALIDATION
+        # ==================================================
+
+        if CustomUser.objects.filter(
+            email__iexact=email
+        ).exists():
+
+            messages.error(
+                request,
+                'Email already exists.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # ==================================================
+        # WORKER VALIDATION
+        # ==================================================
+
+        worker_data = {}
+
+        if role == 'WORKER':
+
+            # ------------------------------------------------
+            # GET WORKER DATA
+            # ------------------------------------------------
+
+            phone = request.POST.get(
+                'phone',
+                ''
+            ).strip()
+
+            service_id = request.POST.get(
+                'service',
+                ''
+            ).strip()
+
+            experience = request.POST.get(
+                'experience_years',
+                ''
+            ).strip()
+
+            district = request.POST.get(
+                'district',
+                ''
+            ).strip()
+
+            availability = request.POST.get(
+                'availability',
+                ''
+            ).strip()
+
+            pricing_type = request.POST.get(
+                'pricing_type',
+                'hour'
+            ).strip()
+
+            pricing_amount = request.POST.get(
+                'pricing_amount',
+                ''
+            ).strip()
+
+            address = request.POST.get(
+                'address',
+                ''
+            ).strip()
+
+            custom_service = request.POST.get(
+                'custom_service',
+                ''
+            ).strip()
+
+            proof_type = request.POST.get(
+                'proof_type',
+                ''
+            ).strip()
+
+            profile_image = request.FILES.get(
+                'profile_image'
+            )
+
+            proof_document = request.FILES.get(
+                'proof_document'
+            )
+
+            # ------------------------------------------------
+            # PHONE VALIDATION
+            # ------------------------------------------------
+
+            if not re.fullmatch(
+                r'[6-9]\d{9}',
+                phone
+            ):
+
+                messages.error(
+                    request,
+                    'Please enter a valid 10-digit Indian mobile number.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # DUPLICATE PHONE
+            # ------------------------------------------------
+
+            if WorkerProfile.objects.filter(
+                phone=phone
+            ).exists():
+
+                messages.error(
+                    request,
+                    'This phone number is already registered.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # SERVICE (or "Other" with custom_service)
+            # ------------------------------------------------
+
+            service = None
+            is_custom_service = False
+
+            if not service_id:
+
+                messages.error(
+                    request,
+                    'Please select a service.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if service_id == 'other':
+
+                if not custom_service or len(custom_service) < 2:
+
+                    messages.error(
+                        request,
+                        'Please enter your custom service name.'
+                    )
+
+                    return render(
+                        request,
+                        'accounts/register.html',
+                        {'services': services}
+                    )
+
+                is_custom_service = True
+                service = None  # No Service FK for custom
+
+            else:
+
+                try:
+
+                    service = Service.objects.get(
+                        id=service_id,
+                        is_active=True
+                    )
+
+                except (
+                    Service.DoesNotExist,
+                    ValueError
+                ):
+
+                    messages.error(
+                        request,
+                        'Please select a valid service.'
+                    )
+
+                    return render(
+                        request,
+                        'accounts/register.html',
+                        {'services': services}
+                    )
+
+            # ------------------------------------------------
+            # EXPERIENCE
+            # ------------------------------------------------
+
+            if experience == '':
+
+                messages.error(
+                    request,
+                    'Please enter your experience.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            try:
+
+                experience = int(experience)
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
+                messages.error(
+                    request,
+                    'Please enter a valid experience.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if experience < 0:
+
+                messages.error(
+                    request,
+                    'Experience cannot be negative.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if experience > 60:
+
+                messages.error(
+                    request,
+                    'Experience cannot exceed 60 years.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # DISTRICT
+            # ------------------------------------------------
+
+            valid_districts = [
+                'Thiruvananthapuram',
+                'Kollam',
+                'Pathanamthitta',
+                'Alappuzha',
+                'Kottayam',
+                'Idukki',
+                'Ernakulam',
+                'Thrissur',
+                'Palakkad',
+                'Malappuram',
+                'Kozhikode',
+                'Wayanad',
+                'Kannur',
+                'Kasaragod',
+            ]
+
+            if district not in valid_districts:
+
+                messages.error(
+                    request,
+                    'Please select a valid district.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # AVAILABILITY
+            # ------------------------------------------------
+
+            valid_availability = [
+                'Full Time',
+                'Part Time',
+                'Weekends',
+                'Flexible',
+            ]
+
+            if availability not in valid_availability:
+
+                messages.error(
+                    request,
+                    'Please select a valid availability.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # PRICING VALIDATION
+            # ------------------------------------------------
+
+            if pricing_type not in ['hour', 'day']:
+
+                messages.error(
+                    request,
+                    'Please select a valid pricing type.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if pricing_amount == '':
+
+                messages.error(
+                    request,
+                    'Please enter your pricing amount.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            try:
+
+                pricing_amount = float(pricing_amount)
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
+                messages.error(
+                    request,
+                    'Please enter a valid pricing amount.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if pricing_amount < 0:
+
+                messages.error(
+                    request,
+                    'Pricing amount cannot be negative.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if pricing_amount > 100000:
+
+                messages.error(
+                    request,
+                    'Pricing amount seems too high. Please enter a valid amount.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # ADDRESS
+            # ------------------------------------------------
+
+            if not address:
+
+                messages.error(
+                    request,
+                    'Please enter your address.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            if len(address) < 10:
+
+                messages.error(
+                    request,
+                    'Please enter a complete address.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # PROOF TYPE
+            # ------------------------------------------------
+
+            valid_proof_types = ['aadhaar', 'pan', 'voter_id']
+
+            if proof_type not in valid_proof_types:
+
+                messages.error(
+                    request,
+                    'Please select a valid proof type (Aadhaar, PAN, or Voter ID).'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ------------------------------------------------
+            # PROOF DOCUMENT
+            # ------------------------------------------------
+
+            if not proof_document:
+
+                messages.error(
+                    request,
+                    'Please upload your proof document.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # ---- PROOF DOCUMENT SECURITY VALIDATION ----
+            # Extension whitelist, path safety, double-extension rejection,
+            # MIME allow-list and magic-bytes content check.  A filename alone
+            # is never trusted: the bytes are verified before the file is
+            # stored, and the stored name is a random UUID (no client text).
+            from django.core.validators import FileExtensionValidator
+            from django.core.exceptions import ValidationError as DjangoValidationError
+
+            proof_ext_whitelist = ('.pdf', '.jpg', '.jpeg', '.png')
+            dangerous_inner_parts = frozenset((
+                'exe', 'bat', 'cmd', 'com', 'scr', 'msi', 'jar', 'dll', 'apk',
+                'js', 'jse', 'vbs', 'ps1', 'sh', 'php', 'html', 'htm', 'svg',
+                'cgi', 'pl', 'py', 'rb',
+            ))
+
+            # Extension whitelist (validator raises; map to a friendly error)
+            try:
+                FileExtensionValidator(
+                    allowed_extensions=['pdf', 'jpg', 'jpeg', 'png']
+                )(proof_document)
+            except DjangoValidationError:
+                messages.error(
+                    request,
+                    'Proof must be a PDF, JPG, JPEG or PNG file.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # Path traversal / directory-component rejection
+            base_name = os.path.basename(proof_document.name)
+            if base_name != proof_document.name or not base_name:
+                messages.error(request, 'Invalid file name.')
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # Double-extension rejection (payload.pdf.exe / payload.exe.pdf)
+            file_root, proof_ext = os.path.splitext(base_name)
+            if proof_ext.lower() not in proof_ext_whitelist:
+                messages.error(
+                    request,
+                    'Proof must be a PDF, JPG, JPEG or PNG file.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+            inner_parts = file_root.lower().split('.')
+            if any(part in dangerous_inner_parts for part in inner_parts):
+                messages.error(
+                    request,
+                    'Proof must be a PDF, JPG, JPEG or PNG file.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # MIME / content-type whitelist (client-declared; checked early)
+            if proof_document.content_type not in (
+                'application/pdf',
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+            ):
+                messages.error(
+                    request,
+                    'Unsupported file type. Only PDF, JPG, JPEG or PNG allowed.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # Magic-bytes (actual content) verification - defeats MIME spoofing
+            head = proof_document.read(8)
+            proof_document.seek(0)
+            if not (
+                head.startswith(b'%PDF')
+                or head.startswith(b'\xFF\xD8\xFF')
+                or head.startswith(b'\x89PNG\r\n\x1a\n')
+            ):
+                messages.error(
+                    request,
+                    'File content does not match the declared file type.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # 5 MB MAXIMUM
+
+            if proof_document.size > 5 * 1024 * 1024:
+
+                messages.error(
+                    request,
+                    'Proof document must be less than 5 MB.'
+                )
+
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
+            # Store under a random, directory-free name - the client's
+            # filename never reaches the filesystem.
+            proof_document.name = '{}.{}'.format(
+                uuid.uuid4().hex, proof_ext.lower()
+            )
+
+            # ------------------------------------------------
+            # PROFILE IMAGE
+            # ------------------------------------------------
+
+            if profile_image:
+
+                allowed_image_extensions = [
+                    '.jpg',
+                    '.jpeg',
+                    '.png',
+                    '.webp',
+                ]
+
+                image_name = (
+                    profile_image.name.lower()
+                )
+
+                if not any(
+                    image_name.endswith(ext)
+                    for ext in allowed_image_extensions
+                ):
+
+                    messages.error(
+                        request,
+                        'Profile image must be JPG, JPEG, PNG or WEBP.'
+                    )
+
+                    return render(
+                        request,
+                        'accounts/register.html',
+                        {'services': services}
+                    )
+
+                if profile_image.size > 5 * 1024 * 1024:
+
+                    messages.error(
+                        request,
+                        'Profile image must be less than 5 MB.'
+                    )
+
+                    return render(
+                        request,
+                        'accounts/register.html',
+                        {'services': services}
+                    )
+
+            # ------------------------------------------------
+            # WORKER DATA
+            # ------------------------------------------------
+
+            worker_data = {
+
+                'phone': phone,
+
+                'service': service,
+
+                'custom_service': custom_service if is_custom_service else None,
+
+                'experience_years': experience,
+
+                'district': district,
+
+                'availability': availability,
+
+                'pricing_type': pricing_type,
+
+                'pricing_amount': pricing_amount,
+
+                'address': address,
+
+                'proof_type': proof_type,
+
+                'proof_document': proof_document,
+
+                'profile_image': profile_image,
+
+            }
+
+        # ==================================================
+        # CREATE ACCOUNT
+        # ==================================================
+
+        try:
+
+            with transaction.atomic():
+
+                user = CustomUser.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    role=role
+                )
+
+                # --------------------------------------------
+                # WORKER PROFILE
+                # --------------------------------------------
+
+                if role == 'WORKER':
+
+                    worker_profile = WorkerProfile.objects.create(
+                        user=user,
+                        phone=worker_data['phone'],
+                        service=worker_data['service'],
+                        custom_service=worker_data['custom_service'],
+                        experience_years=worker_data[
+                            'experience_years'
+                        ],
+                        district=worker_data['district'],
+                        availability=worker_data[
+                            'availability'
+                        ],
+                        pricing_type=worker_data[
+                            'pricing_type'
+                        ],
+                        pricing_amount=worker_data[
+                            'pricing_amount'
+                        ],
+                        address=worker_data['address'],
+                        proof_type=worker_data['proof_type'],
+                        proof_document=worker_data[
+                            'proof_document'
+                        ],
+                        profile_image=worker_data[
+                            'profile_image'
+                        ],
+                        is_verified=False
+                    )
+
+                    if is_custom_service and custom_service:
+
+                        ServiceRequest.objects.create(
+                            name=custom_service,
+                            requested_by=user,
+                            status='PENDING',
+                        )
+
+        except Exception:
+
+            messages.error(
+                request,
+                'Could not create the account. Please try again.'
+            )
+
+            return render(
+                request,
+                'accounts/register.html',
+                {'services': services}
+            )
+
+        # ==================================================
+        # SUCCESS — SEND OTP FOR EMAIL VERIFICATION
+        # ==================================================
+
+        _otp, otp_sent = send_otp_email(user)
+        request.session['otp_user_id'] = user.id
+
+        if otp_sent:
+            messages.success(
+                request,
+                'Account created successfully. Please verify your email with the OTP sent.'
+            )
+        else:
+            # The account exists but the mail did not go out. Do not pretend
+            # otherwise, or the user is locked out with no explanation.
+            messages.warning(
+                request,
+                'Account created successfully, but we could not send the '
+                'verification email right now. Please use "Resend OTP" in a '
+                'few minutes, or contact support if the problem continues.'
+            )
+        return redirect('verify_otp')
+
+    return render(
+        request,
+        'accounts/register.html',
+        {
+            'services': services
+        }
+    )
+
+@never_cache
+def forgot_password_view(request, token=None):
+    """Handles BOTH the email-submission state and the new-password state.
+
+    Supports the legacy query-string reset flow and the direct reset-password/<token>/ route.
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    # Determine current state based on query string or path token.
+    uid = request.GET.get('uid', '').strip()
+    token = request.GET.get('token', '').strip() or token or ''
+
+    # Validate token from query string (if any)
+    reset_user = None
+    token_valid = False
+    if uid and token:
+        try:
+            reset_user = CustomUser.objects.get(pk=uid)
+            if reset_user.is_reset_token_valid(token):
+                token_valid = True
+        except (CustomUser.DoesNotExist, ValueError):
+            reset_user = None
+            token_valid = False
+
+    # Support direct reset-password/<token>/ links without a uid query param.
+    if token and not token_valid:
+        try:
+            # Matches the stored hash first, falls back to legacy plaintext
+            # tokens so reset links sent before hashing keep working.
+            reset_user = CustomUser.find_by_reset_token(token)
+            if reset_user:
+                uid = str(reset_user.pk)
+                token_valid = True
+        except Exception as exc:
+            # Class name only. This handler wraps CustomUser.find_by_reset_token(),
+            # and that exception is raised while handling the reset token
+            # itself, so str(exc) can quote the token (or part of it) and the uid
+            # - both of which are live account-takeover credentials. Neither the
+            # token nor the exception message is logged.
+            logger.warning(
+                'password_reset_token_lookup_failed exc_type=%s',
+                type(exc).__name__,
+            )
+            reset_user = None
+            token_valid = False
+
+    # If the token in URL is invalid/expired -> show email form with a message
+    if (uid or token) and not token_valid:
+        messages.error(
+            request,
+            'This reset link is invalid or has expired. Please request a new one below.'
+        )
+
+    # ==========================================================
+    # STATE 2: PASSWORD RESET (POST) - User submitted new password
+    # ==========================================================
+    if request.method == 'POST' and token_valid and reset_user:
+
+        password = request.POST.get('password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+
+        if not password:
+            messages.error(request, 'Please enter a new password.')
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
+        if not confirm_password:
+            messages.error(request, 'Please confirm your new password.')
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
+        if password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
+        try:
+            validate_password(password, user=reset_user)
+        except ValidationError as exc:
+            for message in exc.messages:
+                messages.error(request, message)
+            return render(request, 'accounts/forgot_password.html', {
+                'reset_mode': True,
+                'reset_user': reset_user,
+                'uid': uid,
+                'token': token,
+            })
+
+        # Re-verify the token once more right before saving (extra safety)
+        if not reset_user.is_reset_token_valid(token):
+            messages.error(
+                request,
+                'This reset link is invalid or has expired. Please request a new one below.'
+            )
+            return redirect('forgot_password')
+
+        # Update password and consume the token
+        reset_user.set_password(password)
+        reset_user.password_reset_token = None
+        reset_user.password_reset_token_hash = None
+        reset_user.password_reset_expires = None
+        reset_user.save(update_fields=[
+            'password',
+            'password_reset_token',
+            'password_reset_token_hash',
+            'password_reset_expires',
+        ])
+
+        messages.success(
+            request,
+            'Your password has been reset successfully. You can now login with your new password.'
+        )
+        return redirect('login')
+
+    # ==========================================================
+    # STATE 1: EMAIL SUBMISSION (POST or GET) - User submitted email
+    # ==========================================================
+
+    # Server-side throttle (cache-backed, not session-backed).
+    fp_key = forgot_password_key(request, request.POST.get('email', '').strip())
+    fp_ip_key = forgot_password_ip_key(request)
+
+    if is_rate_limited(fp_key, FORGOT_PASSWORD_MAX_ATTEMPTS):
+        messages.error(
+            request,
+            'Too many attempts. '
+            f'Please try again in {minutes_remaining(fp_key)} minute(s).'
+        )
+        return render(request, 'accounts/forgot_password.html', {'locked_out': True})
+
+    # Caps address enumeration: a single IP cannot hammer many different
+    # e-mail addresses, each of which would otherwise get its own counter.
+    if is_rate_limited(fp_ip_key, FORGOT_PASSWORD_MAX_ATTEMPTS * 5):
+        messages.error(
+            request,
+            'Too many password reset requests. '
+            f'Please try again in {minutes_remaining(fp_ip_key)} minute(s).'
+        )
+        return render(request, 'accounts/forgot_password.html', {'locked_out': True})
+
+    if request.method == 'POST' and not token_valid:
+        email = request.POST.get('email', '').strip()
+        if not email:
+            messages.error(request, 'Please enter your email address.')
+            return render(request, 'accounts/forgot_password.html')
+
+        try:
+            user = CustomUser.objects.get(email__iexact=email)
+        except (CustomUser.DoesNotExist, CustomUser.MultipleObjectsReturned):
+            # Count the failure even for non-existing emails so the response
+            # stays identical and the address cannot be enumerated.
+            #
+            # MultipleObjectsReturned is caught too: CustomUser.email is NOT
+            # unique (it inherits AbstractUser), so a duplicate address - two
+            # admin/superuser accounts, or a race in registration - made
+            # .get() raise and turned this public page into an HTTP 500. The
+            # ambiguous address is answered exactly like an unknown one, which
+            # also avoids revealing that the address is shared.
+            register_failure(fp_key, FORGOT_PASSWORD_MAX_ATTEMPTS, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            register_failure(fp_ip_key, FORGOT_PASSWORD_MAX_ATTEMPTS * 5, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            messages.success(
+                request,
+                'If an account with that email exists, a password reset link has been sent.'
+            )
+            return render(request, 'accounts/forgot_password.html')
+
+        if not user.is_active:
+            register_failure(fp_key, FORGOT_PASSWORD_MAX_ATTEMPTS, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            register_failure(fp_ip_key, FORGOT_PASSWORD_MAX_ATTEMPTS * 5, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            messages.success(
+                request,
+                'If an account with that email exists, a password reset link has been sent.'
+            )
+            return render(request, 'accounts/forgot_password.html')
+
+        token = user.generate_password_reset_token()
+        # Reset link points to the SAME forgot-password page
+        reset_path = reverse('forgot_password')
+        reset_url = (
+            f"{request.build_absolute_uri(reset_path)}"
+            f"?uid={user.pk}&token={token}"
+        )
+
+        # The body carries a live password-reset token, so it must never be
+        # logged. send_email_safely() records only the operation tag, the
+        # recipient count and the exception class.
+        send_email_safely(
+            subject='Reset Your LAMO Password',
+            message=(
+                f'Hi {user.username},\n\n'
+                f'We received a request to reset your password. Click the link below to set a new password:\n\n'
+                f'{reset_url}\n\n'
+                f'This link will expire in 1 hour for security reasons.\n\n'
+                f'If you didn\'t request this, you can safely ignore this email.\n\n'
+                f'Best regards,\nTeam LAMO'
+            ),
+            recipient_list=[user.email],
+            purpose='password_reset',
+        )
+
+        # A successful request clears that address's counter (the IP counter is
+        # kept, so one IP cannot spray many addresses to dodge the limit).
+        clear(fp_key)
+        messages.success(
+            request,
+            'If an account with that email exists, a password reset link has been sent.'
+        )
+        return render(request, 'accounts/forgot_password.html')
+
+    # ==========================================================
+    # GET request: render appropriate state
+    # ==========================================================
+    context = {}
+    if token_valid and reset_user:
+        context = {
+            'reset_mode': True,
+            'reset_user': reset_user,
+            'uid': uid,
+            'token': token,
+        }
+    return render(request, 'accounts/forgot_password.html', context)
+
+@never_cache
 def login_view(request):
 
     # If already logged in
