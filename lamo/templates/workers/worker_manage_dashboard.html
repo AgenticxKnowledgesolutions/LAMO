@@ -1,17 +1,42 @@
-﻿{% extends 'base.html' %}
+{% extends 'workers/worker_sidebar.html' %}
 {% load static %}
-
-
 
 {% block title %}Worker Dashboard | LAMO{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/workers-worker_manage_dashboard.css' %}">
+    <style>
+        /* Neutralize fixed navbar top-offset since worker_sidebar layout is used */
+        .worker-dashboard {
+            padding-top: 30px;
+        }
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
+        .spinner-border {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            vertical-align: -0.125em;
+            border: 0.15em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: 0.75s linear infinite spinner-border;
+        }
+        .spinner-border-sm {
+            width: 0.85rem;
+            height: 0.85rem;
+            border-width: 0.12em;
+        }
+        .me-2 {
+            margin-right: 0.5rem;
+        }
+    </style>
 {% endblock %}
 {% block extra_js %}
     <script src="{% static 'js/workers-worker_manage_dashboard.js' %}" defer></script>
 {% endblock %}
-{% block content %}
+{% block worker_content %}
 
 
 <div class="worker-dashboard">
