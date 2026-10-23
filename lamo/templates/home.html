@@ -41,8 +41,14 @@
           <!-- TITLE (White with green accent, matching About Us) -->
         
         <h1 class="about-hero-title">
-             Your Home.
-           <span>Our Trusted Hands.</span>
+          {% if user.is_authenticated and user.role == 'USER' %}
+          Welcome back, {{ user.username }}!
+          <br>
+          <span>Our Trusted Hands.</span>
+          {% else %}
+          Your Home.
+          <span>Our Trusted Hands.</span>
+          {% endif %}
         </h1>
 
         <p class="about-hero-text">
@@ -60,8 +66,9 @@
             <div class="district-picker-wrap">
               <i class="bi bi-geo-alt-fill pin-ico"></i>
               <select name="district" id="heroDistrictSelect" class="district-select-clean" aria-label="Select District">
+                <option value="">Select your district</option>
                 {% for code, name in kerala_districts %}
-                <option value="{{ code }}" {% if selected_district == code %}selected{% endif %}>{{ name }}</option>
+                <option value="{{ code }}" {% if district == code or selected_district == code %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -281,13 +288,25 @@
     <div class="services-header-row" data-aos="fade-up">
       <div>
         <span class="section-kicker">— LOCATION-BASED VERIFIED SERVICES</span>
+        {% if district %}
         <h2 class="services-heading-main">
-          Services Available in <span style="color:var(--brand-green);" id="activeDistrictTitle">{{ selected_district }}</span>
+          Services Available in <span style="color:var(--brand-green);" id="activeDistrictTitle">{{ district }}</span>
           <span id="servicesCountBadge" class="badge-count-pill ms-2" style="font-size: 0.85rem; font-weight: 600; padding: 4px 12px; background: #e8f5e9; color: #087f5b; border-radius: 20px; border: 1px solid #a7f3d0;">
             {{ services|length }} Available
           </span>
         </h2>
-        <p class="services-sub-main">Only background-checked, verified technicians currently available in {{ selected_district }}.</p>
+        <p class="services-sub-main">
+          Showing services available in {{ district }} · <a href="{% url 'home' %}?district=&change_district=1#services" style="color: #087f5b; font-weight: 600; text-decoration: underline;">Change district</a>
+        </p>
+        {% else %}
+        <h2 class="services-heading-main">
+          Our Services
+          <span id="servicesCountBadge" class="badge-count-pill ms-2" style="font-size: 0.85rem; font-weight: 600; padding: 4px 12px; background: #e8f5e9; color: #087f5b; border-radius: 20px; border: 1px solid #a7f3d0;">
+            {{ services|length }} Available
+          </span>
+        </h2>
+        <p class="services-sub-main">Only background-checked, verified technicians.</p>
+        {% endif %}
       </div>
 
       <div class="d-flex align-items-center gap-3">
@@ -310,7 +329,7 @@
     <div class="kinetic-stream-wrapper {% if services|length >= 4 %}has-overflow{% endif %}" id="kineticStreamWrapper">
       <div class="services-carousel-track services-grid-4x2" id="servicesGrid">
         {% for service in services %}
-      <a href="{% url 'service_workers' service.id %}?district={{ selected_district|urlencode }}" 
+      <a href="{% if district %}{% url 'service_workers' service.id %}?district={{ district|urlencode }}{% else %}{% url 'service_detail' service.id %}{% endif %}" 
          class="service-card-mockup" 
          data-id="{{ service.id }}"
          data-name="{{ service.name|lower }}" 
@@ -319,10 +338,17 @@
 
         <!-- Card Image with Real Pro Count Badge -->
         <div class="service-mockup-thumb">
+          {% if district %}
           <span class="available-pros-pill">
             <i class="bi bi-check-circle-fill text-success me-1"></i>
-            {{ service.district_worker_count }} Pro{{ service.district_worker_count|pluralize }} in {{ selected_district }}
+            {{ service.worker_count|default:service.district_worker_count }} worker{{ service.worker_count|default:service.district_worker_count|pluralize }} available
           </span>
+          {% else %}
+          <span class="available-pros-pill">
+            <i class="bi bi-patch-check-fill text-success me-1"></i>
+            Verified Service
+          </span>
+          {% endif %}
 
           {% if service.image %}
           <img src="{{ service.image.url }}" alt="{{ service.name }}" loading="lazy" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
@@ -371,7 +397,7 @@
               <span style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Price on request</span>
               {% endif %}
             </div>
-            <div class="service-mockup-arrow" title="View available workers">
+            <div class="service-mockup-arrow" title="{% if district %}View available workers{% else %}View service details{% endif %}">
               <i class="bi bi-arrow-right"></i>
             </div>
           </div>
@@ -381,13 +407,20 @@
       {% empty %}
       <div class="empty-services-state" id="emptyDistrictState" style="grid-column: 1 / -1; width: 100%; min-width: 100%; padding: 48px 24px; text-align: center; background: #ffffff; border-radius: 16px; border: 1.5px dashed #cbd5e1; margin: 15px 0;">
         <i class="bi bi-geo-alt-fill" style="font-size: 2.8rem; color: #087f5b; display: block; margin-bottom: 12px; opacity: 0.85;"></i>
-        <h4 style="font-weight: 750; color: #111827; margin-bottom: 8px;">No verified workers currently available in {{ selected_district }}</h4>
+        {% if district %}
+        <h4 style="font-weight: 750; color: #111827; margin-bottom: 8px;">No services available in {{ district }} yet. Try another district.</h4>
         <p style="color: #64748b; max-width: 520px; margin: 0 auto 20px; font-size: 0.95rem; line-height: 1.55;">
-          We only display services that have background-checked, verified professionals ready to take bookings in {{ selected_district }}. Please select another district to explore available services.
+          We only display services that have background-checked, verified professionals ready to take bookings in {{ district }}. Please select another district to explore available services.
         </p>
-        <button type="button" class="btn-reset-search" id="btnSelectKollam" style="display: inline-flex; align-items: center; gap: 8px; border: none; padding: 10px 24px; background: #087f5b; color: #fff; border-radius: 25px; font-weight: 600; font-size: 0.9rem; cursor: pointer;">
-          <i class="bi bi-geo-alt"></i> Switch to Kollam
-        </button>
+        <a href="{% url 'home' %}?district=&change_district=1#services" class="btn-reset-search" id="btnChangeDistrict" style="display: inline-flex; align-items: center; gap: 8px; border: none; padding: 10px 24px; background: #087f5b; color: #fff; border-radius: 25px; font-weight: 600; font-size: 0.9rem; text-decoration: none;">
+          <i class="bi bi-geo-alt"></i> Change District
+        </a>
+        {% else %}
+        <h4 style="font-weight: 750; color: #111827; margin-bottom: 8px;">No services found</h4>
+        <p style="color: #64748b; max-width: 520px; margin: 0 auto 20px; font-size: 0.95rem; line-height: 1.55;">
+          No services match your criteria.
+        </p>
+        {% endif %}
       </div>
       {% endfor %}
       </div>
