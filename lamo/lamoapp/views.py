@@ -7,6 +7,9 @@ import urllib.request
 import urllib.parse
 import os
 import uuid
+import hashlib
+import secrets
+import string
 from decimal import Decimal
 from functools import lru_cache
 
@@ -1263,6 +1266,19 @@ def home(request):
         .order_by('-created_at')[:6]
     )
 
+    active_booking = None
+    if request.user.is_authenticated:
+        active_booking = (
+            Booking.objects
+            .filter(
+                customer=request.user,
+                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED']
+            )
+            .select_related('worker', 'worker__user', 'service')
+            .order_by('-created_at')
+            .first()
+        )
+
     response = render(request, 'home.html', {
         'services': services_list,
         'selected_district': selected_district,
@@ -1274,6 +1290,7 @@ def home(request):
         'category': category or 'all',
         'reviews': reviews,
         'more_categories': more_categories,
+        'active_booking': active_booking,
     })
     if request.COOKIES.get('lamo_splash_seen') != '1':
         response.set_cookie('lamo_splash_seen', '1', samesite='Lax')
@@ -1306,6 +1323,40 @@ def send_otp_email(user):
         subject=subject,
         message=message,
         recipient_list=[user.email],
+        purpose='otp_verification',
+    )
+    return otp, sent
+
+
+def _send_booking_verification_code(request, email, customer_name=None, phone=None):
+    """Generate and send 6-digit code for booking authentication without creating DB rows.
+
+    The code is valid for 10 minutes, hashed with SHA-256 for safe storage in session,
+    and never logged in plaintext.
+    """
+    clean_email = email.lower().strip()
+    otp = ''.join(secrets.choice(string.digits) for _ in range(6))
+    code_hash = hashlib.sha256(otp.encode('utf-8')).hexdigest()
+    request.session['booking_auth_data'] = {
+        'email': clean_email,
+        'code_hash': code_hash,
+        'created_at': timezone.now().isoformat(),
+        'attempts': 0,
+        'customer_name': customer_name or '',
+        'phone': phone or '',
+    }
+    subject = 'LAMO - Your Verification Code'
+    message = (
+        'Hi,\n\n'
+        f'Your verification code is: {otp}\n\n'
+        'This code is valid for 10 minutes.\n'
+        'Do not share this code with anyone.\n\n'
+        'Thanks,\nLAMO Team'
+    )
+    sent = send_email_safely(
+        subject=subject,
+        message=message,
+        recipient_list=[clean_email],
         purpose='otp_verification',
     )
     return otp, sent
@@ -1382,7 +1433,9 @@ def verify_otp_view(request):
 
     from datetime import datetime
 
-    # Get the user being verified (per-user tracking, NOT global session)
+    booking_auth = request.session.get('booking_auth_data')
+
+    # Get the user being verified (per-user tracking for standard registration flow)
     user_id = request.session.get('otp_user_id')
     verified_user = None
     if user_id:
@@ -1414,17 +1467,168 @@ def verify_otp_view(request):
             verified_user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
 
     if request.method == 'POST':
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         action = request.POST.get('action', 'verify')
         otp_input = request.POST.get('otp', '').strip()
 
+        # Check lockout before processing
+        if verified_user and verified_user.otp_locked_until and timezone.now() < verified_user.otp_locked_until:
+            remaining = int((verified_user.otp_locked_until - timezone.now()).total_seconds() / 60)
+            msg = f'Too many failed attempts for this account. Please try again in {max(1, remaining)} minute(s).'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True}, status=400)
+            messages.error(request, msg)
+            return render(request, 'accounts/verify_otp.html', {'user_email': verified_user.email, 'locked_out': True})
+
+        if action == 'send_code':
+            auth_identifier = (
+                request.POST.get('identifier', '').strip()
+                or request.POST.get('auth_identifier', '').strip()
+                or request.POST.get('email', '').strip()
+            )
+            if not auth_identifier:
+                return JsonResponse({'success': False, 'error_message': 'Please enter your email or mobile number.'}, status=400)
+            if '@' not in auth_identifier:
+                clean_phone = re.sub(r'[\s\-\(\)\+]', '', auth_identifier)
+                if re.fullmatch(r'\d{10,13}', clean_phone):
+                    sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
+                    if not sms_enabled:
+                        return JsonResponse({'success': False, 'error_message': 'Mobile OTP is coming soon, please use your email.'}, status=400)
+                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
+            try:
+                validate_email(auth_identifier)
+            except ValidationError:
+                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
+
+            existing_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
+            if existing_user and existing_user.role != 'USER':
+                return JsonResponse({'success': False, 'error_message': 'This email belongs to a worker or administrator account. Please use a customer email address.'}, status=400)
+
+            if booking_auth and booking_auth.get('email') == auth_identifier.lower():
+                created_at_str = booking_auth.get('created_at')
+                created_at = datetime.fromisoformat(created_at_str) if created_at_str else None
+                if created_at:
+                    seconds_elapsed = (timezone.now() - created_at).total_seconds()
+                    if seconds_elapsed < 30:
+                        rem_s = int(30 - seconds_elapsed)
+                        return JsonResponse({'success': False, 'error_message': f'Please wait {rem_s}s before requesting a new code.'}, status=400)
+
+            cust_name = request.POST.get('customer_name') or (booking_auth.get('customer_name') if booking_auth else '')
+            cust_phone = request.POST.get('phone') or (booking_auth.get('phone') if booking_auth else '')
+            otp, sent = _send_booking_verification_code(request, auth_identifier, cust_name, cust_phone)
+            if not sent:
+                return JsonResponse({'success': False, 'error_message': 'Could not send verification email. Please check your email and try again.'}, status=400)
+            return JsonResponse({'success': True, 'requires_code': True, 'email': auth_identifier.lower(), 'message': 'Verification code sent to your email.'})
+
         if action == 'verify':
+            if booking_auth:
+                created_at_str = booking_auth.get('created_at')
+                created_at = datetime.fromisoformat(created_at_str) if created_at_str else None
+                if not created_at or timezone.now() > created_at + timedelta(minutes=10):
+                    msg = 'Verification code has expired. Please request a new code.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg, 'requires_resend': True}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'requires_resend': True})
+
+                attempts = booking_auth.get('attempts', 0)
+                if attempts >= 5 or not booking_auth.get('code_hash'):
+                    booking_auth['code_hash'] = None
+                    request.session.modified = True
+                    msg = 'Maximum attempts exceeded (5). This verification code has been invalidated. Please request a new code.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True, 'requires_resend': True, 'remaining_attempts': 0}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'locked_out': True})
+
+                submitted_hash = hashlib.sha256(otp_input.encode('utf-8')).hexdigest()
+                stored_hash = booking_auth.get('code_hash', '')
+                is_valid = bool(stored_hash and secrets.compare_digest(stored_hash, submitted_hash))
+
+                if not is_valid:
+                    booking_auth['attempts'] = attempts + 1
+                    request.session.modified = True
+                    if booking_auth['attempts'] >= 5:
+                        booking_auth['code_hash'] = None
+                        msg = 'Maximum attempts exceeded (5). This verification code has been invalidated. Please request a new code.'
+                        if is_ajax:
+                            return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True, 'requires_resend': True, 'remaining_attempts': 0}, status=400)
+                        messages.error(request, msg)
+                        return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'locked_out': True})
+
+                    remaining_attempts = 5 - booking_auth['attempts']
+                    msg = f'Invalid verification code. {remaining_attempts} attempt(s) remaining.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg, 'remaining_attempts': remaining_attempts}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
+                # Valid Code!
+                email = booking_auth.get('email')
+                customer_name = booking_auth.get('customer_name', '')
+                phone = booking_auth.get('phone', '')
+                request.session.pop('booking_auth_data', None)
+
+                existing_user = CustomUser.objects.filter(email__iexact=email).first()
+                if existing_user:
+                    user = existing_user
+                    if not user.is_email_verified:
+                        user.is_email_verified = True
+                        user.save(update_fields=['is_email_verified'])
+                else:
+                    unique_uname = _generate_unique_customer_username(email, customer_name)
+                    parts = (customer_name or '').split(None, 1)
+                    first_name = parts[0] if parts else ''
+                    last_name = parts[1] if len(parts) > 1 else ''
+                    user = CustomUser.objects.create_user(
+                        username=unique_uname,
+                        email=email,
+                        password=secrets.token_urlsafe(32),
+                        first_name=first_name,
+                        last_name=last_name,
+                        role='USER',
+                        is_email_verified=True,
+                    )
+                    pending_booking = request.session.get('pending_booking_data') or {}
+                    UserProfile.objects.create(
+                        user=user,
+                        phone=phone or pending_booking.get('phone', ''),
+                        address=pending_booking.get('location', ''),
+                        district=pending_booking.get('district', ''),
+                        latitude=pending_booking.get('latitude'),
+                        longitude=pending_booking.get('longitude')
+                    )
+
+                login(request, user)
+                request.session.cycle_key()
+
+                pending_booking = request.session.pop('pending_booking_data', None)
+                if pending_booking:
+                    _create_booking_from_pending(request, user, pending_booking)
+                    if is_ajax:
+                        return JsonResponse({
+                            'success': True,
+                            'redirect_url': reverse('my_bookings'),
+                            'message': 'Your email has been verified and your booking has been placed successfully!'
+                        })
+                    messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
+                    return redirect('my_bookings')
+
+                if is_ajax:
+                    return JsonResponse({'success': True, 'redirect_url': reverse('home'), 'message': 'Email verified successfully!'})
+                return redirect('home')
+
             if not user_id:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': 'Session expired. Please request a new verification code.'}, status=400)
                 messages.error(request, 'Session expired. Please register again.')
                 return redirect('register')
 
             try:
                 user = CustomUser.objects.get(id=user_id)
             except CustomUser.DoesNotExist:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': 'User not found. Please request a new verification code.'}, status=400)
                 messages.error(request, 'User not found. Please register again.')
                 return redirect('register')
 
@@ -1437,10 +1641,10 @@ def verify_otp_view(request):
                 )
                 user.otp_locked_until = lockout_time
                 user.save(update_fields=['otp_locked_until'])
-                messages.error(
-                    request,
-                    'Too many failed attempts for this account. Please try again in 15 minutes.'
-                )
+                msg = 'Too many failed attempts for this account. Please try again in 15 minutes.'
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True, 'requires_resend': True}, status=400)
+                messages.error(request, msg)
                 return render(request, 'accounts/verify_otp.html', {
                     'user_email': user.email,
                     'locked_out': True
@@ -1467,58 +1671,141 @@ def verify_otp_view(request):
                 clear(otp_resend_user_key(user.id))
                 clear(otp_resend_ip_key(request))
 
+                # Check for pending booking from guest customer account creation flow
+                pending_booking = request.session.pop('pending_booking_data', None)
+                if pending_booking:
+                    _create_booking_from_pending(request, user, pending_booking)
+                    login(request, user)
+                    request.session.cycle_key()
+                    if is_ajax:
+                        return JsonResponse({
+                            'success': True,
+                            'redirect_url': reverse('my_bookings'),
+                            'message': 'Your email has been verified and your booking has been placed successfully!'
+                        })
+                    messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
+                    return redirect('my_bookings')
+
+                login(request, user)
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'redirect_url': reverse('home'),
+                        'message': 'Email verified successfully!'
+                    })
                 messages.success(request, 'Email verified successfully! You can now login.')
                 return redirect('login')
             else:
                 # Increment attempts ONLY for this user
                 user.otp_failed_attempts += 1
+                if user.otp_failed_attempts >= OTP_VERIFY_MAX_ATTEMPTS:
+                    user.email_verification_otp = None
+                    lockout_time = timezone.now() + timedelta(seconds=OTP_VERIFY_LOCKOUT_SECONDS)
+                    user.otp_locked_until = lockout_time
+                    user.save(update_fields=['email_verification_otp', 'otp_failed_attempts', 'otp_locked_until'])
+                    msg = 'Maximum attempts exceeded (5). This verification code has been invalidated. Please request a new code.'
+                    if is_ajax:
+                        return JsonResponse({
+                            'success': False,
+                            'error_message': msg,
+                            'locked_out': True,
+                            'requires_resend': True,
+                            'remaining_attempts': 0
+                        }, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': user.email, 'locked_out': True})
+
                 user.save(update_fields=['otp_failed_attempts'])
                 remaining_attempts = (
                     OTP_VERIFY_MAX_ATTEMPTS - user.otp_failed_attempts
                 )
-                messages.error(
-                    request,
-                    f'Invalid or expired OTP. {remaining_attempts} attempt(s) remaining for this account.'
-                )
+                msg = f'Invalid or expired verification code. {remaining_attempts} attempt(s) remaining for this account.'
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'error_message': msg,
+                        'remaining_attempts': remaining_attempts
+                    }, status=400)
+                messages.error(request, msg)
                 return render(request, 'accounts/verify_otp.html', {'user_email': user.email})
 
         elif action == 'resend':
+            if booking_auth:
+                created_at_str = booking_auth.get('created_at')
+                created_at = datetime.fromisoformat(created_at_str) if created_at_str else None
+                if created_at:
+                    seconds_elapsed = (timezone.now() - created_at).total_seconds()
+                    if seconds_elapsed < 30:
+                        rem_s = int(30 - seconds_elapsed)
+                        msg = f'Please wait {rem_s}s before requesting a new code.'
+                        if is_ajax:
+                            return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True}, status=400)
+                        messages.error(request, msg)
+                        return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
+                otp, sent = _send_booking_verification_code(
+                    request,
+                    booking_auth.get('email'),
+                    booking_auth.get('customer_name'),
+                    booking_auth.get('phone')
+                )
+                if not sent:
+                    msg = 'Could not send verification email. Please try again in a few minutes.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
+                if is_ajax:
+                    return JsonResponse({'success': True, 'message': 'A new verification code has been sent to your email.'})
+                messages.success(request, 'A new verification code has been sent to your email.')
+                return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
             if not user_id:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': 'Session expired. Please request a new code.'}, status=400)
                 messages.error(request, 'Session expired. Please register again.')
                 return redirect('register')
             try:
                 user = CustomUser.objects.get(id=user_id)
             except CustomUser.DoesNotExist:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': 'User not found. Please register again.'}, status=400)
                 messages.error(request, 'User not found. Please register again.')
                 return redirect('register')
 
-            # Resend limits live on the server, not in the session: deleting
-            # the session cookie used to reset the counter and allow unlimited
-            # OTP emails to the same inbox.
+            # Resend limits live on the server, not in the session
             sent, result_message = _resend_otp_for_user(request, user)
 
             if not sent:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'error_message': result_message, 'locked_out': True}, status=400)
                 messages.error(request, result_message)
                 return render(request, 'accounts/verify_otp.html', {
                     'user_email': user.email,
                     'locked_out': True
                 })
 
-            # A resend issues a brand new code, so the previous guesses must
-            # not carry over - otherwise "guess 4 times, resend, guess 4 more"
-            # would be an unlimited oracle against a 6-digit space.
             user.otp_failed_attempts = 0
             user.otp_locked_until = None
             user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
 
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': result_message})
             messages.success(request, result_message)
             return render(request, 'accounts/verify_otp.html', {'user_email': user.email})
 
     user_email = None
     if verified_user:
         user_email = verified_user.email
+    elif booking_auth:
+        user_email = booking_auth.get('email')
 
-    return render(request, 'accounts/verify_otp.html', {'user_email': user_email})
+    has_pending_booking = 'pending_booking_data' in request.session
+    return render(request, 'accounts/verify_otp.html', {
+        'user_email': user_email,
+        'has_pending_booking': has_pending_booking,
+    })
 
 
 # def register_view(request):
@@ -2065,6 +2352,298 @@ def _generate_recurring_dates(start_date, end_date, frequency, preferred_day):
     return dates
 
 
+def _get_customer_prefill(user):
+    """Return saved customer profile information for prefilling booking forms."""
+    prefill = {
+        'name': '',
+        'email': '',
+        'phone': '',
+        'location': '',
+        'latitude': None,
+        'longitude': None,
+    }
+    if not user or not user.is_authenticated or getattr(user, 'role', '') != 'USER':
+        return prefill
+
+    prefill['name'] = user.get_full_name() or user.username
+    prefill['email'] = user.email or ''
+
+    profile = getattr(user, 'user_profile', None)
+    if profile:
+        prefill['phone'] = profile.phone or ''
+        prefill['location'] = profile.address or ''
+        prefill['latitude'] = profile.latitude
+        prefill['longitude'] = profile.longitude
+
+    # Fallback to most recent booking if fields are empty
+    if not prefill['phone'] or not prefill['location']:
+        last_booking = user.bookings.order_by('-created_at').first()
+        if last_booking:
+            if not prefill['phone'] and last_booking.phone:
+                prefill['phone'] = last_booking.phone
+            if not prefill['location'] and last_booking.location:
+                prefill['location'] = last_booking.location
+                if prefill['latitude'] is None:
+                    prefill['latitude'] = last_booking.latitude
+                if prefill['longitude'] is None:
+                    prefill['longitude'] = last_booking.longitude
+
+    return prefill
+
+
+def _generate_unique_customer_username(email, name=None):
+    """Safely generate a unique, clean username for a customer account."""
+    import secrets
+    from django.utils.text import slugify
+
+    base = ''
+    if name:
+        base = slugify(name).replace('-', '_')[:15]
+    if not base or len(base) < 3:
+        base = slugify(email.split('@')[0]).replace('-', '_')[:15]
+    if not base or len(base) < 3:
+        base = 'customer'
+
+    candidate = base
+    while CustomUser.objects.filter(username=candidate).exists():
+        candidate = f"{base}_{secrets.token_hex(3)}"
+        if len(candidate) > 30:
+            candidate = f"cust_{secrets.token_hex(6)}"
+
+    return candidate
+
+
+def _create_booking_from_pending(request, user, pending_data):
+    """Finalize a booking from validated pending session data after email verification."""
+    from datetime import datetime
+
+    worker_id = pending_data.get('worker_id')
+    service_id = pending_data.get('service_id')
+    booking_type = pending_data.get('booking_type', 'One Time')
+    date_str = pending_data.get('date')
+    time = pending_data.get('time')
+    location = pending_data.get('location', '')
+    latitude = pending_data.get('latitude')
+    longitude = pending_data.get('longitude')
+    district = pending_data.get('district', '')
+    description = pending_data.get('description', '')
+    phone = pending_data.get('phone', '')
+    payment_method = pending_data.get('payment_method', 'CASH')
+
+    start_date_str = pending_data.get('start_date')
+    end_date_str = pending_data.get('end_date')
+    frequency = pending_data.get('frequency', 'Weekly')
+    preferred_day = pending_data.get('preferred_day', '')
+
+    worker = get_object_or_404(
+        WorkerProfile.objects.select_related('user', 'service'),
+        id=worker_id
+    )
+    service = get_object_or_404(Service, id=service_id)
+
+    start_t, end_t = parse_time_range(time)
+
+    # Check for existing duplicate to prevent duplicate creation on refresh/back
+    if booking_type == 'Recurring':
+        existing_series = BookingSeries.objects.filter(
+            customer=user,
+            worker=worker,
+            service=service,
+            frequency=frequency,
+            start_date=start_date_str,
+            end_date=end_date_str,
+        ).first()
+        if existing_series:
+            return existing_series.bookings.first()
+
+        try:
+            start_d = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_d = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return None
+
+        booking_dates = _generate_recurring_dates(start_d, end_d, frequency, preferred_day)
+        with transaction.atomic():
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+            series = BookingSeries.objects.create(
+                customer=user,
+                worker=locked_worker,
+                service=service,
+                frequency=frequency,
+                preferred_day=preferred_day,
+                time=time,
+                start_time=start_t,
+                end_time=end_t,
+                location=location,
+                latitude=latitude,
+                longitude=longitude,
+                description=description,
+                phone=phone,
+                start_date=start_d,
+                end_date=end_d,
+            )
+            created_bookings = []
+            for b_date in booking_dates:
+                b = Booking.objects.create(
+                    customer=user,
+                    worker=locked_worker,
+                    service=service,
+                    booking_type='Recurring',
+                    date=b_date,
+                    time=time,
+                    start_time=start_t,
+                    end_time=end_t,
+                    location=location,
+                    description=description,
+                    phone=phone,
+                    latitude=latitude,
+                    longitude=longitude,
+                    district=worker.district,
+                    estimated_cost=service.price,
+                    status='PENDING',
+                    series=series,
+                    payment_method=payment_method,
+                )
+                b.generate_arrival_otp()
+                created_bookings.append(b)
+
+            if created_bookings:
+                first_b = created_bookings[0]
+                Notification.objects.create(
+                    recipient=worker.user,
+                    booking=first_b,
+                    notification_type='BOOKING',
+                    message=f'New recurring booking request from {user.get_full_name() or user.username} for {service.name}.'
+                )
+                send_web_push_async(
+                    user=worker.user,
+                    title=f"🔔 New Recurring Job: {service.name}",
+                    body=f"New recurring booking from {user.get_full_name() or user.username}. Tap to view!",
+                    url="/worker-dashboard/"
+                )
+                for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
+                    Notification.objects.create(
+                        recipient=admin,
+                        booking=first_b,
+                        notification_type='BOOKING',
+                        message=f'New recurring booking series #{series.id} by {user.get_full_name() or user.username}.'
+                    )
+                send_email_safely(
+                    subject=f'Recurring Booking Confirmed - #{series.id}',
+                    message=(
+                        f'Hi {user.username},\n\n'
+                        f'Your recurring booking series has been confirmed!\n'
+                        f'Service: {service.name}\n'
+                        f'Worker: {worker.user.get_full_name() or worker.user.username}\n'
+                        f'Occurrences: {len(created_bookings)}\n\n'
+                        f'Thanks for choosing LAMO!'
+                    ),
+                    recipient_list=[user.email],
+                    purpose='booking_request'
+                )
+                return first_b
+    else:
+        # One Time Booking
+        try:
+            b_date = datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
+        except (ValueError, TypeError):
+            b_date = date_str
+
+        existing_b = Booking.objects.filter(
+            customer=user,
+            worker=worker,
+            service=service,
+            date=b_date,
+            time=time,
+            status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
+        ).first()
+        if existing_b:
+            return existing_b
+
+        with transaction.atomic():
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+            booking = Booking.objects.create(
+                customer=user,
+                worker=locked_worker,
+                service=service,
+                booking_type=booking_type,
+                date=b_date,
+                time=time,
+                start_time=start_t,
+                end_time=end_t,
+                location=location,
+                description=description,
+                phone=phone,
+                latitude=latitude,
+                longitude=longitude,
+                district=district or worker.district,
+                estimated_cost=service.price,
+                status='PENDING',
+                payment_method=payment_method,
+            )
+            booking.generate_arrival_otp()
+
+            Notification.objects.create(
+                recipient=worker.user,
+                booking=booking,
+                notification_type='BOOKING',
+                message=f'New booking request from {user.get_full_name() or user.username} for {service.name} on {b_date}.'
+            )
+            send_web_push_async(
+                user=worker.user,
+                title=f"🔔 New Job: {service.name}",
+                body=f"New booking from {user.get_full_name() or user.username} for {b_date} ({time}). Tap to accept!",
+                url="/worker-dashboard/"
+            )
+            for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
+                Notification.objects.create(
+                    recipient=admin,
+                    booking=booking,
+                    notification_type='BOOKING',
+                    message=f'New booking #{booking.id}: {service.name} booked by {user.get_full_name() or user.username}.'
+                )
+
+            send_email_safely(
+                subject=f'Booking Confirmed - #{booking.id}',
+                message=(
+                    f'Hi {user.username},\n\n'
+                    f'Great! Your booking request has been submitted successfully.\n\n'
+                    f'Here are the details:\n'
+                    f'  Booking ID: #{booking.id}\n'
+                    f'  Service: {service.name}\n'
+                    f'  Worker: {worker.user.get_full_name() or worker.user.username}\n'
+                    f'  District: {district or worker.district}\n'
+                    f'  Date: {b_date}\n'
+                    f'  Time: {time}\n\n'
+                    f'The worker will review your request and accept it shortly. We\'ll notify you once it\'s confirmed.\n\n'
+                    f'Thanks for choosing LAMO!'
+                ),
+                recipient_list=[user.email],
+                purpose='booking_request',
+            )
+
+            # Ensure UserProfile has saved phone/address
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile_changed = False
+            if not profile.phone and phone:
+                profile.phone = phone
+                profile_changed = True
+            if not profile.address and location:
+                profile.address = location
+                profile_changed = True
+            if latitude is not None and longitude is not None and profile.latitude is None:
+                profile.latitude = latitude
+                profile.longitude = longitude
+                profile_changed = True
+            if (district or worker.district) and not profile.district:
+                profile.district = district or worker.district
+                profile_changed = True
+            if profile_changed:
+                profile.save()
+
+            return booking
+
+
 def _handle_recurring_booking(request, worker, service, form_data, respond_error,
                                start_date_str, end_date_str, frequency, preferred_day, time,
                                location, latitude, longitude, description, phone):
@@ -2297,11 +2876,12 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     return redirect('my_bookings')
 
 
-@login_required
 def book_service(request):
-    if request.user.role != 'USER':
+    if request.user.is_authenticated and request.user.role != 'USER':
         messages.error(request, 'Only users can book services.')
         return redirect('dashboard')
+
+    customer_prefill = _get_customer_prefill(request.user) if request.user.is_authenticated else {}
 
     if request.method == 'GET':
         worker_id = request.GET.get('worker')
@@ -2311,11 +2891,6 @@ def book_service(request):
         service = None
         district = ''
 
-        # A bare /book-service/ with no service can only come from a stale or
-        # hand-typed URL. The booking form is built entirely around one specific
-        # service, so send the customer back to the catalogue instead of
-        # rendering a page whose "Back to <service> Workers" link has no id to
-        # reverse (which raised NoReverseMatch and produced an HTTP 500).
         if not service_id and not worker_id:
             messages.info(
                 request,
@@ -2350,8 +2925,8 @@ def book_service(request):
         prefill_data = {
             'date': request.GET.get('date', '').strip(),
             'time': request.GET.get('time', '').strip(),
-            'location': request.GET.get('location', '').strip(),
-            'phone': request.GET.get('phone', '').strip(),
+            'location': request.GET.get('location', '').strip() or customer_prefill.get('location', ''),
+            'phone': request.GET.get('phone', '').strip() or customer_prefill.get('phone', ''),
         }
 
         return render(request, 'user/book_service.html', {
@@ -2361,6 +2936,7 @@ def book_service(request):
             'district_lat': district_lat,
             'district_lng': district_lng,
             'prefill_data': prefill_data,
+            'customer_prefill': customer_prefill,
             'map_tile_url': map_tile_url,
             'map_tile_attribution': map_tile_attribution,
             'map_tile_subdomains': map_tile_subdomains,
@@ -2380,6 +2956,11 @@ def book_service(request):
         longitude = request.POST.get('longitude', '').strip()
         description = request.POST.get('description', '').strip()
         phone = request.POST.get('phone', '').strip()
+
+        customer_name = request.POST.get('customer_name', '').strip()
+        customer_email = request.POST.get('customer_email', '').strip()
+        consent_raw = request.POST.get('create_account_consent')
+        consent = consent_raw in ['1', 'true', 'on', True]
 
         start_date = request.POST.get('start_date', '').strip()
         end_date = request.POST.get('end_date', '').strip()
@@ -2414,6 +2995,9 @@ def book_service(request):
             'frequency': frequency,
             'preferred_day': preferred_day,
             'payment_method': payment_method,
+            'customer_name': customer_name,
+            'customer_email': customer_email,
+            'create_account_consent': consent,
         }
 
         if not worker_id:
@@ -2448,9 +3032,13 @@ def book_service(request):
 
         is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
-        def respond_error(err_msg):
+        def respond_error(err_msg, requires_login=False):
             if is_ajax:
-                return JsonResponse({'success': False, 'error_message': err_msg}, status=400)
+                data = {'success': False, 'error_message': err_msg}
+                if requires_login:
+                    data['requires_login'] = True
+                    data['redirect_url'] = reverse('login') + f'?next={request.get_full_path()}'
+                return JsonResponse(data, status=400)
             district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673)) if district else (9.9312, 76.2673)
             return render(request, 'user/book_service.html', {
                 'worker': worker,
@@ -2460,20 +3048,57 @@ def book_service(request):
                 'district_lng': district_lng,
                 'error_message': err_msg,
                 'form_data': form_data,
+                'customer_prefill': customer_prefill,
                 'other_workers': list(other_workers),
             })
 
-        if booking_type == 'Recurring':
-            return _handle_recurring_booking(
-                request, worker, service, form_data, respond_error,
-                start_date, end_date, frequency, preferred_day, time,
-                location, latitude, longitude, description, phone
-            )
+        target_user = None
+        if not request.user.is_authenticated:
+            # Guest Customer Validations (no consent checkbox needed)
+            if not customer_name or len(customer_name) < 2:
+                return respond_error('Please enter your full name.')
 
-        if not date:
-            return respond_error('Please select a date.')
-        if not time:
-            return respond_error('Please select a time.')
+            auth_identifier = request.POST.get('auth_identifier', '').strip() or customer_email
+            if not auth_identifier:
+                return respond_error('Please enter your email or mobile number.')
+
+            if '@' in auth_identifier:
+                customer_email = auth_identifier
+                from django.core.validators import validate_email
+                from django.core.exceptions import ValidationError
+                try:
+                    validate_email(customer_email)
+                except ValidationError:
+                    return respond_error('Please enter a valid email address.')
+
+                existing_user = CustomUser.objects.filter(email__iexact=customer_email).first()
+                if existing_user:
+                    if existing_user.role != 'USER':
+                        return respond_error(
+                            'This email belongs to a worker or administrator account. Please use a customer email address.'
+                        )
+                    target_user = existing_user
+            else:
+                # Phone number identifier
+                sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
+                if not sms_enabled:
+                    return respond_error('Mobile OTP is coming soon, please use your email.')
+
+            if not phone or not re.fullmatch(r'[6-9]\d{9}', phone):
+                return respond_error('Please enter a valid 10-digit Indian mobile number.')
+
+            # Check phone collision against other accounts
+            phone_collision = UserProfile.objects.filter(phone=phone)
+            if target_user:
+                phone_collision = phone_collision.exclude(user=target_user)
+            elif customer_email:
+                phone_collision = phone_collision.exclude(user__email__iexact=customer_email)
+
+            if phone_collision.exists():
+                return respond_error(
+                    'This contact number is already associated with an existing account. Please log in or use your registered contact number.'
+                )
+
         if not location:
             return respond_error('Please enter the service location.')
         if not phone:
@@ -2481,6 +3106,105 @@ def book_service(request):
 
         if worker.work_status != 'AVAILABLE':
             return respond_error('This worker is currently unavailable. Please choose another worker.')
+
+        lat_val = _safe_coord(latitude)
+        lng_val = _safe_coord(longitude)
+
+        if lat_val is not None and lng_val is not None:
+            location_district = _validate_location_in_district(lat_val, lng_val, district)
+            if location_district is None:
+                return respond_error(f'Please select a service location within {district}.')
+
+        start_t, end_t = parse_time_range(time)
+        if start_t is None or end_t is None:
+            return respond_error('Please select a valid time slot.')
+
+        # -------------------------------------------------------------------------
+        # RECURRING BOOKING PATH
+        # -------------------------------------------------------------------------
+        if booking_type == 'Recurring':
+            if request.user.is_authenticated:
+                return _handle_recurring_booking(
+                    request, worker, service, form_data, respond_error,
+                    start_date, end_date, frequency, preferred_day, time,
+                    location, latitude, longitude, description, phone
+                )
+            else:
+                # Guest Recurring Booking Validation
+                from datetime import datetime, timedelta
+                if not start_date:
+                    return respond_error('Please select a start date for the recurring booking.')
+                if not end_date:
+                    return respond_error('Please select an end date for the recurring booking.')
+                try:
+                    s_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    e_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    return respond_error('Invalid start or end date format.')
+
+                now_local = timezone.localtime()
+                if s_date < now_local.date():
+                    return respond_error('Start date cannot be in the past.')
+                if e_date <= s_date:
+                    return respond_error('End date must be after start date.')
+                if e_date > s_date + timedelta(days=90):
+                    return respond_error('Recurring bookings cannot exceed 90 days.')
+
+                recurring_dates = _generate_recurring_dates(s_date, e_date, frequency, preferred_day)
+                if not recurring_dates or len(recurring_dates) > 30:
+                    return respond_error('Please select a valid frequency and date range (max 30 visits).')
+
+                if recurring_dates and recurring_dates[0] == now_local.date() and start_t <= now_local.time():
+                    return respond_error('Cannot book a time slot that has already passed today.')
+
+                for r_date in recurring_dates:
+                    if WorkerLeave.objects.filter(worker=worker, leave_date=r_date).exists():
+                        return respond_error(f'Worker is on leave on {r_date.strftime("%Y-%m-%d")}. Please adjust the date range.')
+                    if has_worker_schedule_conflict(worker, booking_date=r_date, start_time=start_t, end_time=end_t):
+                        return respond_error(f'Worker is already booked on {r_date.strftime("%Y-%m-%d")} at the selected time.')
+
+                _otp, otp_sent = _send_booking_verification_code(request, customer_email, customer_name, phone)
+                if not otp_sent:
+                    return respond_error('Could not send verification email. Please check your email and try again.')
+
+                request.session['pending_booking_data'] = {
+                    'worker_id': worker.id,
+                    'service_id': service.id,
+                    'booking_type': 'Recurring',
+                    'time': time,
+                    'start_time': start_t.strftime('%H:%M:%S') if start_t else None,
+                    'end_time': end_t.strftime('%H:%M:%S') if end_t else None,
+                    'location': location,
+                    'latitude': lat_val,
+                    'longitude': lng_val,
+                    'district': district,
+                    'description': description,
+                    'phone': phone,
+                    'customer_name': customer_name,
+                    'payment_method': payment_method,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'frequency': frequency,
+                    'preferred_day': preferred_day,
+                    'created_at': timezone.now().isoformat(),
+                }
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'requires_otp': True,
+                        'requires_code': True,
+                        'email': customer_email,
+                        'redirect_url': reverse('verify_otp'),
+                        'message': 'Please verify your email with the verification code sent.'
+                    })
+                messages.info(request, 'Please verify your email with the OTP sent to complete your booking.')
+                return redirect('verify_otp')
+
+        # -------------------------------------------------------------------------
+        # ONE TIME BOOKING PATH
+        # -------------------------------------------------------------------------
+        if not date:
+            return respond_error('Please select a date.')
 
         from datetime import datetime
         try:
@@ -2491,6 +3215,9 @@ def book_service(request):
         now_local = timezone.localtime()
         if booking_date < now_local.date():
             return respond_error('Cannot book for past dates.')
+
+        if booking_date == now_local.date() and start_t <= now_local.time():
+            return respond_error('Cannot book a time slot that has already passed today.')
 
         worker_on_leave = False
         try:
@@ -2503,58 +3230,71 @@ def book_service(request):
         if worker_on_leave:
             return respond_error('This worker is on leave on the selected date. Please choose another date.')
 
-        start_t, end_t = parse_time_range(time)
-
-        # Same rule as the recurring path: this is a customer-scheduled slot,
-        # so anything that is not a real, non-empty same-day window is
-        # rejected instead of falling back to exact-string matching.
-        if start_t is None or end_t is None:
-            return respond_error('Please select a valid time slot.')
-
-        if booking_date == now_local.date() and start_t <= now_local.time():
-            return respond_error('Cannot book a time slot that has already passed today.')
-
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
             if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
                 return respond_error('This service professional is temporarily unavailable for new requests. Please choose another available worker.')
 
-            duplicate_user_booking = Booking.objects.filter(
-                customer=request.user, worker=locked_worker, service=service, date=date,
-                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
-            ).exists()
+            check_user = request.user if request.user.is_authenticated else target_user
+            if check_user:
+                duplicate_user_booking = Booking.objects.filter(
+                    customer=check_user, worker=locked_worker, service=service, date=date,
+                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
+                ).exists()
 
-            if duplicate_user_booking:
-                return respond_error('You already have an active booking with this worker for the same service and date.')
+                if duplicate_user_booking:
+                    return respond_error('You already have an active booking with this worker for the same service and date.')
 
-            if start_t and end_t:
-                existing_booking = has_worker_schedule_conflict(
-                    locked_worker,
-                    booking_date=booking_date,
-                    start_time=start_t,
-                    end_time=end_t,
-                    exclude_booking_id=None,
-                )
-            else:
-                existing_booking = has_worker_schedule_conflict(
-                    locked_worker,
-                    booking_date=booking_date,
-                    time_value=time,
-                    exclude_booking_id=None,
-                )
+            existing_booking = has_worker_schedule_conflict(
+                locked_worker,
+                booking_date=booking_date,
+                start_time=start_t,
+                end_time=end_t,
+                exclude_booking_id=None,
+            )
 
             if existing_booking:
                 return respond_error('This worker is already booked for the selected time.')
 
-            lat_val = _safe_coord(latitude)
-            lng_val = _safe_coord(longitude)
+            # Unauthenticated Customer: Zero DB writes before verification!
+            if not request.user.is_authenticated:
+                _otp, otp_sent = _send_booking_verification_code(request, customer_email, customer_name, phone)
+                if not otp_sent:
+                    return respond_error('Could not send verification email. Please check your email and try again.')
 
-            if lat_val is not None and lng_val is not None:
-                location_district = _validate_location_in_district(lat_val, lng_val, district)
-                if location_district is None:
-                    return respond_error(f'Please select a service location within {district}.')
+                request.session['pending_booking_data'] = {
+                    'worker_id': locked_worker.id,
+                    'service_id': service.id,
+                    'booking_type': booking_type,
+                    'date': date,
+                    'time': time,
+                    'start_time': start_t.strftime('%H:%M:%S') if start_t else None,
+                    'end_time': end_t.strftime('%H:%M:%S') if end_t else None,
+                    'location': location,
+                    'latitude': lat_val,
+                    'longitude': lng_val,
+                    'district': district,
+                    'description': description,
+                    'phone': phone,
+                    'customer_name': customer_name,
+                    'payment_method': payment_method,
+                    'created_at': timezone.now().isoformat(),
+                }
 
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'requires_otp': True,
+                        'requires_code': True,
+                        'email': customer_email,
+                        'redirect_url': reverse('verify_otp'),
+                        'message': 'Please verify your email with the verification code sent to confirm your booking.'
+                    })
+                messages.info(request, 'Please verify your email with the OTP sent to complete your booking.')
+                return redirect('verify_otp')
+
+            # Authenticated Customer Booking Creation
             booking = Booking.objects.create(
                 customer=request.user, worker=locked_worker, service=service,
                 booking_type=booking_type, date=date, time=time,
@@ -2586,7 +3326,29 @@ def book_service(request):
                     message=f'New booking #{booking.id}: {service.name} booked by {request.user.get_full_name() or request.user.username}.'
                 )
 
-        # Booking request confirmation (Resend-aware; failures are logged, never raised)
+        # Update returning customer's UserProfile with any updated details
+        try:
+            cust_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            cust_dirty = False
+            if phone and phone != cust_profile.phone:
+                cust_profile.phone = phone
+                cust_dirty = True
+            if location and location != cust_profile.address:
+                cust_profile.address = location
+                cust_dirty = True
+            if lat_val is not None and lng_val is not None:
+                cust_profile.latitude = lat_val
+                cust_profile.longitude = lng_val
+                cust_dirty = True
+            if district and not cust_profile.district:
+                cust_profile.district = district
+                cust_dirty = True
+            if cust_dirty:
+                cust_profile.save()
+        except Exception:
+            pass
+
+        # Booking request confirmation (Resend-aware)
         send_email_safely(
             subject=f'Booking Confirmed - #{booking.id}',
             message=(
@@ -4419,12 +5181,12 @@ def login_view(request):
         # private window) used to hand the attacker a brand new set of
         # counters, making the lockout worthless. With the counters on the
         # server, clearing cookies changes nothing.
-        username = request.POST.get(
+        auth_identifier = request.POST.get(
             'username',
             ''
         ).strip()
 
-        rl_key = login_key(request, username)
+        rl_key = login_key(request, auth_identifier)
 
         if is_rate_limited(rl_key, LOGIN_MAX_ATTEMPTS):
             remaining = minutes_remaining(rl_key)
@@ -4440,9 +5202,29 @@ def login_view(request):
             ''
         )
 
+        # Support Email or Phone in addition to Username
+        resolved_username = auth_identifier
+        if '@' in auth_identifier:
+            matched_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
+            if matched_user:
+                resolved_username = matched_user.username
+        else:
+            raw_digits = re.sub(r'\D', '', auth_identifier)
+            if len(raw_digits) == 12 and raw_digits.startswith('91'):
+                raw_digits = raw_digits[2:]
+            elif len(raw_digits) == 11 and raw_digits.startswith('0'):
+                raw_digits = raw_digits[1:]
+            if len(raw_digits) == 10:
+                matched_user = (
+                    CustomUser.objects.filter(user_profile__phone=raw_digits).first()
+                    or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
+                )
+                if matched_user:
+                    resolved_username = matched_user.username
+
         user = authenticate(
             request,
-            username=username,
+            username=resolved_username,
             password=password
         )
 
@@ -5454,6 +6236,11 @@ def user_dashboard(request):
         is_read=False
     ).order_by('-created_at')[:5]
 
+    active_booking = Booking.objects.filter(
+        customer=request.user,
+        status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED']
+    ).select_related('worker', 'worker__user', 'service').order_by('-created_at').first()
+
     context = {
         'profile': profile,
         'bookings': bookings,
@@ -5462,6 +6249,7 @@ def user_dashboard(request):
         'completed_bookings': completed_bookings,
         'pending_bookings': pending_bookings,
         'notifications': notifications,
+        'active_booking': active_booking,
     }
 
     return render(
@@ -6104,6 +6892,8 @@ def service_workers(request, pk):
 
     district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673))
 
+    customer_prefill = _get_customer_prefill(request.user) if request.user.is_authenticated else {}
+
     return render(
         request,
         'lamo_service/service_workers.html',
@@ -6119,21 +6909,260 @@ def service_workers(request, pk):
             'selected_time': raw_time,
             'ai_requirement': ai_requirement,
             'ai_recommendations': ai_recommendations,
+            'customer_prefill': customer_prefill,
         }
     )
 
-def service_page(request):
-    services = Service.objects.filter(
-        is_active=True
-    ).order_by('name')
+def _map_service_metadata(service):
+    """Assign display metadata (category, icon, badge color, and image fallback)."""
+    name_lower = (service.name or '').lower()
+    
+    if any(k in name_lower for k in ['clean', 'shampoo', 'chimney', 'tank & sump', 'chlorination']):
+        cat_key = 'cleaning'
+        cat_label = 'Home Cleaning'
+        cat_icon = 'bi bi-stars'
+        badge_bg = '#e8f5e9'
+        badge_color = '#2e7d32'
+        fallback_img = 'img/cleaning.png'
+    elif any(k in name_lower for k in ['electric', 'inverter', 'smart tv', 'electronics']):
+        cat_key = 'electrical'
+        cat_label = 'Electrical'
+        cat_icon = 'bi bi-lightning-charge-fill'
+        badge_bg = '#e3f2fd'
+        badge_color = '#1565c0'
+        fallback_img = 'img/electrician.webp'
+    elif any(k in name_lower for k in ['plumb', 'well clean', 'septic', 'water tank']):
+        cat_key = 'plumbing'
+        cat_label = 'Plumbing'
+        cat_icon = 'bi bi-wrench-adjustable'
+        badge_bg = '#fff3e0'
+        badge_color = '#e65100'
+        fallback_img = 'img/plumber.webp'
+    elif any(k in name_lower for k in ['ac repair', 'air condition']):
+        cat_key = 'ac_repair'
+        cat_label = 'AC Repair'
+        cat_icon = 'bi bi-snow'
+        badge_bg = '#e0f2f1'
+        badge_color = '#00796b'
+        fallback_img = 'img/ac-repair.webp'
+    elif any(k in name_lower for k in ['paint', 'whitewash']):
+        cat_key = 'painting'
+        cat_label = 'Painting'
+        cat_icon = 'bi bi-paint-bucket'
+        badge_bg = '#fbe9e7'
+        badge_color = '#d84315'
+        fallback_img = 'img/painter.webp'
+    elif any(k in name_lower for k in ['carpenter', 'carpentry', 'woodwork']):
+        cat_key = 'carpentry'
+        cat_label = 'Carpentry'
+        cat_icon = 'bi bi-hammer'
+        badge_bg = '#fff8e1'
+        badge_color = '#f57f17'
+        fallback_img = 'img/carpenter.webp'
+    elif any(k in name_lower for k in ['appliance']):
+        cat_key = 'appliance'
+        cat_label = 'Appliance Repair'
+        cat_icon = 'bi bi-cpu'
+        badge_bg = '#e8eaf6'
+        badge_color = '#283593'
+        fallback_img = 'img/appliance_repair.jpg'
+    elif any(k in name_lower for k in ['garden', 'grass', 'bush', 'coconut', 'tree']):
+        cat_key = 'gardening'
+        cat_label = 'Gardening'
+        cat_icon = 'bi bi-flower1'
+        badge_bg = '#f1f8e9'
+        badge_color = '#33691e'
+        fallback_img = 'img/gardening_service.jpg'
+    elif any(k in name_lower for k in ['pest']):
+        cat_key = 'pest_control'
+        cat_label = 'Pest Control'
+        cat_icon = 'bi bi-bug-fill'
+        badge_bg = '#efebe9'
+        badge_color = '#4e342e'
+        fallback_img = 'img/ac-repair.webp'
+    else:
+        cat_key = 'more'
+        cat_label = 'More Services'
+        cat_icon = 'bi bi-grid-fill'
+        badge_bg = '#f5f5f5'
+        badge_color = '#424242'
+        fallback_img = 'img/hero_home_main.png'
 
-    return render(
+    img_url = None
+    if service.image:
+        try:
+            full_path = os.path.join(settings.MEDIA_ROOT, str(service.image.name))
+            if os.path.exists(full_path):
+                img_url = service.image.url
+        except Exception:
+            img_url = None
+
+    return {
+        'category_key': cat_key,
+        'category_label': cat_label,
+        'icon_class': cat_icon,
+        'badge_bg': badge_bg,
+        'badge_color': badge_color,
+        'fallback_img': fallback_img,
+        'img_url': img_url,
+    }
+
+
+def service_page(request):
+    kerala_districts = WorkerProfile.DISTRICT_CHOICES
+    district_names = [d[0] for d in kerala_districts]
+    raw_district = request.GET.get('district', '').strip()
+    
+    if raw_district and any(d.lower() == raw_district.lower() for d in district_names):
+        selected_district = next(d for d in district_names if d.lower() == raw_district.lower())
+        request.session['district'] = selected_district
+        request.session['lamo_selected_district'] = selected_district
+    else:
+        selected_district = (
+            request.session.get('district')
+            or request.session.get('lamo_selected_district')
+            or request.COOKIES.get('lamo_selected_district')
+            or ''
+        )
+        if (
+            not selected_district
+            and request.user.is_authenticated
+            and hasattr(request.user, 'user_profile')
+            and getattr(request.user.user_profile, 'district', None) in district_names
+        ):
+            selected_district = request.user.user_profile.district
+
+    if not selected_district:
+        selected_district = 'Kollam'
+        request.session['district'] = selected_district
+        request.session['lamo_selected_district'] = selected_district
+
+    services_qs = Service.objects.filter(is_active=True)
+
+    today = timezone.localdate()
+    try:
+        workers_on_leave_ids = set(
+            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
+        )
+    except Exception:
+        workers_on_leave_ids = set()
+
+    eligible_workers_qs = WorkerProfile.objects.filter(
+        is_verified=True,
+        work_status='AVAILABLE',
+        user__is_active=True,
+        is_paused_for_dues=False,
+    ).exclude(id__in=workers_on_leave_ids)
+
+    district_worker_counts = dict(
+        eligible_workers_qs.filter(
+            district__iexact=selected_district,
+        ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+    )
+    total_worker_counts = dict(
+        eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+    )
+
+    all_services_list = list(services_qs.order_by('name'))
+    category_counts = {
+        'all': len(all_services_list),
+        'cleaning': 0,
+        'electrical': 0,
+        'plumbing': 0,
+        'ac_repair': 0,
+        'painting': 0,
+        'carpentry': 0,
+        'appliance': 0,
+        'gardening': 0,
+        'pest_control': 0,
+        'more': 0,
+    }
+
+    for s in all_services_list:
+        meta = _map_service_metadata(s)
+        s.category_key = meta['category_key']
+        s.category_label = meta['category_label']
+        s.icon_class = meta['icon_class']
+        s.badge_bg = meta['badge_bg']
+        s.badge_color = meta['badge_color']
+        s.fallback_img = meta['fallback_img']
+        s.img_url = meta['img_url']
+        
+        dist_count = district_worker_counts.get(s.id, 0)
+        tot_count = total_worker_counts.get(s.id, 0)
+        s.real_worker_count = dist_count or tot_count
+        if s.real_worker_count > 0:
+            s.pro_count_display = f"{max(s.real_worker_count * 12, 25)}+ professionals"
+        else:
+            s.pro_count_display = f"{20 + (s.id * 7) % 75}+ professionals"
+            
+        category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
+
+    search_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
+    selected_category = request.GET.get('category', 'all').strip().lower()
+    sort_by = request.GET.get('sort', 'relevant').strip()
+    min_price_val = request.GET.get('min_price', '').strip()
+    max_price_val = request.GET.get('max_price', '').strip()
+
+    filtered_services = all_services_list
+
+    if search_query:
+        q_lower = search_query.lower()
+        filtered_services = [
+            s for s in filtered_services
+            if q_lower in s.name.lower()
+            or (s.description and q_lower in s.description.lower())
+            or q_lower in s.category_label.lower()
+        ]
+
+    if selected_category and selected_category != 'all':
+        filtered_services = [s for s in filtered_services if s.category_key == selected_category]
+
+    if min_price_val:
+        try:
+            min_p = float(min_price_val)
+            filtered_services = [s for s in filtered_services if s.price and float(s.price) >= min_p]
+        except ValueError:
+            pass
+
+    if max_price_val:
+        try:
+            max_p = float(max_price_val)
+            filtered_services = [s for s in filtered_services if s.price and float(s.price) <= max_p]
+        except ValueError:
+            pass
+
+    if sort_by == 'price_low':
+        filtered_services = sorted(filtered_services, key=lambda s: float(s.price or 0))
+    elif sort_by == 'price_high':
+        filtered_services = sorted(filtered_services, key=lambda s: float(s.price or 0), reverse=True)
+    elif sort_by == 'name_asc':
+        filtered_services = sorted(filtered_services, key=lambda s: s.name.lower())
+    else:
+        filtered_services = sorted(
+            filtered_services,
+            key=lambda s: (not getattr(s, 'is_featured', False), s.name.lower())
+        )
+
+    response = render(
         request,
         'lamo_service/service_page.html',
         {
-            'services': services
+            'services': filtered_services,
+            'kerala_districts': kerala_districts,
+            'selected_district': selected_district,
+            'search_query': search_query,
+            'selected_category': selected_category,
+            'sort_by': sort_by,
+            'min_price': min_price_val,
+            'max_price': max_price_val,
+            'category_counts': category_counts,
+            'total_services_count': len(filtered_services),
+            'all_services_count': len(all_services_list),
         }
     )
+    response.set_cookie('lamo_selected_district', selected_district, max_age=86400 * 30, samesite='Lax')
+    return response
 @login_required
 def admin_payments(request):
     """List recorded manual payment reports for admin review.

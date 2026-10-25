@@ -753,9 +753,9 @@
 
           <div class="auth-input-group">
             <div class="auth-input-wrap">
-              <i class="bi bi-person"></i>
+              <i class="bi bi-person" id="modalLoginIcon"></i>
               <input type="text" name="username" id="modalLoginUsername" class="auth-field-input"
-                placeholder="Username" autocomplete="username" required>
+                placeholder="Email, Mobile Number or Username" autocomplete="username" required>
             </div>
           </div>
 
@@ -1157,9 +1157,10 @@
     var workerBackTwo = document.getElementById('modalWorkerBackTwo');
 
     // -------------------------------------------------------
+    // -------------------------------------------------------
     // SWITCH BETWEEN LOGIN (IMAGE 1) AND REGISTER (IMAGE 2)
     // -------------------------------------------------------
-    function showModalView(view) {
+    function showModalView(view, role) {
       if (!overlay || !cardLogin || !cardRegister) return;
 
       if (view === 'login') {
@@ -1174,6 +1175,30 @@
         if (stepAccount) stepAccount.style.display = 'block';
         if (stepWorkerOne) stepWorkerOne.style.display = 'none';
         if (stepWorkerTwo) stepWorkerTwo.style.display = 'none';
+
+        // Pre-select role (WORKER or USER)
+        if (role === 'WORKER') {
+          roleCards.forEach(function(c) {
+            if (c.getAttribute('data-role') === 'WORKER') {
+              c.classList.add('active');
+            } else {
+              c.classList.remove('active');
+            }
+          });
+          if (roleSelect) roleSelect.value = 'WORKER';
+          if (workerOfferBanner) workerOfferBanner.style.display = 'flex';
+        } else if (role === 'USER') {
+          roleCards.forEach(function(c) {
+            if (c.getAttribute('data-role') === 'USER') {
+              c.classList.add('active');
+            } else {
+              c.classList.remove('active');
+            }
+          });
+          if (roleSelect) roleSelect.value = 'USER';
+          if (workerOfferBanner) workerOfferBanner.style.display = 'none';
+        }
+
         var regUserInput = document.getElementById('modalRegUsername');
         if (regUserInput) setTimeout(function() { regUserInput.focus(); }, 120);
       }
@@ -1189,12 +1214,11 @@
     });
 
     // -------------------------------------------------------
-    // -------------------------------------------------------
     // OPEN & CLOSE MODAL API
     // -------------------------------------------------------
-    window.openLamoAuthModal = function(initialView, nextUrl) {
+    window.openLamoAuthModal = function(initialView, nextUrl, initialRole) {
       if (!overlay) return;
-      showModalView(initialView === 'login' ? 'login' : 'register');
+      showModalView(initialView === 'login' ? 'login' : 'register', initialRole);
       var nextInput = document.getElementById('modalLoginNext');
       if (nextInput) {
         nextInput.value = nextUrl || '';
@@ -1258,6 +1282,7 @@
         e.preventDefault();
         var view = el.getAttribute('data-auth-view') || 'login';
         var nextUrl = el.getAttribute('data-next-url') || '';
+        var role = el.getAttribute('data-auth-role') || '';
         // Close mobile drawer if open
         var mobileNav = document.getElementById('mainNav');
         if (mobileNav && mobileNav.classList.contains('show')) {
@@ -1274,9 +1299,25 @@
           var backdrop = document.getElementById('mobileNavBackdrop');
           if (backdrop) backdrop.classList.remove('show');
         }
-        window.openLamoAuthModal(view, nextUrl);
+        window.openLamoAuthModal(view, nextUrl, role);
       });
     });
+
+    // Dynamic icon for username / email / phone input
+    var loginUserInput = document.getElementById('modalLoginUsername');
+    var loginUserIcon = document.getElementById('modalLoginIcon');
+    if (loginUserInput && loginUserIcon) {
+      loginUserInput.addEventListener('input', function() {
+        var val = this.value.trim();
+        if (val.indexOf('@') !== -1) {
+          loginUserIcon.className = 'bi bi-envelope';
+        } else if (/^[0-9+() -]+$/.test(val) && val.length >= 3) {
+          loginUserIcon.className = 'bi bi-telephone';
+        } else {
+          loginUserIcon.className = 'bi bi-person';
+        }
+      });
+    }
 
     // Universal fallback for any guest links pointing to login?next=
     document.querySelectorAll('a[href*="/accounts/login/?next="], a[href*="login/?next="], a[href*="login?next="]').forEach(function(el) {
