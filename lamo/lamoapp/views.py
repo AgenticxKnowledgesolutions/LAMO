@@ -2224,6 +2224,27 @@ def _safe_post_login_redirect(request, raw_next):
     return fallback
 
 
+def _find_user_by_identifier(auth_identifier):
+    """Lookup a CustomUser by email, 10-digit phone number, or username."""
+    if not auth_identifier:
+        return None
+    auth_identifier = str(auth_identifier).strip()
+    if '@' in auth_identifier:
+        return CustomUser.objects.filter(email__iexact=auth_identifier).first()
+    raw_digits = re.sub(r'\D', '', auth_identifier)
+    if len(raw_digits) == 12 and raw_digits.startswith('91'):
+        raw_digits = raw_digits[2:]
+    elif len(raw_digits) == 11 and raw_digits.startswith('0'):
+        raw_digits = raw_digits[1:]
+    if len(raw_digits) == 10:
+        return (
+            CustomUser.objects.filter(user_profile__phone=raw_digits).first()
+            or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
+            or CustomUser.objects.filter(username=auth_identifier).first()
+        )
+    return CustomUser.objects.filter(username=auth_identifier).first()
+
+
 def _is_valid_booking_transition(current_status, new_status):
     """Check if a booking status transition is valid."""
     valid_transitions = {
@@ -3998,6 +4019,92 @@ def register_view(request):
 
     if request.method == 'POST':
 
+        action = request.POST.get('action', '')
+        if action == 'send_customer_reg_otp':
+            name = request.POST.get('name', '').strip()
+            identifier = request.POST.get('identifier', '').strip()
+            if not name or not identifier:
+                return JsonResponse({'success': False, 'error': 'Please enter both your name and email or mobile number.'})
+
+            existing = _find_user_by_identifier(identifier)
+            if existing:
+                return JsonResponse({'success': False, 'error': 'An account with this email or mobile number already exists. Please sign in.'})
+
+            reg_otp = ''.join(secrets.choice(string.digits) for _ in range(6))
+            request.session['customer_reg_data'] = {
+                'name': name,
+                'identifier': identifier,
+                'otp': reg_otp,
+                'created_at': timezone.now().isoformat()
+            }
+            if '@' in identifier:
+                from django.core.mail import send_mail
+                try:
+                    send_mail(
+                        'LAMO Account Verification Code',
+                        f'Hello {name},\n\nYour 6-digit verification code for LAMO is: {reg_otp}\nValid for 10 minutes.\n\nThank you,\nTeam LAMO',
+                        getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lamo.in'),
+                        [identifier],
+                        fail_silently=True
+                    )
+                except Exception:
+                    pass
+
+            target_str = identifier
+            if '@' in target_str:
+                p = target_str.split('@')
+                masked = (p[0][:2] + '***@' + p[1]) if len(p[0]) > 2 else ('*@' + p[1])
+            else:
+                digits = re.sub(r'\D', '', target_str)
+                masked = digits[:2] + '******' + digits[-2:] if len(digits) >= 4 else digits
+
+            return JsonResponse({'success': True, 'masked_target': masked, 'message': f'Verification code sent to {masked}'})
+
+        if action == 'verify_customer_reg_otp':
+            otp = request.POST.get('otp', '').strip()
+            reg_data = request.session.get('customer_reg_data')
+            if not reg_data:
+                return JsonResponse({'success': False, 'error': 'Registration session expired. Please start again.'})
+
+            if reg_data.get('otp') != otp:
+                return JsonResponse({'success': False, 'error': 'Invalid 6-digit verification code. Please try again.'})
+
+            from datetime import datetime as dt_cls
+            created_at_dt = dt_cls.fromisoformat(reg_data.get('created_at'))
+            if timezone.now() > created_at_dt + timedelta(minutes=10):
+                return JsonResponse({'success': False, 'error': 'Verification code has expired. Please request a new one.'})
+
+            name = reg_data.get('name')
+            identifier = reg_data.get('identifier')
+            base_username = re.sub(r'[^a-zA-Z0-9_]', '', name.lower().replace(' ', '_')) or 'user'
+            username = base_username
+            counter = 1
+            while CustomUser.objects.filter(username=username).exists():
+                username = f"{base_username}_{counter}"
+                counter += 1
+
+            email = identifier if '@' in identifier else ''
+            user = CustomUser.objects.create_user(
+                username=username,
+                email=email,
+                role='USER',
+                is_email_verified=True
+            )
+            user.set_unusable_password()
+            user.save()
+
+            phone = '' if '@' in identifier else re.sub(r'\D', '', identifier)[-10:]
+            UserProfile.objects.create(user=user, phone=phone)
+
+            login(request, user)
+            request.session.cycle_key()
+            request.session.pop('customer_reg_data', None)
+
+            requested_next = request.POST.get('next') or request.session.pop('registration_next', None)
+            safe_next = _safe_internal_path(request, requested_next, '')
+            dest = safe_next if safe_next else reverse('home')
+            return JsonResponse({'success': True, 'redirect_url': dest})
+
         username = request.POST.get(
             'username',
             ''
@@ -5172,6 +5279,89 @@ def login_view(request):
     # already holds (e.g. set by register_view earlier in the flow).
 
     if request.method == 'POST':
+
+        action = request.POST.get('action', '')
+        if action == 'send_login_otp':
+            identifier = (request.POST.get('identifier') or request.POST.get('username') or '').strip()
+            if not identifier:
+                return JsonResponse({'success': False, 'error': 'Please enter your email or mobile number.'})
+            user = _find_user_by_identifier(identifier)
+            if not user:
+                return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number. Please check your details or create an account.'})
+
+            if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+                rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
+                return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
+
+            user.generate_otp()
+            if user.email:
+                send_otp_email(user)
+
+            target_str = user.email or identifier
+            if '@' in target_str:
+                p = target_str.split('@')
+                masked = (p[0][:2] + '***@' + p[1]) if len(p[0]) > 2 else ('*@' + p[1])
+            else:
+                digits = re.sub(r'\D', '', target_str)
+                masked = digits[:2] + '******' + digits[-2:] if len(digits) >= 4 else digits
+
+            return JsonResponse({'success': True, 'masked_target': masked, 'message': f'Verification OTP sent to {masked}'})
+
+        if action == 'verify_login_otp':
+            identifier = (request.POST.get('identifier') or request.POST.get('username') or '').strip()
+            otp = request.POST.get('otp', '').strip()
+            requested_next = request.POST.get('next') or request.GET.get('next')
+            if not identifier or not otp:
+                return JsonResponse({'success': False, 'error': 'Please enter both your identifier and the 6-digit OTP.'})
+
+            user = _find_user_by_identifier(identifier)
+            if not user:
+                return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number.'})
+
+            if user.otp_locked_until and timezone.now() < user.otp_locked_until:
+                rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
+                return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
+
+            if not user.email_verification_otp or user.email_verification_otp != otp:
+                user.otp_failed_attempts = (user.otp_failed_attempts or 0) + 1
+                if user.otp_failed_attempts >= 5:
+                    user.otp_locked_until = timezone.now() + timedelta(minutes=15)
+                user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
+                return JsonResponse({'success': False, 'error': 'Invalid 6-digit verification code. Please try again.'})
+
+            if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=10):
+                return JsonResponse({'success': False, 'error': 'Verification code has expired. Please request a new code.'})
+
+            user.otp_failed_attempts = 0
+            user.otp_locked_until = None
+            user.is_email_verified = True
+            user.email_verification_otp = None
+            user.save(update_fields=['otp_failed_attempts', 'otp_locked_until', 'is_email_verified', 'email_verification_otp'])
+
+            if user.role == 'WORKER':
+                try:
+                    wp = user.worker_profile
+                    if not wp.is_verified:
+                        return JsonResponse({
+                            'success': False,
+                            'pending_verification': True,
+                            'error': 'Your worker account is waiting for admin verification. You cannot login until your account is verified.'
+                        })
+                except WorkerProfile.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': 'Worker profile not found.'})
+
+            login(request, user)
+            request.session.cycle_key()
+
+            safe_next = _safe_internal_path(request, requested_next or request.session.pop('registration_next', None), '')
+            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+                dest = reverse('admin_dashboard')
+            elif user.role == 'WORKER':
+                dest = reverse('worker_dashboard')
+            else:
+                dest = safe_next if safe_next else reverse('home')
+
+            return JsonResponse({'success': True, 'redirect_url': dest})
 
         # ==================================================
         # BRUTE FORCE PROTECTION (server-side)

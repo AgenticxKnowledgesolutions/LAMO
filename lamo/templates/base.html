@@ -422,7 +422,7 @@
               <!-- Mobile Secondary Section (About Us & Contact) -->
               <li class="nav-item d-lg-none">
                 <a class="nav-link js-auth-trigger" href="{% url 'register' %}?role=worker" data-auth-view="register" data-auth-role="WORKER" style="color: #10b981; font-weight: 700; font-size: 0.9rem;">
-                  <i class="bi bi-briefcase-fill me-2" style="color: #10b981;"></i>Become a Service Partner
+                  <i class="bi bi-briefcase-fill me-2" style="color: #10b981;"></i>Become a Worker
                 </a>
               </li>
               <li class="nav-item d-lg-none mobile-nav-secondary-divider">
@@ -503,7 +503,7 @@
             <!-- Guest Desktop & Mobile Actions -->
             <a href="{% url 'register' %}?role=worker" class="btn-become-pro d-none d-xl-inline-flex js-auth-trigger" data-auth-view="register" data-auth-role="WORKER" style="padding: 7px 15px; border-radius: 50px; background: rgba(8, 127, 91, 0.08); border: 1.5px solid rgba(8, 127, 91, 0.22); color: #087F5B; font-weight: 700; font-size: 0.82rem; text-decoration: none; align-items: center; gap: 6px;">
               <i class="bi bi-briefcase-fill" style="color: #087F5B;"></i>
-              Become a Pro
+              Become a Worker
             </a>
             <a href="{% url 'login' %}" class="btn-login">
               <i class="bi bi-box-arrow-in-right me-1"></i>
@@ -793,7 +793,7 @@
           <ul class="footer-links">
             <li>
               <a href="{% url 'register' %}?role=worker" class="js-auth-trigger" data-auth-view="register" data-auth-role="WORKER">
-                Join as a Partner
+                Join as a Worker
               </a>
             </li>
             <li>
@@ -803,13 +803,13 @@
               </a>
               {% else %}
               <a href="{% url 'login' %}?next={% url 'worker_dashboard' %}" class="js-auth-trigger" data-auth-view="login" data-next-url="{% url 'worker_dashboard' %}">
-                Partner Login
+                Worker Login
               </a>
               {% endif %}
             </li>
             <li>
               <a href="{% url 'about' %}">
-                Partner Benefits
+                Worker Benefits
               </a>
             </li>
           </ul>

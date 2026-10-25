@@ -740,44 +740,62 @@
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: LOGIN FORM -->
+      <!-- RIGHT COLUMN: LOGIN FORM (PASSWORDLESS EMAIL / PHONE + OTP) -->
       <div class="card-right">
         <div class="auth-heading">
           <h2>Welcome back</h2>
-          <p>Sign in to continue to your LAMO account.</p>
+          <p>Sign in to your account with mobile number or email.</p>
         </div>
 
         <form method="POST" action="{% url 'login' %}" id="modalLoginForm">
           {% csrf_token %}
           <input type="hidden" name="next" id="modalLoginNext" value="">
 
-          <div class="auth-input-group">
-            <div class="auth-input-wrap">
-              <i class="bi bi-person" id="modalLoginIcon"></i>
-              <input type="text" name="username" id="modalLoginUsername" class="auth-field-input"
-                placeholder="Email, Mobile Number or Username" autocomplete="username" required>
+          <!-- LOGIN STEP 1: ENTER EMAIL OR PHONE -->
+          <div id="modalLoginStepIdentifier">
+            <div class="auth-input-group">
+              <label for="modalLoginIdentifier" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">Mobile Number or Email</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-person" id="modalLoginIcon"></i>
+                <input type="text" name="identifier" id="modalLoginIdentifier" class="auth-field-input"
+                  placeholder="Enter email or 10-digit mobile" autocomplete="username" required>
+              </div>
             </div>
+
+            <small class="auth-field-error" id="modalLoginError"></small>
+
+            <button type="button" class="auth-btn-main" id="modalLoginSendOtpBtn">
+              <span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>
+            </button>
           </div>
 
-          <div class="auth-input-group">
-            <div class="auth-input-wrap">
-              <i class="bi bi-lock"></i>
-              <input type="password" name="password" id="modalLoginPassword" class="auth-field-input"
-                placeholder="Password" autocomplete="current-password" required>
-              <button type="button" class="auth-pass-toggle" data-toggle-target="modalLoginPassword" aria-label="Toggle password">
-                <i class="bi bi-eye"></i>
-              </button>
+          <!-- LOGIN STEP 2: VERIFY 6-DIGIT OTP -->
+          <div id="modalLoginStepOtp" style="display: none;">
+            <div style="font-size: 13px; color: #475569; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 10px;">
+              <span>Code sent to <strong id="modalLoginMaskedTarget" style="color: #0f172a;"></strong></span>
+              <button type="button" id="modalLoginEditTargetBtn" style="background: none; border: none; color: #16a34a; font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 12px; padding: 0;">Change</button>
             </div>
-          </div>
 
-          <small class="auth-field-error" id="modalLoginError"></small>
+            <div class="auth-input-group">
+              <label for="modalLoginOtpInput" style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">6-Digit Verification Code</label>
+              <div class="auth-input-wrap">
+                <i class="bi bi-shield-lock"></i>
+                <input type="text" name="otp" id="modalLoginOtpInput" class="auth-field-input"
+                  placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+                  style="letter-spacing: 6px; font-weight: 800; font-size: 20px; text-align: center;">
+              </div>
+            </div>
 
-          <button type="submit" class="auth-btn-main" id="modalLoginSubmitBtn">
-            Sign In <i class="bi bi-arrow-right"></i>
-          </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: -6px; margin-bottom: 12px;">
+              <span id="modalLoginTimer" style="color: #64748b;">Resend code in 30s</span>
+              <button type="button" id="modalLoginResendBtn" style="display: none; background: none; border: none; color: #16a34a; font-weight: 700; cursor: pointer; font-size: 12px; padding: 0;">Resend OTP</button>
+            </div>
 
-          <div class="auth-forgot-center">
-            <a href="{% url 'forgot_password' %}">Forgot Password?</a>
+            <small class="auth-field-error" id="modalLoginOtpError"></small>
+
+            <button type="button" class="auth-btn-main" id="modalLoginVerifyOtpBtn">
+              <span>Verify &amp; Sign In</span> <i class="bi bi-arrow-right"></i>
+            </button>
           </div>
 
           <div class="auth-divider">
@@ -854,57 +872,11 @@
           {% csrf_token %}
           <input type="hidden" name="next" id="modalRegNext" value="">
 
-          <!-- STEP 1: ACCOUNT DETAILS (USER & INITIAL WORKER) -->
+          <!-- STEP 1: ACCOUNT DETAILS (USER OTP REGISTRATION & INITIAL WORKER REGISTRATION) -->
           <div id="modalStepAccount" class="modal-form-step">
 
-            <div class="auth-input-group">
-              <label for="modalRegUsername">Username</label>
-              <div class="auth-input-wrap">
-                <i class="bi bi-person"></i>
-                <input type="text" name="username" id="modalRegUsername" class="auth-field-input"
-                  placeholder="Username" autocomplete="username" required>
-              </div>
-              <small class="auth-field-error" id="modalRegUsernameError"></small>
-            </div>
-
-            <div class="auth-input-group">
-              <label for="modalRegEmail">Email Address</label>
-              <div class="auth-input-wrap">
-                <i class="bi bi-envelope"></i>
-                <input type="email" name="email" id="modalRegEmail" class="auth-field-input"
-                  placeholder="Email address" autocomplete="email" required>
-              </div>
-              <small class="auth-field-error" id="modalRegEmailError"></small>
-            </div>
-
-            <div class="auth-input-group">
-              <label for="modalRegPassword">Password</label>
-              <div class="auth-input-wrap">
-                <i class="bi bi-lock"></i>
-                <input type="password" name="password" id="modalRegPassword" class="auth-field-input"
-                  placeholder="Password" required minlength="8" autocomplete="new-password">
-                <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegPassword" aria-label="Toggle password">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </div>
-              <small class="auth-field-error" id="modalRegPasswordError"></small>
-            </div>
-
-            <div class="auth-input-group">
-              <label for="modalRegConfirmPassword">Confirm Password</label>
-              <div class="auth-input-wrap">
-                <i class="bi bi-shield-check"></i>
-                <input type="password" name="confirm_password" id="modalRegConfirmPassword" class="auth-field-input"
-                  placeholder="Confirm password" required minlength="8" autocomplete="new-password">
-                <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegConfirmPassword" aria-label="Toggle password">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </div>
-              <small class="auth-field-error" id="modalRegConfirmPasswordError"></small>
-            </div>
-
-            <!-- ROLE SELECTOR -->
-            <label class="auth-role-label">How will you use LAMO?</label>
+            <!-- ROLE SELECTOR AT TOP -->
+            <label class="auth-role-label" style="margin-top: 0;">How will you use LAMO?</label>
             <div class="auth-role-selector">
               <div class="auth-role-card active" data-role="USER" tabindex="0">
                 <i class="bi bi-person-square role-main-icon"></i>
@@ -922,18 +894,124 @@
               <option value="WORKER">Worker</option>
             </select>
 
-            <!-- WORKER OFFER BANNER -->
-            <div id="modalWorkerOfferBanner" class="auth-worker-offer-badge" style="display: none;">
-              <i class="bi bi-gift-fill"></i>
-              <div>
-                <strong>30-Day Launch Partner Benefit Active!</strong>
-                <span>₹0 Fee &bull; 0% Commission &bull; Keep 100% of earnings</span>
+            <!-- SECTION A: CUSTOMER (USER) PASSWORDLESS OTP REGISTRATION -->
+            <div id="modalUserRegSection">
+              <div id="modalCustStepInput">
+                <div class="auth-input-group">
+                  <label for="modalCustName">Full Name</label>
+                  <div class="auth-input-wrap">
+                    <i class="bi bi-person"></i>
+                    <input type="text" id="modalCustName" class="auth-field-input"
+                      placeholder="Your full name" autocomplete="name">
+                  </div>
+                  <small class="auth-field-error" id="modalCustNameError"></small>
+                </div>
+
+                <div class="auth-input-group">
+                  <label for="modalCustIdentifier">Mobile Number or Email</label>
+                  <div class="auth-input-wrap">
+                    <i class="bi bi-phone" id="modalCustIdIcon"></i>
+                    <input type="text" id="modalCustIdentifier" class="auth-field-input"
+                      placeholder="Enter email or 10-digit mobile">
+                  </div>
+                  <small class="auth-field-error" id="modalCustIdentifierError"></small>
+                </div>
+
+                <button type="button" class="auth-btn-main" id="modalCustSendOtpBtn">
+                  <span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>
+                </button>
+              </div>
+
+              <!-- CUSTOMER OTP SUB-STEP -->
+              <div id="modalCustStepOtp" style="display: none;">
+                <div style="font-size: 13px; color: #475569; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 10px;">
+                  <span>Code sent to <strong id="modalCustMaskedTarget" style="color: #0f172a;"></strong></span>
+                  <button type="button" id="modalCustEditTargetBtn" style="background: none; border: none; color: #16a34a; font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 12px; padding: 0;">Change</button>
+                </div>
+
+                <div class="auth-input-group">
+                  <label for="modalCustOtpInput">6-Digit Verification Code</label>
+                  <div class="auth-input-wrap">
+                    <i class="bi bi-shield-lock"></i>
+                    <input type="text" id="modalCustOtpInput" class="auth-field-input"
+                      placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+                      style="letter-spacing: 6px; font-weight: 800; font-size: 20px; text-align: center;">
+                  </div>
+                  <small class="auth-field-error" id="modalCustOtpError"></small>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: -6px; margin-bottom: 12px;">
+                  <span id="modalCustTimer" style="color: #64748b;">Resend code in 30s</span>
+                  <button type="button" id="modalCustResendBtn" style="display: none; background: none; border: none; color: #16a34a; font-weight: 700; cursor: pointer; font-size: 12px; padding: 0;">Resend OTP</button>
+                </div>
+
+                <button type="button" class="auth-btn-main" id="modalCustVerifyOtpBtn">
+                  <span>Verify &amp; Create Account</span> <i class="bi bi-arrow-right"></i>
+                </button>
               </div>
             </div>
 
-            <button type="button" class="auth-btn-main" id="modalContinueBtn">
-              Continue <i class="bi bi-arrow-right"></i>
-            </button>
+            <!-- SECTION B: WORKER REGISTRATION (STEP 1 - EXACT FIELDS UNCHANGED) -->
+            <div id="modalWorkerRegSection" style="display: none;">
+              <!-- WORKER OFFER BANNER -->
+              <div id="modalWorkerOfferBanner" class="auth-worker-offer-badge">
+                <i class="bi bi-gift-fill"></i>
+                <div>
+                  <strong>30-Day Launch Worker Benefit Active!</strong>
+                  <span>₹0 Fee &bull; 0% Commission &bull; Keep 100% of earnings</span>
+                </div>
+              </div>
+
+              <div class="auth-input-group">
+                <label for="modalRegUsername">Username</label>
+                <div class="auth-input-wrap">
+                  <i class="bi bi-person"></i>
+                  <input type="text" name="username" id="modalRegUsername" class="auth-field-input"
+                    placeholder="Username" autocomplete="username">
+                </div>
+                <small class="auth-field-error" id="modalRegUsernameError"></small>
+              </div>
+
+              <div class="auth-input-group">
+                <label for="modalRegEmail">Email Address</label>
+                <div class="auth-input-wrap">
+                  <i class="bi bi-envelope"></i>
+                  <input type="email" name="email" id="modalRegEmail" class="auth-field-input"
+                    placeholder="Email address" autocomplete="email">
+                </div>
+                <small class="auth-field-error" id="modalRegEmailError"></small>
+              </div>
+
+              <div class="auth-input-group">
+                <label for="modalRegPassword">Password</label>
+                <div class="auth-input-wrap">
+                  <i class="bi bi-lock"></i>
+                  <input type="password" name="password" id="modalRegPassword" class="auth-field-input"
+                    placeholder="Password" minlength="8" autocomplete="new-password">
+                  <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegPassword" aria-label="Toggle password">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <small class="auth-field-error" id="modalRegPasswordError"></small>
+              </div>
+
+              <div class="auth-input-group">
+                <label for="modalRegConfirmPassword">Confirm Password</label>
+                <div class="auth-input-wrap">
+                  <i class="bi bi-shield-check"></i>
+                  <input type="password" name="confirm_password" id="modalRegConfirmPassword" class="auth-field-input"
+                    placeholder="Confirm password" minlength="8" autocomplete="new-password">
+                  <button type="button" class="auth-pass-toggle" data-toggle-target="modalRegConfirmPassword" aria-label="Toggle password">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <small class="auth-field-error" id="modalRegConfirmPasswordError"></small>
+              </div>
+
+              <button type="button" class="auth-btn-main" id="modalContinueBtn">
+                Continue <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
 
             <p class="auth-terms-disclaimer">
               By continuing, you agree to LAMO's <a href="{% url 'terms' %}">Terms</a> &amp; <a href="{% url 'privacy' %}">Privacy Policy</a>.
@@ -1163,11 +1241,20 @@
     function showModalView(view, role) {
       if (!overlay || !cardLogin || !cardRegister) return;
 
+      var userRegSec = document.getElementById('modalUserRegSection');
+      var workerRegSec = document.getElementById('modalWorkerRegSection');
+      var loginStepId = document.getElementById('modalLoginStepIdentifier');
+      var loginStepOtp = document.getElementById('modalLoginStepOtp');
+      var custStepInput = document.getElementById('modalCustStepInput');
+      var custStepOtp = document.getElementById('modalCustStepOtp');
+
       if (view === 'login') {
         cardLogin.classList.add('active');
         cardRegister.classList.remove('active');
-        var loginUserInput = document.getElementById('modalLoginUsername');
-        if (loginUserInput) setTimeout(function() { loginUserInput.focus(); }, 120);
+        if (loginStepId) loginStepId.style.display = 'block';
+        if (loginStepOtp) loginStepOtp.style.display = 'none';
+        var loginIdInput = document.getElementById('modalLoginIdentifier');
+        if (loginIdInput) setTimeout(function() { loginIdInput.focus(); }, 120);
       } else {
         cardRegister.classList.add('active');
         cardLogin.classList.remove('active');
@@ -1186,8 +1273,11 @@
             }
           });
           if (roleSelect) roleSelect.value = 'WORKER';
-          if (workerOfferBanner) workerOfferBanner.style.display = 'flex';
-        } else if (role === 'USER') {
+          if (userRegSec) userRegSec.style.display = 'none';
+          if (workerRegSec) workerRegSec.style.display = 'block';
+          var regWorkerInput = document.getElementById('modalRegUsername');
+          if (regWorkerInput) setTimeout(function() { regWorkerInput.focus(); }, 120);
+        } else {
           roleCards.forEach(function(c) {
             if (c.getAttribute('data-role') === 'USER') {
               c.classList.add('active');
@@ -1196,11 +1286,13 @@
             }
           });
           if (roleSelect) roleSelect.value = 'USER';
-          if (workerOfferBanner) workerOfferBanner.style.display = 'none';
+          if (userRegSec) userRegSec.style.display = 'block';
+          if (workerRegSec) workerRegSec.style.display = 'none';
+          if (custStepInput) custStepInput.style.display = 'block';
+          if (custStepOtp) custStepOtp.style.display = 'none';
+          var custNameInput = document.getElementById('modalCustName');
+          if (custNameInput) setTimeout(function() { custNameInput.focus(); }, 120);
         }
-
-        var regUserInput = document.getElementById('modalRegUsername');
-        if (regUserInput) setTimeout(function() { regUserInput.focus(); }, 120);
       }
     }
 
@@ -1303,11 +1395,11 @@
       });
     });
 
-    // Dynamic icon for username / email / phone input
-    var loginUserInput = document.getElementById('modalLoginUsername');
+    // Dynamic icon for login identifier (email / phone)
+    var loginIdentifierInput = document.getElementById('modalLoginIdentifier');
     var loginUserIcon = document.getElementById('modalLoginIcon');
-    if (loginUserInput && loginUserIcon) {
-      loginUserInput.addEventListener('input', function() {
+    if (loginIdentifierInput && loginUserIcon) {
+      loginIdentifierInput.addEventListener('input', function() {
         var val = this.value.trim();
         if (val.indexOf('@') !== -1) {
           loginUserIcon.className = 'bi bi-envelope';
@@ -1315,6 +1407,27 @@
           loginUserIcon.className = 'bi bi-telephone';
         } else {
           loginUserIcon.className = 'bi bi-person';
+        }
+      });
+      loginIdentifierInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var btn = document.getElementById('modalLoginSendOtpBtn');
+          if (btn) btn.click();
+        }
+      });
+    }
+
+    // Dynamic icon for customer registration identifier
+    var custIdInput = document.getElementById('modalCustIdentifier');
+    var custIdIcon = document.getElementById('modalCustIdIcon');
+    if (custIdInput && custIdIcon) {
+      custIdInput.addEventListener('input', function() {
+        var val = this.value.trim();
+        if (val.indexOf('@') !== -1) {
+          custIdIcon.className = 'bi bi-envelope';
+        } else {
+          custIdIcon.className = 'bi bi-phone';
         }
       });
     }
@@ -1367,8 +1480,14 @@
         var role = card.getAttribute('data-role');
         if (roleSelect) roleSelect.value = role;
 
-        if (workerOfferBanner) {
-          workerOfferBanner.style.display = (role === 'WORKER') ? 'flex' : 'none';
+        var userRegSec = document.getElementById('modalUserRegSection');
+        var workerRegSec = document.getElementById('modalWorkerRegSection');
+        if (role === 'WORKER') {
+          if (userRegSec) userRegSec.style.display = 'none';
+          if (workerRegSec) workerRegSec.style.display = 'block';
+        } else {
+          if (userRegSec) userRegSec.style.display = 'block';
+          if (workerRegSec) workerRegSec.style.display = 'none';
         }
       });
     });
@@ -1381,7 +1500,350 @@
     }
 
     // -------------------------------------------------------
-    // REGISTER STEP 1 VALIDATION & CONTINUE BUTTON
+    // PASSWORDLESS LOGIN OTP HANDLERS
+    // -------------------------------------------------------
+    var sendLoginOtpBtn = document.getElementById('modalLoginSendOtpBtn');
+    var verifyLoginOtpBtn = document.getElementById('modalLoginVerifyOtpBtn');
+    var loginStepIdentifier = document.getElementById('modalLoginStepIdentifier');
+    var loginStepOtp = document.getElementById('modalLoginStepOtp');
+    var loginMaskedTarget = document.getElementById('modalLoginMaskedTarget');
+    var loginEditTargetBtn = document.getElementById('modalLoginEditTargetBtn');
+    var loginResendBtn = document.getElementById('modalLoginResendBtn');
+    var loginTimer = document.getElementById('modalLoginTimer');
+    var loginError = document.getElementById('modalLoginError');
+    var loginOtpError = document.getElementById('modalLoginOtpError');
+    var loginOtpInput = document.getElementById('modalLoginOtpInput');
+    var loginCountdownInterval = null;
+
+    function startLoginCountdown(seconds) {
+      if (loginCountdownInterval) clearInterval(loginCountdownInterval);
+      var rem = seconds || 30;
+      if (loginTimer) { loginTimer.textContent = 'Resend code in ' + rem + 's'; loginTimer.style.display = 'inline'; }
+      if (loginResendBtn) loginResendBtn.style.display = 'none';
+
+      loginCountdownInterval = setInterval(function() {
+        rem--;
+        if (rem <= 0) {
+          clearInterval(loginCountdownInterval);
+          if (loginTimer) loginTimer.style.display = 'none';
+          if (loginResendBtn) loginResendBtn.style.display = 'inline';
+        } else {
+          if (loginTimer) loginTimer.textContent = 'Resend code in ' + rem + 's';
+        }
+      }, 1000);
+    }
+
+    if (sendLoginOtpBtn) {
+      sendLoginOtpBtn.addEventListener('click', function() {
+        var idVal = loginIdentifierInput ? loginIdentifierInput.value.trim() : '';
+        if (loginError) { loginError.textContent = ''; loginError.classList.remove('show'); }
+        if (!idVal) {
+          if (loginError) {
+            loginError.textContent = 'Please enter your mobile number or email.';
+            loginError.classList.add('show');
+          }
+          if (loginIdentifierInput) loginIdentifierInput.focus();
+          return;
+        }
+
+        sendLoginOtpBtn.disabled = true;
+        sendLoginOtpBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending OTP...';
+
+        var fd = new FormData();
+        fd.append('action', 'send_login_otp');
+        fd.append('identifier', idVal);
+        var csrf = document.querySelector('#modalLoginForm input[name="csrfmiddlewaretoken"]')?.value;
+        if (csrf) fd.append('csrfmiddlewaretoken', csrf);
+
+        fetch("{% url 'login' %}", {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          sendLoginOtpBtn.disabled = false;
+          sendLoginOtpBtn.innerHTML = '<span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>';
+          if (data.success) {
+            if (loginMaskedTarget) loginMaskedTarget.textContent = data.masked_target || idVal;
+            if (loginStepIdentifier) loginStepIdentifier.style.display = 'none';
+            if (loginStepOtp) loginStepOtp.style.display = 'block';
+            if (loginOtpInput) { loginOtpInput.value = ''; loginOtpInput.focus(); }
+            startLoginCountdown(30);
+          } else {
+            if (loginError) {
+              loginError.textContent = data.error || 'Unable to send OTP. Please try again.';
+              loginError.classList.add('show');
+            }
+          }
+        })
+        .catch(function() {
+          sendLoginOtpBtn.disabled = false;
+          sendLoginOtpBtn.innerHTML = '<span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>';
+          if (loginError) {
+            loginError.textContent = 'Network error. Please try again.';
+            loginError.classList.add('show');
+          }
+        });
+      });
+    }
+
+    if (loginEditTargetBtn) {
+      loginEditTargetBtn.addEventListener('click', function() {
+        if (loginStepOtp) loginStepOtp.style.display = 'none';
+        if (loginStepIdentifier) loginStepIdentifier.style.display = 'block';
+        if (loginIdentifierInput) loginIdentifierInput.focus();
+      });
+    }
+
+    if (loginResendBtn) {
+      loginResendBtn.addEventListener('click', function() {
+        if (sendLoginOtpBtn) sendLoginOtpBtn.click();
+      });
+    }
+
+    if (verifyLoginOtpBtn) {
+      verifyLoginOtpBtn.addEventListener('click', function() {
+        var idVal = loginIdentifierInput ? loginIdentifierInput.value.trim() : '';
+        var otpVal = loginOtpInput ? loginOtpInput.value.trim() : '';
+        var nextVal = document.getElementById('modalLoginNext')?.value || '';
+        if (loginOtpError) { loginOtpError.textContent = ''; loginOtpError.classList.remove('show'); }
+
+        if (!otpVal || otpVal.length < 6) {
+          if (loginOtpError) {
+            loginOtpError.textContent = 'Please enter the complete 6-digit OTP.';
+            loginOtpError.classList.add('show');
+          }
+          if (loginOtpInput) loginOtpInput.focus();
+          return;
+        }
+
+        verifyLoginOtpBtn.disabled = true;
+        verifyLoginOtpBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Verifying...';
+
+        var fd = new FormData();
+        fd.append('action', 'verify_login_otp');
+        fd.append('identifier', idVal);
+        fd.append('otp', otpVal);
+        if (nextVal) fd.append('next', nextVal);
+        var csrf = document.querySelector('#modalLoginForm input[name="csrfmiddlewaretoken"]')?.value;
+        if (csrf) fd.append('csrfmiddlewaretoken', csrf);
+
+        fetch("{% url 'login' %}", {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          verifyLoginOtpBtn.disabled = false;
+          verifyLoginOtpBtn.innerHTML = '<span>Verify &amp; Sign In</span> <i class="bi bi-arrow-right"></i>';
+          if (data.success) {
+            window.location.href = data.redirect_url || "{% url 'home' %}";
+          } else {
+            if (loginOtpError) {
+              loginOtpError.textContent = data.error || 'Verification failed. Please check the code.';
+              loginOtpError.classList.add('show');
+            }
+          }
+        })
+        .catch(function() {
+          verifyLoginOtpBtn.disabled = false;
+          verifyLoginOtpBtn.innerHTML = '<span>Verify &amp; Sign In</span> <i class="bi bi-arrow-right"></i>';
+          if (loginOtpError) {
+            loginOtpError.textContent = 'Network error. Please try again.';
+            loginOtpError.classList.add('show');
+          }
+        });
+      });
+    }
+
+    if (loginOtpInput) {
+      loginOtpInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (verifyLoginOtpBtn) verifyLoginOtpBtn.click();
+        }
+      });
+    }
+
+    // -------------------------------------------------------
+    // CUSTOMER REGISTRATION OTP HANDLERS
+    // -------------------------------------------------------
+    var custNameInput = document.getElementById('modalCustName');
+    var custSendOtpBtn = document.getElementById('modalCustSendOtpBtn');
+    var custVerifyOtpBtn = document.getElementById('modalCustVerifyOtpBtn');
+    var custStepInput = document.getElementById('modalCustStepInput');
+    var custStepOtp = document.getElementById('modalCustStepOtp');
+    var custMaskedTarget = document.getElementById('modalCustMaskedTarget');
+    var custEditTargetBtn = document.getElementById('modalCustEditTargetBtn');
+    var custResendBtn = document.getElementById('modalCustResendBtn');
+    var custTimer = document.getElementById('modalCustTimer');
+    var custNameErr = document.getElementById('modalCustNameError');
+    var custIdErr = document.getElementById('modalCustIdentifierError');
+    var custOtpErr = document.getElementById('modalCustOtpError');
+    var custOtpInput = document.getElementById('modalCustOtpInput');
+    var custCountdownInterval = null;
+
+    function startCustCountdown(seconds) {
+      if (custCountdownInterval) clearInterval(custCountdownInterval);
+      var rem = seconds || 30;
+      if (custTimer) { custTimer.textContent = 'Resend code in ' + rem + 's'; custTimer.style.display = 'inline'; }
+      if (custResendBtn) custResendBtn.style.display = 'none';
+
+      custCountdownInterval = setInterval(function() {
+        rem--;
+        if (rem <= 0) {
+          clearInterval(custCountdownInterval);
+          if (custTimer) custTimer.style.display = 'none';
+          if (custResendBtn) custResendBtn.style.display = 'inline';
+        } else {
+          if (custTimer) custTimer.textContent = 'Resend code in ' + rem + 's';
+        }
+      }, 1000);
+    }
+
+    if (custSendOtpBtn) {
+      custSendOtpBtn.addEventListener('click', function() {
+        var nameVal = custNameInput ? custNameInput.value.trim() : '';
+        var idVal = custIdInput ? custIdInput.value.trim() : '';
+
+        if (custNameErr) { custNameErr.textContent = ''; custNameErr.classList.remove('show'); }
+        if (custIdErr) { custIdErr.textContent = ''; custIdErr.classList.remove('show'); }
+
+        var hasError = false;
+        if (!nameVal) {
+          if (custNameErr) { custNameErr.textContent = 'Please enter your full name.'; custNameErr.classList.add('show'); }
+          hasError = true;
+        }
+        if (!idVal) {
+          if (custIdErr) { custIdErr.textContent = 'Please enter your mobile number or email.'; custIdErr.classList.add('show'); }
+          hasError = true;
+        }
+        if (hasError) return;
+
+        custSendOtpBtn.disabled = true;
+        custSendOtpBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sending OTP...';
+
+        var fd = new FormData();
+        fd.append('action', 'send_customer_reg_otp');
+        fd.append('name', nameVal);
+        fd.append('identifier', idVal);
+        var csrf = document.querySelector('#modalRegisterForm input[name="csrfmiddlewaretoken"]')?.value;
+        if (csrf) fd.append('csrfmiddlewaretoken', csrf);
+
+        fetch("{% url 'register' %}", {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          custSendOtpBtn.disabled = false;
+          custSendOtpBtn.innerHTML = '<span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>';
+          if (data.success) {
+            if (custMaskedTarget) custMaskedTarget.textContent = data.masked_target || idVal;
+            if (custStepInput) custStepInput.style.display = 'none';
+            if (custStepOtp) custStepOtp.style.display = 'block';
+            if (custOtpInput) { custOtpInput.value = ''; custOtpInput.focus(); }
+            startCustCountdown(30);
+          } else {
+            if (custIdErr) {
+              custIdErr.textContent = data.error || 'Unable to send OTP.';
+              custIdErr.classList.add('show');
+            }
+          }
+        })
+        .catch(function() {
+          custSendOtpBtn.disabled = false;
+          custSendOtpBtn.innerHTML = '<span>Send OTP Code</span> <i class="bi bi-arrow-right"></i>';
+          if (custIdErr) {
+            custIdErr.textContent = 'Network error. Please try again.';
+            custIdErr.classList.add('show');
+          }
+        });
+      });
+    }
+
+    if (custEditTargetBtn) {
+      custEditTargetBtn.addEventListener('click', function() {
+        if (custStepOtp) custStepOtp.style.display = 'none';
+        if (custStepInput) custStepInput.style.display = 'block';
+        if (custIdInput) custIdInput.focus();
+      });
+    }
+
+    if (custResendBtn) {
+      custResendBtn.addEventListener('click', function() {
+        if (custSendOtpBtn) custSendOtpBtn.click();
+      });
+    }
+
+    if (custVerifyOtpBtn) {
+      custVerifyOtpBtn.addEventListener('click', function() {
+        var otpVal = custOtpInput ? custOtpInput.value.trim() : '';
+        var nextVal = document.getElementById('modalRegNext')?.value || '';
+        if (custOtpErr) { custOtpErr.textContent = ''; custOtpErr.classList.remove('show'); }
+
+        if (!otpVal || otpVal.length < 6) {
+          if (custOtpErr) {
+            custOtpErr.textContent = 'Please enter the complete 6-digit OTP.';
+            custOtpErr.classList.add('show');
+          }
+          if (custOtpInput) custOtpInput.focus();
+          return;
+        }
+
+        custVerifyOtpBtn.disabled = true;
+        custVerifyOtpBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Creating account...';
+
+        var fd = new FormData();
+        fd.append('action', 'verify_customer_reg_otp');
+        fd.append('otp', otpVal);
+        if (nextVal) fd.append('next', nextVal);
+        var csrf = document.querySelector('#modalRegisterForm input[name="csrfmiddlewaretoken"]')?.value;
+        if (csrf) fd.append('csrfmiddlewaretoken', csrf);
+
+        fetch("{% url 'register' %}", {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          custVerifyOtpBtn.disabled = false;
+          custVerifyOtpBtn.innerHTML = '<span>Verify &amp; Create Account</span> <i class="bi bi-arrow-right"></i>';
+          if (data.success) {
+            window.location.href = data.redirect_url || "{% url 'home' %}";
+          } else {
+            if (custOtpErr) {
+              custOtpErr.textContent = data.error || 'Verification failed. Please try again.';
+              custOtpErr.classList.add('show');
+            }
+          }
+        })
+        .catch(function() {
+          custVerifyOtpBtn.disabled = false;
+          custVerifyOtpBtn.innerHTML = '<span>Verify &amp; Create Account</span> <i class="bi bi-arrow-right"></i>';
+          if (custOtpErr) {
+            custOtpErr.textContent = 'Network error. Please try again.';
+            custOtpErr.classList.add('show');
+          }
+        });
+      });
+    }
+
+    if (custOtpInput) {
+      custOtpInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (custVerifyOtpBtn) custVerifyOtpBtn.click();
+        }
+      });
+    }
+
+    // -------------------------------------------------------
+    // WORKER REGISTRATION (STEP 1 -> STEP 2 -> STEP 3 - EXACT FIELDS)
     // -------------------------------------------------------
     if (continueBtn) {
       continueBtn.addEventListener('click', function() {
@@ -1389,7 +1851,6 @@
         var email = document.getElementById('modalRegEmail').value.trim();
         var pass = document.getElementById('modalRegPassword').value;
         var confirmPass = document.getElementById('modalRegConfirmPassword').value;
-        var role = roleSelect ? roleSelect.value : 'USER';
 
         var userErr = document.getElementById('modalRegUsernameError');
         var emailErr = document.getElementById('modalRegEmailError');
@@ -1437,13 +1898,7 @@
 
         if (hasError) return;
 
-        // If USER role: submit form directly to create user & send OTP
-        if (role === 'USER') {
-          registerForm.submit();
-          return;
-        }
-
-        // If WORKER role: advance to Step 2
+        // Advance worker to Step 2
         stepAccount.style.display = 'none';
         stepWorkerOne.style.display = 'block';
       });
