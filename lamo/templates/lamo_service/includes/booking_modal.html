@@ -1,7 +1,27 @@
 <!-- =========================================================
-     BOOKING MODAL
-     Same POST action and field names as book_service.html
+     BOOKING MODAL - 3-STEP WIZARD WITH INLINE EMAIL OTP
+     Preserves POST action, field names, and security rules.
 ========================================================= -->
+<style>
+/* Defensive wizard isolation styles - guarantees step panel hiding even with aggressive browser CSS caches */
+.wizard-step-panel {
+    display: none !important;
+}
+.wizard-step-panel.active {
+    display: block !important;
+}
+.modal-wizard-footer {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    padding: 14px 20px;
+    border-top: 1px solid var(--lamo-border, #dfeae5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+}
+</style>
 <div id="bookingModal" class="booking-modal-overlay" aria-hidden="true">
 
     <div class="booking-modal" role="dialog" aria-modal="true"
@@ -39,105 +59,124 @@
 
             <!-- =====================================================
                  LEFT: SERVICE/WORKER SUMMARY
+                 (On mobile <768px, collapses into a compact top pill)
             ===================================================== -->
             <aside class="modal-summary">
                 <div class="modal-summary-content">
 
-                    <div class="modal-step">
-                        <span class="modal-step-number">01</span>
-                        Service
+                    <!-- Mobile compact bar (visible only on mobile) -->
+                    <div class="modal-summary-compact-bar">
+                        <div class="compact-worker-avatar">
+                            <img id="modalWorkerImageMobile" src="" alt="Worker" style="display:none;">
+                            <i id="modalWorkerFallbackMobile" class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="compact-info">
+                            <strong id="modalWorkerNameMobile">Worker</strong>
+                            <span class="compact-service-name" id="modalServiceTitleMobile">{{ service.name }}</span>
+                        </div>
+                        <div class="compact-badge-wrap">
+                            <span class="compact-rate-badge" id="modalWorkerRateDisplayMobile">₹250/hr</span>
+                        </div>
                     </div>
 
-                    <div class="modal-service-icon">
-                        <i id="modalServiceIcon" class="bi bi-tools"></i>
-                    </div>
-
-                    <h3 id="modalServiceTitle">
-                        {{ service.name }}
-                    </h3>
-
-                    <p class="modal-service-text">
-                        Professional service from a verified LAMO worker.
-                    </p>
-
-                    <div class="modal-worker">
-
-                        <div class="modal-worker-avatar">
-                            <img id="modalWorkerImage"
-                                 src=""
-                                 alt="Worker"
-                                 style="display:none;">
-
-                            <i id="modalWorkerFallback"
-                               class="bi bi-person-fill"></i>
+                    <!-- Desktop full summary content -->
+                    <div class="modal-summary-desktop-content">
+                        <div class="modal-step">
+                            <span class="modal-step-number">01</span>
+                            Service
                         </div>
 
-                        <div class="modal-worker-info">
+                        <div class="modal-service-icon">
+                            <i id="modalServiceIcon" class="bi bi-tools"></i>
+                        </div>
 
-                            <small>Booking with</small>
+                        <h3 id="modalServiceTitle">
+                            {{ service.name }}
+                        </h3>
 
-                            <strong id="modalWorkerName">
-                                Worker
-                            </strong>
+                        <p class="modal-service-text">
+                            Professional service from a verified LAMO worker.
+                        </p>
 
-                            <span>
-                                <i class="bi bi-geo-alt"></i>
-                                <span id="modalWorkerDistrict">
-                                    {{ district }}
+                        <div class="modal-worker">
+
+                            <div class="modal-worker-avatar">
+                                <img id="modalWorkerImage"
+                                     src=""
+                                     alt="Worker"
+                                     style="display:none;">
+
+                                <i id="modalWorkerFallback"
+                                   class="bi bi-person-fill"></i>
+                            </div>
+
+                            <div class="modal-worker-info">
+
+                                <small>Booking with</small>
+
+                                <strong id="modalWorkerName">
+                                    Worker
+                                </strong>
+
+                                <span>
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span id="modalWorkerDistrict">
+                                        {{ district }}
+                                    </span>
                                 </span>
-                            </span>
 
-                            <div class="modal-verified">
-                                <i class="bi bi-patch-check-fill"></i>
-                                Verified Professional
+                                <div class="modal-verified">
+                                    <i class="bi bi-patch-check-fill"></i>
+                                    Verified Professional
+                                </div>
+
                             </div>
 
                         </div>
 
-                    </div>
+                        <div class="modal-benefits">
 
-                    <div class="modal-benefits">
+                            <div class="modal-benefit">
+                                <i class="bi bi-shield-check"></i>
+                                Verified Worker
+                            </div>
 
-                        <div class="modal-benefit">
-                            <i class="bi bi-shield-check"></i>
-                            Verified Worker
+                            <div class="modal-benefit">
+                                <i class="bi bi-calendar-check"></i>
+                                Flexible Scheduling
+                            </div>
+
+                            <div class="modal-benefit">
+                                <i class="bi bi-headset"></i>
+                                LAMO Support
+                            </div>
+
                         </div>
-
-                        <div class="modal-benefit">
-                            <i class="bi bi-calendar-check"></i>
-                            Flexible Scheduling
-                        </div>
-
-                        <div class="modal-benefit">
-                            <i class="bi bi-headset"></i>
-                            LAMO Support
-                        </div>
-
                     </div>
 
                 </div>
             </aside>
 
             <!-- =====================================================
-                 RIGHT: BOOKING FORM
+                 RIGHT: 3-STEP WIZARD FORM
             ===================================================== -->
             <section class="modal-form">
 
-                <div class="modal-form-top">
-
-                    <div class="modal-form-title">
-                        <h3>Service Details</h3>
-                        <p>Give us a few details about your request.</p>
+                <!-- Wizard Stepper Indicator -->
+                <nav class="wizard-stepper" aria-label="Booking steps">
+                    <div class="wizard-step-node active" id="wizardNode1" data-step="1">
+                        <div class="node-circle">1</div>
+                        <span class="node-label">When &amp; Where</span>
                     </div>
-
-                    <div class="modal-step-two">
-                        <span>02</span>
-                        Details
+                    <div class="node-connector" id="connector1_2"></div>
+                    <div class="wizard-step-node" id="wizardNode2" data-step="2">
+                        <div class="node-circle">2</div>
+                        <span class="node-label">Job Details</span>
                     </div>
+                </nav>
 
-                </div>
-
-                <div id="modalBookingError" class="modal-booking-error" style="display:none;"></div>
+                <!-- Global Alert / Error Container -->
+                <div id="modalBookingError" class="modal-booking-error" style="display:none;" role="alert"></div>
 
                 <form id="bookingModalForm"
                       method="POST"
@@ -160,382 +199,400 @@
                            id="modalSelectedService"
                            value="{{ service.name }}">
 
-                    <!-- Selected Service Card -->
-                    <div class="modal-selected-service">
-
-                        <div class="modal-selected-service-icon">
-                            <i id="modalSelectedServiceIcon"
-                               class="bi bi-tools"></i>
-                        </div>
-
-                        <div>
-                            <small>Selected service</small>
-
-                            <strong id="modalSelectedServiceText">
-                                {{ service.name }}
-                            </strong>
-                        </div>
-
-                    </div>
-
-                    <!-- Service Type -->
-                    <label class="modal-label">
-                        Service Type
-                    </label>
-
-                    <div class="modal-booking-types">
-
-                        <button type="button"
-                                class="modal-booking-type active"
-                                data-booking-type="One Time"
-                                onclick="selectModalBookingType(this)">
-                            <i class="bi bi-calendar-check"></i>
-                            <span>One-time</span>
-                            <small>Single visit</small>
-                        </button>
-
-                        <button type="button"
-                                class="modal-booking-type"
-                                data-booking-type="Recurring"
-                                onclick="selectModalBookingType(this)">
-                            <i class="bi bi-arrow-repeat"></i>
-                            <span>Recurring</span>
-                            <small>Regular service</small>
-                        </button>
-
-                    </div>
-
                     <input type="hidden"
                            name="booking_type"
                            id="modalBookingType"
                            value="One Time">
 
-                    <!-- ONE-TIME OPTIONS (Preferred Date) -->
-                    <div id="oneTimeOptions">
-                        <div class="modal-form-group">
-                            <label class="modal-label">
-                                Preferred Date
-                            </label>
-                            <input type="date"
-                                   name="date"
-                                   id="modalBookingDate"
-                                   class="modal-input"
-                                   required>
-                        </div>
-                    </div>
+                    <input type="hidden"
+                           name="time"
+                           id="modalFinalTime"
+                           value="">
 
-                    <!-- RECURRING TOP OPTIONS (Start Date, Frequency, Preferred Day) -->
-                    <div id="recurringTopOptions" style="display:none;">
-                        <div class="modal-form-row">
+                    <input type="hidden"
+                           name="estimated_cost"
+                           id="modalEstimatedCostInput"
+                           value="500.00">
+
+                    <input type="hidden"
+                           name="latitude"
+                           id="modalLatitudeInput"
+                           value="{{ customer_prefill.latitude|default:'' }}">
+
+                    <input type="hidden"
+                           name="longitude"
+                           id="modalLongitudeInput"
+                           value="{{ customer_prefill.longitude|default:'' }}">
+
+                    <!-- =================================================
+                         STEP 1: WHEN & WHERE
+                    ================================================== -->
+                    <div class="wizard-step-panel active" id="bookingStep1">
+
+                        <!-- Selected Service Header Card -->
+                        <div class="modal-selected-service">
+                            <div class="modal-selected-service-icon">
+                                <i id="modalSelectedServiceIcon" class="bi bi-tools"></i>
+                            </div>
+                            <div>
+                                <small>Selected Service</small>
+                                <strong id="modalSelectedServiceText">{{ service.name }}</strong>
+                            </div>
+                        </div>
+
+                        <!-- Service Type Toggle -->
+                        <div class="modal-form-group">
+                            <label class="modal-label">Service Type</label>
+                            <div class="modal-booking-types">
+                                <button type="button"
+                                        class="modal-booking-type active"
+                                        data-booking-type="One Time"
+                                        onclick="selectModalBookingType(this)">
+                                    <i class="bi bi-calendar-check"></i>
+                                    <span>One-time</span>
+                                    <small>Single visit</small>
+                                </button>
+
+                                <button type="button"
+                                        class="modal-booking-type"
+                                        data-booking-type="Recurring"
+                                        onclick="selectModalBookingType(this)">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span>Recurring</span>
+                                    <small>Regular service</small>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ONE-TIME OPTIONS (Preferred Date) -->
+                        <div id="oneTimeOptions">
                             <div class="modal-form-group">
-                                <label class="modal-label">
-                                    Start Date
+                                <label class="modal-label" for="modalBookingDate">
+                                    Preferred Date <span class="required-star">*</span>
                                 </label>
                                 <input type="date"
-                                       name="start_date"
-                                       id="modalStartDate"
-                                       class="modal-input">
+                                       name="date"
+                                       id="modalBookingDate"
+                                       class="modal-input"
+                                       required>
+                            </div>
+                        </div>
+
+                        <!-- RECURRING TOP OPTIONS (Start Date, Frequency, Preferred Day) -->
+                        <div id="recurringTopOptions" style="display:none;">
+                            <div class="modal-form-row">
+                                <div class="modal-form-group">
+                                    <label class="modal-label" for="modalStartDate">
+                                        Start Date <span class="required-star">*</span>
+                                    </label>
+                                    <input type="date"
+                                           name="start_date"
+                                           id="modalStartDate"
+                                           class="modal-input">
+                                </div>
+
+                                <div class="modal-form-group">
+                                    <label class="modal-label" for="modalFrequency">
+                                        Frequency
+                                    </label>
+                                    <select name="frequency"
+                                            id="modalFrequency"
+                                            class="modal-select"
+                                            onchange="togglePreferredDay(this.value)">
+                                        <option value="Weekly" selected>Weekly</option>
+                                        <option value="Daily">Daily</option>
+                                        <option value="Monthly">Monthly</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="modal-form-group">
-                                <label class="modal-label">
-                                    Frequency
+                            <div class="modal-form-group" id="preferredDayGroup">
+                                <label class="modal-label" for="modalPreferredDay">
+                                    Preferred Day
                                 </label>
-                                <select name="frequency"
-                                        id="modalFrequency"
-                                        class="modal-select"
-                                        onchange="togglePreferredDay(this.value)">
-                                    <option value="Weekly" selected>Weekly</option>
-                                    <option value="Daily">Daily</option>
-                                    <option value="Monthly">Monthly</option>
+                                <select name="preferred_day"
+                                        id="modalPreferredDay"
+                                        class="modal-select">
+                                    <option value="Monday" selected>Monday</option>
+                                    <option value="Tuesday">Tuesday</option>
+                                    <option value="Wednesday">Wednesday</option>
+                                    <option value="Thursday">Thursday</option>
+                                    <option value="Friday">Friday</option>
+                                    <option value="Saturday">Saturday</option>
+                                    <option value="Sunday">Sunday</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="modal-form-group" id="preferredDayGroup">
-                            <label class="modal-label">
-                                Preferred Day
+                        <!-- PREFERRED TIME (Shared by One-Time and Recurring) -->
+                        <div class="modal-form-group">
+                            <div class="label-with-toggle">
+                                <label class="modal-label" style="margin-bottom:0;">
+                                    Preferred Time <span class="required-star">*</span>
+                                </label>
+
+                                <div class="time-toggle">
+                                    <button type="button"
+                                            class="time-toggle-btn active"
+                                            id="timeSlotBtn"
+                                            onclick="toggleTimeSlot(true)">
+                                        Time Slot
+                                    </button>
+                                    <button type="button"
+                                            class="time-toggle-btn"
+                                            id="customTimeBtn"
+                                            onclick="toggleTimeSlot(false)">
+                                        Custom Time
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="timeSlotGroup" style="margin-top:8px;">
+                                <select name="time_slot"
+                                        id="modalTimeSlot"
+                                        class="modal-select">
+                                    <option value="">Select time slot</option>
+                                    <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
+                                    <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                                    <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
+                                    <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
+                                    <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
+                                    <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                                </select>
+                            </div>
+
+                            <div id="customTimeGroup" style="display:none; margin-top:8px;">
+                                <input type="text"
+                                       name="custom_time"
+                                       id="modalCustomTime"
+                                       class="modal-input"
+                                       placeholder="e.g., 10:30 AM or After 5 PM">
+                            </div>
+                        </div>
+
+                        <!-- RECURRING BOTTOM OPTIONS (End Date) -->
+                        <div id="recurringBottomOptions" style="display:none;">
+                            <div class="modal-form-group">
+                                <label class="modal-label" for="modalEndDate">
+                                    End Date <span class="required-star">*</span>
+                                </label>
+                                <input type="date"
+                                       name="end_date"
+                                       id="modalEndDate"
+                                       class="modal-input">
+                            </div>
+                        </div>
+
+                        <!-- District (read-only from selected worker) -->
+                        <div class="modal-form-group">
+                            <label class="modal-label" for="modalServiceDistrict">
+                                Service District
                             </label>
-                            <select name="preferred_day"
-                                    id="modalPreferredDay"
-                                    class="modal-select">
-                                <option value="Monday" selected>Monday</option>
-                                <option value="Tuesday">Tuesday</option>
-                                <option value="Wednesday">Wednesday</option>
-                                <option value="Thursday">Thursday</option>
-                                <option value="Friday">Friday</option>
-                                <option value="Saturday">Saturday</option>
-                                <option value="Sunday">Sunday</option>
-                            </select>
+                            <input type="text"
+                                   name="district"
+                                   id="modalServiceDistrict"
+                                   class="modal-input readonly-input"
+                                   value="{{ district }}"
+                                   readonly>
+                            <small class="field-hint">District is automatically set based on the selected worker.</small>
                         </div>
-                    </div>
 
-                    <!-- PREFERRED TIME (Shared by both One-time and Recurring) -->
-                    <div class="modal-form-group">
-                        <label class="modal-label">
-                            Preferred Time
-                        </label>
+                        <!-- Service Location -->
+                        <div class="modal-form-group">
+                            <label class="modal-label" for="modalLocationInput">
+                                Service Location <span class="required-star">*</span>
+                            </label>
 
-                        <div class="time-toggle">
-                            <button type="button"
-                                    class="time-toggle-btn active"
-                                    id="timeSlotBtn"
-                                    onclick="toggleTimeSlot(true)">
-                                Time Slot
-                            </button>
-                            <button type="button"
-                                    class="time-toggle-btn"
-                                    id="customTimeBtn"
-                                    onclick="toggleTimeSlot(false)">
-                                Custom Time
-                            </button>
+                            <input type="text"
+                                   name="location"
+                                   id="modalLocationInput"
+                                   class="modal-input"
+                                   placeholder="Enter street, building, flat number, or landmark"
+                                   value="{{ customer_prefill.location|default:'' }}"
+                                   required>
                         </div>
+
+                        <!-- Collapsible Map Toggle & Panel -->
+                        <div class="modal-form-group">
+                            <button type="button"
+                                    class="btn-toggle-map"
+                                    id="btnToggleBookingMap"
+                                    onclick="toggleBookingMap()">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                <span id="btnToggleMapText">Pin on map (Optional)</span>
+                                <i class="bi bi-chevron-down toggle-chevron" id="mapChevronIcon"></i>
+                            </button>
+
+                            <div id="bookingMapCollapse" class="booking-map-collapse" style="display:none;">
+                                <div id="modalBookingMap"
+                                     data-district="{{ district }}"
+                                     data-default-lat="{% if customer_prefill.latitude %}{{ customer_prefill.latitude }}{% else %}{{ district_lat|default:9.9312 }}{% endif %}"
+                                     data-default-lng="{% if customer_prefill.longitude %}{{ customer_prefill.longitude }}{% else %}{{ district_lng|default:76.2673 }}{% endif %}"
+                                     data-tile-url="{{ map_tile_url }}"
+                                     data-tile-attribution="{{ map_tile_attribution }}"
+                                     data-tile-subdomains="{{ map_tile_subdomains }}"
+                                     data-tile-max-zoom="{{ map_tile_max_zoom|default:20 }}"></div>
+
+                                <div id="modalDistrictValidation" class="district-validation-alert" style="display:none;">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    Please select a service location within {{ district }}.
+                                </div>
+
+                                <button type="button" id="modalGetCurrentLocationBtn" class="btn-current-location">
+                                    <i class="bi bi-crosshair"></i> Use My Current Location
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
+                    <!-- END STEP 1 -->
 
-                    <div class="modal-form-group" id="timeSlotGroup">
-                        <select name="time_slot"
-                                id="modalTimeSlot"
-                                class="modal-select">
-                            <option value="">Select time slot</option>
-                            <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
-                            <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
-                            <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
-                            <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
-                            <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
-                            <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
-                        </select>
-                    </div>
 
-                    <div class="modal-form-group" id="customTimeGroup" style="display:none;">
-                        <input type="text"
-                               name="custom_time"
-                               id="modalCustomTime"
-                               class="modal-input"
-                               placeholder="e.g., 10:30 AM or After 5 PM">
-                    </div>
+                    <!-- =================================================
+                         STEP 2: JOB DETAILS
+                    ================================================== -->
+                    <div class="wizard-step-panel" id="bookingStep2">
 
-                    <input type="hidden" name="time" id="modalFinalTime" value="">
 
-                    <!-- RECURRING BOTTOM OPTIONS (End Date) -->
-                    <div id="recurringBottomOptions" style="display:none;">
+                        <!-- Requirement & Voice-to-Text Speech -->
+                        <div class="modal-form-group">
+                            <div class="label-with-toggle">
+                                <label class="modal-label" for="modalDescriptionTextarea" style="margin-bottom:0;">
+                                    Describe Your Requirement
+                                </label>
+                                <button type="button" id="voiceDescribeBtn" class="voice-describe-btn" onclick="toggleVoiceDescription()" title="Speak in your language to describe the problem">
+                                    <i class="bi bi-mic-fill"></i>
+                                    <span id="voiceBtnText">Speak to Describe</span>
+                                </button>
+                            </div>
+
+                            <textarea name="description"
+                                      id="modalDescriptionTextarea"
+                                      class="modal-input modal-textarea"
+                                      rows="3"
+                                      placeholder="Example: Kitchen tap is leaking, need replacement washer or pipe inspection..."></textarea>
+
+                            <div id="voiceRecordingStatus" class="voice-status-bar" style="display:none;">
+                                <span class="voice-pulse-dot"></span>
+                                <span id="voiceStatusText">Listening... Speak clearly into your mic</span>
+                            </div>
+                        </div>
+
+                        <!-- Problem Photo Scope (Optional) -->
                         <div class="modal-form-group">
                             <label class="modal-label">
-                                End Date
+                                <i class="bi bi-camera me-1"></i> Attach Problem Photo <small class="text-muted">(Optional)</small>
                             </label>
-                            <input type="date"
-                                   name="end_date"
-                                   id="modalEndDate"
-                                   class="modal-input">
-                        </div>
-                    </div>
-
-                    <!-- District (read-only from selected worker) -->
-                    <div class="modal-form-group">
-                        <label class="modal-label">
-                            Service District
-                        </label>
-                        <input type="text"
-                               name="district"
-                               id="modalServiceDistrict"
-                               class="modal-input"
-                               value="{{ district }}"
-                               readonly
-                               style="background:#f9fafb; cursor:not-allowed;">
-                        <small style="color: #6b7280; font-size: 11px;">District is automatically set based on the selected worker.</small>
-                    </div>
-
-                    <!-- Service Location -->
-                    <div class="modal-form-group">
-
-                        <label class="modal-label">
-                            Service Location
-                        </label>
-
-                        <input type="text"
-                               name="location"
-                               id="modalLocationInput"
-                               class="modal-input"
-                               placeholder="Enter your complete service location or select on map"
-                               required>
-
-                    </div>
-
-                    <!-- Map -->
-                    <div class="modal-form-group">
-
-                        <label class="modal-label">
-                            Select Location on Map
-                        </label>
-
-                        <div id="modalBookingMap"
-                             data-district="{{ district|escapejs }}"
-                             data-default-lat="{{ district_lat|default:9.9312 }}"
-                             data-default-lng="{{ district_lng|default:76.2673 }}"
-                             data-tile-url="{{ map_tile_url|escapejs }}"
-                             data-tile-attribution="{{ map_tile_attribution }}"
-                             data-tile-subdomains="{{ map_tile_subdomains|escapejs }}"
-                             data-tile-max-zoom="{{ map_tile_max_zoom|default:20 }}"
-                             style="height: 240px; border-radius: 14px; border: 1px solid var(--lamo-border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);"></div>
-
-                        <input type="hidden" name="latitude" id="modalLatitudeInput">
-                        <input type="hidden" name="longitude" id="modalLongitudeInput">
-
-                        <div id="modalDistrictValidation"
-                             style="margin-top: 8px; font-size: 12px; display: none; color: #dc2626;">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            Please select a service location within {{ district }}.
+                            <div class="problem-photo-uploader">
+                                <input type="file" id="modalProblemPhotoInput" accept="image/*" style="display:none;" onchange="previewProblemPhoto(this)">
+                                <button type="button" class="photo-upload-trigger-btn" onclick="document.getElementById('modalProblemPhotoInput').click()">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <span>Add Photo of Work Area</span>
+                                </button>
+                                <div id="photoPreviewContainer" class="photo-preview-container" style="display:none;">
+                                    <img id="photoPreviewElement" src="" alt="Work area preview">
+                                    <button type="button" class="photo-delete-btn" onclick="clearProblemPhoto()" title="Remove photo">&times;</button>
+                                    <span class="photo-status-badge"><i class="bi bi-check2-circle"></i> Attached</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <button type="button" id="modalGetCurrentLocationBtn"
-                                style="margin-top: 10px; padding: 10px 16px; border: 1.5px solid var(--lamo-green); border-radius: 10px; background: #ffffff; cursor: pointer; font-size: 11px; font-weight: 700; color: var(--lamo-green); transition: all 0.2s ease; font-family: inherit; display: inline-flex; align-items: center; gap: 6px;">
-                            <i class="bi bi-geo-alt-fill"></i> Use My Current Location
+                        <!-- Customer Contact Details (Full Name & Contact Number) for all users -->
+                        <div class="modal-form-group">
+                            <label class="modal-label" for="modalCustomerName">
+                                Full Name <span class="required-star">*</span>
+                            </label>
+                            <input type="text"
+                                   name="customer_name"
+                                   id="modalCustomerName"
+                                   class="modal-input"
+                                   placeholder="Enter your full name"
+                                   maxlength="100"
+                                   value="{{ customer_prefill.name|default:'' }}"
+                                   required>
+                        </div>
+
+                        <div class="modal-form-group">
+                            <label class="modal-label" for="modalPhone">
+                                Contact Number <span class="required-star">*</span>
+                            </label>
+                            <input type="tel"
+                                   name="phone"
+                                   id="modalPhone"
+                                   class="modal-input"
+                                   placeholder="Enter 10-digit mobile number"
+                                   inputmode="numeric"
+                                   pattern="[6-9][0-9]{9}"
+                                   maxlength="10"
+                                   minlength="10"
+                                   autocomplete="tel"
+                                   value="{{ customer_prefill.phone|default:'' }}"
+                                   required>
+                            <small id="modalPhoneError" class="modal-phone-error" style="display:none;">
+                                Enter a valid 10-digit Indian mobile number.
+                            </small>
+                        </div>
+
+                        <!-- Hidden email field filled by auth popup for unauthenticated guests -->
+                        <input type="hidden" name="customer_email" id="modalCustomerEmailHidden" value="">
+
+                    </div>
+                    <!-- END STEP 2 -->
+
+                    <!-- =================================================
+                         STICKY WIZARD FOOTER
+                    ================================================== -->
+                    <div class="modal-wizard-footer">
+
+                        <button type="button"
+                                class="btn-wizard-back"
+                                id="btnWizardBack"
+                                onclick="handleWizardBack()"
+                                style="display:none;">
+                            <i class="bi bi-arrow-left"></i>
+                            <span>Back</span>
                         </button>
 
-                    </div>
+                        <div class="wizard-footer-right">
 
-                    <!-- Transparent Cost Estimator -->
-                    <div class="modal-form-group">
-                        <div class="modal-estimate-box">
-                            <div class="estimate-header">
-                                <div class="estimate-title">
-                                    <i class="bi bi-calculator"></i>
-                                    <span>Transparent Cost Estimator</span>
-                                </div>
-                                <div class="estimate-badge" id="estimateCostBadge">
-                                    ₹<span id="calculatedCostDisplay">250</span> est.
-                                </div>
-                            </div>
-                            <div class="estimate-chips">
-                                <button type="button" class="estimate-chip active" data-hours="1" onclick="applyEstimateScope(this, 1)">
-                                    <span>Minor Fix</span>
-                                    <small>~1 hr</small>
-                                </button>
-                                <button type="button" class="estimate-chip" data-hours="2" onclick="applyEstimateScope(this, 2)">
-                                    <span>Standard</span>
-                                    <small>~2 hrs</small>
-                                </button>
-                                <button type="button" class="estimate-chip" data-hours="4" onclick="applyEstimateScope(this, 4)">
-                                    <span>Half Day</span>
-                                    <small>~4 hrs</small>
-                                </button>
-                                <button type="button" class="estimate-chip" data-hours="8" onclick="applyEstimateScope(this, 8)">
-                                    <span>Full Day</span>
-                                    <small>~8 hrs</small>
-                                </button>
-                            </div>
-                            <input type="hidden" name="estimated_cost" id="modalEstimatedCostInput" value="250.00">
-                            <div class="estimate-subtext">
-                                <i class="bi bi-info-circle"></i> Estimated based on rate (<span id="modalWorkerRateDisplay">₹250/hr</span>). Pay upon completed inspection.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Requirement & Voice-to-Text Speech -->
-                    <div class="modal-form-group">
-
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <label class="modal-label" style="margin-bottom:0;">
-                                Describe Your Requirement
-                            </label>
-                            <button type="button" id="voiceDescribeBtn" class="voice-describe-btn" onclick="toggleVoiceDescription()" title="Speak in your language to describe the problem">
-                                <i class="bi bi-mic-fill"></i>
-                                <span id="voiceBtnText">Speak to Describe</span>
+                            <!-- Next button (for Step 1) -->
+                            <button type="button"
+                                    class="btn-wizard-next"
+                                    id="btnWizardNext"
+                                    onclick="handleWizardNext()">
+                                <span>Next: Job Details</span>
+                                <i class="bi bi-arrow-right"></i>
                             </button>
-                        </div>
 
-                        <textarea name="description"
-                                  id="modalDescriptionTextarea"
-                                  class="modal-input"
-                                  placeholder="Example: Kitchen tap is leaking, need replacement washer..."></textarea>
-
-                        <div id="voiceRecordingStatus" class="voice-status-bar" style="display:none;">
-                            <span class="voice-pulse-dot"></span>
-                            <span id="voiceStatusText">Listening... Speak clearly into your mic</span>
-                        </div>
-
-                    </div>
-
-                    <!-- Problem Photo Scope (Optional) -->
-                    <div class="modal-form-group">
-                        <label class="modal-label">
-                            <i class="bi bi-camera me-1"></i> Attach Problem Photo <small style="color:#64748b; font-weight:normal;">(Optional)</small>
-                        </label>
-                        <div class="problem-photo-uploader">
-                            <input type="file" id="modalProblemPhotoInput" accept="image/*" style="display:none;" onchange="previewProblemPhoto(this)">
-                            <button type="button" class="photo-upload-trigger-btn" onclick="document.getElementById('modalProblemPhotoInput').click()">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                                <span>Add Photo of Work Area</span>
+                            <!-- Confirm button (Step 2) -->
+                            <button type="submit"
+                                    class="btn-wizard-confirm"
+                                    id="btnWizardConfirm"
+                                    style="display:none;">
+                                <i class="bi bi-shield-check"></i>
+                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Book now{% endif %}</span>
+                                <i class="bi bi-arrow-right"></i>
                             </button>
-                            <div id="photoPreviewContainer" class="photo-preview-container" style="display:none;">
-                                <img id="photoPreviewElement" src="" alt="Work area preview">
-                                <button type="button" class="photo-delete-btn" onclick="clearProblemPhoto()" title="Remove photo">&times;</button>
-                                <span class="photo-status-badge"><i class="bi bi-check2-circle"></i> Attached</span>
-                            </div>
+
                         </div>
-                    </div>
-
-                    <!-- Contact Number -->
-                    <div class="modal-form-group">
-
-                        <label class="modal-label">
-                            Contact Number
-                        </label>
-
-                        <input type="tel"
-                               name="phone"
-                               id="modalPhone"
-                               class="modal-input"
-                               placeholder="Enter 10-digit mobile number"
-                               inputmode="numeric"
-                               pattern="[6-9][0-9]{9}"
-                               maxlength="10"
-                               minlength="10"
-                               autocomplete="tel"
-                               required>
-
-                        <small id="modalPhoneError"
-                               class="modal-phone-error">
-                            Enter a valid 10-digit Indian mobile number.
-                        </small>
 
                     </div>
 
                     <!-- Trust Bar -->
                     <div class="modal-trust">
-
                         <div class="modal-trust-item">
                             <i class="bi bi-shield-check"></i>
                             Verified Workers
                         </div>
-
                         <div class="modal-trust-item">
                             <i class="bi bi-clock"></i>
                             Flexible Time
                         </div>
-
                         <div class="modal-trust-item">
                             <i class="bi bi-headset"></i>
                             LAMO Support
                         </div>
-
                     </div>
-
-                    <!-- Submit Button -->
-                    {% if user.is_authenticated %}
-                    <button type="submit"
-                            class="modal-confirm"
-                            id="modalConfirmButton">
-                        Continue Booking
-                        <i class="bi bi-arrow-right"></i>
-                    </button>
-                    {% else %}
-                    <button type="submit"
-                            class="modal-confirm"
-                            id="modalConfirmButton">
-                        <i class="bi bi-box-arrow-in-right"></i>
-                        Log in to confirm
-                    </button>
-                    {% endif %}
 
                 </form>
 
@@ -545,24 +602,124 @@
     </div>
 </div>
 
+<!-- =========================================================
+     UNIFIED LOGIN OR REGISTER POPUP FOR UNAUTHENTICATED USERS
+========================================================= -->
+<div id="bookingAuthPopup" class="booking-auth-popup-overlay" aria-hidden="true" style="display:none; z-index:100050;" role="dialog" aria-modal="true" aria-labelledby="authPopupTitle">
+    <div class="booking-auth-card">
+        <button type="button" class="auth-popup-close" onclick="closeAuthPopup()" aria-label="Close verification popup">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <!-- SCREEN 1: IDENTIFIER INPUT (Email or mobile) -->
+        <div id="authScreen1" class="auth-popup-screen active">
+            <div class="auth-popup-header">
+                <div class="auth-popup-icon">
+                    <i class="bi bi-person-badge-fill"></i>
+                </div>
+                <h3 id="authPopupTitle">Login or Register</h3>
+                <p>Enter your email or mobile to continue booking</p>
+            </div>
+
+            <div id="authAlert1" class="auth-popup-alert" style="display:none;" role="alert" aria-live="polite"></div>
+
+            <form id="authIdentifierForm" onsubmit="handleAuthSendCode(event)">
+                <div class="auth-input-group">
+                    <label for="authIdentifierInput" class="auth-label">Email or Mobile</label>
+                    <div class="auth-input-wrapper">
+                        <i class="bi bi-envelope auth-input-icon" id="authInputIcon"></i>
+                        <input type="text"
+                               id="authIdentifierInput"
+                               class="auth-input"
+                               placeholder="Enter email or 10-digit mobile"
+                               autocomplete="email username tel"
+                               required>
+                    </div>
+                </div>
+
+                <button type="submit" id="btnAuthSendCode" class="btn-auth-primary">
+                    <span>Send code</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+
+                <div class="auth-legal-line">
+                    By continuing, you agree to LAMO's
+                    <a href="{% url 'terms' %}" target="_blank" rel="noopener">Terms of Service</a>
+                    and
+                    <a href="{% url 'privacy' %}" target="_blank" rel="noopener">Privacy Policy</a>.
+                </div>
+            </form>
+        </div>
+
+        <!-- SCREEN 2: 6-DIGIT VERIFICATION CODE -->
+        <div id="authScreen2" class="auth-popup-screen" style="display:none;">
+            <div class="auth-popup-header">
+                <div class="auth-popup-icon success-icon">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h3 id="authScreen2Title">Verification Code</h3>
+                <p>Enter the 6-digit code sent to <strong id="authTargetEmail">your email</strong></p>
+            </div>
+
+            <div id="authAlert2" class="auth-popup-alert" style="display:none;" role="alert" aria-live="polite"></div>
+
+            <form id="authVerifyForm" onsubmit="handleAuthVerifySubmit(event)">
+                <div class="auth-code-group" id="authCodeGroup">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code" data-index="0" aria-label="Digit 1">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="1" aria-label="Digit 2">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="2" aria-label="Digit 3">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="3" aria-label="Digit 4">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="4" aria-label="Digit 5">
+                    <input type="text" class="auth-code-box" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="5" aria-label="Digit 6">
+                </div>
+
+                <div class="auth-meta-row">
+                    <div class="auth-attempts" id="authAttemptsNotice">
+                        <i class="bi bi-info-circle"></i>
+                        Attempts remaining: <strong id="authRemainingCount">5</strong>/5
+                    </div>
+
+                    <div class="auth-resend-wrap">
+                        <button type="button" id="btnAuthResend" class="btn-auth-resend" onclick="handleAuthResendCode()" disabled>
+                            Resend in <span id="authCooldownTimer">0:30</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btnAuthVerify" class="btn-auth-primary">
+                    <i class="bi bi-shield-check"></i>
+                    <span id="btnAuthConfirmText">Confirm Booking</span>
+                </button>
+
+                <div class="auth-change-email-row">
+                    <button type="button" class="btn-auth-back-link" onclick="backToAuthScreen1()">
+                        <i class="bi bi-pencil-square"></i> Change email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script>
 /* =========================================================
-   LAMO AUTH FLAGS (Task 3)
+   LAMO AUTH FLAGS & STATE
 ======================================================== */
 const LAMO_AUTH = {{ user.is_authenticated|yesno:"true,false" }};
 const LAMO_ROLE = "{{ user.role|default:''|escapejs }}";
 
+const bookingModal = document.getElementById("bookingModal");
+let currentStep = 1;
+const totalSteps = 2;
+
+let _otpTimerInterval = null;
+let _otpSecondsRemaining = 60;
+let _otpAttemptsRemaining = 5;
+
 /* =========================================================
-   BOOKING MODAL
+   OPEN & CLOSE MODAL
 ======================================================== */
-
-const bookingModal =
-    document.getElementById("bookingModal");
-
-
 function openBookingModal(button) {
-
     if (!bookingModal) {
         return;
     }
@@ -579,34 +736,27 @@ function openBookingModal(button) {
         document.body.classList.remove("ai-mode-open");
     }
 
-    const workerId =
-        button.dataset.workerId || "";
-
-    const workerName =
-        button.dataset.workerName || "Worker";
-
-    const workerDistrict =
-        button.dataset.workerDistrict || "{{ district|escapejs }}";
-
-    const workerImage =
-        button.dataset.workerImage || "";
-
-    const serviceId =
-        button.dataset.serviceId || "{{ service.id }}";
-
-    const serviceName =
-        button.dataset.serviceName || "{{ service.name|escapejs }}";
+    const workerId = button.dataset.workerId || "";
+    const workerName = button.dataset.workerName || "Worker";
+    const workerDistrict = button.dataset.workerDistrict || (document.getElementById("modalServiceDistrict") ? document.getElementById("modalServiceDistrict").value : "");
+    const workerImage = button.dataset.workerImage || "";
+    const serviceId = button.dataset.serviceId || "{{ service.id }}";
+    const serviceName = button.dataset.serviceName || (document.getElementById("modalSelectedService") ? document.getElementById("modalSelectedService").value : "");
 
     const mapContainer = document.getElementById("modalBookingMap");
     if (mapContainer) {
         mapContainer.dataset.district = workerDistrict;
     }
 
-    const form =
-        document.getElementById("bookingModalForm");
-
+    const form = document.getElementById("bookingModalForm");
     if (form) {
         form.reset();
+    }
+
+    // Default consent unchecked
+    const consentBox = document.getElementById("modalAccountConsent");
+    if (consentBox) {
+        consentBox.checked = false;
     }
 
     const serviceDistrict = document.getElementById("modalServiceDistrict");
@@ -614,77 +764,133 @@ function openBookingModal(button) {
         serviceDistrict.value = workerDistrict;
     }
 
-    document.getElementById("modalWorkerId").value =
-        workerId;
+    const workerIdInput = document.getElementById("modalWorkerId");
+    if (workerIdInput) workerIdInput.value = workerId;
 
-    document.getElementById("modalServiceId").value =
-        serviceId;
+    const serviceIdInput = document.getElementById("modalServiceId");
+    if (serviceIdInput) serviceIdInput.value = serviceId;
 
-    document.getElementById("modalSelectedService").value = serviceName;
+    const selectedServiceInput = document.getElementById("modalSelectedService");
+    if (selectedServiceInput) selectedServiceInput.value = serviceName;
 
-    document.getElementById("modalWorkerName").textContent = workerName;
-    document.getElementById("modalWorkerDistrict").textContent = workerDistrict;
-    document.getElementById("modalServiceTitle").textContent = serviceName;
-    document.getElementById("modalSelectedServiceText").textContent = serviceName;
+    // Populate worker & service labels
+    ["modalWorkerName", "modalWorkerNameMobile"].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = workerName;
+    });
 
+    const distEl = document.getElementById("modalWorkerDistrict");
+    if (distEl) distEl.textContent = workerDistrict;
+
+    ["modalServiceTitle", "modalServiceTitleMobile", "modalSelectedServiceText"].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = serviceName;
+    });
+
+    // Worker Rate & Estimator Default (Standard ~2 hrs)
     const workerRate = parseFloat(button.dataset.workerRate || button.dataset.rate || "250") || 250;
     window._currentWorkerRate = workerRate;
-    const rateDisplay = document.getElementById("modalWorkerRateDisplay");
-    if (rateDisplay) {
-        rateDisplay.textContent = "₹" + workerRate + "/hr";
-    }
-    const activeChip = document.querySelector('.estimate-chip.active') || document.querySelector('.estimate-chip');
-    if (typeof applyEstimateScope === 'function' && activeChip) {
-        applyEstimateScope(activeChip, parseFloat(activeChip.dataset.hours || 1));
-    }
 
-    const image = document.getElementById("modalWorkerImage");
-    const fallback = document.getElementById("modalWorkerFallback");
+    ["modalWorkerRateDisplay", "modalWorkerRateDisplayMobile"].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "₹" + workerRate + "/hr";
+    });
 
-    if (workerImage && image) {
-        image.onerror = function() {
-            this.style.display = "none";
-            if (fallback) fallback.style.display = "block";
-        };
-        image.src = workerImage;
-        image.style.display = "block";
-        if (fallback) fallback.style.display = "none";
-    } else if (image && fallback) {
-        image.removeAttribute("src");
-        image.style.display = "none";
-        fallback.style.display = "block";
+    // Default to Standard (2 hours)
+    const standardChip = document.querySelector('.estimate-chip[data-hours="2"]');
+    if (typeof applyEstimateScope === 'function' && standardChip) {
+        applyEstimateScope(standardChip, 2);
+    } else {
+        const total = Math.round(workerRate * 2);
+        const costDisp = document.getElementById("calculatedCostDisplay");
+        const costInput = document.getElementById("modalEstimatedCostInput");
+        if (costDisp) costDisp.textContent = total;
+        if (costInput) costInput.value = total.toFixed(2);
     }
 
+    // Avatar setup (desktop + mobile)
+    ["modalWorkerImage", "modalWorkerImageMobile"].forEach(function(imgId) {
+        const fbId = imgId === "modalWorkerImage" ? "modalWorkerFallback" : "modalWorkerFallbackMobile";
+        const img = document.getElementById(imgId);
+        const fb = document.getElementById(fbId);
+
+        if (workerImage && img) {
+            img.onerror = function() {
+                this.style.display = "none";
+                if (fb) fb.style.display = "block";
+            };
+            img.src = workerImage;
+            img.style.display = "block";
+            if (fb) fb.style.display = "none";
+        } else if (img && fb) {
+            img.removeAttribute("src");
+            img.style.display = "none";
+            fb.style.display = "block";
+        }
+    });
+
+    // Reset booking type to One Time
     const defaultType = document.querySelector('.modal-booking-type[data-booking-type="One Time"]');
     if (defaultType) {
         selectModalBookingType(defaultType);
     } else {
-        var bTypeInput = document.getElementById("modalBookingType");
+        const bTypeInput = document.getElementById("modalBookingType");
         if (bTypeInput) bTypeInput.value = "One Time";
     }
+
+    // Prefill returning customer details if available
+    const savedName = "{% if customer_prefill.name %}{{ customer_prefill.name|escapejs }}{% elif user.is_authenticated %}{{ user.get_full_name|default:user.username|escapejs }}{% endif %}";
+    const savedPhone = "{{ customer_prefill.phone|default:''|escapejs }}";
+    const savedLocation = "{{ customer_prefill.location|default:''|escapejs }}";
+    const savedLat = "{{ customer_prefill.latitude|default:''|escapejs }}";
+    const savedLng = "{{ customer_prefill.longitude|default:''|escapejs }}";
+
+    const nameEl = document.getElementById("modalCustomerName");
+    if (nameEl && savedName) nameEl.value = savedName;
+    const phoneEl = document.getElementById("modalPhone");
+    if (phoneEl && savedPhone) phoneEl.value = savedPhone;
+    const locEl = document.getElementById("modalLocationInput");
+    if (locEl && savedLocation) locEl.value = savedLocation;
+    const latEl = document.getElementById("modalLatitudeInput");
+    const lngEl = document.getElementById("modalLongitudeInput");
+    if (latEl && savedLat) latEl.value = savedLat;
+    if (lngEl && savedLng) lngEl.value = savedLng;
+
+    // Reset map collapse
+    const mapCollapse = document.getElementById("bookingMapCollapse");
+    const btnMapText = document.getElementById("btnToggleMapText");
+    const mapChevron = document.getElementById("mapChevronIcon");
+    if (mapCollapse) mapCollapse.style.display = "none";
+    if (btnMapText) btnMapText.textContent = "Pin on map (Optional)";
+    if (mapChevron) mapChevron.classList.remove("rotated");
 
     setModalMinimumDate();
     toggleTimeSlot(true);
 
-    const phone = document.getElementById("modalPhone");
+    // Clear validation and error messages
+    if (phoneEl) {
+        phoneEl.classList.remove("modal-phone-valid", "modal-phone-invalid");
+    }
     const phoneError = document.getElementById("modalPhoneError");
-    if (phone) {
-        phone.classList.remove("modal-phone-valid", "modal-phone-invalid");
-    }
-    if (phoneError) {
-        phoneError.style.display = "none";
-    }
+    if (phoneError) phoneError.style.display = "none";
 
     const modalErrorBox = document.getElementById("modalBookingError");
     if (modalErrorBox) {
         modalErrorBox.style.display = "none";
-        modalErrorBox.innerHTML = "";
+        modalErrorBox.textContent = "";
+    }
+
+    const modalOtpError = document.getElementById("modalOtpError");
+    if (modalOtpError) {
+        modalOtpError.style.display = "none";
+        modalOtpError.textContent = "";
     }
 
     const districtValidation = document.getElementById("modalDistrictValidation");
-    if (districtValidation) {
-        districtValidation.style.display = "none";
-    }
+    if (districtValidation) districtValidation.style.display = "none";
+
+    // Reset stepper to Step 1
+    goToStep(1, true);
 
     bookingModal.classList.add("open");
     bookingModal.setAttribute("aria-hidden", "false");
@@ -702,22 +908,20 @@ function closeBookingModal() {
     if (!bookingModal) {
         return;
     }
+    if (_otpTimerInterval) {
+        clearInterval(_otpTimerInterval);
+        _otpTimerInterval = null;
+    }
     bookingModal.classList.remove("open");
     bookingModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
 }
 
-/* Renders a booking error using real DOM nodes instead of innerHTML.
-   The server's error_message can quote user-supplied values (e.g. the
-   district that was rejected), so writing it into innerHTML would let a
-   crafted value inject markup/script into this page. The icon is created
-   with createElement and the text with textContent, which is inert. */
+/* Safe DOM error renderer */
 function showBookingError(modalErrorBox, message) {
     const text = (message === null || message === undefined) ? "" : String(message);
 
     if (!modalErrorBox) {
-        // No error container on this page: fall back to a plain alert,
-        // which also renders the text literally.
         alert(text);
         return;
     }
@@ -735,6 +939,7 @@ function showBookingError(modalErrorBox, message) {
     }
 }
 
+/* Back drop click listener */
 if (bookingModal) {
     bookingModal.addEventListener("click", function(event) {
         if (event.target === bookingModal) {
@@ -743,33 +948,263 @@ if (bookingModal) {
     });
 }
 
+/* Escape key listener */
 document.addEventListener("keydown", function(event) {
     if (event.key === "Escape" && bookingModal && bookingModal.classList.contains("open")) {
         closeBookingModal();
     }
 });
 
+/* Focus Trap Implementation */
+document.addEventListener("keydown", function(e) {
+    if (e.key !== "Tab" || !bookingModal || !bookingModal.classList.contains("open")) {
+        return;
+    }
+    const focusables = bookingModal.querySelectorAll(
+        'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+        'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+        'select:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+        'textarea:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+        'a[href]:not([style*="display: none"]):not([style*="display:none"])'
+    );
+    const visibleElements = Array.prototype.filter.call(focusables, function(el) {
+        return el.offsetParent !== null;
+    });
+    if (!visibleElements.length) return;
+
+    const first = visibleElements[0];
+    const last = visibleElements[visibleElements.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+    }
+});
 
 /* =========================================================
-   BOOKING TYPE & CONDITIONAL FIELDS
-========================================================= */
+   WIZARD NAVIGATION CONTROLLER
+======================================================== */
+function goToStep(step, skipValidation) {
+    const errorBox = document.getElementById("modalBookingError");
+    if (errorBox) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+    }
 
+    if (!skipValidation && typeof step === "number" && step > currentStep) {
+        if (!validateStep(currentStep)) {
+            return false;
+        }
+    }
+
+    currentStep = step;
+
+    // Panels
+    document.querySelectorAll(".wizard-step-panel").forEach(function(panel) {
+        panel.classList.remove("active");
+    });
+
+    const targetPanel = document.getElementById("bookingStep" + step);
+    if (targetPanel) {
+        targetPanel.classList.add("active");
+    }
+
+    // Stepper header nodes
+    const node1 = document.getElementById("wizardNode1");
+    const node2 = document.getElementById("wizardNode2");
+    const conn1 = document.getElementById("connector1_2");
+
+    [node1, node2].forEach(function(n) {
+        if (n) n.classList.remove("active", "completed");
+    });
+    if (conn1) conn1.classList.remove("active");
+
+    if (step === 1) {
+        if (node1) node1.classList.add("active");
+    } else if (step === 2) {
+        if (node1) node1.classList.add("completed");
+        if (conn1) conn1.classList.add("active");
+        if (node2) node2.classList.add("active");
+    }
+
+    // Footer buttons state
+    const btnBack = document.getElementById("btnWizardBack");
+    const btnNext = document.getElementById("btnWizardNext");
+    const btnConfirm = document.getElementById("btnWizardConfirm");
+
+    if (step === 1) {
+        if (btnBack) btnBack.style.display = "none";
+        if (btnNext) {
+            btnNext.style.display = "inline-flex";
+            btnNext.querySelector("span").textContent = "Next: Job Details";
+        }
+        if (btnConfirm) btnConfirm.style.display = "none";
+    } else if (step === 2) {
+        if (btnBack) btnBack.style.display = "inline-flex";
+        if (btnNext) btnNext.style.display = "none";
+        if (btnConfirm) {
+            btnConfirm.style.display = "inline-flex";
+            const cText = document.getElementById("btnConfirmText");
+            if (cText) {
+                cText.textContent = LAMO_AUTH ? "Confirm Booking" : "Book now";
+            }
+        }
+    }
+
+    // Scroll top of modal body on step change
+    const modalBody = document.querySelector(".booking-modal-body");
+    if (modalBody) {
+        modalBody.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    return true;
+}
+
+function handleWizardNext() {
+    if (currentStep === 1) {
+        goToStep(2);
+    }
+}
+
+function handleWizardBack() {
+    if (currentStep === 2) {
+        goToStep(1);
+    }
+}
+
+function validateStep(step) {
+    const errorBox = document.getElementById("modalBookingError");
+    if (errorBox) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+    }
+
+    if (step === 1) {
+        const bType = (document.getElementById("modalBookingType") || {}).value || "One Time";
+
+        if (bType === "One Time") {
+            const dateInput = document.getElementById("modalBookingDate");
+            if (!dateInput || !dateInput.value) {
+                showBookingError(errorBox, "Please select your preferred service date.");
+                if (dateInput) dateInput.focus();
+                return false;
+            }
+        } else {
+            const sDate = document.getElementById("modalStartDate");
+            const eDate = document.getElementById("modalEndDate");
+            if (!sDate || !sDate.value) {
+                showBookingError(errorBox, "Please select the start date for recurring service.");
+                if (sDate) sDate.focus();
+                return false;
+            }
+            if (!eDate || !eDate.value) {
+                showBookingError(errorBox, "Please select the end date for recurring service.");
+                if (eDate) eDate.focus();
+                return false;
+            }
+        }
+
+        // Time Validation
+        const slotBtn = document.getElementById("timeSlotBtn");
+        const timeSlot = document.getElementById("modalTimeSlot");
+        const customTime = document.getElementById("modalCustomTime");
+        const finalTime = document.getElementById("modalFinalTime");
+
+        if (slotBtn && slotBtn.classList.contains("active")) {
+            if (!timeSlot || !timeSlot.value) {
+                showBookingError(errorBox, "Please select a preferred time slot.");
+                if (timeSlot) timeSlot.focus();
+                return false;
+            }
+            if (finalTime) finalTime.value = timeSlot.value;
+        } else {
+            if (!customTime || !customTime.value.trim()) {
+                showBookingError(errorBox, "Please enter your preferred custom time.");
+                if (customTime) customTime.focus();
+                return false;
+            }
+            if (finalTime) finalTime.value = customTime.value.trim();
+        }
+
+        // Location Validation
+        const locInput = document.getElementById("modalLocationInput");
+        if (!locInput || !locInput.value.trim()) {
+            showBookingError(errorBox, "Please enter your complete service location address.");
+            if (locInput) locInput.focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    if (step === 2) {
+        const nameInput = document.getElementById("modalCustomerName");
+        if (!nameInput || !nameInput.value.trim()) {
+            showBookingError(errorBox, "Please enter your full name.");
+            if (nameInput) nameInput.focus();
+            return false;
+        }
+
+        if (!validateModalPhone()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    return true;
+}
+
+/* =========================================================
+   COLLAPSIBLE MAP TOGGLE
+======================================================== */
+function toggleBookingMap() {
+    const collapse = document.getElementById("bookingMapCollapse");
+    const textEl = document.getElementById("btnToggleMapText");
+    const chevron = document.getElementById("mapChevronIcon");
+    if (!collapse) return;
+
+    const isOpen = collapse.style.display !== "none";
+    if (isOpen) {
+        collapse.style.display = "none";
+        if (textEl) textEl.textContent = "Pin on map (Optional)";
+        if (chevron) chevron.classList.remove("rotated");
+    } else {
+        collapse.style.display = "block";
+        if (textEl) textEl.textContent = "Hide map";
+        if (chevron) chevron.classList.add("rotated");
+
+        setTimeout(function() {
+            if (window._bookingLeafletMap && typeof window._bookingLeafletMap.invalidateSize === "function") {
+                window._bookingLeafletMap.invalidateSize();
+            }
+        }, 150);
+    }
+}
+
+/* =========================================================
+   BOOKING TYPE & TIME SLOTS
+======================================================== */
 function selectModalBookingType(element) {
     document.querySelectorAll(".modal-booking-type").forEach(function(item) {
         item.classList.remove("active");
     });
     element.classList.add("active");
 
-    var bookingType = element.dataset.bookingType;
-    document.getElementById("modalBookingType").value = bookingType;
+    const bookingType = element.dataset.bookingType;
+    const typeInput = document.getElementById("modalBookingType");
+    if (typeInput) typeInput.value = bookingType;
 
-    var oneTimeOptions = document.getElementById('oneTimeOptions');
-    var recurringTopOptions = document.getElementById('recurringTopOptions');
-    var recurringBottomOptions = document.getElementById('recurringBottomOptions');
+    const oneTimeOptions = document.getElementById('oneTimeOptions');
+    const recurringTopOptions = document.getElementById('recurringTopOptions');
+    const recurringBottomOptions = document.getElementById('recurringBottomOptions');
 
-    var bookingDate = document.getElementById('modalBookingDate');
-    var startDate = document.getElementById('modalStartDate');
-    var endDate = document.getElementById('modalEndDate');
+    const bookingDate = document.getElementById('modalBookingDate');
+    const startDate = document.getElementById('modalStartDate');
+    const endDate = document.getElementById('modalEndDate');
 
     if (bookingType === 'Recurring') {
         if (oneTimeOptions) oneTimeOptions.style.display = 'none';
@@ -779,7 +1214,6 @@ function selectModalBookingType(element) {
         if (bookingDate) {
             bookingDate.required = false;
             bookingDate.value = '';
-            bookingDate.readOnly = false;
         }
         if (startDate) startDate.required = true;
         if (endDate) endDate.required = true;
@@ -790,7 +1224,6 @@ function selectModalBookingType(element) {
 
         if (bookingDate) {
             bookingDate.required = true;
-            bookingDate.readOnly = false;
         }
         if (startDate) { startDate.required = false; startDate.value = ''; }
         if (endDate) { endDate.required = false; endDate.value = ''; }
@@ -798,29 +1231,20 @@ function selectModalBookingType(element) {
 }
 
 function togglePreferredDay(freqValue) {
-    var dayGroup = document.getElementById('preferredDayGroup');
+    const dayGroup = document.getElementById('preferredDayGroup');
     if (dayGroup) {
-        if (freqValue === 'Weekly') {
-            dayGroup.style.display = 'block';
-        } else {
-            dayGroup.style.display = 'none';
-        }
+        dayGroup.style.display = freqValue === 'Weekly' ? 'block' : 'none';
     }
 }
 
-
-/* =========================================================
-   TIME TOGGLE (Slot vs Custom)
-========================================================= */
-
 function toggleTimeSlot(useSlot) {
-    var slotBtn = document.getElementById('timeSlotBtn');
-    var customBtn = document.getElementById('customTimeBtn');
-    var slotGroup = document.getElementById('timeSlotGroup');
-    var customGroup = document.getElementById('customTimeGroup');
-    var timeSlot = document.getElementById('modalTimeSlot');
-    var customTime = document.getElementById('modalCustomTime');
-    var finalTime = document.getElementById('modalFinalTime');
+    const slotBtn = document.getElementById('timeSlotBtn');
+    const customBtn = document.getElementById('customTimeBtn');
+    const slotGroup = document.getElementById('timeSlotGroup');
+    const customGroup = document.getElementById('customTimeGroup');
+    const timeSlot = document.getElementById('modalTimeSlot');
+    const customTime = document.getElementById('modalCustomTime');
+    const finalTime = document.getElementById('modalFinalTime');
 
     if (useSlot) {
         if (slotBtn) slotBtn.classList.add('active');
@@ -841,15 +1265,14 @@ function toggleTimeSlot(useSlot) {
     }
 }
 
-// Update final time when slot or custom time changes
 document.addEventListener('DOMContentLoaded', function() {
-    var timeSlot = document.getElementById('modalTimeSlot');
-    var customTime = document.getElementById('modalCustomTime');
-    var finalTime = document.getElementById('modalFinalTime');
+    const timeSlot = document.getElementById('modalTimeSlot');
+    const customTime = document.getElementById('modalCustomTime');
+    const finalTime = document.getElementById('modalFinalTime');
 
     if (timeSlot) {
         timeSlot.addEventListener('change', function() {
-            var slotBtn = document.getElementById('timeSlotBtn');
+            const slotBtn = document.getElementById('timeSlotBtn');
             if (slotBtn && slotBtn.classList.contains('active')) {
                 finalTime.value = this.value;
             }
@@ -858,18 +1281,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (customTime) {
         customTime.addEventListener('input', function() {
-            var customBtn = document.getElementById('customTimeBtn');
+            const customBtn = document.getElementById('customTimeBtn');
             if (customBtn && customBtn.classList.contains('active')) {
                 finalTime.value = this.value;
             }
         });
     }
 });
-
-
-/* =========================================================
-   DATE
-========================================================= */
 
 function parseTimeToMinutes(timeStr) {
     if (!timeStr) return null;
@@ -914,7 +1332,7 @@ function updateModalTimeSlotAvailability() {
 
     if (timeSlotSelect.selectedOptions.length && timeSlotSelect.selectedOptions[0].disabled) {
         timeSlotSelect.value = '';
-        var finalTime = document.getElementById('modalFinalTime');
+        const finalTime = document.getElementById('modalFinalTime');
         if (finalTime) finalTime.value = '';
     }
 }
@@ -927,7 +1345,7 @@ function setModalMinimumDate() {
     const minDateStr = `${year}-${month}-${day}`;
 
     ['modalBookingDate', 'modalStartDate', 'modalEndDate'].forEach(function(id) {
-        var input = document.getElementById(id);
+        const input = document.getElementById(id);
         if (input) {
             input.min = minDateStr;
             if (id === 'modalBookingDate' && !input.dataset.timeBound) {
@@ -939,343 +1357,48 @@ function setModalMinimumDate() {
     updateModalTimeSlotAvailability();
 }
 
-
 /* =========================================================
    PHONE VALIDATION
-========================================================= */
+======================================================== */
+function validateModalPhone() {
+    const phone = document.getElementById("modalPhone");
+    const error = document.getElementById("modalPhoneError");
+    if (!phone) return true;
+
+    phone.value = phone.value.replace(/\D/g, "").slice(0, 10);
+    const value = phone.value;
+    const valid = /^[6-9][0-9]{9}$/.test(value);
+
+    if (value.length === 0) {
+        phone.classList.remove("modal-phone-valid", "modal-phone-invalid");
+        if (error) error.style.display = "none";
+        return false;
+    }
+
+    if (valid) {
+        phone.classList.remove("modal-phone-invalid");
+        phone.classList.add("modal-phone-valid");
+        if (error) error.style.display = "none";
+        return true;
+    }
+
+    phone.classList.remove("modal-phone-valid");
+    phone.classList.add("modal-phone-invalid");
+    if (error) error.style.display = "block";
+    return false;
+}
 
 document.addEventListener("DOMContentLoaded", function() {
-    const phone =
-            document.getElementById("modalPhone");
-
-        const error =
-            document.getElementById("modalPhoneError");
-
-        if (!phone) {
-            return;
-        }
-
-
-        function validateModalPhone() {
-
-            phone.value =
-                phone.value
-                    .replace(/\D/g, "")
-                    .slice(0, 10);
-
-            const value =
-                phone.value;
-
-            const valid =
-                /^[6-9][0-9]{9}$/.test(value);
-
-
-            if (value.length === 0) {
-
-                phone.classList.remove(
-                    "modal-phone-valid",
-                    "modal-phone-invalid"
-                );
-
-                error.style.display = "none";
-
-                return false;
-            }
-
-
-            if (valid) {
-
-                phone.classList.remove(
-                    "modal-phone-invalid"
-                );
-
-                phone.classList.add(
-                    "modal-phone-valid"
-                );
-
-                error.style.display = "none";
-
-                return true;
-            }
-
-
-            phone.classList.remove(
-                "modal-phone-valid"
-            );
-
-            phone.classList.add(
-                "modal-phone-invalid"
-            );
-
-            error.style.display = "block";
-
-            return false;
-        }
-
-
-        phone.addEventListener(
-            "input",
-            validateModalPhone
-        );
-
-        phone.addEventListener(
-            "blur",
-            validateModalPhone
-        );
-
-
-        const form =
-            document.getElementById("bookingModalForm");
-
-        if (form) {
-
-            form.addEventListener(
-                "submit",
-                function(event) {
-
-                    event.preventDefault();
-
-                    if (!validateModalPhone()) {
-
-                        error.style.display =
-                            "block";
-
-                        phone.focus();
-                        return;
-                    }
-
-                    const modalErrorBox =
-                        document.getElementById("modalBookingError");
-
-                    if (modalErrorBox) {
-                        modalErrorBox.style.display = "none";
-                        modalErrorBox.innerHTML = "";
-                    }
-
-                    const submitBtn =
-                        document.getElementById("modalConfirmButton");
-
-                    let origHtml = "";
-                    if (submitBtn) {
-                        origHtml = submitBtn.innerHTML;
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML =
-                            '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Checking...';
-                    }
-
-                    // Update final time before submission
-                    var finalTime = document.getElementById('modalFinalTime');
-                    var timeSlot = document.getElementById('modalTimeSlot');
-                    var customTime = document.getElementById('modalCustomTime');
-                    var slotBtn = document.getElementById('timeSlotBtn');
-
-                    if (finalTime && slotBtn.classList.contains('active')) {
-                        finalTime.value = timeSlot.value;
-                    } else if (finalTime && customTime) {
-                        finalTime.value = customTime.value;
-                    }
-
-                    // Client-side past-time validation for same-day bookings
-                    const bookingDateInput = document.getElementById('modalBookingDate');
-                    const bTypeInput = document.getElementById('modalBookingType');
-                    const isOneTime = !bTypeInput || bTypeInput.value === 'One Time';
-                    const now = new Date();
-                    const pad2 = function(n) { return String(n).padStart(2, '0'); };
-                    const todayIso = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
-
-                    if (isOneTime && bookingDateInput && bookingDateInput.value === todayIso && finalTime && finalTime.value) {
-                        const startPart = finalTime.value.split(/\s*-\s*/)[0];
-                        const startMins = parseTimeToMinutes(startPart);
-                        const nowMins = now.getHours() * 60 + now.getMinutes();
-                        if (startMins !== null && startMins <= nowMins) {
-                            if (modalErrorBox) {
-                                modalErrorBox.innerHTML = 'Cannot book a time slot that has already passed today.';
-                                modalErrorBox.style.display = 'block';
-                            }
-                            if (submitBtn) {
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = origHtml;
-                            }
-                            return;
-                        }
-                    }
-
-                    // Task 3: Guest hand-off — save form to sessionStorage and
-                    // redirect to login BEFORE creating FormData/fetch.
-                    if (!LAMO_AUTH) {
-                        try {
-                            var pendingFields = {};
-                            var formEl = document.getElementById('bookingModalForm');
-                            if (formEl) {
-                                Array.from(formEl.elements).forEach(function(el) {
-                                    if (!el.name) return;
-                                    if (el.name === 'csrfmiddlewaretoken') return;
-                                    if (el.type === 'file') return;
-                                    pendingFields[el.name] = el.value;
-                                });
-                            }
-                            var pendingBooking = {
-                                v: 1,
-                                ts: Date.now(),
-                                path: location.pathname + location.search,
-                                workerId: (document.getElementById('modalWorkerId') || {}).value || '',
-                                serviceId: (document.getElementById('modalServiceId') || {}).value || '',
-                                fields: pendingFields
-                            };
-                            sessionStorage.setItem('lamo_pending_booking', JSON.stringify(pendingBooking));
-                        } catch (e) {
-                            // sessionStorage failure — proceed to login without saving
-                        }
-                        window.location.href = "{% url 'login' %}?next=" + encodeURIComponent(location.pathname + location.search);
-                        return;
-                    }
-
-                    // Task 3: Block non-USER roles from booking.
-                    if (LAMO_AUTH && LAMO_ROLE !== 'USER') {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = origHtml;
-                        }
-                        showBookingError(modalErrorBox, 'Please sign in with a customer account to book a service.');
-                        return;
-                    }
-
-                    const formData = new FormData(form);
-
-                    fetch(form.action, {
-                        method: "POST",
-                        body: formData,
-                        headers: {
-                            "X-Requested-With": "XMLHttpRequest"
-                        }
-                    })
-                    .then(function(res) {
-                        return res.json().then(function(data) {
-                            return { ok: res.ok, data: data };
-                        });
-                    })
-                    .then(function(result) {
-
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = origHtml;
-                        }
-
-                        if (result.ok && result.data && result.data.success) {
-                            window.location.href = result.data.redirect_url || "{% url 'home' %}";
-                        } else {
-                            const errMsg = (result.data && result.data.error_message)
-                                ? result.data.error_message
-                                : "This worker is already booked for the selected time. Please choose another time or date.";
-
-                            showBookingError(modalErrorBox, errMsg);
-                        }
-                    })
-                    .catch(function(err) {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = origHtml;
-                        }
-                        showBookingError(modalErrorBox, "An error occurred while processing your booking. Please try again.");
-                    });
-                }
-            );
-        }
-
-
-        setModalMinimumDate();
-
-        // Task 3: Restore pending booking after login.
-        // Runs only for authenticated USERs; any failure silently clears the key.
-        if (LAMO_AUTH && LAMO_ROLE === 'USER') {
-            try {
-                var raw = sessionStorage.getItem('lamo_pending_booking');
-                if (raw) {
-                    var pending = JSON.parse(raw);
-                    var AGE_LIMIT_MS = 30 * 60 * 1000;
-                    var currentPath = location.pathname + location.search;
-                    if (
-                        pending &&
-                        pending.v === 1 &&
-                        typeof pending.ts === 'number' &&
-                        (Date.now() - pending.ts) < AGE_LIMIT_MS &&
-                        pending.path === currentPath &&
-                        pending.workerId
-                    ) {
-                        // Find the bookable Book button for this worker.
-                        var btn = document.querySelector(
-                            '[data-worker-id="' + pending.workerId + '"].btn-book-primary:not([disabled])'
-                        );
-                        if (btn) {
-                            openBookingModal(btn);
-                            // Restore saved field values.
-                            var fields = pending.fields || {};
-                            Object.keys(fields).forEach(function(name) {
-                                var el = document.querySelector('[name="' + name + '"]');
-                                if (!el) return;
-                                try { el.value = fields[name]; } catch(e) {}
-                                // Dispatch change/input so UI widgets refresh.
-                                el.dispatchEvent(new Event('change', {bubbles: true}));
-                                el.dispatchEvent(new Event('input', {bubbles: true}));
-                            });
-                            // Sync booking type display.
-                            var bTypeVal = fields.booking_type || 'One Time';
-                            var bTypeBtn = document.querySelector(
-                                '.modal-booking-type[data-booking-type="' + bTypeVal + '"]'
-                            );
-                            if (bTypeBtn && typeof selectModalBookingType === 'function') {
-                                selectModalBookingType(bTypeBtn);
-                            }
-                            // Sync time toggle (slot vs custom).
-                            if (fields.time_slot !== undefined && fields.time_slot !== '') {
-                                if (typeof toggleTimeSlot === 'function') toggleTimeSlot(true);
-                                var slotEl = document.getElementById('modalTimeSlot');
-                                if (slotEl) {
-                                    slotEl.value = fields.time_slot;
-                                    slotEl.dispatchEvent(new Event('change'));
-                                }
-                            } else if (fields.custom_time) {
-                                if (typeof toggleTimeSlot === 'function') toggleTimeSlot(false);
-                                var ctEl = document.getElementById('modalCustomTime');
-                                if (ctEl) {
-                                    ctEl.value = fields.custom_time;
-                                    ctEl.dispatchEvent(new Event('input'));
-                                }
-                            }
-                            // Restore final time hidden field.
-                            var ftEl = document.getElementById('modalFinalTime');
-                            if (ftEl && fields.time) ftEl.value = fields.time;
-                            // Show welcome-back notice.
-                            var errBox = document.getElementById('modalBookingError');
-                            if (errBox) {
-                                errBox.textContent = '';
-                                var icon = document.createElement('i');
-                                icon.className = 'bi bi-check-circle-fill';
-                                icon.style.color = '#087f5b';
-                                errBox.appendChild(icon);
-                                errBox.appendChild(document.createTextNode(
-                                    ' Welcome back. Your details are restored \u2014 review and confirm.'
-                                ));
-                                errBox.style.display = 'block';
-                                errBox.style.background = '#f0fdf4';
-                                errBox.style.borderColor = '#087f5b';
-                                errBox.style.color = '#065f46';
-                            }
-                        }
-                    }
-                    sessionStorage.removeItem('lamo_pending_booking');
-                }
-            } catch (e) {
-                try { sessionStorage.removeItem('lamo_pending_booking'); } catch(e2) {}
-            }
-        }
-
+    const phone = document.getElementById("modalPhone");
+    if (phone) {
+        phone.addEventListener("input", validateModalPhone);
+        phone.addEventListener("blur", validateModalPhone);
     }
-);
-// =========================================================
-// ESTIMATOR, VOICE RECOGNITION & PHOTO SCOPE HELPERS
-// =========================================================
+});
 
+/* =========================================================
+   ESTIMATOR, VOICE DESCRIPTION & PHOTO PREVIEW
+======================================================== */
 function applyEstimateScope(chipEl, hours) {
     if (!chipEl) return;
     document.querySelectorAll('.estimate-chip').forEach(function(c) {
@@ -1283,24 +1406,24 @@ function applyEstimateScope(chipEl, hours) {
     });
     chipEl.classList.add('active');
 
-    var rate = window._currentWorkerRate || 250;
-    var total = Math.round(rate * hours);
-    var display = document.getElementById('calculatedCostDisplay');
-    var input = document.getElementById('modalEstimatedCostInput');
+    const rate = window._currentWorkerRate || 250;
+    const total = Math.round(rate * hours);
+    const display = document.getElementById('calculatedCostDisplay');
+    const input = document.getElementById('modalEstimatedCostInput');
     if (display) display.textContent = total;
     if (input) input.value = total.toFixed(2);
 }
 
-var _recognitionInstance = null;
-var _isRecordingVoice = false;
+let _recognitionInstance = null;
+let _isRecordingVoice = false;
 
 function toggleVoiceDescription() {
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var btn = document.getElementById('voiceDescribeBtn');
-    var btnText = document.getElementById('voiceBtnText');
-    var statusWrap = document.getElementById('voiceRecordingStatus');
-    var statusText = document.getElementById('voiceStatusText');
-    var textarea = document.getElementById('modalDescriptionTextarea');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const btn = document.getElementById('voiceDescribeBtn');
+    const btnText = document.getElementById('voiceBtnText');
+    const statusWrap = document.getElementById('voiceRecordingStatus');
+    const statusText = document.getElementById('voiceStatusText');
+    const textarea = document.getElementById('modalDescriptionTextarea');
 
     if (!SpeechRecognition) {
         alert("Voice recognition is supported in modern browsers like Chrome, Edge, and Safari. You can type directly into the description box.");
@@ -1327,12 +1450,12 @@ function toggleVoiceDescription() {
         };
 
         _recognitionInstance.onresult = function(event) {
-            var transcript = '';
-            for (var i = event.resultIndex; i < event.results.length; ++i) {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
                 transcript += event.results[i][0].transcript;
             }
             if (textarea && transcript.trim()) {
-                var currentText = textarea.value.trim();
+                const currentText = textarea.value.trim();
                 textarea.value = currentText ? (currentText + ' ' + transcript) : transcript;
             }
         };
@@ -1360,15 +1483,15 @@ function toggleVoiceDescription() {
 
 function previewProblemPhoto(input) {
     if (input.files && input.files[0]) {
-        var file = input.files[0];
-        var reader = new FileReader();
+        const file = input.files[0];
+        const reader = new FileReader();
         reader.onload = function(e) {
-            var container = document.getElementById('photoPreviewContainer');
-            var img = document.getElementById('photoPreviewElement');
+            const container = document.getElementById('photoPreviewContainer');
+            const img = document.getElementById('photoPreviewElement');
             if (img) img.src = e.target.result;
             if (container) container.style.display = 'inline-flex';
 
-            var textarea = document.getElementById('modalDescriptionTextarea');
+            const textarea = document.getElementById('modalDescriptionTextarea');
             if (textarea && !textarea.value.includes('[Photo Attached]')) {
                 textarea.value = (textarea.value.trim() ? textarea.value.trim() + '\n' : '') + '[Photo of problem attached for worker]';
             }
@@ -1378,11 +1501,504 @@ function previewProblemPhoto(input) {
 }
 
 function clearProblemPhoto() {
-    var input = document.getElementById('modalProblemPhotoInput');
-    var container = document.getElementById('photoPreviewContainer');
-    var img = document.getElementById('photoPreviewElement');
+    const input = document.getElementById('modalProblemPhotoInput');
+    const container = document.getElementById('photoPreviewContainer');
+    const img = document.getElementById('photoPreviewElement');
     if (input) input.value = '';
     if (img) img.src = '';
     if (container) container.style.display = 'none';
 }
+
+/* =========================================================
+   FORM SUBMISSION (STEP 2 DISPATCH)
+======================================================== */
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("bookingModalForm");
+    if (!form) return;
+
+    form.addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        // Validate Step 1 and Step 2
+        if (!validateStep(1) || !validateStep(2)) {
+            return;
+        }
+
+        // Finalize time value
+        const finalTime = document.getElementById('modalFinalTime');
+        const timeSlot = document.getElementById('modalTimeSlot');
+        const customTime = document.getElementById('modalCustomTime');
+        const slotBtn = document.getElementById('timeSlotBtn');
+
+        if (finalTime && slotBtn && slotBtn.classList.contains('active')) {
+            finalTime.value = timeSlot.value;
+        } else if (finalTime && customTime) {
+            finalTime.value = customTime.value;
+        }
+
+        if (LAMO_AUTH) {
+            submitDirectBooking();
+        } else {
+            openAuthPopup();
+        }
+    });
+});
+
+function submitDirectBooking() {
+    const form = document.getElementById("bookingModalForm");
+    const modalErrorBox = document.getElementById("modalBookingError");
+    if (modalErrorBox) {
+        modalErrorBox.style.display = "none";
+        modalErrorBox.textContent = "";
+    }
+
+    const submitBtn = document.getElementById("btnWizardConfirm");
+    let origHtml = "";
+    if (submitBtn) {
+        origHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...';
+    }
+
+    if (LAMO_AUTH && LAMO_ROLE !== 'USER') {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origHtml;
+        }
+        showBookingError(modalErrorBox, 'Please sign in with a customer account to book a service.');
+        return;
+    }
+
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-Requested-With": "XMLHttpRequest"
+        }
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origHtml;
+        }
+
+        if (result.ok && result.data && result.data.success) {
+            window.location.href = result.data.redirect_url || "{% url 'my_bookings' %}";
+        } else {
+            const errMsg = (result.data && result.data.error_message)
+                ? result.data.error_message
+                : "This worker is already booked for the selected time. Please choose another time or date.";
+            showBookingError(modalErrorBox, errMsg);
+        }
+    })
+    .catch(function(err) {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origHtml;
+        }
+        showBookingError(modalErrorBox, "An error occurred while processing your booking. Please try again.");
+    });
+}
+
+/* =========================================================
+   UNIFIED AUTH POPUP CONTROLLER
+======================================================== */
+var _authCooldownTimer = null;
+var _authCooldownRemaining = 0;
+var _authAttemptsRemaining = 5;
+
+function openAuthPopup() {
+    var popup = document.getElementById("bookingAuthPopup");
+    if (!popup) return;
+    clearAuthAlerts();
+    var s1 = document.getElementById("authScreen1");
+    var s2 = document.getElementById("authScreen2");
+    if (s1) s1.style.display = "block";
+    if (s2) s2.style.display = "none";
+    popup.style.display = "flex";
+    popup.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    setTimeout(function() {
+        var input = document.getElementById("authIdentifierInput");
+        if (input) {
+            input.focus();
+        }
+    }, 100);
+}
+
+function closeAuthPopup() {
+    var popup = document.getElementById("bookingAuthPopup");
+    if (!popup) return;
+    popup.style.display = "none";
+    popup.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+    if (_authCooldownTimer) {
+        clearInterval(_authCooldownTimer);
+        _authCooldownTimer = null;
+    }
+}
+
+function clearAuthAlerts() {
+    ["authAlert1", "authScreen1Alert", "authAlert2", "authScreen2Alert"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.style.display = "none";
+            el.textContent = "";
+            el.className = "auth-popup-alert alert-danger";
+        }
+    });
+}
+
+function showAuthAlert(screenNum, msg, type) {
+    var targetIds = screenNum === 1 ? ["authAlert1", "authScreen1Alert"] : ["authAlert2", "authScreen2Alert"];
+    targetIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.className = "auth-popup-alert alert-" + (type || "danger");
+            el.textContent = msg;
+            el.style.display = "block";
+        }
+    });
+}
+
+function handleAuthSendCode(event) {
+    if (event && event.preventDefault) {
+        event.preventDefault();
+    }
+    clearAuthAlerts();
+    var input = document.getElementById("authIdentifierInput");
+    var val = (input ? input.value : "").trim();
+    if (!val) {
+        showAuthAlert(1, "Please enter your email or mobile number.");
+        if (input) input.focus();
+        return;
+    }
+
+    var isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    var isPhone = /^(\+?\d{1,4}[-.\s]?)?(\d{10}|\d{9,12})$/.test(val.replace(/[\s\-\(\)]/g, ''));
+
+    var smsOtpEnabled = false;
+    {% if SMS_OTP_ENABLED %}
+    smsOtpEnabled = true;
+    {% endif %}
+
+    if (!isEmail && (isPhone || /^\+?\d+$/.test(val))) {
+        if (!smsOtpEnabled) {
+            showAuthAlert(1, "Mobile OTP is coming soon, please use your email.");
+            if (input) input.focus();
+            return;
+        }
+    } else if (!isEmail) {
+        showAuthAlert(1, "Please enter a valid email address.");
+        if (input) input.focus();
+        return;
+    }
+
+    var btn = document.getElementById("btnAuthSendCode");
+    var origHtml = "";
+    if (btn) {
+        origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Sending...';
+    }
+
+    // Set hidden email input in the booking form
+    var emailHidden = document.getElementById("modalCustomerEmailHidden");
+    if (emailHidden) emailHidden.value = val;
+
+    var bookingForm = document.getElementById("bookingModalForm");
+    var formData = new FormData(bookingForm);
+    formData.set("customer_email", val);
+    formData.set("auth_identifier", val);
+
+    // Ensure final time is set in formData
+    var finalTime = document.getElementById('modalFinalTime');
+    var timeSlot = document.getElementById('modalTimeSlot');
+    var customTime = document.getElementById('modalCustomTime');
+    var slotBtn = document.getElementById('timeSlotBtn');
+    if (slotBtn && slotBtn.classList.contains('active') && timeSlot) {
+        formData.set("time", timeSlot.value);
+    } else if (customTime) {
+        formData.set("time", customTime.value);
+    }
+
+    fetch(bookingForm.action, {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+        var data = result.data || {};
+        if (result.ok && (data.success || data.requires_otp)) {
+            var targetDisplay = document.getElementById("authTargetEmail") || document.getElementById("authTargetDisplay");
+            if (targetDisplay) targetDisplay.textContent = val;
+
+            var s1 = document.getElementById("authScreen1");
+            var s2 = document.getElementById("authScreen2");
+            if (s1) s1.style.display = "none";
+            if (s2) s2.style.display = "block";
+
+            _authAttemptsRemaining = data.remaining_attempts || 5;
+            var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+            if (attEl) attEl.textContent = _authAttemptsRemaining;
+
+            initAuthCodeBoxes();
+            startAuthCooldown(30);
+        } else {
+            showAuthAlert(1, data.error_message || "Could not send verification code. Please try again.");
+        }
+    })
+    .catch(function(err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+        showAuthAlert(1, "A network error occurred while sending the code. Please try again.");
+    });
+}
+
+function initAuthCodeBoxes() {
+    var inputs = document.querySelectorAll(".auth-code-box");
+    if (!inputs || inputs.length === 0) return;
+
+    inputs.forEach(function(inp, idx) {
+        inp.value = "";
+        inp.disabled = false;
+
+        inp.oninput = function(e) {
+            this.value = this.value.replace(/\D/g, "");
+            if (this.value.length === 1 && idx < inputs.length - 1) {
+                inputs[idx + 1].focus();
+            }
+        };
+
+        inp.onkeydown = function(e) {
+            if (e.key === "Backspace" && !this.value && idx > 0) {
+                inputs[idx - 1].focus();
+            } else if (e.key === "Enter") {
+                handleAuthVerifySubmit(e);
+            }
+        };
+
+        inp.onpaste = function(e) {
+            e.preventDefault();
+            var pasteData = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+            if (pasteData) {
+                for (var i = 0; i < pasteData.length; i++) {
+                    if (inputs[i]) inputs[i].value = pasteData[i];
+                }
+                var focusIdx = Math.min(pasteData.length, inputs.length - 1);
+                if (inputs[focusIdx]) inputs[focusIdx].focus();
+            }
+        };
+    });
+
+    setTimeout(function() {
+        if (inputs[0]) inputs[0].focus();
+    }, 120);
+}
+
+function getAuthCodeValue() {
+    var inputs = document.querySelectorAll(".auth-code-box");
+    var code = "";
+    inputs.forEach(function(inp) { code += (inp.value || ""); });
+    return code;
+}
+
+function startAuthCooldown(duration) {
+    if (_authCooldownTimer) clearInterval(_authCooldownTimer);
+    _authCooldownRemaining = duration;
+    var btn = document.getElementById("btnAuthResend");
+    var timerDisplay = document.getElementById("authCooldownTimer") || document.getElementById("authResendCountdown");
+
+    if (btn) btn.disabled = true;
+    if (timerDisplay) {
+        var s = _authCooldownRemaining < 10 ? "0" + _authCooldownRemaining : _authCooldownRemaining;
+        timerDisplay.textContent = "0:" + s;
+    }
+
+    _authCooldownTimer = setInterval(function() {
+        _authCooldownRemaining--;
+        if (timerDisplay) {
+            if (_authCooldownRemaining > 0) {
+                var s = _authCooldownRemaining < 10 ? "0" + _authCooldownRemaining : _authCooldownRemaining;
+                timerDisplay.textContent = "0:" + s;
+            } else {
+                timerDisplay.textContent = "0:00";
+            }
+        }
+        if (_authCooldownRemaining <= 0) {
+            clearInterval(_authCooldownTimer);
+            _authCooldownTimer = null;
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Resend Code";
+            }
+        }
+    }, 1000);
+}
+
+function handleAuthResendCode() {
+    clearAuthAlerts();
+    var btn = document.getElementById("btnAuthResend");
+    if (btn) btn.disabled = true;
+
+    var csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || "";
+    var formData = new FormData();
+    formData.append("action", "resend");
+    formData.append("csrfmiddlewaretoken", csrfToken);
+
+    fetch("{% url 'verify_otp' %}", {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        var data = result.data || {};
+        if (result.ok && data.success) {
+            startAuthCooldown(30);
+            _authAttemptsRemaining = 5;
+            var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+            if (attEl) attEl.textContent = "5";
+            initAuthCodeBoxes();
+            showAuthAlert(2, "A new 6-digit code has been sent.", "success");
+        } else {
+            if (btn) btn.disabled = false;
+            showAuthAlert(2, data.error_message || "Could not resend code. Please try again.");
+        }
+    })
+    .catch(function() {
+        if (btn) btn.disabled = false;
+        showAuthAlert(2, "A network error occurred while resending the code.");
+    });
+}
+
+function handleAuthVerifySubmit(event) {
+    if (event && event.preventDefault) {
+        event.preventDefault();
+    }
+    clearAuthAlerts();
+    var code = getAuthCodeValue();
+    if (code.length !== 6) {
+        showAuthAlert(2, "Please enter all 6 digits of the verification code.");
+        return;
+    }
+
+    var btn = document.getElementById("btnAuthVerify");
+    var origHtml = "";
+    if (btn) {
+        origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Verifying...';
+    }
+
+    var csrfToken = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || "";
+    var formData = new FormData();
+    formData.append("action", "verify");
+    formData.append("otp", code);
+    formData.append("csrfmiddlewaretoken", csrfToken);
+
+    fetch("{% url 'verify_otp' %}", {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+
+        var data = result.data || {};
+        if (result.ok && data.success) {
+            if (btn) {
+                btn.className = "btn-auth-primary btn-success";
+                btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmed!';
+            }
+            window.location.href = data.redirect_url || "{% url 'my_bookings' %}";
+        } else {
+            var msg = data.error_message || "Invalid verification code. Please check and try again.";
+            showAuthAlert(2, msg, "danger");
+
+            if (data.remaining_attempts !== undefined) {
+                _authAttemptsRemaining = data.remaining_attempts;
+                var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+                if (attEl) attEl.textContent = _authAttemptsRemaining;
+            }
+
+            if (data.locked_out || data.requires_resend) {
+                var inputs = document.querySelectorAll(".auth-code-box");
+                inputs.forEach(function(i) { i.value = ""; i.disabled = true; });
+                var btnResend = document.getElementById("btnAuthResend");
+                if (btnResend) {
+                    btnResend.disabled = false;
+                    btnResend.textContent = "Resend Code";
+                }
+            } else {
+                var first = document.querySelector(".auth-code-box");
+                if (first) first.select();
+            }
+        }
+    })
+    .catch(function(err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+        showAuthAlert(2, "A network error occurred while verifying your code. Please try again.");
+    });
+}
+
+function backToAuthScreen1() {
+    clearAuthAlerts();
+    if (_authCooldownTimer) {
+        clearInterval(_authCooldownTimer);
+        _authCooldownTimer = null;
+    }
+    var s1 = document.getElementById("authScreen1");
+    var s2 = document.getElementById("authScreen2");
+    if (s2) s2.style.display = "none";
+    if (s1) s1.style.display = "block";
+    var input = document.getElementById("authIdentifierInput");
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+// Close popup on Escape or backdrop click
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+        var popup = document.getElementById("bookingAuthPopup");
+        if (popup && popup.style.display !== "none") {
+            closeAuthPopup();
+        }
+    }
+});
 </script>
