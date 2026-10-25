@@ -749,6 +749,7 @@
 
         <form method="POST" action="{% url 'login' %}" id="modalLoginForm">
           {% csrf_token %}
+          <input type="hidden" name="next" id="modalLoginNext" value="">
 
           <div class="auth-input-group">
             <div class="auth-input-wrap">
@@ -851,6 +852,7 @@
 
         <form method="POST" action="{% url 'register' %}" enctype="multipart/form-data" id="modalRegisterForm">
           {% csrf_token %}
+          <input type="hidden" name="next" id="modalRegNext" value="">
 
           <!-- STEP 1: ACCOUNT DETAILS (USER & INITIAL WORKER) -->
           <div id="modalStepAccount" class="modal-form-step">
@@ -1187,11 +1189,20 @@
     });
 
     // -------------------------------------------------------
+    // -------------------------------------------------------
     // OPEN & CLOSE MODAL API
     // -------------------------------------------------------
-    window.openLamoAuthModal = function(initialView) {
+    window.openLamoAuthModal = function(initialView, nextUrl) {
       if (!overlay) return;
       showModalView(initialView === 'login' ? 'login' : 'register');
+      var nextInput = document.getElementById('modalLoginNext');
+      if (nextInput) {
+        nextInput.value = nextUrl || '';
+      }
+      var regNextInput = document.getElementById('modalRegNext');
+      if (regNextInput) {
+        regNextInput.value = nextUrl || '';
+      }
       overlay.classList.add('show');
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
@@ -1225,7 +1236,7 @@
     });
 
     // -------------------------------------------------------
-    // INTERCEPT NAVBAR LOGIN & REGISTER BUTTONS
+    // INTERCEPT NAVBAR LOGIN & REGISTER BUTTONS & AUTH TRIGGERS
     // -------------------------------------------------------
     document.querySelectorAll('.btn-login').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
@@ -1239,6 +1250,45 @@
         e.preventDefault();
         window.openLamoAuthModal('register');
       });
+    });
+
+    // Intercept Bookings, Notifications, Account, and any .js-auth-trigger
+    document.querySelectorAll('.js-auth-trigger').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        var view = el.getAttribute('data-auth-view') || 'login';
+        var nextUrl = el.getAttribute('data-next-url') || '';
+        // Close mobile drawer if open
+        var mobileNav = document.getElementById('mainNav');
+        if (mobileNav && mobileNav.classList.contains('show')) {
+          try {
+            var bsCollapse = window.bootstrap && window.bootstrap.Collapse ? window.bootstrap.Collapse.getInstance(mobileNav) : null;
+            if (bsCollapse) {
+              bsCollapse.hide();
+            } else {
+              mobileNav.classList.remove('show');
+            }
+          } catch(err) {
+            mobileNav.classList.remove('show');
+          }
+          var backdrop = document.getElementById('mobileNavBackdrop');
+          if (backdrop) backdrop.classList.remove('show');
+        }
+        window.openLamoAuthModal(view, nextUrl);
+      });
+    });
+
+    // Universal fallback for any guest links pointing to login?next=
+    document.querySelectorAll('a[href*="/accounts/login/?next="], a[href*="login/?next="], a[href*="login?next="]').forEach(function(el) {
+      if (!el.classList.contains('js-auth-trigger') && !el.classList.contains('no-auth-modal') && !el.classList.contains('btn-login')) {
+        el.addEventListener('click', function(e) {
+          var href = el.getAttribute('href') || '';
+          var match = href.match(/[?&]next=([^&]+)/);
+          var nextUrl = match ? decodeURIComponent(match[1]) : '';
+          e.preventDefault();
+          window.openLamoAuthModal('login', nextUrl);
+        });
+      }
     });
 
     // Check URL triggers (?auth=register, #register, ?auth=login, #login)

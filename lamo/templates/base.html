@@ -183,7 +183,7 @@
       {% if user.role == 'WORKER' %}
       <a href="{% url 'worker_dashboard' %}" class="worker-brand">
         <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
-          style="height: 46px; width: auto; object-fit: contain; display: block;">
+          style="height: 28px; width: auto; object-fit: contain; display: block;">
         <div class="worker-brand-text">
           <small>LABOUR MANAGEMENT SYSTEM</small>
         </div>
@@ -197,7 +197,7 @@
       {% else %}
       <a href="{% url 'admin_dashboard' %}" class="worker-brand">
         <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
-          style="height: 46px; width: auto; object-fit: contain; display: block;">
+          style="height: 28px; width: auto; object-fit: contain; display: block;">
         <div class="worker-brand-text">
           <small>LABOUR MANAGEMENT SYSTEM</small>
         </div>
@@ -227,17 +227,14 @@
 
     <nav class="navbar navbar-expand-lg lamo-navbar">
 
-
       <div class="container">
 
-
         <!-- =========================================
-                     LOGO
-                ========================================== -->
-
-        <div class="d-flex align-items-center">
-          <a class="brand-logo" href="{% url 'home' %}" data-aos="fade-down">
-            <img src="{% static 'img/logoo.png' %}" alt="LAMO" class="lamo-navbar-logo">
+             BRAND LOGO & LOCATION CAPSULE
+        ========================================== -->
+        <div class="nav-brand-group d-flex align-items-center">
+          <a class="brand-logo" href="{% url 'home' %}">
+            <img src="{% static 'img/lamo_logo_dark.png' %}" alt="LAMO" class="lamo-navbar-logo">
           </a>
 
           <!-- Location Selector in Navbar -->
@@ -256,34 +253,31 @@
         </div>
 
         <!-- =========================================
-                     MOBILE TOGGLE
-                ========================================== -->
-
+             MOBILE TOGGLE BUTTON
+        ========================================== -->
         <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse"
           data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-
           <i class="bi bi-list fs-2"></i>
-
         </button>
 
-
-
         <!-- =========================================
-                     NAVIGATION AREA
-                ========================================== -->
-
+             COLLAPSIBLE NAVIGATION DRAWER / DESKTOP BAR
+        ========================================== -->
         <div class="collapse navbar-collapse" id="mainNav">
 
           <!-- Mobile Drawer Header with Close Button -->
           <div class="mobile-drawer-header d-lg-none">
-            <span class="mobile-drawer-title">Menu</span>
+            <div class="d-flex align-items-center gap-2">
+              <img src="{% static 'img/logoo.png' %}" alt="LAMO" style="height: 22px; width: auto; object-fit: contain;">
+              <span class="mobile-drawer-title">Navigation</span>
+            </div>
             <button type="button" class="mobile-drawer-close" data-bs-toggle="collapse" data-bs-target="#mainNav"
               aria-label="Close menu">
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
 
-          <!-- Mobile Drawer Location Trigger -->
+          <!-- Mobile Drawer Location Card -->
           <div class="mobile-drawer-location d-lg-none">
             <button type="button" class="mobile-nav-location-btn" id="mobileNavLocationBtn" aria-label="Choose your district location">
               <div class="d-flex align-items-center gap-2">
@@ -299,248 +293,219 @@
             </button>
           </div>
 
-          {% if user.is_authenticated %}
-
-
-          <!-- =====================================
-                         AUTHENTICATED USER NAVIGATION
-                    ====================================== -->
-
+          <!-- =========================================
+               CENTER FLOATING NAV PILL (DESKTOP) / LIST (MOBILE)
+          ========================================== -->
           <div class="nav-pill">
-
             <ul class="navbar-nav" data-aos="fade-down" data-aos-delay="100">
 
-
-              <!-- HOME -->
-
+              <!-- 1. HOME -->
               <li class="nav-item">
-
                 <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
                   href="{% url 'home' %}">
-
-                  Home
-
+                  <i class="bi bi-house-door d-lg-none me-2"></i>
+                  <span>Home</span>
                 </a>
-
               </li>
 
-
-
-
-
-
-              <!-- SERVICES -->
-
+              <!-- 2. SERVICES -->
               <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' %}active{% endif %}"
+                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' or request.resolver_match.url_name == 'service_list' %}active{% endif %}"
                   href="{% url 'service_page' %}">
-
-                  Services
-
+                  <i class="bi bi-grid d-lg-none me-2"></i>
+                  <span>Services</span>
                 </a>
-
               </li>
 
-              <!-- MY BOOKINGS -->
-
+              <!-- 3. MY BOOKINGS -->
               <li class="nav-item">
-
+                {% if user.is_authenticated %}
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_bookings' %}active{% endif %}"
                   href="{% url 'my_bookings' %}">
-
-                  My Bookings
-
+                  <i class="bi bi-calendar-check d-lg-none me-2"></i>
+                  <span>My Bookings</span>
                 </a>
-
+                {% else %}
+                <a class="nav-link {% if request.resolver_match.url_name == 'my_bookings' %}active{% endif %} js-auth-trigger"
+                  href="{% url 'login' %}?next={% url 'my_bookings' %}" data-auth-view="login" data-next-url="{% url 'my_bookings' %}" title="Log in to view your bookings">
+                  <i class="bi bi-calendar-check d-lg-none me-2"></i>
+                  <span>My Bookings</span>
+                </a>
+                {% endif %}
               </li>
-              <!-- NOTIFICATIONS (slide-over drawer trigger) -->
 
-              <li class="nav-item">
-
+              <!-- 4. NOTIFICATIONS (Desktop Nav Pill) -->
+              <li class="nav-item d-none d-lg-block">
+                {% if user.is_authenticated %}
                 <button type="button" class="nav-link notification-nav-link position-relative" id="lamoNotifBell"
-                  aria-expanded="false" aria-controls="lamoNotifDrawer" aria-haspopup="dialog" title="Notifications"
-                  aria-label="Notifications">
+                  aria-expanded="false" aria-controls="lamoNotifDrawer" aria-haspopup="dialog" title="Notifications ({{ global_unread_count }} unread)"
+                  aria-label="Notifications ({{ global_unread_count }} unread)">
                   <i class="bi bi-bell"></i>
                   <span id="nav-unread-badge" class="badge bg-danger rounded-circle position-absolute"
-                    style="top: 2px; right: 2px; font-size: 0.65rem; padding: 3px 6px; {% if global_unread_count == 0 %}display: none;{% endif %}">{{
-                    global_unread_count }}</span>
+                    style="top: 2px; right: 2px; font-size: 0.65rem; padding: 3px 6px; {% if global_unread_count == 0 %}display: none;{% endif %}">{{ global_unread_count }}</span>
                 </button>
+                {% else %}
+                <a class="nav-link notification-nav-link position-relative js-auth-trigger"
+                  href="{% url 'login' %}?next={% url 'notifications' %}" data-auth-view="login" data-next-url="{% url 'notifications' %}" title="Log in to view notifications" aria-label="Notifications">
+                  <i class="bi bi-bell"></i>
+                </a>
+                {% endif %}
+              </li>
 
+              <!-- 4. NOTIFICATIONS (Mobile Drawer Item) -->
+              <li class="nav-item d-lg-none">
+                {% if user.is_authenticated %}
+                <a class="nav-link {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"
+                  href="{% url 'notifications' %}">
+                  <div class="d-flex align-items-center justify-content-between w-100">
+                    <div>
+                      <i class="bi bi-bell me-2"></i>
+                      <span>Notifications</span>
+                    </div>
+                    {% if global_unread_count > 0 %}
+                    <span class="badge bg-danger rounded-pill">{{ global_unread_count }}</span>
+                    {% endif %}
+                  </div>
+                </a>
+                {% else %}
+                <a class="nav-link js-auth-trigger" href="{% url 'login' %}?next={% url 'notifications' %}" data-auth-view="login" data-next-url="{% url 'notifications' %}">
+                  <div class="d-flex align-items-center justify-content-between w-100">
+                    <div>
+                      <i class="bi bi-bell me-2"></i>
+                      <span>Notifications</span>
+                    </div>
+                  </div>
+                </a>
+                {% endif %}
+              </li>
+
+              <!-- 5. LOCATION / CHANGE DISTRICT (Mobile Menu Item) -->
+              <li class="nav-item d-lg-none">
+                <a class="nav-link" href="?change_district=1">
+                  <div class="d-flex align-items-center justify-content-between w-100">
+                    <div>
+                      <i class="bi bi-geo-alt me-2"></i>
+                      <span>Change District</span>
+                    </div>
+                    <span class="badge bg-white text-dark border font-monospace" style="font-size:0.75rem; font-weight:600;">
+                      {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Kerala{% endif %}
+                    </span>
+                  </div>
+                </a>
+              </li>
+
+              <!-- 6. ACCOUNT / PROFILE (Mobile Menu Item) -->
+              <li class="nav-item d-lg-none">
+                {% if user.is_authenticated %}
+                <a class="nav-link {% if request.resolver_match.url_name == 'user_dashboard' or request.resolver_match.url_name == 'edit_profile' %}active{% endif %}"
+                  href="{% url 'user_dashboard' %}">
+                  <div class="d-flex align-items-center justify-content-between w-100">
+                    <div>
+                      <i class="bi bi-person-circle me-2"></i>
+                      <span>Account / Profile</span>
+                    </div>
+                    <span class="user-initial-mini">{{ user.username|first|upper }}</span>
+                  </div>
+                </a>
+                {% else %}
+                <a class="nav-link js-auth-trigger" href="{% url 'login' %}?next={% url 'user_dashboard' %}" data-auth-view="login" data-next-url="{% url 'user_dashboard' %}">
+                  <div class="d-flex align-items-center justify-content-between w-100">
+                    <div>
+                      <i class="bi bi-person-circle me-2"></i>
+                      <span>Account / Sign In</span>
+                    </div>
+                  </div>
+                </a>
+                {% endif %}
+              </li>
+
+              <!-- Mobile Secondary Section (About Us & Contact) -->
+              <li class="nav-item d-lg-none mobile-nav-secondary-divider">
+                <hr style="border-color: rgba(255, 255, 255, 0.15); margin: 8px 0;">
+              </li>
+              <li class="nav-item d-lg-none">
+                <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}"
+                  href="{% url 'about' %}" style="font-size: 0.88rem; opacity: 0.85;">
+                  <i class="bi bi-info-circle me-2"></i>About Us
+                </a>
+              </li>
+              <li class="nav-item d-lg-none">
+                <a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}"
+                  href="{% url 'contact' %}" style="font-size: 0.88rem; opacity: 0.85;">
+                  <i class="bi bi-envelope me-2"></i>Contact
+                </a>
               </li>
 
             </ul>
-
           </div>
-          <!-- =====================================
-                         AUTHENTICATED USER ACTION
-                         RIGHT SIDE USER DROPDOWN
-                    ====================================== -->
 
+          <!-- =========================================
+               RIGHT SIDE ACTIONS (DESKTOP) / DRAWER FOOTER (MOBILE)
+          ========================================== -->
           <div class="nav-actions" data-aos="fade-down" data-aos-delay="200">
-
+            {% if user.is_authenticated %}
+            <!-- Authenticated User Dropdown (Desktop) -->
             <div class="user-menu" id="userMenu">
-
               <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false"
                 aria-haspopup="true" title="{{ user.username }}" aria-label="Open user menu for {{ user.username }}">
-
                 <span class="user-initial">
                   {{ user.username|first|upper }}
                 </span>
-
+                <span class="user-nav-name d-none d-xl-inline">{{ user.username|truncatechars:12 }}</span>
                 <i class="bi bi-chevron-down"></i>
-
               </button>
 
-
               <div class="user-dropdown" id="userDropdown">
-
+                <div class="user-dropdown-header px-3 py-2 border-bottom">
+                  <div class="fw-bold text-dark">{{ user.username }}</div>
+                  <small class="text-muted">{{ user.email|default:"User Account" }}</small>
+                </div>
                 <a href="{% url 'user_dashboard' %}">
-
-                  <i class="bi bi-house"></i>
-
+                  <i class="bi bi-speedometer2"></i>
                   Dashboard
-
                 </a>
+                <a href="{% url 'edit_profile' %}">
+                  <i class="bi bi-person-gear"></i>
+                  Account Profile
+                </a>
+                <a href="{% url 'my_bookings' %}">
+                  <i class="bi bi-calendar-check"></i>
+                  My Bookings
+                </a>
+                <div class="dropdown-divider my-1"></div>
                 <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
                   {% csrf_token %}
-                  <button type="submit" class="logout-item">
+                  <button type="submit" class="logout-item w-100 text-start">
                     <i class="bi bi-box-arrow-right"></i>
                     Logout
                   </button>
                 </form>
               </div>
-
             </div>
 
-          </div>
+            <!-- Mobile Auth Actions (Drawer Footer) -->
+            <div class="mobile-auth-actions d-lg-none w-100 pt-2 border-top border-white border-opacity-10">
+              <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2" style="border-radius: 12px; padding: 10px;">
+                  <i class="bi bi-box-arrow-right"></i>
+                  Logout ({{ user.username }})
+                </button>
+              </form>
+            </div>
 
-
-
-
-          {% else %}
-
-
-          <!-- =====================================
-                         PUBLIC NAVIGATION
-                    ====================================== -->
-
-          <div class="nav-pill">
-
-            <ul class="navbar-nav" data-aos="fade-down" data-aos-delay="100">
-
-
-              <!-- HOME -->
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
-                  href="{% url 'home' %}">
-
-                  Home
-
-                </a>
-
-              </li>
-
-
-              <!-- ABOUT -->
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}"
-                  href="{% url 'about' %}">
-
-                  About Us
-
-                </a>
-
-              </li>
-
-
-              <!-- SERVICES -->
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' %}active{% endif %}"
-                  href="{% url 'service_page' %}">
-
-                  Services
-
-                </a>
-
-              </li>
-
-
-              <!-- CONTACT -->
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}"
-                  href="{% url 'contact' %}">
-
-                  Contact
-
-                </a>
-
-              </li>
-
-
-              <!-- BECOME A PRO -->
-
-              <li class="nav-item">
-
-                <a class="nav-link {% if request.resolver_match.url_name == 'register' and request.GET.role == 'worker' %}active{% endif %}"
-                  href="{% url 'register' %}?role=worker">
-
-                  Become a Pro
-
-                </a>
-
-              </li>
-
-
-            </ul>
-
-          </div>
-
-
-          <!-- =====================================
-                         LOGIN / REGISTER
-                    ====================================== -->
-
-          <div class="nav-actions" data-aos="fade-down" data-aos-delay="200">
-
-
-            <!-- LOGIN -->
-
+            {% else %}
+            <!-- Guest Desktop & Mobile Actions -->
             <a href="{% url 'login' %}" class="btn-login">
-
-              <i class="bi bi-box-arrow-in-right me-2">
-              </i>
-
+              <i class="bi bi-box-arrow-in-right me-1"></i>
               Login
-
             </a>
-
-
-            <!-- REGISTER -->
-
             <a href="{% url 'register' %}" class="btn-register">
-
-              <i class="bi bi-person-plus me-2">
-              </i>
-
+              <i class="bi bi-person-plus me-1"></i>
               Register
-
             </a>
-
-
+            {% endif %}
           </div>
-
-
-          {% endif %}
-
 
         </div>
 
@@ -632,7 +597,7 @@
 
 
             <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo"
-              style="height: 50px; width: auto; object-fit: contain; display: block;">
+              style="height: 32px; width: auto; object-fit: contain; display: block;">
 
 
             <div class="brand-text-wrap">
@@ -763,41 +728,40 @@
 
 
             <li>
-
-              <a href="{% url 'register' %}">
+              <a href="{% url 'service_page' %}">
                 Book a Service
               </a>
-
             </li>
 
-
             <li>
-
-              <a href="{% url 'register' %}">
-                Browse Workers
+              <a href="{% url 'service_page' %}">
+                Browse Services
               </a>
-
             </li>
 
-
             <li>
-
-              <a href="{% url 'login' %}">
+              {% if user.is_authenticated %}
+              <a href="{% url 'my_bookings' %}">
                 Manage Bookings
               </a>
-
+              {% else %}
+              <a href="{% url 'login' %}?next={% url 'my_bookings' %}" class="js-auth-trigger" data-auth-view="login" data-next-url="{% url 'my_bookings' %}">
+                Manage Bookings
+              </a>
+              {% endif %}
             </li>
-
 
             <li>
-
-              <a href="{% url 'login' %}">
-                Payments
+              {% if user.is_authenticated %}
+              <a href="{% url 'my_bookings' %}">
+                Invoices &amp; Receipts
               </a>
-
+              {% else %}
+              <a href="{% url 'login' %}?next={% url 'my_bookings' %}" class="js-auth-trigger" data-auth-view="login" data-next-url="{% url 'my_bookings' %}">
+                Invoices &amp; Receipts
+              </a>
+              {% endif %}
             </li>
-
-
           </ul>
 
 
