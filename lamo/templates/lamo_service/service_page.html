@@ -156,6 +156,47 @@
         .services-pagination-list .page-link { min-width: 36px !important; height: 36px !important; padding: 0 12px !important; font-size: 0.84rem !important; }
         .pagination-meta-info { font-size: 0.78rem !important; padding: 5px 14px !important; }
     }
+
+    /* =========================================================
+       PREMIUM SERVICES HERO (REPLACES PLAIN SOLID GREEN)
+       ========================================================= */
+    .services-hero-compact {
+        position: relative;
+        padding: 54px 0 46px;
+        background:
+            radial-gradient(circle at 18% 45%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
+            radial-gradient(circle at 82% 30%, rgba(5, 150, 105, 0.22) 0%, transparent 50%),
+            linear-gradient(135deg, rgba(2, 44, 30, 0.90) 0%, rgba(6, 78, 59, 0.86) 55%, rgba(15, 23, 42, 0.93) 100%),
+            url("{% static 'img/services_hero_banner.jpg' %}") center/cover no-repeat;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 -20px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+    .services-hero-compact::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 50% 120%, rgba(52, 211, 153, 0.12) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .services-hero-trust-box {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 20px;
+        padding: 20px 24px;
+        text-align: left;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .services-hero-trust-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 25px 55px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(52, 211, 153, 0.28);
+    }
     </style>
 {% endblock %}
 
@@ -169,22 +210,22 @@
      Distinct from home.html; delivers immediate visibility
      to categories and available service cards.
 ========================================================= -->
-<section class="services-hero-compact" style="background: linear-gradient(135deg, #022c1e 0%, #064e3b 100%); padding: 42px 0 36px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-  <div class="container">
+<section class="services-hero-compact">
+  <div class="container position-relative" style="z-index: 2;">
     <div class="row align-items-center">
       <div class="col-lg-7">
-        <div class="services-hero-kicker" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 9999px; padding: 4px 14px; font-size: 12px; font-weight: 700; color: #a7f3d0; margin-bottom: 12px; letter-spacing: 0.5px;">
+        <div class="services-hero-kicker" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 9999px; padding: 5px 15px; font-size: 12px; font-weight: 750; color: #a7f3d0; margin-bottom: 12px; letter-spacing: 0.6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           <i class="bi bi-patch-check-fill text-success"></i> VERIFIED PROFESSIONAL SERVICES
         </div>
-        <h1 class="services-hero-heading" style="font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-weight: 800; color: #ffffff; margin-bottom: 10px; line-height: 1.25;">
-          All Services in <span style="color: #34d399;">{{ selected_district|default:"Kollam" }}</span>
+        <h1 class="services-hero-heading" style="font-size: clamp(1.9rem, 3.4vw, 2.5rem); font-weight: 850; color: #ffffff; margin-bottom: 12px; line-height: 1.22; text-shadow: 0 2px 10px rgba(0,0,0,0.35);">
+          All Services in <span style="color: #34d399; text-shadow: 0 0 20px rgba(52, 211, 153, 0.4);">{{ selected_district|default:"Kollam" }}</span>
         </h1>
-        <p class="services-hero-sub" style="color: rgba(255,255,255,0.85); font-size: 14.5px; margin-bottom: 22px; max-width: 580px;">
+        <p class="services-hero-sub" style="color: rgba(255,255,255,0.9); font-size: 15px; line-height: 1.55; margin-bottom: 24px; max-width: 580px; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">
           Compare verified professionals, check indicative pricing, and book doorstep assistance with arrival PIN security.
         </p>
 
         <!-- SEARCH & DISTRICT CAPSULE -->
-        <form method="GET" action="{% url 'service_page' %}" class="search-capsule-bar" id="heroLocationForm" style="box-shadow: 0 12px 36px rgba(0,0,0,0.35);">
+        <form method="GET" action="{% url 'service_page' %}" class="search-capsule-bar" id="heroLocationForm" style="box-shadow: 0 16px 40px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.15);">
           {% if selected_category and selected_category != 'all' %}
           <input type="hidden" name="category" id="hiddenCategoryInput" value="{{ selected_category }}">
           {% endif %}
@@ -234,23 +275,24 @@
       </div>
 
       <div class="col-lg-5 d-none d-lg-block text-end">
-        <div style="display: inline-flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 18px 24px; text-align: left; backdrop-filter: blur(8px);">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 38px; height: 38px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+        <div class="services-hero-trust-box">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
               <i class="bi bi-shield-lock-fill"></i>
             </div>
             <div>
-              <strong style="color: #fff; font-size: 14px; display: block;">4-Digit Arrival Security PIN</strong>
-              <small style="color: #94a3b8; font-size: 12px;">Share only when the worker arrives.</small>
+              <strong style="color: #fff; font-size: 14.5px; display: block; font-weight: 750;">4-Digit Arrival Security PIN</strong>
+              <small style="color: #cbd5e1; font-size: 12px; line-height: 1.4;">Share in person only when worker arrives.</small>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 38px; height: 38px; border-radius: 50%; background: #0284c7; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+          <div style="height: 1px; background: rgba(255, 255, 255, 0.12); margin: 2px 0;"></div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);">
               <i class="bi bi-stars"></i>
             </div>
             <div>
-              <strong style="color: #fff; font-size: 14px; display: block;">AI Smart Worker Matching</strong>
-              <small style="color: #94a3b8; font-size: 12px;">Instant trade ranking based on availability.</small>
+              <strong style="color: #fff; font-size: 14.5px; display: block; font-weight: 750;">AI Smart Worker Matching</strong>
+              <small style="color: #cbd5e1; font-size: 12px; line-height: 1.4;">Instant trade ranking based on live availability.</small>
             </div>
           </div>
         </div>

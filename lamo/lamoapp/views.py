@@ -8080,8 +8080,10 @@ def service_page(request):
     
     if raw_district and any(d.lower() == raw_district.lower() for d in district_names):
         selected_district = next(d for d in district_names if d.lower() == raw_district.lower())
-        request.session['district'] = selected_district
-        request.session['lamo_selected_district'] = selected_district
+        if request.session.get('district') != selected_district:
+            request.session['district'] = selected_district
+        if request.session.get('lamo_selected_district') != selected_district:
+            request.session['lamo_selected_district'] = selected_district
     else:
         selected_district = (
             request.session.get('district')
@@ -8099,73 +8101,84 @@ def service_page(request):
 
     if not selected_district:
         selected_district = 'Kollam'
-        request.session['district'] = selected_district
-        request.session['lamo_selected_district'] = selected_district
+        if request.session.get('district') != selected_district:
+            request.session['district'] = selected_district
+        if request.session.get('lamo_selected_district') != selected_district:
+            request.session['lamo_selected_district'] = selected_district
 
-    services_qs = Service.objects.filter(is_active=True)
+    from django.core.cache import cache
 
-    today = timezone.localdate()
-    try:
-        workers_on_leave_ids = set(
-            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
+    cache_key = f"svc_cat_data_{selected_district.lower()}"
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        all_services_list, category_counts = cached_payload
+    else:
+        services_qs = Service.objects.filter(is_active=True)
+
+        today = timezone.localdate()
+        try:
+            workers_on_leave_ids = set(
+                WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
+            )
+        except Exception:
+            workers_on_leave_ids = set()
+
+        eligible_workers_qs = WorkerProfile.objects.filter(
+            is_verified=True,
+            work_status='AVAILABLE',
+            user__is_active=True,
+            is_paused_for_dues=False,
+        ).exclude(id__in=workers_on_leave_ids)
+
+        district_worker_counts = dict(
+            eligible_workers_qs.filter(
+                district__iexact=selected_district,
+            ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
         )
-    except Exception:
-        workers_on_leave_ids = set()
+        total_worker_counts = dict(
+            eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+        )
 
-    eligible_workers_qs = WorkerProfile.objects.filter(
-        is_verified=True,
-        work_status='AVAILABLE',
-        user__is_active=True,
-        is_paused_for_dues=False,
-    ).exclude(id__in=workers_on_leave_ids)
+        all_services_list = list(services_qs.order_by('name'))
+        category_counts = {
+            'all': len(all_services_list),
+            'cleaning': 0,
+            'electrical': 0,
+            'plumbing': 0,
+            'ac_repair': 0,
+            'painting': 0,
+            'carpentry': 0,
+            'appliance': 0,
+            'gardening': 0,
+            'pest_control': 0,
+            'more': 0,
+        }
 
-    district_worker_counts = dict(
-        eligible_workers_qs.filter(
-            district__iexact=selected_district,
-        ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-    )
-    total_worker_counts = dict(
-        eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-    )
-
-    all_services_list = list(services_qs.order_by('name'))
-    category_counts = {
-        'all': len(all_services_list),
-        'cleaning': 0,
-        'electrical': 0,
-        'plumbing': 0,
-        'ac_repair': 0,
-        'painting': 0,
-        'carpentry': 0,
-        'appliance': 0,
-        'gardening': 0,
-        'pest_control': 0,
-        'more': 0,
-    }
-
-    for s in all_services_list:
-        meta = _map_service_metadata(s)
-        s.category_key = meta['category_key']
-        s.category_label = meta['category_label']
-        s.icon_class = meta['icon_class']
-        s.badge_bg = meta['badge_bg']
-        s.badge_color = meta['badge_color']
-        s.fallback_img = meta['fallback_img']
-        s.img_url = meta['img_url']
-        
-        dist_count = district_worker_counts.get(s.id, 0)
-        tot_count = total_worker_counts.get(s.id, 0)
-        s.dist_worker_count = dist_count
-        s.tot_worker_count = tot_count
-        s.real_worker_count = dist_count
-        if dist_count > 0:
-            s.pro_count_display = f"{dist_count} Verified Worker{'s' if dist_count != 1 else ''}"
-        elif tot_count > 0:
-            s.pro_count_display = f"{tot_count} Verified in Kerala (0 in {selected_district})"
-        else:
-            s.pro_count_display = "0 Verified Workers"
+        for s in all_services_list:
+            meta = _map_service_metadata(s)
+            s.category_key = meta['category_key']
+            s.category_label = meta['category_label']
+            s.icon_class = meta['icon_class']
+            s.badge_bg = meta['badge_bg']
+            s.badge_color = meta['badge_color']
+            s.fallback_img = meta['fallback_img']
+            s.img_url = meta['img_url']
             
-        category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
+            dist_count = district_worker_counts.get(s.id, 0)
+            tot_count = total_worker_counts.get(s.id, 0)
+            s.dist_worker_count = dist_count
+            s.tot_worker_count = tot_count
+            s.real_worker_count = dist_count
+            if dist_count > 0:
+                s.pro_count_display = f"{dist_count} Verified Worker{'s' if dist_count != 1 else ''}"
+            elif tot_count > 0:
+                s.pro_count_display = f"{tot_count} Verified in Kerala (0 in {selected_district})"
+            else:
+                s.pro_count_display = "0 Verified Workers"
+                
+            category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
+
+        cache.set(cache_key, (all_services_list, category_counts), timeout=120)
 
     search_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
     selected_category = request.GET.get('category', 'all').strip().lower()
