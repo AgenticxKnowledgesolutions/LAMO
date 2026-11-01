@@ -28,7 +28,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http4
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from datetime import timedelta
-from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction, PushSubscription
+from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction, PushSubscription, CallSession
 from .push_utils import send_web_push_async, broadcast_web_push_async
 from .email_utils import send_email_safely
 from .rate_limit import (
@@ -268,6 +268,147 @@ def save_push_subscription(request):
     except Exception as ex:
         logger.error("Failed to save push subscription for user %s: %s", request.user.username, str(ex))
         return JsonResponse({'ok': False, 'error': str(ex)}, status=500)
+
+
+@require_POST
+def set_language(request):
+    """Set language preference ('en' or 'ml') in session and cookie for bilingual experience."""
+    try:
+        lang = 'en'
+        if request.body:
+            try:
+                data = json.loads(request.body.decode('utf-8'))
+                lang = data.get('lang', '')
+            except Exception:
+                pass
+        if not lang:
+            lang = request.POST.get('lang', '')
+        lang = lang.strip().lower()
+        if lang not in ('en', 'ml'):
+            lang = 'en'
+
+        request.session['lamo_lang'] = lang
+        response = JsonResponse({'ok': True, 'lang': lang})
+        response.set_cookie('lamo_lang', lang, max_age=365*24*60*60, samesite='Lax')
+        return response
+    except Exception as ex:
+        logger.error("Failed to set language: %s", str(ex))
+        return JsonResponse({'ok': False, 'error': str(ex)}, status=500)
+
+
+def api_gps_location(request):
+    """Given user GPS lat & lng, return nearest Kerala district and locality, and save to session."""
+    lat = request.GET.get('lat')
+    lng = request.GET.get('lng')
+    if not lat or not lng:
+        return JsonResponse({'success': False, 'message': 'Missing latitude or longitude.'}, status=400)
+
+    from .location_data import find_nearest_district_and_locality
+    district, locality, distance_km = find_nearest_district_and_locality(lat, lng)
+    if not district:
+        return JsonResponse({'success': False, 'message': 'Could not determine location in Kerala.'}, status=404)
+
+    # Save to session
+    request.session['district'] = district
+    request.session['lamo_selected_district'] = district
+    request.session['locality'] = locality
+    request.session['lamo_selected_locality'] = locality
+    try:
+        f_lat = float(lat)
+        f_lng = float(lng)
+        request.session['lat'] = f_lat
+        request.session['lng'] = f_lng
+        request.session['lamo_selected_lat'] = f_lat
+        request.session['lamo_selected_lng'] = f_lng
+    except (ValueError, TypeError):
+        pass
+
+    return JsonResponse({
+        'success': True,
+        'district': district,
+        'locality': locality,
+        'distance_km': distance_km,
+        'lat': lat,
+        'lng': lng,
+    })
+
+
+def api_set_location(request):
+    """Save user selected district and locality to session and user_profile."""
+    district = (request.GET.get('district') or request.POST.get('district') or '').strip()
+    locality = (request.GET.get('locality') or request.POST.get('locality') or '').strip()
+    lat = request.GET.get('lat') or request.POST.get('lat')
+    lng = request.GET.get('lng') or request.POST.get('lng')
+
+    if not district:
+        return JsonResponse({'success': False, 'message': 'District is required.'}, status=400)
+
+    # Validate district against known Kerala districts
+    kerala_districts = [d[0] for d in WorkerProfile.DISTRICT_CHOICES]
+    matched_district = next((d for d in kerala_districts if d.lower() == district.lower()), None)
+    if not matched_district:
+        return JsonResponse({'success': False, 'message': 'Invalid district.'}, status=400)
+
+    district = matched_district
+
+    # Resolve coordinates if not provided but locality is known
+    parsed_lat = None
+    parsed_lng = None
+    if lat and lng:
+        try:
+            parsed_lat = float(lat)
+            parsed_lng = float(lng)
+        except (ValueError, TypeError):
+            pass
+
+    if (parsed_lat is None or parsed_lng is None) and locality:
+        from .location_data import get_locality_coordinates
+        loc_lat, loc_lng = get_locality_coordinates(district, locality)
+        if loc_lat is not None and loc_lng is not None:
+            parsed_lat = loc_lat
+            parsed_lng = loc_lng
+
+    # Save to session
+    request.session['district'] = district
+    request.session['lamo_selected_district'] = district
+    request.session['locality'] = locality
+    request.session['lamo_selected_locality'] = locality
+
+    if parsed_lat is not None and parsed_lng is not None:
+        request.session['lat'] = parsed_lat
+        request.session['lng'] = parsed_lng
+        request.session['lamo_selected_lat'] = parsed_lat
+        request.session['lamo_selected_lng'] = parsed_lng
+    else:
+        # If no specific locality, clear coordinates to avoid stale distance calculations
+        request.session.pop('lat', None)
+        request.session.pop('lng', None)
+        request.session.pop('lamo_selected_lat', None)
+        request.session.pop('lamo_selected_lng', None)
+
+    request.session.modified = True
+
+    # Persist to UserProfile if logged in
+    user = getattr(request, 'user', None)
+    if user and getattr(user, 'is_authenticated', False) and hasattr(user, 'user_profile'):
+        try:
+            profile = user.user_profile
+            profile.district = district
+            if parsed_lat is not None and parsed_lng is not None:
+                profile.latitude = parsed_lat
+                profile.longitude = parsed_lng
+            profile.save(update_fields=['district', 'latitude', 'longitude'] if profile.latitude else ['district'])
+        except Exception as e:
+            logger.warning("Could not update UserProfile location: %s", e)
+
+    return JsonResponse({
+        'success': True,
+        'district': district,
+        'locality': locality,
+        'lat': parsed_lat,
+        'lng': parsed_lng,
+        'display_location': f"{locality}, {district}" if locality else district,
+    })
 
 
 @login_required
@@ -995,10 +1136,13 @@ def home(request):
     if not is_ajax:
         is_from_splash = bool(request.GET.get('from_splash'))
         force_splash = request.GET.get('splash') == '1'
+        has_saved_district = bool(
+            request.session.get('district')
+            or request.session.get('lamo_selected_district')
+        )
         has_seen_splash = bool(
-            request.session.get('lamo_splash_shown')
-            or request.COOKIES.get('lamo_splash_seen') == '1'
-            or is_from_splash
+            is_from_splash
+            or (has_saved_district and (request.session.get('lamo_splash_shown') or request.COOKIES.get('lamo_splash_seen') == '1'))
         )
         if is_from_splash or has_seen_splash:
             request.session['lamo_splash_shown'] = True
@@ -1032,6 +1176,12 @@ def home(request):
     elif request.GET.get('district') == '' and 'change_district' in request.GET:
         request.session.pop('district', None)
         request.session.pop('lamo_selected_district', None)
+        request.session.pop('locality', None)
+        request.session.pop('lamo_selected_locality', None)
+        request.session.pop('lat', None)
+        request.session.pop('lng', None)
+        request.session.pop('lamo_selected_lat', None)
+        request.session.pop('lamo_selected_lng', None)
         selected_district = ''
     else:
         selected_district = request.session.get('district') or request.session.get('lamo_selected_district') or ''
@@ -1043,6 +1193,46 @@ def home(request):
             and getattr(request.user.user_profile, 'district', None) in district_names
         ):
             selected_district = request.user.user_profile.district
+
+    # Handle Locality selection
+    if 'locality' in request.GET:
+        raw_locality = request.GET.get('locality', '').strip()
+        request.session['locality'] = raw_locality
+        request.session['lamo_selected_locality'] = raw_locality
+        selected_locality = raw_locality
+        request.session.modified = True
+    else:
+        selected_locality = request.session.get('locality') or request.session.get('lamo_selected_locality') or ''
+        if not selected_locality and request.user.is_authenticated and hasattr(request.user, 'user_profile'):
+            selected_locality = getattr(request.user.user_profile, 'locality', '') or ''
+
+    # Handle GPS Coordinates if provided
+    raw_lat = request.GET.get('lat') or request.GET.get('latitude')
+    raw_lng = request.GET.get('lng') or request.GET.get('longitude')
+    if raw_lat and raw_lng:
+        try:
+            parsed_lat = float(raw_lat)
+            parsed_lng = float(raw_lng)
+            request.session['lat'] = parsed_lat
+            request.session['lng'] = parsed_lng
+            request.session['lamo_selected_lat'] = parsed_lat
+            request.session['lamo_selected_lng'] = parsed_lng
+        except (ValueError, TypeError):
+            pass
+    elif selected_locality:
+        from .location_data import get_locality_coordinates
+        loc_lat, loc_lng = get_locality_coordinates(selected_district, selected_locality)
+        if loc_lat is not None and loc_lng is not None:
+            request.session['lat'] = loc_lat
+            request.session['lng'] = loc_lng
+            request.session['lamo_selected_lat'] = loc_lat
+            request.session['lamo_selected_lng'] = loc_lng
+    elif 'locality' in request.GET and not selected_locality:
+        # User switched to entire district, clear coordinates so district-wide distance is used
+        request.session.pop('lat', None)
+        request.session.pop('lng', None)
+        request.session.pop('lamo_selected_lat', None)
+        request.session.pop('lamo_selected_lng', None)
 
     # Exclude workers on leave today or paused for dues
     today = timezone.localdate()
@@ -1185,7 +1375,10 @@ def home(request):
 
         cnt = getattr(s, 'worker_count', None)
         if cnt is None:
-            cnt = district_worker_counts.get(s.id, 0)
+            if selected_district:
+                cnt = district_worker_counts.get(s.id, 0)
+            else:
+                cnt = total_worker_counts.get(s.id, 0)
         s.district_worker_count = cnt
         s.worker_count = cnt
         s.total_worker_count = total_worker_counts.get(s.id, 0)
@@ -1240,19 +1433,25 @@ def home(request):
                 'name': s.name,
                 'description': s.description,
                 'image_url': s.image.url if s.image else '',
-                'worker_count': s.district_worker_count,
+                'worker_count': s.worker_count,
+                'total_worker_count': s.total_worker_count,
                 'starting_price': s.starting_price,
                 'rating': s.actual_rating,
                 'review_count': s.actual_review_count,
                 'category': s.category_slug,
                 'url': (
-                    reverse('service_workers', args=[s.id]) + f'?district={urllib.parse.quote(selected_district)}'
+                    (
+                        reverse('service_workers', args=[s.id])
+                        + f'?district={urllib.parse.quote(selected_district)}'
+                        + (f'&locality={urllib.parse.quote(selected_locality)}' if selected_locality else '')
+                    )
                     if selected_district else reverse('service_detail', args=[s.id])
                 ),
             })
         return JsonResponse({
             'status': 'success',
             'selected_district': selected_district,
+            'selected_locality': selected_locality,
             'query': query,
             'category': category or 'all',
             'services_count': len(services_list),
@@ -1265,6 +1464,8 @@ def home(request):
         .select_related('customer', 'worker__user', 'booking__service')
         .order_by('-created_at')[:6]
     )
+
+    verified_workers_count = WorkerProfile.objects.filter(is_verified=True, user__is_active=True).count()
 
     active_booking = None
     if request.user.is_authenticated:
@@ -1282,13 +1483,16 @@ def home(request):
     response = render(request, 'home.html', {
         'services': services_list,
         'selected_district': selected_district,
+        'selected_locality': selected_locality,
         'kerala_districts': kerala_districts,
         # Task 4: alias keys for template compatibility.
         'district': selected_district,
+        'locality': selected_locality,
         'districts': kerala_districts,
         'query': query,
         'category': category or 'all',
         'reviews': reviews,
+        'verified_workers_count': verified_workers_count,
         'more_categories': more_categories,
         'active_booking': active_booking,
     })
@@ -1541,6 +1745,13 @@ def verify_otp_view(request):
                     messages.error(request, msg)
                     return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'locked_out': True})
 
+                if not otp_input or len(otp_input) != 6 or not otp_input.isdigit():
+                    msg = 'Please enter the complete 6-digit verification code.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
                 submitted_hash = hashlib.sha256(otp_input.encode('utf-8')).hexdigest()
                 stored_hash = booking_auth.get('code_hash', '')
                 is_valid = bool(stored_hash and secrets.compare_digest(stored_hash, submitted_hash))
@@ -1686,8 +1897,8 @@ def verify_otp_view(request):
                     messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
                     return redirect('my_bookings')
 
-                login(request, user)
                 if is_ajax:
+                    login(request, user)
                     return JsonResponse({
                         'success': True,
                         'redirect_url': reverse('home'),
@@ -1699,10 +1910,9 @@ def verify_otp_view(request):
                 # Increment attempts ONLY for this user
                 user.otp_failed_attempts += 1
                 if user.otp_failed_attempts >= OTP_VERIFY_MAX_ATTEMPTS:
-                    user.email_verification_otp = None
                     lockout_time = timezone.now() + timedelta(seconds=OTP_VERIFY_LOCKOUT_SECONDS)
                     user.otp_locked_until = lockout_time
-                    user.save(update_fields=['email_verification_otp', 'otp_failed_attempts', 'otp_locked_until'])
+                    user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
                     msg = 'Maximum attempts exceeded (5). This verification code has been invalidated. Please request a new code.'
                     if is_ajax:
                         return JsonResponse({
@@ -2262,7 +2472,23 @@ def _is_valid_booking_transition(current_status, new_status):
     return new_status in valid_transitions.get(current_status, [])
 
 
+def trigger_booking_reminders_throttled():
+    """Opportunistically deliver scheduled slot reminders and arrival checks, throttled to max 1 run/minute."""
+    from django.core.cache import cache
+    cache_key = 'booking_schedule_reminders_last_run'
+    if cache.get(cache_key):
+        return
+    cache.set(cache_key, True, timeout=60)
+    try:
+        from .booking_reminders import process_booking_schedule_notifications
+        process_booking_schedule_notifications()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Booking schedule notification error: %s", e)
+
+
 def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
+    trigger_booking_reminders_throttled()
     """Expire PENDING bookings whose 30-minute worker response window has lapsed.
 
     Notifies customer and worker, updates booking status to EXPIRED, and records
@@ -3618,6 +3844,240 @@ def booking_messages(request, booking_id):
     )
 
 
+# ============================================================
+# IN-APP WEBRTC MASKED AUDIO CALLING (ZERO PHONE SHARING)
+# ============================================================
+
+@login_required
+@require_POST
+def api_call_initiate(request, booking_id):
+    """Initiates an in-app WebRTC audio call between customer and assigned worker."""
+    booking = get_object_or_404(
+        Booking.objects.select_related('customer', 'worker__user', 'service'),
+        id=booking_id
+    )
+
+    # Authorization
+    is_cust = (request.user == booking.customer)
+    is_work = (booking.worker and booking.worker.user == request.user)
+    if not (is_cust or is_work):
+        return JsonResponse({'error': 'You are not authorized to call on this booking.'}, status=403)
+
+    if booking.status in {'CANCELLED', 'EXPIRED'}:
+        return JsonResponse({'error': 'Calls cannot be initiated for cancelled or expired bookings.'}, status=400)
+
+    receiver = booking.worker.user if is_cust else booking.customer
+    if not receiver:
+        return JsonResponse({'error': 'No service professional is currently assigned to this booking.'}, status=400)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        data = {}
+
+    offer_sdp = (data.get('offer_sdp') or '').strip()
+    if not offer_sdp:
+        return JsonResponse({'error': 'Valid WebRTC offer SDP is required.'}, status=400)
+
+    # Ensure strict RFC 4566 CRLF termination (\r\n) for WebRTC parsers
+    clean_offer_lines = [l.strip() for l in offer_sdp.replace('\r\n', '\n').replace('\r', '\n').split('\n') if l.strip()]
+    offer_sdp = '\r\n'.join(clean_offer_lines) + '\r\n'
+
+    # Cancel any hanging calls older than 30s
+    stale_cutoff = timezone.now() - timedelta(seconds=30)
+    CallSession.objects.filter(booking=booking, status__in=['INITIATED', 'RINGING'], started_at__lt=stale_cutoff).update(status='MISSED')
+
+    call = CallSession.objects.create(
+        booking=booking,
+        caller=request.user,
+        receiver=receiver,
+        status='RINGING',
+        offer_sdp=offer_sdp,
+    )
+
+    # Send in-app notification
+    Notification.objects.create(
+        recipient=receiver,
+        booking=booking,
+        notification_type='BOOKING_UPDATE',
+        message=f"📞 Incoming LAMO In-App Call from {request.user.get_full_name() or request.user.username} for Booking #{booking.id}."
+    )
+
+    return JsonResponse({
+        'success': True,
+        'call_id': call.id,
+        'receiver_name': receiver.get_full_name() or receiver.username,
+        'receiver_role': 'Service Professional' if is_cust else 'Customer',
+        'service_name': booking.service.name,
+    })
+
+
+@login_required
+@require_POST
+def api_call_answer(request, booking_id, call_id):
+    """Submits WebRTC answer SDP from the call receiver."""
+    call = get_object_or_404(CallSession, id=call_id, booking_id=booking_id)
+
+    if request.user != call.receiver:
+        return JsonResponse({'error': 'Only the call recipient can answer.'}, status=403)
+
+    if call.status in {'ENDED', 'MISSED', 'REJECTED'}:
+        return JsonResponse({'error': 'This call session has already concluded.'}, status=400)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        data = {}
+
+    answer_sdp = (data.get('answer_sdp') or '').strip()
+    if not answer_sdp:
+        return JsonResponse({'error': 'Valid WebRTC answer SDP is required.'}, status=400)
+
+    # Ensure strict RFC 4566 CRLF termination (\r\n) for WebRTC parsers
+    clean_answer_lines = [l.strip() for l in answer_sdp.replace('\r\n', '\n').replace('\r', '\n').split('\n') if l.strip()]
+    answer_sdp = '\r\n'.join(clean_answer_lines) + '\r\n'
+
+    call.answer_sdp = answer_sdp
+    call.status = 'CONNECTED'
+    call.connected_at = timezone.now()
+    call.save(update_fields=['answer_sdp', 'status', 'connected_at'])
+
+    return JsonResponse({'success': True, 'status': 'CONNECTED'})
+
+
+@login_required
+def api_call_poll(request, booking_id, call_id):
+    """Polls WebRTC call status, answer SDP, and ICE candidates."""
+    call = get_object_or_404(CallSession, id=call_id, booking_id=booking_id)
+
+    if request.user not in {call.caller, call.receiver}:
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    # Auto-expire ringing calls after 45 seconds
+    if call.status == 'RINGING' and (timezone.now() - call.started_at) > timedelta(seconds=45):
+        call.status = 'MISSED'
+        call.ended_at = timezone.now()
+        call.save(update_fields=['status', 'ended_at'])
+
+    # Return remote ICE candidates
+    try:
+        if request.user == call.caller:
+            remote_candidates = json.loads(call.receiver_candidates_json or '[]')
+        else:
+            remote_candidates = json.loads(call.caller_candidates_json or '[]')
+    except Exception:
+        remote_candidates = []
+
+    dur = 0
+    if call.status == 'CONNECTED' and call.connected_at:
+        dur = int((timezone.now() - call.connected_at).total_seconds())
+    elif call.duration_seconds:
+        dur = call.duration_seconds
+
+    return JsonResponse({
+        'status': call.status,
+        'offer_sdp': call.offer_sdp,
+        'answer_sdp': call.answer_sdp,
+        'candidates': remote_candidates,
+        'duration_seconds': dur,
+    })
+
+
+@login_required
+@require_POST
+def api_call_ice(request, booking_id, call_id):
+    """Exchanges ICE candidates between WebRTC peers."""
+    call = get_object_or_404(CallSession, id=call_id, booking_id=booking_id)
+
+    if request.user not in {call.caller, call.receiver}:
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        cand = data.get('candidate')
+    except Exception:
+        cand = None
+
+    if cand:
+        try:
+            if request.user == call.caller:
+                cands = json.loads(call.caller_candidates_json or '[]')
+                cands.append(cand)
+                call.caller_candidates_json = json.dumps(cands)
+                call.save(update_fields=['caller_candidates_json'])
+            else:
+                cands = json.loads(call.receiver_candidates_json or '[]')
+                cands.append(cand)
+                call.receiver_candidates_json = json.dumps(cands)
+                call.save(update_fields=['receiver_candidates_json'])
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def api_call_end(request, booking_id, call_id):
+    """Terminates or declines an in-app audio call session and logs duration."""
+    call = get_object_or_404(CallSession, id=call_id, booking_id=booking_id)
+
+    if request.user not in {call.caller, call.receiver}:
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    if call.status not in {'ENDED', 'MISSED', 'REJECTED'}:
+        if call.status == 'CONNECTED' and call.connected_at:
+            dur = int((timezone.now() - call.connected_at).total_seconds())
+            call.duration_seconds = max(dur, 1)
+            call.status = 'ENDED'
+            mins, secs = divmod(call.duration_seconds, 60)
+            dur_label = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+            BookingMessage.objects.create(
+                booking=call.booking,
+                sender=request.user,
+                message=f"📞 In-App Audio Call completed ({dur_label})."
+            )
+        else:
+            call.status = 'REJECTED' if request.user == call.receiver else 'ENDED'
+            BookingMessage.objects.create(
+                booking=call.booking,
+                sender=request.user,
+                message="📞 In-App Audio Call declined/cancelled."
+            )
+
+        call.ended_at = timezone.now()
+        call.save(update_fields=['status', 'duration_seconds', 'ended_at'])
+
+    return JsonResponse({'success': True, 'status': call.status, 'duration_seconds': call.duration_seconds})
+
+
+@login_required
+def api_call_check_incoming(request):
+    """Lightweight polling endpoint to detect active incoming calls for the logged-in user."""
+    cutoff = timezone.now() - timedelta(seconds=45)
+    incoming = (
+        CallSession.objects
+        .filter(receiver=request.user, status='RINGING', started_at__gte=cutoff)
+        .select_related('caller', 'booking__service')
+        .order_by('-started_at')
+        .first()
+    )
+
+    if incoming:
+        is_worker = (getattr(incoming.caller, 'role', None) == 'WORKER')
+        return JsonResponse({
+            'has_incoming': True,
+            'call_id': incoming.id,
+            'booking_id': incoming.booking_id,
+            'caller_name': incoming.caller.get_full_name() or incoming.caller.username,
+            'caller_role': 'Service Professional' if is_worker else 'Customer',
+            'service_name': incoming.booking.service.name,
+            'offer_sdp': incoming.offer_sdp,
+        })
+
+    return JsonResponse({'has_incoming': False})
+
+
 @login_required
 def worker_accept_booking(request, booking_id):
     if request.user.role != 'WORKER':
@@ -3635,7 +4095,7 @@ def worker_accept_booking(request, booking_id):
     with transaction.atomic():
         locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
         booking = get_object_or_404(
-            Booking.objects.select_related('customer', 'worker__user', 'service'),
+            Booking.objects.select_for_update().select_related('customer', 'service'),
             id=booking_id, worker=locked_worker
         )
 
@@ -4038,14 +4498,12 @@ def register_view(request):
                 'created_at': timezone.now().isoformat()
             }
             if '@' in identifier:
-                from django.core.mail import send_mail
                 try:
-                    send_mail(
-                        'LAMO Account Verification Code',
-                        f'Hello {name},\n\nYour 6-digit verification code for LAMO is: {reg_otp}\nValid for 10 minutes.\n\nThank you,\nTeam LAMO',
-                        getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lamo.in'),
-                        [identifier],
-                        fail_silently=True
+                    send_email_safely(
+                        subject='LAMO Account Verification Code',
+                        message=f'Hello {name},\n\nYour 6-digit verification code for LAMO is: {reg_otp}\nValid for 10 minutes.\n\nThank you,\nTeam LAMO',
+                        recipient_list=[identifier],
+                        purpose='customer_registration_otp',
                     )
                 except Exception:
                     pass
@@ -5363,6 +5821,90 @@ def login_view(request):
 
             return JsonResponse({'success': True, 'redirect_url': dest})
 
+        if action == 'login_password':
+            identifier = (request.POST.get('identifier') or request.POST.get('username') or '').strip()
+            password = request.POST.get('password', '')
+            requested_next = request.POST.get('next') or request.GET.get('next')
+
+            if not identifier or not password:
+                return JsonResponse({'success': False, 'error': 'Please enter both your identifier and password.'})
+
+            resolved_username = identifier
+            if '@' in identifier:
+                matched_user = CustomUser.objects.filter(email__iexact=identifier).first()
+                if matched_user:
+                    resolved_username = matched_user.username
+            else:
+                raw_digits = re.sub(r'\D', '', identifier)
+                if len(raw_digits) == 12 and raw_digits.startswith('91'):
+                    raw_digits = raw_digits[2:]
+                elif len(raw_digits) == 11 and raw_digits.startswith('0'):
+                    raw_digits = raw_digits[1:]
+                if len(raw_digits) == 10:
+                    matched_user = (
+                        CustomUser.objects.filter(user_profile__phone=raw_digits).first()
+                        or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
+                    )
+                    if matched_user:
+                        resolved_username = matched_user.username
+
+            rl_key = login_key(request, identifier)
+            if is_rate_limited(rl_key, LOGIN_MAX_ATTEMPTS):
+                remaining = minutes_remaining(rl_key)
+                return JsonResponse({'success': False, 'error': f'Too many failed login attempts. Please try again in {remaining} minute(s).'})
+
+            user = authenticate(request, username=resolved_username, password=password)
+            if user is None:
+                register_failure(rl_key, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS)
+                return JsonResponse({'success': False, 'error': 'Invalid username, email, or password.'})
+
+            clear(rl_key)
+            is_admin_account = (
+                user.role == 'ADMIN'
+                or getattr(user, 'is_superuser', False)
+                or getattr(user, 'is_staff', False)
+            )
+            if is_admin_account:
+                if user.role != 'ADMIN' or not user.is_email_verified:
+                    user.role = 'ADMIN'
+                    user.is_email_verified = True
+                    user.save(update_fields=['role', 'is_email_verified'])
+
+            if not is_admin_account and user.role in ['USER', 'WORKER'] and not user.is_email_verified:
+                _issue_login_otp(request, user)
+                request.session['otp_user_id'] = user.id
+                return JsonResponse({
+                    'success': False,
+                    'needs_verification': True,
+                    'redirect_url': reverse('verify_otp'),
+                    'error': 'Please verify your email before logging in. An OTP has been sent.'
+                })
+
+            if user.role == 'WORKER':
+                try:
+                    wp = user.worker_profile
+                    if not wp.is_verified:
+                        return JsonResponse({
+                            'success': False,
+                            'pending_verification': True,
+                            'error': 'Your worker account is waiting for admin verification. You cannot login until your account is verified.'
+                        })
+                except WorkerProfile.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': 'Worker profile not found.'})
+
+            login(request, user)
+            request.session.cycle_key()
+
+            safe_next = _safe_internal_path(request, requested_next or request.session.pop('registration_next', None), '')
+            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+                dest = reverse('admin_dashboard')
+            elif user.role == 'WORKER':
+                dest = reverse('worker_dashboard')
+            else:
+                dest = safe_next if safe_next else reverse('home')
+
+            return JsonResponse({'success': True, 'redirect_url': dest})
+
         # ==================================================
         # BRUTE FORCE PROTECTION (server-side)
         # ==================================================
@@ -5578,7 +6120,7 @@ def login_view(request):
             if locked:
                 logger.warning(
                     'Login lockout triggered for username=%r from IP %s',
-                    username,
+                    auth_identifier,
                     request.META.get('REMOTE_ADDR'),
                 )
                 messages.error(
@@ -5598,6 +6140,50 @@ def login_view(request):
         request,
         'accounts/login.html'
     )
+
+
+def admin_login_view(request):
+    """Dedicated secure sign-in portal for administrators and staff."""
+    if request.user.is_authenticated and (
+        request.user.role == 'ADMIN' or getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)
+    ):
+        return redirect('admin_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        if not username or not password:
+            messages.error(request, 'Please provide both administrator username and password.')
+            return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            is_admin = (
+                user.role == 'ADMIN'
+                or getattr(user, 'is_superuser', False)
+                or getattr(user, 'is_staff', False)
+            )
+            if not is_admin:
+                messages.error(request, 'Access denied. This portal is restricted to system administrators.')
+                return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
+            if user.role != 'ADMIN' or not user.is_email_verified:
+                user.role = 'ADMIN'
+                user.is_email_verified = True
+                user.save(update_fields=['role', 'is_email_verified'])
+
+            login(request, user)
+            request.session.cycle_key()
+            messages.success(request, f'Welcome back, Administrator {user.username}!')
+            return redirect('admin_dashboard')
+        else:
+            messages.error(request, 'Invalid administrator credentials. Please check your username and password.')
+            return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
+    return render(request, 'accounts/admin_login.html')
+
+
 @require_POST
 @never_cache
 def logout_view(request):
@@ -6360,12 +6946,18 @@ def worker_recharge_wallet(request):
         return redirect('worker_dashboard')
 
     reference_id = request.POST.get('reference_id', '').strip()[:100]
-    if not reference_id:
-        reference_id = f"UPI-{uuid.uuid4().hex[:8].upper()}"
+    if not reference_id or len(reference_id) < 6:
+        messages.error(request, 'Please provide a valid 12-digit UPI UTR or Transaction Reference number.')
+        return redirect('worker_dashboard')
+
+    if WalletTransaction.objects.filter(reference_id=reference_id).exists():
+        messages.error(request, 'This transaction reference ID has already been registered.')
+        return redirect('worker_dashboard')
 
     with transaction.atomic():
         wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker_profile)
-        wallet.balance += amount
+        current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+        wallet.balance = current_balance + amount
         wallet.save()
 
         # If dues were cleared above the -₹500 threshold, unpause the worker
@@ -6380,6 +6972,14 @@ def worker_recharge_wallet(request):
             balance_after=wallet.balance,
             reference_id=reference_id,
             notes=f"UPI Payment / Wallet Recharge of ₹{amount:.2f}"
+        )
+
+    # Alert admins to reconcile UPI recharge transaction
+    for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
+        Notification.objects.create(
+            recipient=admin,
+            notification_type='PAYMENT',
+            message=f"💳 Worker Wallet Recharge: {worker_profile.user.username} submitted ₹{amount:.2f} (UTR: {reference_id})."
         )
 
     messages.success(
@@ -6703,6 +7303,199 @@ def admin_delete_worker(request, worker_id):
     return redirect('workers_list')
 
 
+def _settle_booking_completion_financials(booking):
+    """
+    Settles platform fee and credits worker payout upon booking completion.
+    - Cash booking: deducts platform fee (FEE_DEDUCTION) from worker's wallet balance.
+    - Online booking: credits net payout (ONLINE_PAYOUT_OFFSET) to worker's wallet balance.
+    """
+    if not booking.worker or booking.fee_settled:
+        return
+
+    worker = booking.worker
+    job_amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+
+    if worker.is_in_launch:
+        platform_fee = Decimal('0.00')
+    else:
+        platform_fee = max(job_amount * Decimal('0.10'), Decimal('15.00'))
+
+    booking.platform_fee = platform_fee
+
+    with transaction.atomic():
+        wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker)
+        current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+
+        if booking.payment_method == 'CASH':
+            if platform_fee > Decimal('0.00'):
+                wallet.balance = current_balance - platform_fee
+                wallet.save()
+
+                if wallet.is_locked:
+                    worker.is_paused_for_dues = True
+                    worker.save(update_fields=['is_paused_for_dues'])
+
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    booking=booking,
+                    transaction_type='FEE_DEDUCTION',
+                    amount=-platform_fee,
+                    balance_after=wallet.balance,
+                    notes=f"Platform fee (10% min ₹15) for Cash Booking #{booking.id}"
+                )
+            else:
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    booking=booking,
+                    transaction_type='FEE_DEDUCTION',
+                    amount=Decimal('0.00'),
+                    balance_after=wallet.balance,
+                    notes=f"Launch Offer Benefit: 0% Platform Fee for Cash Booking #{booking.id}"
+                )
+        else:
+            # ONLINE payment - Credit worker net payout (job_amount - platform_fee)
+            payout_amount = max(Decimal('0.00'), job_amount - platform_fee)
+            wallet.balance = current_balance + payout_amount
+            wallet.save()
+
+            if wallet.balance >= Decimal('-500.00') and worker.is_paused_for_dues:
+                worker.is_paused_for_dues = False
+                worker.save(update_fields=['is_paused_for_dues'])
+
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                booking=booking,
+                transaction_type='ONLINE_PAYOUT_OFFSET',
+                amount=payout_amount,
+                balance_after=wallet.balance,
+                notes=f"Net earnings payout for Online Booking #{booking.id} (Gross: ₹{job_amount:.2f}, Fee: ₹{platform_fee:.2f})"
+            )
+
+        booking.fee_settled = True
+        booking.save(update_fields=['platform_fee', 'fee_settled', 'updated_at'])
+
+
+def _handle_booking_cancellation_refund(booking):
+    """
+    If a cancelled booking was paid online (is_paid=True or Payment status is PAID),
+    queue a refund by updating Payment status to REFUNDED, and alert admins and customer.
+    """
+    is_paid = booking.is_paid or (hasattr(booking, 'payment') and booking.payment.status == 'PAID')
+    if not is_paid:
+        return
+
+    payment = getattr(booking, 'payment', None)
+    refund_amount = payment.amount if (payment and payment.amount > Decimal('0.00')) else (booking.estimated_cost or Decimal('0.00'))
+
+    if payment:
+        payment.status = 'REFUNDED'
+        payment.save(update_fields=['status', 'updated_at'])
+
+    booking.is_paid = False
+    booking.save(update_fields=['is_paid', 'updated_at'])
+
+    # Alert admins to process refund payment
+    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+    for admin in admins:
+        Notification.objects.create(
+            recipient=admin,
+            booking=booking,
+            notification_type='PAYMENT',
+            message=(
+                f"🚨 Refund Required: Booking #{booking.id} was paid online (₹{refund_amount:.2f}) and has been cancelled. "
+                f"Please process the refund to customer {booking.customer.get_full_name() or booking.customer.username}."
+            )
+        )
+
+    # Notify customer that refund is in queue
+    Notification.objects.create(
+        recipient=booking.customer,
+        booking=booking,
+        notification_type='PAYMENT',
+        message=(
+            f"Refund Queued: Your payment of ₹{refund_amount:.2f} for cancelled Booking #{booking.id} "
+            f"has been queued for refund. Our team will credit it back to your source account."
+        )
+    )
+
+    send_email_safely(
+        subject=f"Refund Queued for Booking #{booking.id}",
+        message=(
+            f"Hi {booking.customer.username},\n\n"
+            f"Since your Booking #{booking.id} ({booking.service.name}) was cancelled, "
+            f"your payment of ₹{refund_amount:.2f} has been queued for a full refund.\n\n"
+            f"The refund will be processed back to your original payment method.\n\n"
+            f"Thank you for choosing LAMO.\nTeam LAMO"
+        ),
+        recipient_list=[booking.customer.email],
+        purpose='booking_refund',
+        async_send=True,
+    )
+
+
+def _cancel_upcoming_worker_bookings_on_suspension(worker_profile, admin_user=None):
+    """
+    When a worker is suspended by administration, automatically cancel any pending
+    or accepted upcoming bookings so customers are not left waiting for an unavailable worker.
+    Notifies each affected customer and logs the reason.
+    """
+    upcoming_bookings = Booking.objects.filter(
+        worker=worker_profile,
+        status__in=['PENDING', 'ACCEPTED', 'EMERGENCY_PENDING']
+    ).select_related('customer', 'service')
+
+    cancelled_count = 0
+    reason = (
+        "The assigned service professional is no longer available as their account was suspended "
+        "by administration. Please select another worker or reschedule."
+    )
+
+    for booking in upcoming_bookings:
+        with transaction.atomic():
+            b = Booking.objects.select_for_update().get(id=booking.id)
+            if b.status not in ('PENDING', 'ACCEPTED', 'EMERGENCY_PENDING'):
+                continue
+            b.status = 'CANCELLED'
+            b.cancellation_reason = reason
+            b.cancelled_by = 'ADMIN_SUSPEND'
+            b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            _handle_booking_cancellation_refund(b)
+            cancelled_count += 1
+
+            # In-app notification to the customer
+            Notification.objects.create(
+                recipient=b.customer,
+                booking=b,
+                notification_type='BOOKING_UPDATE',
+                message=(
+                    f"Notice regarding Booking #{b.id} ({b.service.name}): The assigned worker is no longer "
+                    f"available and the booking was cancelled. You can select another verified professional from My Bookings."
+                )
+            )
+
+            # Email notification safely sent to customer
+            send_email_safely(
+                subject=f"Booking #{b.id} Cancelled - Worker Unavailable",
+                message=(
+                    f"Hi {b.customer.username},\n\n"
+                    f"We regret to inform you that your booking #{b.id} for {b.service.name} "
+                    f"scheduled for {b.date or 'the requested time'} has been cancelled because the service professional "
+                    f"is no longer available on our platform.\n\n"
+                    f"We apologize for the inconvenience. You can choose another top-rated professional for this service anytime on LAMO:\n"
+                    f"https://lamo.in/service_page/\n\n"
+                    f"Best regards,\nTeam LAMO"
+                ),
+                recipient_list=[b.customer.email],
+                purpose='booking_cancelled',
+                async_send=True,
+            )
+
+    # Deactivate any active recurring series with this suspended worker
+    BookingSeries.objects.filter(worker=worker_profile, is_active=True).update(is_active=False)
+
+    return cancelled_count
+
+
 @login_required
 def admin_suspend_worker(request, worker_id):
     """Admin can suspend/block a worker"""
@@ -6721,7 +7514,11 @@ def admin_suspend_worker(request, worker_id):
         worker_profile.user.save(update_fields=['is_active'])
         worker_profile.work_status = 'SUSPENDED'
         worker_profile.save(update_fields=['work_status'])
-        messages.success(request, f'Worker "{worker_profile.user.username}" has been suspended.')
+        cancelled_count = _cancel_upcoming_worker_bookings_on_suspension(worker_profile, request.user)
+        msg = f'Worker "{worker_profile.user.username}" has been suspended.'
+        if cancelled_count:
+            msg += f' {cancelled_count} upcoming active booking(s) were automatically cancelled and customers notified.'
+        messages.success(request, msg)
         Notification.objects.create(
             recipient=worker_profile.user,
             notification_type='SYSTEM',
@@ -6779,6 +7576,7 @@ def admin_worker_strike(request, worker_id):
             worker_profile.user.is_active = False
             worker_profile.user.save(update_fields=['is_active'])
             auto_suspended = True
+            _cancel_upcoming_worker_bookings_on_suspension(worker_profile, request.user)
 
         worker_profile.save(update_fields=['strikes_count', 'warning_notes', 'work_status'])
 
@@ -7071,13 +7869,77 @@ def service_workers(request, pk):
 
     bookable_workers = [w for w in workers if w.is_bookable]
 
+    locality = request.GET.get('locality', '').strip()
+    if not locality:
+        locality = request.session.get('locality') or request.session.get('lamo_selected_locality') or ''
+
+    customer_lat = request.GET.get('lat') or request.session.get('lat') or request.session.get('lamo_selected_lat')
+    customer_lng = request.GET.get('lng') or request.session.get('lng') or request.session.get('lamo_selected_lng')
+
+    if (customer_lat is None or customer_lng is None) and locality:
+        from .location_data import get_locality_coordinates
+        loc_lat, loc_lng = get_locality_coordinates(district, locality)
+        if loc_lat is not None and loc_lng is not None:
+            customer_lat, customer_lng = loc_lat, loc_lng
+
+    if (customer_lat is None or customer_lng is None) and request.user.is_authenticated and hasattr(request.user, 'user_profile'):
+        customer_lat = getattr(request.user.user_profile, 'latitude', None) or customer_lat
+        customer_lng = getattr(request.user.user_profile, 'longitude', None) or customer_lng
+        if not locality:
+            locality = getattr(request.user.user_profile, 'locality', '') or getattr(request.user.user_profile, 'address', '')
+
+    # Compute real distance and AI match badges for all workers in the list
+    from .ai_utils import haversine_km, geocode_place, distance_score
+    c_lat_flt = _safe_coord(customer_lat)
+    c_lng_flt = _safe_coord(customer_lng)
+
+    for worker in workers:
+        w_lat = _safe_coord(getattr(worker, 'latitude', None))
+        w_lng = _safe_coord(getattr(worker, 'longitude', None))
+        if (w_lat is None or w_lng is None) and worker.address:
+            w_lat, w_lng = geocode_place(worker.address, district=worker.district)
+
+        if c_lat_flt is not None and c_lng_flt is not None and w_lat is not None and w_lng is not None:
+            dist_val = haversine_km(c_lat_flt, c_lng_flt, w_lat, w_lng)
+            worker.distance_km = round(dist_val, 1)
+            worker.distance_label = f"{dist_val:.1f} km away"
+            prox_score = distance_score(dist_val)
+        else:
+            worker.distance_km = None
+            worker.distance_label = "Exact distance unavailable" if locality else f"{worker.district}"
+            prox_score = 50
+
+        # AI Match calculation based on proximity, rating, experience, verification
+        rat_score = min(100, ((worker.avg_rating or 4.0) / 5.0) * 100)
+        exp_score = min(100, (worker.experience_years / 10.0) * 100) if worker.experience_years else 50
+        ver_score = 100 if worker.is_verified else 50
+        worker.ai_match_score = round(prox_score * 0.40 + rat_score * 0.25 + exp_score * 0.20 + ver_score * 0.15)
+        worker.is_ai_recommended = False
+        worker.is_ai_top_pick = False
+
+    # Sort workers so closest and highest-match come first
+    if any(w.distance_km is not None for w in workers):
+        workers.sort(key=lambda w: (w.distance_km is None, w.distance_km or 9999, -(w.ai_match_score or 0)))
+        if workers and workers[0].distance_km is not None:
+            workers[0].is_ai_top_pick = True
+            if len(workers) > 1 and (workers[1].distance_km or 999) <= 30:
+                workers[1].is_ai_recommended = True
+    elif workers:
+        workers[0].is_ai_top_pick = True
+
     ai_recommendations = []
-    if ai_requirement:
+    # For authenticated users, automatically generate AI recommendations for this service
+    # based on distance to the customer's locality/GPS and worker availability.
+    # No manual "describe your electrical issue" typing required!
+    if request.user.is_authenticated:
         from .ai_utils import build_worker_recommendations
         ai_recommendations = build_worker_recommendations(
             service,
             district=district,
-            requirement=ai_requirement,
+            requirement=ai_requirement or service.name,
+            customer_place=locality,
+            customer_lat=customer_lat,
+            customer_lng=customer_lng,
         )
 
     district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673))
@@ -7090,6 +7952,9 @@ def service_workers(request, pk):
         {
             'service': service,
             'district': district,
+            'locality': locality,
+            'customer_lat': customer_lat,
+            'customer_lng': customer_lng,
             'district_lat': district_lat,
             'district_lng': district_lng,
             'workers': workers,
@@ -7169,21 +8034,19 @@ def _map_service_metadata(service):
         cat_icon = 'bi bi-bug-fill'
         badge_bg = '#efebe9'
         badge_color = '#4e342e'
-        fallback_img = 'img/ac-repair.webp'
+        fallback_img = 'img/general.png'
     else:
         cat_key = 'more'
         cat_label = 'More Services'
         cat_icon = 'bi bi-grid-fill'
         badge_bg = '#f5f5f5'
         badge_color = '#424242'
-        fallback_img = 'img/hero_home_main.png'
+        fallback_img = 'img/general.png'
 
     img_url = None
     if service.image:
         try:
-            full_path = os.path.join(settings.MEDIA_ROOT, str(service.image.name))
-            if os.path.exists(full_path):
-                img_url = service.image.url
+            img_url = service.image.url
         except Exception:
             img_url = None
 
@@ -7280,11 +8143,15 @@ def service_page(request):
         
         dist_count = district_worker_counts.get(s.id, 0)
         tot_count = total_worker_counts.get(s.id, 0)
-        s.real_worker_count = dist_count or tot_count
-        if s.real_worker_count > 0:
-            s.pro_count_display = f"{max(s.real_worker_count * 12, 25)}+ professionals"
+        s.dist_worker_count = dist_count
+        s.tot_worker_count = tot_count
+        s.real_worker_count = dist_count
+        if dist_count > 0:
+            s.pro_count_display = f"{dist_count} Verified Worker{'s' if dist_count != 1 else ''}"
+        elif tot_count > 0:
+            s.pro_count_display = f"{tot_count} Verified in Kerala (0 in {selected_district})"
         else:
-            s.pro_count_display = f"{20 + (s.id * 7) % 75}+ professionals"
+            s.pro_count_display = "0 Verified Workers"
             
         category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
 
@@ -7334,11 +8201,25 @@ def service_page(request):
             key=lambda s: (not getattr(s, 'is_featured', False), s.name.lower())
         )
 
+    # Preserve all filter/search query parameters across pagination links
+    params = request.GET.copy()
+    if 'page' in params:
+        del params['page']
+    pagination_query = params.urlencode()
+
+    # Paginate services: 8 cards per page (2 rows of 4 columns)
+    paginator = Paginator(filtered_services, 8)
+    page_number = request.GET.get('page', 1)
+    services_page = paginator.get_page(page_number)
+
     response = render(
         request,
         'lamo_service/service_page.html',
         {
-            'services': filtered_services,
+            'services': services_page,
+            'page_obj': services_page,
+            'paginator': paginator,
+            'pagination_query': pagination_query,
             'kerala_districts': kerala_districts,
             'selected_district': selected_district,
             'search_query': search_query,
@@ -8763,6 +9644,15 @@ def admin_broadcast_announcement(request):
             for u in recipients
         ]
         Notification.objects.bulk_create(notif_list)
+        try:
+            broadcast_web_push_async(
+                users=recipients,
+                title="📢 LAMO Announcement",
+                body=formatted_message[:120],
+                url="/dashboard/"
+            )
+        except Exception:
+            pass
 
         messages.success(request, f'Broadcast announcement sent to {len(notif_list)} users ({target_label}).')
         return redirect('admin_dashboard')
@@ -8816,60 +9706,16 @@ def confirm_completion(request, booking_id):
     booking.status = 'COMPLETED'
 
     # ==========================================
-    # PLATFORM FEE & WALLET DEDUCTION
+    # PLATFORM FEE & WALLET SETTLEMENT (Cash fee / Online payout)
     # ==========================================
-    job_amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
-
-    if booking.worker:
-        worker = booking.worker
-        if worker.is_in_launch:
-            platform_fee = Decimal('0.00')
-        else:
-            platform_fee = max(job_amount * Decimal('0.10'), Decimal('15.00'))
-
-        booking.platform_fee = platform_fee
-
-        if booking.payment_method == 'CASH' and not booking.fee_settled:
-            with transaction.atomic():
-                wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker)
-                if platform_fee > Decimal('0.00'):
-                    wallet.balance -= platform_fee
-                    wallet.save()
-
-                    if wallet.is_locked:
-                        worker.is_paused_for_dues = True
-                        worker.save(update_fields=['is_paused_for_dues'])
-
-                    WalletTransaction.objects.create(
-                        wallet=wallet,
-                        booking=booking,
-                        transaction_type='FEE_DEDUCTION',
-                        amount=-platform_fee,
-                        balance_after=wallet.balance,
-                        notes=f"Platform fee (10% min ₹15) for Cash Booking #{booking.id}"
-                    )
-                else:
-                    WalletTransaction.objects.create(
-                        wallet=wallet,
-                        booking=booking,
-                        transaction_type='FEE_DEDUCTION',
-                        amount=Decimal('0.00'),
-                        balance_after=wallet.balance,
-                        notes=f"Launch Offer Benefit: 0% Platform Fee for Cash Booking #{booking.id}"
-                    )
-                booking.fee_settled = True
-        elif booking.payment_method == 'ONLINE':
-            booking.fee_settled = True
-
     booking.save(
         update_fields=[
             'status',
             'estimated_cost',
-            'platform_fee',
-            'fee_settled',
             'updated_at'
         ]
     )
+    _settle_booking_completion_financials(booking)
 
 
     # ==========================================
@@ -9004,6 +9850,15 @@ def worker_start_job(request, booking_id):
             request,
             'This job cannot be started at this stage.'
         )
+        return redirect('worker_dashboard')
+
+    # Schedule timing check: cannot start scheduled job before booking time window
+    can_start, not_allowed_reason = booking.check_can_start()
+    if not can_start:
+        messages.error(request, not_allowed_reason)
+        referer = request.META.get('HTTP_REFERER', '')
+        if 'worker-jobs' in referer or 'worker_jobs' in referer:
+            return redirect('worker_jobs')
         return redirect('worker_dashboard')
 
     # Arrival OTP verification: only enforced if booking has an arrival_otp set
@@ -9512,12 +10367,24 @@ def worker_leave_management(request):
                         if WorkerLeave.objects.filter(worker=worker_profile, leave_date=leave_date).exists():
                             messages.warning(request, 'You already have leave on this date.')
                         else:
-                            WorkerLeave.objects.create(
+                            active_bookings = Booking.objects.filter(
                                 worker=worker_profile,
-                                leave_date=leave_date,
-                                reason=reason
+                                date=leave_date,
+                                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED']
                             )
-                            messages.success(request, 'Leave date added successfully.')
+                            if active_bookings.exists():
+                                count = active_bookings.count()
+                                messages.error(
+                                    request,
+                                    f'Cannot add leave on {leave_date.strftime("%d %b %Y")}: You have {count} active booking(s) scheduled for this date. Please reschedule, complete, or resolve them before marking leave.'
+                                )
+                            else:
+                                WorkerLeave.objects.create(
+                                    worker=worker_profile,
+                                    leave_date=leave_date,
+                                    reason=reason
+                                )
+                                messages.success(request, 'Leave date added successfully.')
                     except Exception:
                         messages.error(request, 'Leave feature is currently unavailable. Please run migrations.')
             except ValueError:
@@ -9672,14 +10539,11 @@ def admin_booking_view(request, booking_id):
     # ==========================================
 
     if request.user.role != 'ADMIN':
-
         messages.error(
             request,
             'You are not authorized to view booking details.'
         )
-
         return redirect('dashboard')
-
 
     # ==========================================
     # GET BOOKING
@@ -9695,6 +10559,64 @@ def admin_booking_view(request, booking_id):
         id=booking_id
     )
 
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+        remark = request.POST.get('remark', '').strip()
+
+        if booking.status == 'DISPUTED':
+            if action == 'resolve_complete':
+                booking.status = 'COMPLETED'
+                booking.save(update_fields=['status', 'updated_at'])
+                _settle_booking_completion_financials(booking)
+
+                Complaint.objects.filter(booking=booking).update(
+                    status='RESOLVED',
+                    admin_remark=remark or 'Dispute resolved: completion confirmed by admin.'
+                )
+
+                Notification.objects.create(
+                    recipient=booking.customer,
+                    booking=booking,
+                    notification_type='BOOKING_UPDATE',
+                    message=f"Dispute on Booking #{booking.id} resolved: Service completion verified by admin."
+                )
+                if booking.worker and booking.worker.user:
+                    Notification.objects.create(
+                        recipient=booking.worker.user,
+                        booking=booking,
+                        notification_type='BOOKING_UPDATE',
+                        message=f"Dispute on Booking #{booking.id} resolved: Job marked completed."
+                    )
+                messages.success(request, f"Dispute for Booking #{booking.id} resolved as Completed.")
+                return redirect('admin_booking_view', booking_id=booking.id)
+
+            elif action == 'resolve_cancel':
+                booking.status = 'CANCELLED'
+                booking.cancellation_reason = f"Dispute resolved by admin: {remark or 'Cancelled by admin'}"
+                booking.cancelled_by = 'ADMIN'
+                booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+                _handle_booking_cancellation_refund(booking)
+
+                Complaint.objects.filter(booking=booking).update(
+                    status='RESOLVED',
+                    admin_remark=remark or 'Dispute resolved: booking cancelled by admin.'
+                )
+
+                Notification.objects.create(
+                    recipient=booking.customer,
+                    booking=booking,
+                    notification_type='BOOKING_UPDATE',
+                    message=f"Dispute on Booking #{booking.id} resolved: Booking cancelled by admin."
+                )
+                if booking.worker and booking.worker.user:
+                    Notification.objects.create(
+                        recipient=booking.worker.user,
+                        booking=booking,
+                        notification_type='BOOKING_UPDATE',
+                        message=f"Dispute on Booking #{booking.id} resolved: Booking cancelled by admin."
+                    )
+                messages.success(request, f"Dispute for Booking #{booking.id} resolved as Cancelled.")
+                return redirect('admin_booking_view', booking_id=booking.id)
 
     # ==========================================
     # RENDER
@@ -9833,25 +10755,30 @@ def cancel_booking(request, booking_id):
     if request.method != 'POST':
         return redirect('my_bookings')
 
-    # Enforce ownership: customer can only cancel their own bookings
-    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+    with transaction.atomic():
+        # Enforce ownership with row-level lock: customer can only cancel their own bookings
+        booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('worker__user', 'service'),
+            id=booking_id, customer=request.user
+        )
 
-    # Block invalid status transitions
-    if not _is_valid_booking_transition(booking.status, 'CANCELLED'):
-        messages.error(request, "This booking cannot be cancelled at its current status.")
-        return redirect('my_bookings')
+        # Block invalid status transitions
+        if not _is_valid_booking_transition(booking.status, 'CANCELLED'):
+            messages.error(request, "This booking cannot be cancelled at its current status.")
+            return redirect('my_bookings')
 
-    cancellation_reason = request.POST.get('cancellation_reason', '').strip()
-    if 'cancellation_reason' in request.POST and not cancellation_reason:
-        messages.error(request, "Please provide a reason for cancelling this booking.")
-        return redirect('my_bookings')
-    if not cancellation_reason:
-        cancellation_reason = 'Cancelled by customer'
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if 'cancellation_reason' in request.POST and not cancellation_reason:
+            messages.error(request, "Please provide a reason for cancelling this booking.")
+            return redirect('my_bookings')
+        if not cancellation_reason:
+            cancellation_reason = 'Cancelled by customer'
 
-    booking.status = 'CANCELLED'
-    booking.cancellation_reason = cancellation_reason
-    booking.cancelled_by = 'CUSTOMER'
-    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+        booking.status = 'CANCELLED'
+        booking.cancellation_reason = cancellation_reason
+        booking.cancelled_by = 'CUSTOMER'
+        booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+        _handle_booking_cancellation_refund(booking)
 
     # Notify worker
     if booking.worker and booking.worker.user:
@@ -9900,21 +10827,26 @@ def worker_cancel_booking(request, booking_id):
         return redirect('dashboard')
 
     worker = get_object_or_404(WorkerProfile, user=request.user)
-    booking = get_object_or_404(Booking, id=booking_id, worker=worker)
+    with transaction.atomic():
+        booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('customer', 'service'),
+            id=booking_id, worker=worker
+        )
 
-    if booking.status != 'ACCEPTED':
-        messages.error(request, 'Only accepted bookings before work begins can be cancelled by a worker.')
-        return redirect('worker_jobs')
+        if booking.status != 'ACCEPTED':
+            messages.error(request, 'Only accepted bookings before work begins can be cancelled by a worker.')
+            return redirect('worker_jobs')
 
-    cancellation_reason = request.POST.get('cancellation_reason', '').strip()
-    if not cancellation_reason:
-        messages.error(request, 'Please provide a reason for cancelling this booking.')
-        return redirect('worker_jobs')
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            messages.error(request, 'Please provide a reason for cancelling this booking.')
+            return redirect('worker_jobs')
 
-    booking.status = 'CANCELLED'
-    booking.cancellation_reason = cancellation_reason
-    booking.cancelled_by = 'WORKER'
-    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+        booking.status = 'CANCELLED'
+        booking.cancellation_reason = cancellation_reason
+        booking.cancelled_by = 'WORKER'
+        booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+        _handle_booking_cancellation_refund(booking)
 
     # Record worker cancellation for admin review
     StrikeRecord.objects.create(
@@ -9987,7 +10919,12 @@ def report_worker_no_show(request, booking_id):
     # Validate 30-minute waiting window server-side
     from datetime import datetime as dt_cls, time as tm_cls
     from django.utils import timezone as dj_tz
-    scheduled_time = booking.start_time or tm_cls(9, 0)
+    scheduled_time = booking.start_time
+    if not scheduled_time and booking.time:
+        s_t, _ = parse_time_range(booking.time)
+        scheduled_time = s_t
+    if not scheduled_time:
+        scheduled_time = tm_cls(9, 0)
     scheduled_dt = dj_tz.make_aware(dt_cls.combine(booking.date, scheduled_time))
     allowed_time = scheduled_dt + timedelta(minutes=30)
 
@@ -10010,6 +10947,7 @@ def report_worker_no_show(request, booking_id):
         'status', 'cancellation_reason', 'cancelled_by',
         'worker_no_show_reported_at', 'updated_at'
     ])
+    _handle_booking_cancellation_refund(booking)
 
     # Create strike record pending admin review
     if booking.worker and booking.worker.user:
@@ -10216,6 +11154,21 @@ def update_complaint_status(request, complaint_id):
             complaint.status = status
             complaint.admin_remark = admin_remark
             complaint.save(update_fields=['status', 'admin_remark'])
+
+            # Automatically resolve linked DISPUTED booking if complaint is resolved
+            booking = complaint.booking
+            if booking and booking.status == 'DISPUTED' and status == 'RESOLVED':
+                if 'cancel' in (admin_remark or '').lower():
+                    booking.status = 'CANCELLED'
+                    booking.cancellation_reason = f"Dispute resolved by admin: {admin_remark}"
+                    booking.cancelled_by = 'ADMIN'
+                    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+                    _handle_booking_cancellation_refund(booking)
+                else:
+                    booking.status = 'COMPLETED'
+                    booking.save(update_fields=['status', 'updated_at'])
+                    _settle_booking_completion_financials(booking)
+
             messages.success(request, f"Complaint #{complaint.id} status updated to {status}.")
 
             Notification.objects.create(
@@ -10281,21 +11234,28 @@ def ai_recommend_workers(request, service_id):
 
     service = get_object_or_404(Service, pk=service_id, is_active=True)
 
-    requirement = request.POST.get('requirement', '').strip() or request.GET.get('requirement', '').strip()
-    district = request.POST.get('district', '').strip() or request.GET.get('district', '').strip()
-    place = request.POST.get('place', '').strip() or request.GET.get('place', '').strip()
-    latitude = request.POST.get('latitude', '').strip() or request.GET.get('latitude', '').strip()
-    longitude = request.POST.get('longitude', '').strip() or request.GET.get('longitude', '').strip()
-
-    if not requirement:
-        return JsonResponse({'success': False, 'message': 'Please describe your requirement.'}, status=400)
+    requirement = request.POST.get('requirement', '').strip() or request.GET.get('requirement', '').strip() or service.name
+    district = request.POST.get('district', '').strip() or request.GET.get('district', '').strip() or request.session.get('district') or ''
+    place = request.POST.get('place', '').strip() or request.GET.get('place', '').strip() or request.session.get('locality') or ''
+    latitude = request.POST.get('latitude', '').strip() or request.GET.get('latitude', '').strip() or str(request.session.get('lat') or '')
+    longitude = request.POST.get('longitude', '').strip() or request.GET.get('longitude', '').strip() or str(request.session.get('lng') or '')
 
     if not district:
         return JsonResponse({'success': False, 'message': 'Please select your district.'}, status=400)
 
+    if (not latitude or not longitude) and place:
+        from .location_data import get_locality_coordinates
+        loc_lat, loc_lng = get_locality_coordinates(district, place)
+        if loc_lat is not None and loc_lng is not None:
+            latitude, longitude = str(loc_lat), str(loc_lng)
+
     customer_address = ''
     if getattr(request.user, 'user_profile', None):
         customer_address = request.user.user_profile.address or ''
+        if not latitude and getattr(request.user.user_profile, 'latitude', None):
+            latitude = str(request.user.user_profile.latitude)
+        if not longitude and getattr(request.user.user_profile, 'longitude', None):
+            longitude = str(request.user.user_profile.longitude)
 
     if not place and customer_address:
         place = customer_address.split(',')[0].strip() or customer_address.strip()
@@ -10768,3 +11728,183 @@ def raise_complaint(request, booking_id):
         return redirect('my_complaints')
 
     return render(request, 'user/raise_complaint.html', {'booking': booking})
+
+
+# ============================================================
+# LIVE ROUTE MAP & TRACKING SYSTEM (LEAFLET / OPENSTREETMAP)
+# ============================================================
+
+@login_required
+def api_booking_tracking(request, booking_id):
+    """
+    Returns live coordinates, route parameters, distance, and ETA
+    for an active booking. Accessible to the customer, assigned worker, or admin.
+    """
+    try:
+        booking = Booking.objects.select_related(
+            'customer', 'worker__user', 'service'
+        ).get(id=booking_id)
+    except Booking.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Booking not found.'}, status=404)
+
+    is_customer = (request.user == booking.customer)
+    is_worker = (booking.worker and request.user == booking.worker.user)
+    is_admin = (request.user.is_staff or getattr(request.user, 'role', None) == 'ADMIN')
+
+    if not (is_customer or is_worker or is_admin):
+        return JsonResponse({'success': False, 'error': 'Unauthorized to track this booking.'}, status=403)
+
+    # 1. Customer Coordinates Resolution
+    c_lat = booking.latitude
+    c_lng = booking.longitude
+    if c_lat is None or c_lng is None:
+        try:
+            profile = booking.customer.user_profile
+            c_lat = float(profile.latitude) if profile.latitude else None
+            c_lng = float(profile.longitude) if profile.longitude else None
+        except Exception:
+            c_lat = None
+            c_lng = None
+
+    if c_lat is None or c_lng is None:
+        base_coords = DISTRICT_COORDINATES.get(booking.district, (8.8932, 76.6141))
+        c_lat, c_lng = base_coords[0], base_coords[1]
+
+    # 2. Worker Coordinates Resolution
+    worker_data = None
+    w_lat = None
+    w_lng = None
+    distance_km = None
+    eta_minutes = None
+
+    if booking.worker:
+        w = booking.worker
+        w_lat = w.latitude
+        w_lng = w.longitude
+
+        # Fallback to worker district if worker hasn't shared exact coordinates
+        if w_lat is None or w_lng is None:
+            w_base = DISTRICT_COORDINATES.get(w.district, (c_lat, c_lng))
+            # Slight realistic offset (approx ~1.5 - 2 km) if placed in same district center
+            w_lat = round(w_base[0] + 0.0125, 5)
+            w_lng = round(w_base[1] + 0.0140, 5)
+
+        # Distance & ETA calculations
+        distance_val = haversine_km(w_lat, w_lng, c_lat, c_lng)
+        distance_km = round(distance_val, 1)
+
+        if distance_km < 0.15:
+            eta_minutes = 1
+        else:
+            # Average urban speed in Kerala: ~22 km/h
+            travel_mins = int(round((distance_km / 22.0) * 60.0))
+            eta_minutes = max(3, travel_mins)
+
+        # Worker avatar
+        avatar_url = None
+        if w.profile_image:
+            try:
+                avatar_url = w.profile_image.url
+            except Exception:
+                avatar_url = None
+
+        worker_data = {
+            'id': w.id,
+            'name': w.user.get_full_name() or w.user.username,
+            'avatar': avatar_url,
+            'rating': float(w.average_rating) if getattr(w, 'average_rating', None) else 4.9,
+            'current_place': w.current_place or w.district or "Nearby Service Zone",
+            'latitude': round(float(w_lat), 6),
+            'longitude': round(float(w_lng), 6),
+        }
+
+    # 3. Status Description & Journey Stage
+    status_text = "Booking is confirmed"
+    if booking.status == 'PENDING':
+        status_text = "Awaiting worker confirmation"
+    elif booking.status == 'ACCEPTED':
+        status_text = "Worker confirmed & getting ready"
+    elif booking.status == 'IN_PROGRESS':
+        if distance_km and distance_km <= 0.3:
+            status_text = "Worker has arrived at your doorstep"
+        else:
+            status_text = "Worker is en route to your address"
+    elif booking.status == 'COMPLETION_REQUESTED':
+        status_text = "Service finished, awaiting your OTP confirmation"
+    elif booking.status == 'COMPLETED':
+        status_text = "Service successfully completed"
+    elif booking.status in ('CANCELLED', 'EXPIRED'):
+        status_text = f"Booking was {booking.status.lower()}"
+
+    # Google Maps navigation direction URL
+    gmaps_url = ""
+    if w_lat and w_lng and c_lat and c_lng:
+        gmaps_url = f"https://www.google.com/maps/dir/?api=1&origin={w_lat},{w_lng}&destination={c_lat},{c_lng}"
+
+    return JsonResponse({
+        'success': True,
+        'booking_id': booking.id,
+        'service_name': booking.service.name if booking.service else "Home Service",
+        'status': booking.status,
+        'status_text': status_text,
+        'is_active': booking.status in ('ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED'),
+        'is_worker': is_worker,
+        'is_customer': is_customer,
+        'customer': {
+            'name': booking.customer.get_full_name() or booking.customer.username,
+            'address': booking.location or (booking.district or "Kerala"),
+            'latitude': round(float(c_lat), 6),
+            'longitude': round(float(c_lng), 6),
+        },
+        'worker': worker_data,
+        'distance_km': distance_km,
+        'eta_minutes': eta_minutes,
+        'gmaps_url': gmaps_url,
+        'arrival_otp': booking.arrival_otp if (is_customer and booking.status in ('ACCEPTED', 'IN_PROGRESS')) else None,
+    })
+
+
+@login_required
+def api_worker_update_coordinates(request):
+    """
+    Allows an active worker to update their live GPS coordinates
+    from their device or dashboard.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required.'}, status=405)
+
+    if not hasattr(request.user, 'worker_profile'):
+        return JsonResponse({'success': False, 'error': 'Only registered workers can update live coordinates.'}, status=403)
+
+    try:
+        import json
+        if request.content_type == 'application/json':
+            data = json.loads(request.body.decode('utf-8'))
+        else:
+            data = request.POST
+
+        lat = float(data.get('latitude'))
+        lng = float(data.get('longitude'))
+        place = data.get('place_name', '').strip()
+    except (ValueError, TypeError, KeyError):
+        return JsonResponse({'success': False, 'error': 'Valid latitude and longitude required.'}, status=400)
+
+    # Basic Kerala boundary validation: Lat 8.0-13.0, Lng 74.5-77.8
+    if not (8.0 <= lat <= 13.0 and 74.5 <= lng <= 77.8):
+        return JsonResponse({'success': False, 'error': 'Coordinates outside Kerala service range.'}, status=400)
+
+    worker = request.user.worker_profile
+    worker.latitude = lat
+    worker.longitude = lng
+    if place:
+        worker.current_place = place
+    worker.save(update_fields=['latitude', 'longitude', 'current_place'] if place else ['latitude', 'longitude'])
+
+    return JsonResponse({
+        'success': True,
+        'latitude': lat,
+        'longitude': lng,
+        'place_name': worker.current_place or "",
+        'message': 'Coordinates updated successfully.'
+    })
+

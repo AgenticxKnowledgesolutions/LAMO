@@ -36,8 +36,10 @@ def _deny_private_media(request):
     return HttpResponseForbidden('Access denied.')
 
 
+admin_url = os.environ.get('DJANGO_ADMIN_URL', 'admin/').strip('/') + '/'
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(admin_url, admin.site.urls),
     path('', include('lamoapp.urls')),
     # Private proof documents are never publicly served.
     re_path(

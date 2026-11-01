@@ -78,7 +78,7 @@
                 <h4>Billed to</h4>
                 <p><strong>{{ booking.customer.first_name|default:booking.customer.username }}</strong></p>
                 <p>{{ booking.customer.email }}</p>
-                <p>{{ booking.customer.phone|default:"-" }}</p>
+                <p>{{ booking.customer.user_profile.phone|default:"-" }}</p>
             </div>
             <div class="inv-block">
                 <h4>Service provider</h4>

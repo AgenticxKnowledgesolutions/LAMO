@@ -1,0 +1,128 @@
+/* ==========================================================================
+   LAMO BILINGUAL LANGUAGE SWITCHER & MALAYALAM TYPOGRAPHY
+   Kerala Localised Interface (English / മലയാളം)
+   ========================================================================== */
+
+/* Malayalam Typography Enhancement */
+html[lang="ml"] body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Manjari', 'Gayathri', 'Noto Sans Malayalam', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+html[lang="ml"] .navbar-nav .nav-link,
+html[lang="ml"] .btn,
+html[lang="ml"] .badge,
+html[lang="ml"] h1, html[lang="ml"] h2, html[lang="ml"] h3, html[lang="ml"] h4, html[lang="ml"] h5 {
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* Nav Switcher Capsule */
+.lamo-lang-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(8, 127, 91, 0.25);
+  border-radius: 9999px;
+  padding: 3px 5px;
+  gap: 2px;
+  user-select: none;
+  transition: all 0.25s ease;
+  vertical-align: middle;
+}
+
+.lamo-lang-switcher:hover {
+  border-color: #087F5B;
+  box-shadow: 0 2px 8px rgba(8, 127, 91, 0.15);
+}
+
+.lamo-lang-btn {
+  border: none;
+  background: transparent;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lamo-lang-btn:hover:not(.active) {
+  color: #087F5B;
+  background: rgba(8, 127, 91, 0.08);
+}
+
+.lamo-lang-btn.active {
+  background: #087F5B;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(8, 127, 91, 0.35);
+}
+
+.lamo-lang-divider {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin: 0 1px;
+}
+
+/* Worker Navbar Variant (Dark Backgrounds) */
+.worker-navbar .lamo-lang-switcher,
+.mobile-nav-lang-box .lamo-lang-switcher {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.worker-navbar .lamo-lang-btn,
+.mobile-nav-lang-box .lamo-lang-btn {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.worker-navbar .lamo-lang-btn.active,
+.mobile-nav-lang-box .lamo-lang-btn.active {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.worker-navbar .lamo-lang-divider,
+.mobile-nav-lang-box .lamo-lang-divider {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Mobile Drawer Language Box */
+.mobile-nav-lang-box {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-nav-lang-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Push Prompt Notification Bar */
+.lamo-push-prompt-bar {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  transition: all 0.25s ease;
+}
+
+.lamo-push-prompt-bar.is-active {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}

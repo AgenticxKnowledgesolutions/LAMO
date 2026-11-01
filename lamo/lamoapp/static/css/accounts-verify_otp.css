@@ -158,7 +158,8 @@ main {
 
 .brand-mark-logo {
     width: auto;
-    height: 64px;
+    height: 38px;
+    max-width: 140px;
     background: transparent;
     border: none;
     object-fit: contain;

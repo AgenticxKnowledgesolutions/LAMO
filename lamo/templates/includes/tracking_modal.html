@@ -1,0 +1,133 @@
+{% load static %}
+<!-- ============================================================
+     LAMO LIVE ROUTE MAP & TRACKING MODAL (LEAFLET / OPENSTREETMAP)
+     ============================================================ -->
+<div class="modal fade lamo-tracking-modal" id="lamoTrackingModal" tabindex="-1" aria-labelledby="lamoTrackingModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content tracking-modal-card">
+
+      <!-- Modal Header -->
+      <div class="modal-header tracking-modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <div class="tracking-header-icon">
+            <i class="bi bi-geo-alt-fill"></i>
+          </div>
+          <div>
+            <h5 class="modal-title m-0 fw-bold tracking-modal-title" id="lamoTrackingModalLabel">Live Pro Tracking</h5>
+            <small class="text-muted tracking-header-sub" id="trackingSubTitle">Connecting to worker telemetry...</small>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <span class="tracking-live-indicator" id="trackingLiveBadge">
+            <span class="tracking-live-pulse"></span>
+            LIVE GPS
+          </span>
+          <button type="button" class="btn-close tracking-btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeTrackingModal()"></button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body tracking-modal-body p-0">
+
+        <!-- Status & Telemetry Bar -->
+        <div class="tracking-telemetry-bar">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="tracking-status-badge" id="trackingStatusBadge">En Route</span>
+              <span class="tracking-service-name" id="trackingServiceName">Electrician Service</span>
+            </div>
+
+            <!-- Arrival OTP Pill (Visible to customer) -->
+            <div class="tracking-otp-pill" id="trackingOtpContainer" style="display: none;">
+              <i class="bi bi-shield-lock-fill"></i>
+              <span>Arrival Verification OTP:</span>
+              <strong id="trackingOtpCode">----</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Leaflet Map Container -->
+        <div class="tracking-map-wrapper position-relative">
+          <div id="lamoTrackingMap"></div>
+
+          <!-- Loading Overlay -->
+          <div class="tracking-map-loader" id="trackingMapLoader">
+            <div class="spinner-border text-success" role="status">
+              <span class="visually-hidden">Loading telemetry...</span>
+            </div>
+            <p class="mt-2 text-muted fw-semibold" style="font-size: 0.85rem;">Locating worker & drawing live route...</p>
+          </div>
+
+          <!-- Quick Recenter Map Floating Button -->
+          <button type="button" class="btn-tracking-recenter" id="btnTrackingRecenter" title="Fit both customer and worker on map">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+        </div>
+
+        <!-- Trip Details Card Below Map -->
+        <div class="tracking-summary-panel">
+          <div class="row g-3 align-items-center">
+
+            <!-- Worker Info -->
+            <div class="col-12 col-md-5">
+              <div class="d-flex align-items-center gap-3">
+                <div class="tracking-avatar-wrap position-relative">
+                  <img src="{% static 'img/avatar1.png' %}" alt="Profile" class="tracking-worker-avatar" id="trackingWorkerAvatar">
+                  <span class="tracking-online-dot" title="Worker is active"></span>
+                </div>
+                <div class="tracking-worker-info">
+                  <h6 class="m-0 fw-bold text-dark text-truncate" id="trackingWorkerName">Service Professional</h6>
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <span class="tracking-rating-pill" id="trackingWorkerRating">
+                      <i class="bi bi-star-fill text-warning"></i> 4.9
+                    </span>
+                    <small class="text-muted text-truncate" id="trackingWorkerPlace">Nearby Zone</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Metrics (Distance & ETA) -->
+            <div class="col-12 col-md-7">
+              <div class="d-flex align-items-center justify-content-md-end justify-content-between gap-3">
+                <div class="tracking-metric-box">
+                  <small class="metric-label">DISTANCE</small>
+                  <div class="metric-value" id="trackingMetricDistance">-- km</div>
+                </div>
+                <div class="tracking-metric-box">
+                  <small class="metric-label">EST. ARRIVAL</small>
+                  <div class="metric-value highlight" id="trackingMetricEta">-- mins</div>
+                </div>
+                <div class="tracking-actions-group d-flex gap-2">
+                  <!-- Audio Call Button -->
+                  <button type="button" class="btn btn-sm btn-tracking-call" id="btnTrackingCall" title="Call via LAMO (In-App)">
+                    <i class="bi bi-telephone-fill"></i>
+                    <span class="d-none d-sm-inline">Call</span>
+                  </button>
+                  <!-- Turn-by-Turn Google Maps Navigation -->
+                  <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-tracking-nav" id="btnTrackingGmaps" title="Open Turn-by-Turn in Google Maps">
+                    <i class="bi bi-sign-turn-right-fill"></i>
+                    <span class="d-none d-sm-inline">Directions</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Destination Address Note -->
+          <div class="tracking-dest-bar mt-3 pt-2 border-top">
+            <small class="text-muted d-flex align-items-center gap-1">
+              <i class="bi bi-house-door-fill text-success"></i>
+              <strong>Destination:</strong>
+              <span id="trackingCustomerAddress" class="text-truncate">Customer doorstep</span>
+            </small>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>

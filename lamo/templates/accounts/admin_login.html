@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal Login | LAMO</title>
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <style>
+    :root {
+      --primary-green: #10b981;
+      --accent-green: #059669;
+      --deep-forest: #042f1f;
+      --card-bg: rgba(15, 23, 42, 0.78);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --input-bg: rgba(255, 255, 255, 0.06);
+      --input-border: rgba(255, 255, 255, 0.18);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 20% 20%, #064e3b 0%, #042f1f 45%, #021a11 100%);
+      color: var(--text-main);
+      padding: 24px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient decorative blurs */
+    .glow-orb-1 {
+      position: absolute;
+      top: -120px;
+      left: -100px;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .glow-orb-2 {
+      position: absolute;
+      bottom: -140px;
+      right: -100px;
+      width: 480px;
+      height: 480px;
+      background: radial-gradient(circle, rgba(5, 150, 105, 0.20) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .admin-card-container {
+      width: 100%;
+      max-width: 440px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 40px 36px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+    }
+
+    .admin-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #34d399;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .admin-badge i {
+      font-size: 0.85rem;
+    }
+
+    .admin-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .admin-subtitle {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .admin-form-group {
+      margin-bottom: 20px;
+    }
+
+    .admin-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+
+    .admin-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .admin-input-icon {
+      position: absolute;
+      left: 14px;
+      color: #94a3b8;
+      font-size: 1.1rem;
+      pointer-events: none;
+      transition: color 0.2s ease;
+    }
+
+    .admin-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 44px 0 42px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: all 0.25s ease;
+    }
+
+    .admin-input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #34d399;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.22);
+    }
+
+    .admin-input:focus + .admin-input-icon,
+    .admin-input-wrap:focus-within .admin-input-icon {
+      color: #34d399;
+    }
+
+    .admin-input::placeholder {
+      color: #64748b;
+    }
+
+    .admin-toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .admin-toggle-btn:hover {
+      color: #ffffff;
+    }
+
+    .admin-alert {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.45;
+    }
+
+    .admin-alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .admin-alert-error i {
+      font-size: 1.05rem;
+      color: #ef4444;
+      flex-shrink: 0;
+    }
+
+    .admin-alert-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #6ee7b7;
+    }
+
+    .admin-submit-btn {
+      width: 100%;
+      height: 48px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+      transition: all 0.25s ease;
+    }
+
+    .admin-submit-btn:hover {
+      background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+    }
+
+    .admin-submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .admin-footer-links {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .back-home-link {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s ease;
+    }
+
+    .back-home-link:hover {
+      color: #34d399;
+    }
+
+    .security-notice {
+      font-size: 0.72rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.2px;
+    }
+
+    @media (max-width: 480px) {
+      .admin-card {
+        padding: 30px 22px;
+        border-radius: 20px;
+      }
+      .admin-title {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glow-orb-1"></div>
+  <div class="glow-orb-2"></div>
+
+  <div class="admin-card-container">
+    <div class="admin-card">
+      
+      <div class="admin-header">
+        <div class="admin-badge">
+          <i class="bi bi-shield-lock-fill"></i>
+          Administrative Access
+        </div>
+        <h1 class="admin-title">LAMO Portal</h1>
+        <p class="admin-subtitle">Sign in with authorized administrator credentials to manage the platform.</p>
+      </div>
+
+      <!-- Django Messages / Errors -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="admin-alert {% if message.tags == 'error' %}admin-alert-error{% else %}admin-alert-success{% endif %}">
+            <i class="bi {% if message.tags == 'error' %}bi-exclamation-triangle-fill{% else %}bi-check-circle-fill{% endif %}"></i>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'admin_login' %}">
+        {% csrf_token %}
+
+        <div class="admin-form-group">
+          <label for="adminUsername" class="admin-label">Admin Username</label>
+          <div class="admin-input-wrap">
+            <i class="bi bi-person admin-input-icon"></i>
+            <input 
+              type="text" 
+              name="username" 
+              id="adminUsername" 
+              class="admin-input" 
+              placeholder="Enter username (e.g. admin)" 
+              value="{{ entered_username|default:'' }}"
+              autocomplete="username" 
+              autofocus
+              required
+            >
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="adminPassword" class="admin-label">Admin Password</label>
+          <div class="admin-input-wrap">
+            <i class="bi bi-lock admin-input-icon"></i>
+            <input 
+              type="password" 
+              name="password" 
+              id="adminPassword" 
+              class="admin-input" 
+              placeholder="Enter administrator password" 
+              autocomplete="current-password" 
+              required
+            >
+            <button type="button" class="admin-toggle-btn" id="togglePassBtn" aria-label="Toggle password visibility">
+              <i class="bi bi-eye" id="togglePassIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="admin-submit-btn">
+          <span>Sign In to Dashboard</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="admin-footer-links">
+        <a href="{% url 'home' %}" class="back-home-link">
+          <i class="bi bi-arrow-left"></i>
+          Return to Public Site
+        </a>
+        <div class="security-notice">
+          <i class="bi bi-patch-check-fill text-success"></i>
+          Encrypted Admin Session • Authorised Personnel Only
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const toggleBtn = document.getElementById('togglePassBtn');
+    const passInput = document.getElementById('adminPassword');
+    const passIcon = document.getElementById('togglePassIcon');
+
+    if (toggleBtn && passInput && passIcon) {
+      toggleBtn.addEventListener('click', function() {
+        if (passInput.type === 'password') {
+          passInput.type = 'text';
+          passIcon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+          passInput.type = 'password';
+          passIcon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

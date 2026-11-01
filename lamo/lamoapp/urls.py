@@ -11,6 +11,7 @@ urlpatterns = [
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('reset-password/<str:token>/', views.forgot_password_view, name='reset_password'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('user-dashboard/', views.user_dashboard, name='user_dashboard'),
     path('worker-dashboard/', views.worker_dashboard, name='worker_dashboard'),
@@ -25,6 +26,21 @@ urlpatterns = [
     path('manifest.json', views.manifest_json, name='manifest_json'),
     path('push/subscribe/', views.save_push_subscription, name='save_push_subscription'),
     path('api/worker/new-jobs/', views.api_worker_new_jobs, name='api_worker_new_jobs'),
+    path('api/location/gps/', views.api_gps_location, name='api_gps_location'),
+    path('api/location/set/', views.api_set_location, name='api_set_location'),
+    path('api/language/set/', views.set_language, name='set_language'),
+
+    # In-App WebRTC Audio Calling (Masked / Zero Phone Sharing)
+    path('api/call/<int:booking_id>/initiate/', views.api_call_initiate, name='api_call_initiate'),
+    path('api/call/<int:booking_id>/<int:call_id>/answer/', views.api_call_answer, name='api_call_answer'),
+    path('api/call/<int:booking_id>/<int:call_id>/poll/', views.api_call_poll, name='api_call_poll'),
+    path('api/call/<int:booking_id>/<int:call_id>/ice/', views.api_call_ice, name='api_call_ice'),
+    path('api/call/<int:booking_id>/<int:call_id>/end/', views.api_call_end, name='api_call_end'),
+    path('api/call/check-incoming/', views.api_call_check_incoming, name='api_call_check_incoming'),
+
+    # Live Route Map & GPS Tracking
+    path('api/booking/<int:booking_id>/tracking/', views.api_booking_tracking, name='api_booking_tracking'),
+    path('api/worker/update-coordinates/', views.api_worker_update_coordinates, name='api_worker_update_coordinates'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),

@@ -1,7 +1,7 @@
 /**
- * LAMO Location Selection Popup
- * Professional, modern location selection modal for the 14 Kerala districts.
- * Integrates directly with existing session-based location mechanism and AJAX service filtering.
+ * LAMO Location Selection Popup & GPS Auto-Detection
+ * Professional 2-step location selector for all 14 Kerala districts and all localities.
+ * Integrates directly with session-based location mechanism and AJAX service filtering.
  */
 
 (function () {
@@ -15,12 +15,43 @@
     const continueBtnText = document.getElementById("btnContinueLocationText");
     const continueBtnIcon = document.getElementById("btnContinueLocationIcon");
     const validationAlert = document.getElementById("locValidationAlert");
-    const searchInput = document.getElementById("locDistrictFilterInput");
-    const clearFilterBtn = document.getElementById("locClearFilterBtn");
-    const districtGrid = document.getElementById("locDistrictGrid");
-    const noMatchState = document.getElementById("locNoMatchState");
-    const searchTermSpan = document.getElementById("locSearchTerm");
+    const validationText = document.getElementById("locValidationText");
 
+    // Views
+    const stepDistrictsView = document.getElementById("locStepDistrictsView");
+    const stepLocalitiesView = document.getElementById("locStepLocalitiesView");
+
+    // GPS elements
+    const btnGpsAutoDetect = document.getElementById("btnGpsAutoDetect");
+    const gpsStatusText = document.getElementById("gpsStatusText");
+    const gpsBadgeIcon = document.getElementById("gpsBadgeIcon");
+
+    // District filter elements
+    const districtSearchInput = document.getElementById("locDistrictFilterInput");
+    const clearDistrictFilterBtn = document.getElementById("locClearFilterBtn");
+    const districtGrid = document.getElementById("locDistrictGrid");
+    const districtNoMatchState = document.getElementById("locNoMatchState");
+    const districtSearchTermSpan = document.getElementById("locSearchTerm");
+
+    // Locality elements
+    const btnBackToDistricts = document.getElementById("btnBackToDistricts");
+    const activeDistrictNameSpan = document.getElementById("locActiveDistrictName");
+    const popularDistrictNameSpan = document.getElementById("locPopularDistrictName");
+    const listDistrictNameSpan = document.getElementById("locListDistrictName");
+    const popularPillsContainer = document.getElementById("locPopularPillsContainer");
+    const localitiesGrid = document.getElementById("locLocalitiesGrid");
+    const localitySearchInput = document.getElementById("locLocalityFilterInput");
+    const clearLocalityFilterBtn = document.getElementById("locClearLocalityFilterBtn");
+    const localityNoMatchState = document.getElementById("locNoLocalityMatchState");
+    const localitySearchTermSpan = document.getElementById("locLocalitySearchTerm");
+    const totalCountDisplay = document.getElementById("locTotalCountDisplay");
+    const btnTopSaveLocation = document.getElementById("btnTopSaveLocation");
+
+    // Summary element
+    const summaryContainer = document.getElementById("locCurrentSelectionSummary");
+    const summaryText = document.getElementById("locSummaryText");
+
+    // Navbar elements
     const navLocationBtn = document.getElementById("navLocationBtn");
     const mobileNavLocationBtn = document.getElementById("mobileNavLocationBtn");
     const navCurrentDistrict = document.getElementById("navCurrentDistrict");
@@ -30,16 +61,46 @@
 
     if (!overlay || !card) return;
 
+    // Load comprehensive Kerala locations tree from embedded JSON
+    let locationData = {};
+    const treeScript = document.getElementById("keralaLocationTreeData");
+    if (treeScript && treeScript.textContent) {
+      try {
+        locationData = JSON.parse(treeScript.textContent);
+      } catch (e) {
+        console.warn("Could not parse keralaLocationTreeData:", e);
+      }
+    }
+
     let isMandatory = false;
     let selectedDistrict = overlay.getAttribute("data-initial-district") || "";
+    let selectedLocality = overlay.getAttribute("data-initial-locality") || "";
+    let selectedLat = overlay.getAttribute("data-initial-lat") || "";
+    let selectedLng = overlay.getAttribute("data-initial-lng") || "";
 
-    // Sync initial selected chip
-    function syncSelectedChip(dist) {
+    // -------------------------------------------------------------
+    // SYNC ACTIVE CHIPS & SUMMARY
+    // -------------------------------------------------------------
+    function updateSummaryDisplay() {
+      if (!summaryContainer || !summaryText) return;
+      if (selectedDistrict) {
+        summaryContainer.style.display = "flex";
+        if (selectedLocality) {
+          summaryText.textContent = selectedLocality + ", " + selectedDistrict;
+        } else {
+          summaryText.textContent = selectedDistrict + " (All Places)";
+        }
+      } else {
+        summaryContainer.style.display = "none";
+      }
+    }
+
+    function syncDistrictChips() {
       if (!districtGrid) return;
       const chips = districtGrid.querySelectorAll(".loc-district-chip");
       chips.forEach(function (chip) {
         const val = chip.getAttribute("data-district");
-        if (dist && val && val.toLowerCase() === dist.toLowerCase()) {
+        if (selectedDistrict && val && val.toLowerCase() === selectedDistrict.toLowerCase()) {
           chip.classList.add("selected");
           chip.setAttribute("aria-pressed", "true");
         } else {
@@ -49,8 +110,283 @@
       });
     }
 
-    if (selectedDistrict) {
-      syncSelectedChip(selectedDistrict);
+    // -------------------------------------------------------------
+    // SWITCH BETWEEN DISTRICT & LOCALITY VIEWS
+    // -------------------------------------------------------------
+    function showDistrictsStep() {
+      if (stepDistrictsView) stepDistrictsView.style.display = "block";
+      if (stepLocalitiesView) stepLocalitiesView.style.display = "none";
+      syncDistrictChips();
+      updateSummaryDisplay();
+      if (continueBtnText) {
+        continueBtnText.textContent = selectedDistrict ? "Save Entire " + selectedDistrict : "Save Location";
+      }
+      if (continueBtnIcon) {
+        continueBtnIcon.className = "bi bi-check-circle-fill";
+      }
+    }
+
+    function showLocalitiesStep(districtName) {
+      if (!districtName) return;
+      selectedDistrict = districtName;
+      syncDistrictChips();
+
+      if (activeDistrictNameSpan) activeDistrictNameSpan.textContent = districtName;
+      if (popularDistrictNameSpan) popularDistrictNameSpan.textContent = districtName;
+      if (listDistrictNameSpan) listDistrictNameSpan.textContent = districtName;
+
+      renderLocalitiesForDistrict(districtName);
+
+      if (stepDistrictsView) stepDistrictsView.style.display = "none";
+      if (stepLocalitiesView) stepLocalitiesView.style.display = "block";
+
+      if (localitySearchInput) {
+        localitySearchInput.value = "";
+        localitySearchInput.placeholder = "Search town in " + districtName + "...";
+      }
+
+      updateSummaryDisplay();
+      if (continueBtnText) {
+        continueBtnText.textContent = selectedLocality 
+          ? "Save " + selectedLocality + ", " + districtName 
+          : "Save Entire " + districtName;
+      }
+      if (continueBtnIcon) {
+        continueBtnIcon.className = "bi bi-check-circle-fill";
+      }
+    }
+
+    // -------------------------------------------------------------
+    // RENDER LOCALITIES FOR SELECTED DISTRICT
+    // -------------------------------------------------------------
+    function renderLocalitiesForDistrict(dist) {
+      const distInfo = locationData[dist] || { popular: [], localities: [] };
+      const populars = distInfo.popular || [];
+      const localities = distInfo.localities || [];
+
+      // 1. Render popular quick pills
+      if (popularPillsContainer) {
+        popularPillsContainer.innerHTML = "";
+
+        // Add "All [District]" pill first
+        const allPill = document.createElement("button");
+        allPill.type = "button";
+        allPill.className = "loc-popular-pill" + (!selectedLocality ? " selected" : "");
+        allPill.textContent = "Entire " + dist;
+        allPill.addEventListener("click", function () {
+          selectLocality("", null, null, true);
+        });
+        popularPillsContainer.appendChild(allPill);
+
+        populars.forEach(function (popName) {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          const isSelected = selectedLocality && selectedLocality.toLowerCase() === popName.toLowerCase();
+          pill.className = "loc-popular-pill" + (isSelected ? " selected" : "");
+          pill.textContent = popName;
+
+          // Find coords
+          const matchLoc = localities.find(function (l) { return l.name.toLowerCase() === popName.toLowerCase(); });
+          const lat = matchLoc ? matchLoc.lat : null;
+          const lng = matchLoc ? matchLoc.lng : null;
+
+          pill.addEventListener("click", function () {
+            selectLocality(popName, lat, lng, true);
+          });
+          popularPillsContainer.appendChild(pill);
+        });
+      }
+
+      // 2. Render all localities
+      if (localitiesGrid) {
+        localitiesGrid.innerHTML = "";
+        if (totalCountDisplay) {
+          totalCountDisplay.textContent = localities.length + " places";
+        }
+
+        localities.forEach(function (loc) {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          const isSelected = selectedLocality && selectedLocality.toLowerCase() === loc.name.toLowerCase();
+          chip.className = "loc-locality-chip" + (isSelected ? " selected" : "");
+          chip.setAttribute("data-locality", loc.name);
+          chip.setAttribute("data-lat", loc.lat || "");
+          chip.setAttribute("data-lng", loc.lng || "");
+
+          chip.innerHTML = 
+            '<span class="loc-chip-name"><i class="bi bi-geo-alt me-1 text-muted"></i> ' + loc.name + '</span>' +
+            '<span class="loc-chip-check"><i class="bi bi-check-circle-fill"></i></span>';
+
+          chip.addEventListener("click", function () {
+            selectLocality(loc.name, loc.lat, loc.lng, true);
+          });
+          localitiesGrid.appendChild(chip);
+        });
+      }
+    }
+
+    function selectLocality(locName, lat, lng, autoSave) {
+      selectedLocality = locName || "";
+      selectedLat = lat || "";
+      selectedLng = lng || "";
+
+      // Sync active state in popular pills
+      if (popularPillsContainer) {
+        popularPillsContainer.querySelectorAll(".loc-popular-pill").forEach(function (p) {
+          if (!selectedLocality && p.textContent.startsWith("Entire")) {
+            p.classList.add("selected");
+          } else if (selectedLocality && p.textContent.toLowerCase() === selectedLocality.toLowerCase()) {
+            p.classList.add("selected");
+          } else {
+            p.classList.remove("selected");
+          }
+        });
+      }
+
+      // Sync active state in all localities grid
+      if (localitiesGrid) {
+        localitiesGrid.querySelectorAll(".loc-locality-chip").forEach(function (c) {
+          const name = c.getAttribute("data-locality");
+          if (selectedLocality && name && name.toLowerCase() === selectedLocality.toLowerCase()) {
+            c.classList.add("selected");
+          } else {
+            c.classList.remove("selected");
+          }
+        });
+      }
+
+      if (validationAlert) validationAlert.style.display = "none";
+      updateSummaryDisplay();
+
+      if (continueBtnText) {
+        continueBtnText.textContent = selectedLocality 
+          ? "Save " + selectedLocality + ", " + selectedDistrict 
+          : "Save Entire " + selectedDistrict;
+      }
+      if (continueBtnIcon) {
+        continueBtnIcon.className = "bi bi-check-circle-fill";
+      }
+
+      if (autoSave) {
+        applyLocation();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // LOCALITY SEARCH FILTER
+    // -------------------------------------------------------------
+    function filterLocalities(query) {
+      const q = (query || "").trim().toLowerCase();
+      let matchCount = 0;
+
+      if (clearLocalityFilterBtn) {
+        clearLocalityFilterBtn.style.display = q ? "block" : "none";
+      }
+
+      if (localitiesGrid) {
+        const chips = localitiesGrid.querySelectorAll(".loc-locality-chip");
+        chips.forEach(function (chip) {
+          const name = (chip.getAttribute("data-locality") || "").toLowerCase();
+          if (!q || name.includes(q)) {
+            chip.style.display = "flex";
+            matchCount++;
+          } else {
+            chip.style.display = "none";
+          }
+        });
+      }
+
+      if (localityNoMatchState) {
+        if (matchCount === 0 && q) {
+          localityNoMatchState.style.display = "block";
+          if (localitySearchTermSpan) localitySearchTermSpan.textContent = query;
+        } else {
+          localityNoMatchState.style.display = "none";
+        }
+      }
+    }
+
+    if (localitySearchInput) {
+      localitySearchInput.addEventListener("input", function () {
+        filterLocalities(localitySearchInput.value);
+      });
+    }
+
+    if (clearLocalityFilterBtn) {
+      clearLocalityFilterBtn.addEventListener("click", function () {
+        if (localitySearchInput) {
+          localitySearchInput.value = "";
+          localitySearchInput.focus();
+        }
+        filterLocalities("");
+      });
+    }
+
+    if (btnBackToDistricts) {
+      btnBackToDistricts.addEventListener("click", function (e) {
+        e.preventDefault();
+        showDistrictsStep();
+      });
+    }
+
+    // -------------------------------------------------------------
+    // GPS AUTO-DETECTION HANDLER
+    // -------------------------------------------------------------
+    if (btnGpsAutoDetect) {
+      btnGpsAutoDetect.addEventListener("click", function () {
+        if (!navigator.geolocation) {
+          triggerValidationShake("Geolocation is not supported by your browser.");
+          return;
+        }
+
+        btnGpsAutoDetect.classList.add("locating");
+        if (gpsStatusText) gpsStatusText.textContent = "Detecting your location via GPS...";
+        if (gpsBadgeIcon) gpsBadgeIcon.innerHTML = '<i class="bi bi-arrow-repeat spin"></i>';
+
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            // Send coords to backend for instant nearest Kerala district & locality resolution
+            fetch("/api/location/gps/?lat=" + lat + "&lng=" + lng)
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                btnGpsAutoDetect.classList.remove("locating");
+                if (gpsBadgeIcon) gpsBadgeIcon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+
+                if (data.success && data.district) {
+                  selectedDistrict = data.district;
+                  selectedLocality = data.locality || "";
+                  selectedLat = lat;
+                  selectedLng = lng;
+
+                  if (gpsStatusText) {
+                    gpsStatusText.textContent = "Found: " + (selectedLocality ? selectedLocality + ", " : "") + selectedDistrict;
+                  }
+
+                  // Auto-switch to localities view with this detected place pre-selected
+                  showLocalitiesStep(selectedDistrict);
+                  selectLocality(selectedLocality, selectedLat, selectedLng);
+                } else {
+                  if (gpsStatusText) gpsStatusText.textContent = "Location found outside Kerala. Select district below.";
+                }
+              })
+              .catch(function (err) {
+                btnGpsAutoDetect.classList.remove("locating");
+                if (gpsBadgeIcon) gpsBadgeIcon.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i>';
+                if (gpsStatusText) gpsStatusText.textContent = "Could not resolve GPS location. Please select below.";
+              });
+          },
+          function (err) {
+            btnGpsAutoDetect.classList.remove("locating");
+            if (gpsBadgeIcon) gpsBadgeIcon.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i>';
+            if (gpsStatusText) gpsStatusText.textContent = "GPS permission denied or timed out. Please select below.";
+            triggerValidationShake("Please select your district and locality manually.");
+          },
+          { timeout: 8000, enableHighAccuracy: true }
+        );
+      });
     }
 
     // -------------------------------------------------------------
@@ -60,26 +396,25 @@
       const opts = options || {};
       isMandatory = !!opts.mandatory;
 
-      // Close button visibility: hide if mandatory first-time prompt
       if (closeBtn) {
         closeBtn.style.display = isMandatory ? "none" : "flex";
       }
 
-      // Hide validation alert
       if (validationAlert) {
         validationAlert.style.display = "none";
       }
 
-      // Reset filter search input
-      if (searchInput) {
-        searchInput.value = "";
+      if (districtSearchInput) {
+        districtSearchInput.value = "";
         filterDistricts("");
       }
 
-      // Sync active chip
-      syncSelectedChip(selectedDistrict);
+      if (selectedDistrict) {
+        showLocalitiesStep(selectedDistrict);
+      } else {
+        showDistrictsStep();
+      }
 
-      // Show overlay and lock body scroll
       overlay.style.display = "flex";
       requestAnimationFrame(function () {
         overlay.classList.add("show");
@@ -97,14 +432,13 @@
 
     function triggerValidationShake(msg) {
       if (validationAlert) {
-        if (msg) {
-          const span = validationAlert.querySelector("span");
-          if (span) span.textContent = msg;
+        if (msg && validationText) {
+          validationText.textContent = msg;
         }
         validationAlert.style.display = "flex";
       }
       card.classList.remove("shake");
-      void card.offsetWidth; // trigger reflow
+      void card.offsetWidth;
       card.classList.add("shake");
       setTimeout(function () {
         card.classList.remove("shake");
@@ -121,11 +455,7 @@
 
         const dist = chip.getAttribute("data-district");
         if (dist) {
-          selectedDistrict = dist;
-          syncSelectedChip(dist);
-          if (validationAlert) {
-            validationAlert.style.display = "none";
-          }
+          showLocalitiesStep(dist);
         }
       });
     }
@@ -137,8 +467,8 @@
       const q = (query || "").trim().toLowerCase();
       let matchCount = 0;
 
-      if (clearFilterBtn) {
-        clearFilterBtn.style.display = q ? "block" : "none";
+      if (clearDistrictFilterBtn) {
+        clearDistrictFilterBtn.style.display = q ? "block" : "none";
       }
 
       if (districtGrid) {
@@ -154,96 +484,126 @@
         });
       }
 
-      if (noMatchState) {
+      if (districtNoMatchState) {
         if (matchCount === 0 && q) {
-          noMatchState.style.display = "block";
-          if (searchTermSpan) searchTermSpan.textContent = query;
+          districtNoMatchState.style.display = "block";
+          if (districtSearchTermSpan) districtSearchTermSpan.textContent = query;
         } else {
-          noMatchState.style.display = "none";
+          districtNoMatchState.style.display = "none";
         }
       }
     }
 
-    if (searchInput) {
-      searchInput.addEventListener("input", function () {
-        filterDistricts(searchInput.value);
+    if (districtSearchInput) {
+      districtSearchInput.addEventListener("input", function () {
+        filterDistricts(districtSearchInput.value);
       });
     }
 
-    if (clearFilterBtn) {
-      clearFilterBtn.addEventListener("click", function () {
-        if (searchInput) {
-          searchInput.value = "";
-          searchInput.focus();
+    if (clearDistrictFilterBtn) {
+      clearDistrictFilterBtn.addEventListener("click", function () {
+        if (districtSearchInput) {
+          districtSearchInput.value = "";
+          districtSearchInput.focus();
         }
         filterDistricts("");
       });
     }
 
     // -------------------------------------------------------------
-    // CONTINUE BUTTON HANDLER
+    // CONTINUE / APPLY LOCATION
     // -------------------------------------------------------------
-    if (continueBtn) {
-      continueBtn.addEventListener("click", function () {
-        if (!selectedDistrict) {
-          triggerValidationShake("Please select your district to continue.");
-          return;
-        }
+    function applyLocation() {
+      if (!selectedDistrict) {
+        triggerValidationShake("Please select your district to continue.");
+        return;
+      }
 
-        // Show loading state on button
-        continueBtn.disabled = true;
-        if (continueBtnText) continueBtnText.textContent = "Setting Location...";
-        if (continueBtnIcon) continueBtnIcon.className = "bi bi-arrow-repeat spin";
+      continueBtn.disabled = true;
+      if (continueBtnText) continueBtnText.textContent = "Saving Location...";
+      if (continueBtnIcon) continueBtnIcon.className = "bi bi-arrow-repeat spin";
+      if (btnTopSaveLocation) {
+        btnTopSaveLocation.disabled = true;
+        btnTopSaveLocation.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
+      }
 
-        // Update UI labels immediately
-        if (navCurrentDistrict) navCurrentDistrict.textContent = selectedDistrict;
-        if (mobileNavCurrentDistrict) mobileNavCurrentDistrict.textContent = selectedDistrict;
-        if (heroDistrictSelect) heroDistrictSelect.value = selectedDistrict;
+      // Display text in navbar
+      const displayLocation = selectedLocality 
+        ? selectedLocality + ", " + selectedDistrict 
+        : selectedDistrict;
 
-        // Save selected district in session via existing backend AJAX endpoint
-        const isHomePage = window.location.pathname === "/" || window.location.pathname === "";
+      if (navCurrentDistrict) navCurrentDistrict.textContent = displayLocation;
+      if (mobileNavCurrentDistrict) mobileNavCurrentDistrict.textContent = displayLocation;
+      if (heroDistrictSelect) heroDistrictSelect.value = selectedDistrict;
 
-        fetch("/?district=" + encodeURIComponent(selectedDistrict) + "&ajax=1", {
-          headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            Accept: "application/json",
-          },
+      // Update overlay data attributes
+      overlay.setAttribute("data-initial-district", selectedDistrict);
+      overlay.setAttribute("data-initial-locality", selectedLocality);
+      if (selectedLat) overlay.setAttribute("data-initial-lat", selectedLat);
+      if (selectedLng) overlay.setAttribute("data-initial-lng", selectedLng);
+
+      // Save via dedicated API endpoint
+      let apiUrl = "/api/location/set/?district=" + encodeURIComponent(selectedDistrict);
+      apiUrl += "&locality=" + encodeURIComponent(selectedLocality || "");
+      if (selectedLat) apiUrl += "&lat=" + encodeURIComponent(selectedLat);
+      if (selectedLng) apiUrl += "&lng=" + encodeURIComponent(selectedLng);
+
+      const isHomePage = window.location.pathname === "/" || window.location.pathname === "";
+
+      fetch(apiUrl, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json",
+        },
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          return res.json();
         })
-          .then(function (res) {
-            if (!res.ok) throw new Error("HTTP error " + res.status);
-            return res.json();
-          })
-          .then(function (data) {
-            // Restore button state
-            continueBtn.disabled = false;
-            if (continueBtnText) continueBtnText.textContent = "Continue";
-            if (continueBtnIcon) continueBtnIcon.className = "bi bi-arrow-right";
+        .then(function (data) {
+          continueBtn.disabled = false;
+          if (continueBtnText) continueBtnText.textContent = "Save Location";
+          if (continueBtnIcon) continueBtnIcon.className = "bi bi-check-circle-fill";
+          if (btnTopSaveLocation) {
+            btnTopSaveLocation.disabled = false;
+            btnTopSaveLocation.innerHTML = '<i class="bi bi-check2"></i> Save';
+          }
 
-            // Update overlay data attribute
-            overlay.setAttribute("data-initial-district", selectedDistrict);
+          closeLocationModal();
 
-            // Close modal
-            closeLocationModal();
-
-            if (isHomePage) {
-              // On home page: invoke existing filter function to refresh services with real backend data
-              if (typeof window.fetchFilteredServices === "function") {
-                window.fetchFilteredServices({ district: selectedDistrict });
-              } else {
-                // Fallback: update URL
-                window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + "#services";
-              }
+          if (isHomePage) {
+            if (typeof window.fetchFilteredServices === "function") {
+              window.fetchFilteredServices({ 
+                district: selectedDistrict, 
+                locality: selectedLocality,
+                lat: selectedLat,
+                lng: selectedLng 
+              });
             } else {
-              // On non-home pages: redirect to home page with district applied
-              window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + "#services";
+              window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + (selectedLocality ? "&locality=" + encodeURIComponent(selectedLocality) : "") + "#services";
             }
-          })
-          .catch(function (err) {
-            console.error("Error saving district location:", err);
-            // Even if network glitches, apply to URL as fallback
-            window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + "#services";
-          });
-      });
+          } else {
+            // If on workers page or elsewhere, refresh current page with new district and locality
+            const currentPath = window.location.pathname;
+            if (currentPath.includes("/workers/")) {
+              window.location.href = currentPath + "?district=" + encodeURIComponent(selectedDistrict) + (selectedLocality ? "&locality=" + encodeURIComponent(selectedLocality) : "");
+            } else {
+              window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + (selectedLocality ? "&locality=" + encodeURIComponent(selectedLocality) : "") + "#services";
+            }
+          }
+        })
+        .catch(function (err) {
+          console.error("Error saving location:", err);
+          window.location.href = "/?district=" + encodeURIComponent(selectedDistrict) + (selectedLocality ? "&locality=" + encodeURIComponent(selectedLocality) : "") + "#services";
+        });
+    }
+
+    if (continueBtn) {
+      continueBtn.addEventListener("click", applyLocation);
+    }
+
+    if (btnTopSaveLocation) {
+      btnTopSaveLocation.addEventListener("click", applyLocation);
     }
 
     // -------------------------------------------------------------
@@ -292,7 +652,6 @@
     if (mobileNavLocationBtn) {
       mobileNavLocationBtn.addEventListener("click", function (e) {
         e.preventDefault();
-        // Close bootstrap collapse if open
         const mainNav = document.getElementById("mainNav");
         if (mainNav && mainNav.classList.contains("show")) {
           const bsCollapse = bootstrap.Collapse.getInstance(mainNav);
@@ -309,7 +668,6 @@
       });
     }
 
-    // Attach to any other "change district" links on the page
     document.querySelectorAll('a[href*="change_district=1"]').forEach(function (link) {
       link.addEventListener("click", function (e) {
         e.preventDefault();
@@ -323,17 +681,12 @@
     const isHomePage = window.location.pathname === "/" || window.location.pathname === "";
     const hasInitialDistrict = !!selectedDistrict;
 
-    // Requirement:
-    // If on home page and NO location is selected yet, display the popup automatically.
-    // If location is already selected, do not show popup again unnecessarily.
     if (isHomePage && !hasInitialDistrict) {
-      // Delay slightly (180ms) for smooth visual entrance
       setTimeout(function () {
         openLocationModal({ mandatory: true });
       }, 180);
     }
 
-    // Expose open function globally for other components if needed
     window.openLocationModal = openLocationModal;
   });
 })();

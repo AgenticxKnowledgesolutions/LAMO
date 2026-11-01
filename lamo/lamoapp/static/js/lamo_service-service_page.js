@@ -1,134 +1,160 @@
-document.addEventListener("DOMContentLoaded", function () {
+/**
+ * LAMO Services Page - Interactive Filtering & UX Enhancements
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    const heroSearchForm = document.getElementById('heroLocationForm') || document.getElementById('heroSearchForm');
+    const heroDistrictSelect = document.getElementById('heroDistrictSelect');
+    const heroSearchInput = document.getElementById('liveServiceSearch') || document.getElementById('heroSearchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const serviceSortSelect = document.getElementById('serviceSortSelect');
+    const priceSlider = document.getElementById('priceRangeSlider');
+    const maxPriceInput = document.getElementById('maxPriceInput');
+    const minPriceInput = document.getElementById('minPriceInput');
+    const servicesGrid = document.getElementById('servicesReferenceGrid');
+    const countDisplay = document.getElementById('servicesCountDisplay');
 
-    const buttons = document.querySelectorAll(".filter-btn");
-    const cards = document.querySelectorAll(".service-card");
-    const grid = document.getElementById("servicesGrid");
-    const search = document.getElementById("serviceSearch");
-
-    /* ---------- FILTERS: animated instead of abrupt display:none ---------- */
-    function applyFilter(filter) {
-        cards.forEach((card, index) => {
-            const featured = card.dataset.featured === "true";
-            const matches = filter === "all" || filter === "available" ||
-                            (filter === "featured" && featured);
-
-            card.classList.remove("filter-show");
-
-            if (matches) {
-                card.classList.remove("filter-hide");
-                card.style.position = "";
-                card.style.animationDelay = `${index * 45}ms`;
-                void card.offsetWidth;
-                card.classList.add("filter-show");
+    // 1. District Selection Auto-Update
+    if (heroDistrictSelect) {
+        heroDistrictSelect.addEventListener('change', function () {
+            if (heroSearchForm) {
+                heroSearchForm.submit();
             } else {
-                card.classList.add("filter-hide");
-                card.style.position = "absolute";
+                const url = new URL(window.location.href);
+                url.searchParams.set('district', this.value);
+                window.location.href = url.toString();
+            }
+        });
+    }
+
+    // 2. Clear Search Input Button
+    if (clearSearchBtn && heroSearchInput) {
+        clearSearchBtn.addEventListener('click', function () {
+            heroSearchInput.value = '';
+            if (heroSearchForm) {
+                heroSearchForm.submit();
+            }
+        });
+    }
+
+    // 3. Sort Dropdown Change
+    if (serviceSortSelect) {
+        serviceSortSelect.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            url.searchParams.set('sort', this.value);
+            window.location.href = url.toString();
+        });
+    }
+
+    // 4. Interactive Price Range Slider
+    if (priceSlider && maxPriceInput) {
+        priceSlider.addEventListener('input', function () {
+            maxPriceInput.value = this.value;
+            applyClientFilters();
+        });
+
+        priceSlider.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            url.searchParams.set('max_price', this.value);
+            window.location.href = url.toString();
+        });
+    }
+
+    if (minPriceInput) {
+        minPriceInput.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            if (this.value) {
+                url.searchParams.set('min_price', this.value);
+            } else {
+                url.searchParams.delete('min_price');
+            }
+            window.location.href = url.toString();
+        });
+    }
+
+    if (maxPriceInput) {
+        maxPriceInput.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            if (this.value) {
+                url.searchParams.set('max_price', this.value);
+            } else {
+                url.searchParams.delete('max_price');
+            }
+            window.location.href = url.toString();
+        });
+    }
+
+    // 5. Client-Side Quick Filter Function (for instantaneous responsiveness)
+    function applyClientFilters() {
+        if (!servicesGrid) return;
+        const maxVal = parseFloat(maxPriceInput ? maxPriceInput.value : 999999) || 999999;
+        const minVal = parseFloat(minPriceInput ? minPriceInput.value : 0) || 0;
+        const cards = servicesGrid.querySelectorAll('.service-reference-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const price = parseFloat(card.getAttribute('data-price')) || 0;
+            const matchesPrice = (price === 0) || (price >= minVal && price <= maxVal);
+
+            if (matchesPrice) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
             }
         });
 
-        /* Keep the grid's natural height when filtering */
-        if (grid) {
-            const visible = [...cards].filter(c => !c.classList.contains("filter-hide"));
-            grid.style.minHeight = visible.length ? "" : "260px";
+        if (countDisplay) {
+            countDisplay.textContent = visibleCount;
         }
     }
 
-    buttons.forEach(button => {
-        button.addEventListener("click", function () {
-            buttons.forEach(btn => btn.classList.remove("active"));
-            this.classList.add("active");
-            applyFilter(this.dataset.filter);
+    // 6. Mobile Filter Drawer Open / Close Controls
+    const btnToggleMobileFilters = document.getElementById('btnToggleMobileFilters');
+    const servicesFilterSidebar = document.getElementById('servicesFilterSidebar');
+    const mobileFilterOverlay = document.getElementById('mobileFilterOverlay');
+    const btnCloseMobileFilter = document.getElementById('btnCloseMobileFilter');
+    const btnApplyMobileFilter = document.getElementById('btnApplyMobileFilter');
+
+    function openMobileFilters() {
+        if (servicesFilterSidebar) servicesFilterSidebar.classList.add('mobile-open');
+        if (mobileFilterOverlay) mobileFilterOverlay.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileFilters() {
+        if (servicesFilterSidebar) servicesFilterSidebar.classList.remove('mobile-open');
+        if (mobileFilterOverlay) mobileFilterOverlay.classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    if (btnToggleMobileFilters) {
+        btnToggleMobileFilters.addEventListener('click', function (e) {
+            e.preventDefault();
+            openMobileFilters();
         });
+    }
+
+    if (btnCloseMobileFilter) {
+        btnCloseMobileFilter.addEventListener('click', function (e) {
+            e.preventDefault();
+            closeMobileFilters();
+        });
+    }
+
+    if (btnApplyMobileFilter) {
+        btnApplyMobileFilter.addEventListener('click', function (e) {
+            e.preventDefault();
+            closeMobileFilters();
+        });
+    }
+
+    if (mobileFilterOverlay) {
+        mobileFilterOverlay.addEventListener('click', closeMobileFilters);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeMobileFilters();
+        }
     });
-
-    /* ---------- LIVE SEARCH ---------- */
-    if (search) {
-        search.addEventListener("input", function () {
-            const value = this.value.toLowerCase().trim();
-
-            cards.forEach((card, index) => {
-                const name = card.querySelector("h3")?.textContent.toLowerCase() || "";
-                const description = card.querySelector(".service-description")?.textContent.toLowerCase() || "";
-                const match = !value || name.includes(value) || description.includes(value);
-
-                if (match) {
-                    card.classList.remove("filter-hide");
-                    card.style.position = "";
-                    card.style.animationDelay = `${index * 35}ms`;
-                    void card.offsetWidth;
-                    card.classList.add("filter-show");
-                } else {
-                    card.classList.remove("filter-show");
-                    card.classList.add("filter-hide");
-                    card.style.position = "absolute";
-                }
-            });
-        });
-    }
-
-    /* ---------- POINTER TILT: subtle premium card interaction ---------- */
-    const finePointer = window.matchMedia("(pointer:fine)").matches;
-
-    if (finePointer) {
-        cards.forEach(card => {
-            card.addEventListener("pointermove", function (e) {
-                if (card.classList.contains("filter-hide")) return;
-
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const rotateY = ((x / rect.width) - .5) * 5;
-                const rotateX = ((y / rect.height) - .5) * -5;
-
-                card.style.transform =
-                    `translateY(-11px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-            });
-
-            card.addEventListener("pointerleave", function () {
-                card.style.transform = "";
-            });
-        });
-    }
-
-    /* ---------- BUTTON RIPPLE ---------- */
-    document.querySelectorAll(".view-service, .cta-btn, .hero-search button, .filter-btn")
-        .forEach(button => {
-            button.addEventListener("click", function (e) {
-                const rect = this.getBoundingClientRect();
-                const ripple = document.createElement("span");
-                const size = Math.max(rect.width, rect.height);
-
-                ripple.style.cssText = `
-                    position:absolute;
-                    width:${size}px;
-                    height:${size}px;
-                    left:${e.clientX - rect.left - size/2}px;
-                    top:${e.clientY - rect.top - size/2}px;
-                    border-radius:50%;
-                    background:rgba(255,255,255,.28);
-                    transform:scale(0);
-                    pointer-events:none;
-                    animation:ripple .55s ease-out forwards;
-                `;
-
-                this.appendChild(ripple);
-                setTimeout(() => ripple.remove(), 600);
-            });
-        });
-
-    /* ---------- SCROLL REVEAL ---------- */
-    if ("IntersectionObserver" in window) {
-        const observer = new IntersectionObserver((entries, obs) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("in-view");
-                    obs.unobserve(entry.target);
-                }
-            });
-        }, {threshold:.12});
-
-        document.querySelectorAll(".services-heading, .service-cta")
-            .forEach(el => observer.observe(el));
-    }
-
 });

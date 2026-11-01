@@ -107,11 +107,11 @@
     // Continuous ribbon with faded edges. Slows on hover,
     // lifts card with green glow, drag or use arrows to move it.
     // -------------------------------------------------------------
-    const kineticStreamWrapper = document.getElementById("kineticStreamWrapper");
+    const kineticStreamWrapper = document.getElementById("servicesCarouselWrapper") || document.getElementById("kineticStreamWrapper");
     let animFrameId = null;
     let streamPos = 0;
-    const normalSpeed = 0.85; // baseline smooth stream speed
-    const hoverSpeed = 0.12;  // slows smoothly on hover
+    const normalSpeed = 0.70; // baseline smooth stream speed
+    const hoverSpeed = 0.0;   // pauses smoothly on hover
     let currentSpeed = normalSpeed;
     let inertiaVelocity = 0;
     let singleSetWidth = 0;
@@ -140,51 +140,40 @@
         el.remove();
       });
 
-      const cards = Array.from(servicesGrid.querySelectorAll(".service-card-mockup:not([data-clone])"));
-      if (cards.length === 0) {
-        singleSetWidth = 0;
-        return;
-      }
-
-      // Do NOT duplicate or stream cards when filtering by category or searching!
-      // When filtering or searching, display clean static result cards without repetition.
-      const isFiltered = (currentCategory && currentCategory !== "all") || (searchInput && searchInput.value.trim().length > 0);
-      const shouldStream = !isFiltered && cards.length >= 4;
-
-      if (!shouldStream) {
-        singleSetWidth = 0;
-        servicesGrid.scrollLeft = 0;
-        if (kineticStreamWrapper) kineticStreamWrapper.classList.remove("has-overflow");
+      const cards = Array.from(servicesGrid.querySelectorAll(".service-card-modern:not([data-clone='true'])"));
+      if (cards.length < 2) {
         if (btnPrevService) btnPrevService.style.display = "none";
         if (btnNextService) btnNextService.style.display = "none";
+        singleSetWidth = 0;
         return;
       }
 
-      // If 4 or more cards (and browsing all services without search), clone once for infinite loop
-      cards.forEach(function (card) {
-        const clone = card.cloneNode(true);
-        clone.setAttribute("data-clone", "true");
-        clone.setAttribute("aria-hidden", "true");
-        clone.setAttribute("tabindex", "-1");
-        servicesGrid.appendChild(clone);
-      });
-
-      if (kineticStreamWrapper) kineticStreamWrapper.classList.add("has-overflow");
-      if (btnPrevService) btnPrevService.style.display = "inline-flex";
-      if (btnNextService) btnNextService.style.display = "inline-flex";
-
-      // Re-measure singleSetWidth after DOM update
       requestAnimationFrame(function () {
-        if (cards.length > 0) {
-          const firstCard = cards[0];
-          const lastCard = cards[cards.length - 1];
-          const firstLeft = firstCard.offsetLeft;
-          const lastRight = lastCard.offsetLeft + lastCard.offsetWidth;
-          singleSetWidth = (lastRight - firstLeft) + 22; // 22px card gap
-        }
+        if (!servicesGrid) return;
+        const freshCards = Array.from(servicesGrid.querySelectorAll(".service-card-modern:not([data-clone='true'])"));
+        if (freshCards.length < 2) return;
 
-        streamPos = servicesGrid.scrollLeft;
-        if (!prefersReducedMotion) {
+        let totalWidth = 0;
+        freshCards.forEach(function (c) {
+          totalWidth += c.offsetWidth + 16;
+        });
+        singleSetWidth = totalWidth;
+
+        const wrapperWidth = servicesGrid.clientWidth || window.innerWidth;
+        if (singleSetWidth > 0) {
+          const cloneMultiplier = Math.max(1, Math.ceil(wrapperWidth / singleSetWidth));
+          for (let m = 0; m < cloneMultiplier; m++) {
+            freshCards.forEach(function (card) {
+              const clone = card.cloneNode(true);
+              clone.setAttribute("data-clone", "true");
+              clone.setAttribute("aria-hidden", "true");
+              clone.tabIndex = -1;
+              servicesGrid.appendChild(clone);
+            });
+          }
+
+          if (btnPrevService) btnPrevService.style.display = "inline-flex";
+          if (btnNextService) btnNextService.style.display = "inline-flex";
           startInfiniteKineticStream();
         }
       });
@@ -351,19 +340,30 @@
       if (btnPrevService) {
         btnPrevService.addEventListener("click", function (e) {
           e.preventDefault();
-          inertiaVelocity -= 14;
+          isHovered = true;
+          inertiaVelocity -= 18;
+          setTimeout(function () { isHovered = false; }, 800);
         });
       }
 
       if (btnNextService) {
         btnNextService.addEventListener("click", function (e) {
           e.preventDefault();
-          inertiaVelocity += 14;
+          isHovered = true;
+          inertiaVelocity += 18;
+          setTimeout(function () { isHovered = false; }, 800);
         });
       }
 
       // Initialize Stream
       setupInfiniteKineticStream();
+      window.addEventListener("load", function () {
+        setTimeout(setupInfiniteKineticStream, 150);
+      });
+      window.addEventListener("resize", function () {
+        clearTimeout(window.__carouselResizeTimer);
+        window.__carouselResizeTimer = setTimeout(setupInfiniteKineticStream, 200);
+      });
     }
 
     // -------------------------------------------------------------
@@ -398,82 +398,77 @@
       let html = "";
       uniqueServices.forEach(function (s) {
         const workerCount = s.worker_count !== undefined ? s.worker_count : 0;
-        const pluralPros = workerCount === 1 ? "" : "s";
-        const districtBadgeText = selectedDistrict
-          ? `${workerCount} worker${pluralPros} available`
-          : "Verified Service";
 
-        // Rating HTML (Actual reviews only)
+        // Overlay icon based on category/name
+        let iconHtml = '<i class="bi bi-tools text-success"></i>';
+        const nLower = (s.name || "").toLowerCase();
+        if (nLower.includes("clean")) iconHtml = '<i class="bi bi-stars text-success"></i>';
+        else if (nLower.includes("electr")) iconHtml = '<i class="bi bi-lightbulb-fill text-warning"></i>';
+        else if (nLower.includes("plumb")) iconHtml = '<i class="bi bi-droplet-fill text-primary"></i>';
+        else if (nLower.includes("ac")) iconHtml = '<i class="bi bi-snow text-info"></i>';
+        else if (nLower.includes("paint")) iconHtml = '<i class="bi bi-paint-bucket text-danger"></i>';
+        else if (nLower.includes("carpent")) iconHtml = '<i class="bi bi-hammer text-brown"></i>';
+        else if (nLower.includes("appliance")) iconHtml = '<i class="bi bi-gear-fill text-secondary"></i>';
+        else if (nLower.includes("garden")) iconHtml = '<i class="bi bi-tree-fill text-success"></i>';
+
+        // Rating HTML - strictly backend driven
         let ratingHtml = "";
-        if (s.review_count && s.review_count > 0 && s.rating) {
-          const revPlural = s.review_count === 1 ? "" : "s";
+        if (s.rating && s.rating > 0) {
           ratingHtml = `
-            <i class="bi bi-star-fill text-warning"></i>
-            <strong>${s.rating.toFixed(1)}</strong>
-            <span>(${s.review_count} review${revPlural})</span>
+            <i class="bi bi-star-fill star-gold"></i>
+            <span class="rating-num">${s.rating.toFixed(1)}</span>
+            ${s.review_count ? `<span class="rating-reviews-count" style="font-size: 11px; color: var(--text-muted, #64748b);">(${s.review_count})</span>` : ""}
           `;
         } else {
-          ratingHtml = `
-            <i class="bi bi-patch-check-fill" style="color: #16a34a;"></i>
-            <span style="color: #065f46; font-weight: 600; font-size: 0.82rem;">Verified Service</span>
-          `;
+          ratingHtml = `<span class="badge-new-service">Verified</span>`;
         }
 
-        // Pricing HTML (Actual starting price only)
-        let priceHtml = "";
-        if (s.starting_price && s.starting_price > 0) {
-          priceHtml = `
-            <span>From </span><strong>₹${Math.round(s.starting_price)}</strong>
-          `;
+        let prosText = "";
+        if (workerCount > 0) {
+          prosText = `(${workerCount} pro${workerCount > 1 ? "s" : ""})`;
         } else {
-          priceHtml = `
-            <span style="color: #64748b; font-size: 0.85rem; font-weight: 500;">Price on request</span>
-          `;
+          const currentDistrict = (districtSelect && districtSelect.value) ? districtSelect.value : "";
+          prosText = currentDistrict ? "(No pros in area)" : "(Pros on call)";
         }
 
         // Image with category fallback
         let imageSrc = s.image_url;
         if (!imageSrc) {
-          const n = (s.name || "").toLowerCase();
-          if (n.includes("plumb")) imageSrc = "/static/img/plumber.webp";
-          else if (n.includes("electr")) imageSrc = "/static/img/electrician.webp";
-          else if (n.includes("clean")) imageSrc = "/static/img/cleaning.png";
-          else if (n.includes("paint")) imageSrc = "/static/img/painter.webp";
-          else if (n.includes("ac")) imageSrc = "/static/img/ac-repair.webp";
-          else if (n.includes("carpent")) imageSrc = "/static/img/carpenter.webp";
-          else if (n.includes("appliance")) imageSrc = "/static/img/appliance.webp";
+          if (nLower.includes("plumb")) imageSrc = "/static/img/plumber.webp";
+          else if (nLower.includes("electr")) imageSrc = "/static/img/electrician.webp";
+          else if (nLower.includes("clean")) imageSrc = "/static/img/cleaning.png";
+          else if (nLower.includes("paint")) imageSrc = "/static/img/painter.webp";
+          else if (nLower.includes("ac")) imageSrc = "/static/img/ac-repair.webp";
+          else if (nLower.includes("carpent")) imageSrc = "/static/img/carpenter.webp";
+          else if (nLower.includes("appliance")) imageSrc = "/static/img/appliance.webp";
           else imageSrc = "/static/img/general.png";
         }
         let imageHtml = `<img src="${imageSrc}" alt="${escapeHtml(s.name)}" loading="lazy" onerror="this.onerror=null;this.src='/static/img/general.png';">`;
 
         html += `
           <a href="${s.url}" 
-             class="service-card-mockup" 
+             class="service-card-modern" 
              data-id="${s.id}"
              data-name="${escapeHtml(s.name).toLowerCase()}" 
-             data-desc="${escapeHtml(s.description || "").toLowerCase()}"
-             data-category="${escapeHtml(s.category || "")}">
+             data-desc="${escapeHtml(s.description || '').toLowerCase()}"
+             data-category="${escapeHtml(s.category || '')}">
 
-            <div class="service-mockup-thumb">
-              <span class="available-pros-pill">
-                <i class="bi bi-check-circle-fill text-success me-1"></i>
-                ${districtBadgeText}
-              </span>
+            <div class="service-card-thumb">
+              <div class="service-cat-overlay-icon">
+                ${iconHtml}
+              </div>
               ${imageHtml}
             </div>
 
-            <div class="service-mockup-body">
-              <h3 class="service-mockup-title">${escapeHtml(s.name)}</h3>
-              <div class="service-mockup-rating">
+            <div class="service-card-body">
+              <h3 class="service-card-title">${escapeHtml(s.name)}</h3>
+              <div class="service-card-rating">
                 ${ratingHtml}
+                <span class="rating-pros-count">${prosText}</span>
               </div>
-              <div class="service-mockup-footer">
-                <div class="service-mockup-price">
-                  ${priceHtml}
-                </div>
-                <div class="service-mockup-arrow" title="${selectedDistrict ? 'View available workers' : 'View service details'}">
-                  <i class="bi bi-arrow-right"></i>
-                </div>
+              <div class="service-card-action">
+                <span>View Workers</span>
+                <i class="bi bi-arrow-right"></i>
               </div>
             </div>
 
@@ -878,19 +873,61 @@
     });
 
     // -------------------------------------------------------------
-    // 7. NAVBAR SCROLL EFFECT (Glassmorphic to Greenish on Scroll)
+    // 7. NAVBAR GLASSMORPHISM & LOGO POLISH
     // -------------------------------------------------------------
+    const navLogo = document.querySelector(".lamo-navbar-logo");
+    if (navLogo && (!navLogo.src || navLogo.src.includes("logoo.png"))) {
+      navLogo.src = "/static/img/lamo_logo_dark.png";
+    }
+
     const navbar = document.querySelector(".navbar");
     if (navbar) {
       function handleNavbarScroll() {
-        if (window.scrollY > 40) {
+        if (window.scrollY > 30) {
           navbar.classList.add("navbar-scrolled");
+          navbar.classList.add("scrolled");
         } else {
           navbar.classList.remove("navbar-scrolled");
+          navbar.classList.remove("scrolled");
         }
       }
       window.addEventListener("scroll", handleNavbarScroll, { passive: true });
       handleNavbarScroll();
+    }
+
+    // -------------------------------------------------------------
+    // 8. SCROLL-TRIGGERED SECTION ANIMATIONS (IntersectionObserver)
+    // -------------------------------------------------------------
+    const revealElements = document.querySelectorAll(".scroll-reveal, .scroll-reveal-scale, .stagger-children");
+
+    if ("IntersectionObserver" in window) {
+      const revealObserver = new IntersectionObserver(
+        function (entries, observer) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-visible");
+              const innerStaggers = entry.target.querySelectorAll(".stagger-children");
+              innerStaggers.forEach(function (stagger) {
+                stagger.classList.add("is-visible");
+              });
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        {
+          root: null,
+          threshold: 0.1,
+          rootMargin: "0px 0px -40px 0px",
+        }
+      );
+
+      revealElements.forEach(function (el) {
+        revealObserver.observe(el);
+      });
+    } else {
+      revealElements.forEach(function (el) {
+        el.classList.add("is-visible");
+      });
     }
 
     // Expose for external controls such as the location modal

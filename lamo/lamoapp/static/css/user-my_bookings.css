@@ -17,25 +17,22 @@
 }
 
 /* =========================================================
-   NAVBAR & HEADER OVERLAP FIX
+   NAVBAR & HEADER OVERLAP FIX (Matches home.html Frosted Glass)
    ========================================================= */
 .site-header {
-    min-height: 85px !important;
-    background-color: #064d3a !important;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
-}
-
-.navbar {
-    background-color: #064d3a !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    position: relative !important;
+    box-shadow: none !important;
 }
 
 /* BASE PAGE */
 .bookings-page {
-    min-height: calc(100vh - 85px);
-    padding: 32px 20px 80px;
+    min-height: calc(100vh - 72px);
+    padding: 24px 20px 80px;
     background: var(--booking-bg);
 }
 

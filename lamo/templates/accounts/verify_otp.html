@@ -26,11 +26,15 @@
 <div class="verify-visual">
     <img src="{% static 'img/logoo.png' %}" alt="LAMO Logo" class="brand-mark brand-mark-logo">
     <div class="visual-copy">
-        <p class="visual-eyebrow">LAMO • Secure account</p>
-        <h1 class="visual-title">One last step to get started.</h1>
+        <p class="visual-eyebrow">LAMO • {% if has_pending_booking %}Booking Confirmation{% else %}Secure account{% endif %}</p>
+        <h1 class="visual-title">{% if has_pending_booking %}Verify email &amp; complete booking.{% else %}One last step to get started.{% endif %}</h1>
         <p class="visual-text">
+            {% if has_pending_booking %}
+            Verify your email to securely set up your customer account. Your booking will be automatically confirmed!
+            {% else %}
             Confirm your email address and keep your account protected.
             Enter the 6-digit code we sent to your inbox.
+            {% endif %}
         </p>
     </div>
     <div class="visual-badge">
@@ -46,10 +50,14 @@
         </div>
 
         <!-- Heading -->
-        <h2 class="verify-title">Verify your email</h2>
+        <h2 class="verify-title">{% if has_pending_booking %}Verify Email &amp; Confirm Booking{% else %}Verify your email{% endif %}</h2>
 
         <p class="verify-subtitle">
+            {% if has_pending_booking %}
+            Enter the 6-digit verification code sent to your email to activate your account and confirm your booking request.
+            {% else %}
             We've sent a 6-digit verification code to your email address.
+            {% endif %}
         </p>
 
         <!-- Email -->

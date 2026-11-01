@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 import os
+import sys
 import warnings
 
 from django.core.exceptions import ImproperlyConfigured
@@ -516,7 +517,14 @@ def _database_from_url(url):
 
 DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 
-if DATABASE_URL:
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+elif DATABASE_URL:
     DATABASES = {'default': _database_from_url(DATABASE_URL)}
 else:
     _DB_ENGINE = os.getenv('DJANGO_DB_ENGINE', 'django.db.backends.mysql')
@@ -854,8 +862,19 @@ LOGGING = {
 # ============================================================
 # WEB PUSH NOTIFICATIONS (VAPID)
 # ============================================================
-VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
-VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.getenv(
+    'VAPID_PUBLIC_KEY',
+    'BJ7D-7FB8ipY1baSMKqQRp6DkgrqzLmeZBGPECeFm-JyNveYQHcbHeC5gxb8h5hhBZxZstEHgVfsXyPct55mIY8'
+)
+VAPID_PRIVATE_KEY = os.getenv(
+    'VAPID_PRIVATE_KEY',
+    os.getenv('VAPID_PRIVATE_KEY', '')
+)
 VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@lamo.in')
+
+# ============================================================
+# SMS / MOBILE OTP GATEWAY
+# ============================================================
+SMS_OTP_ENABLED = os.getenv('SMS_OTP_ENABLED', 'False').lower() in ('true', '1', 'yes')
 
 

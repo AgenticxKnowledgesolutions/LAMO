@@ -81,6 +81,15 @@
         right: 0 !important;
       }
     }
+
+    body.mobile-nav-open #ai-assistant-widget,
+    body:has(#mainNav.show) #ai-assistant-widget,
+    body:has(#mainNav.collapsing) #ai-assistant-widget {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
   </style>
   <div id="ai-assistant-widget" style="position: fixed; bottom: 25px; right: 25px; z-index: 9999;">
     <button id="ai-assistant-toggle" title="AI Service Matcher" aria-label="Open AI Service Matcher" aria-expanded="false" aria-controls="ai-chat-box" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #087f5b 0%, #056b4d 100%); color: white; border: none; box-shadow: 0 8px 24px rgba(8,127,91,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.3s ease;">

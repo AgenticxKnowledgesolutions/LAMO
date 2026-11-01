@@ -94,7 +94,11 @@ def _record_expiry(key, lockout_seconds):
 
 def lockout_seconds_remaining(key):
     """Seconds left on the counter's window, or 0 when it is not set."""
-    deadline = cache.get(_expiry_key(key))
+    try:
+        deadline = cache.get(_expiry_key(key))
+    except Exception as exc:
+        logger.warning('Cache read failed for key=%s: %s', key[:12], exc)
+        return 0
     if deadline is None:
         return 0
     try:
@@ -115,22 +119,40 @@ def register_failure(key, threshold, lockout_seconds):
 
     Returns ``(is_locked, minutes_remaining)``.
     """
-    if cache.get(key) is None:
+    try:
+        current_val = cache.get(key)
+    except Exception as exc:
+        logger.warning('Cache read failed for key=%s: %s', key[:12], exc)
+        return False, 0
+
+    if current_val is None:
         # First failure creates the sliding window.
-        cache.set(key, 1, lockout_seconds)
-        _record_expiry(key, lockout_seconds)
+        try:
+            cache.set(key, 1, lockout_seconds)
+            _record_expiry(key, lockout_seconds)
+        except Exception:
+            pass
     else:
         try:
             cache.incr(key)
         except ValueError:
             # Key expired between get() and incr(); start a new window.
-            cache.set(key, 1, lockout_seconds)
-            _record_expiry(key, lockout_seconds)
+            try:
+                cache.set(key, 1, lockout_seconds)
+                _record_expiry(key, lockout_seconds)
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.warning('Cache incr failed for key=%s: %s', key[:12], exc)
+            return False, 0
 
     if is_rate_limited(key, threshold):
         # Refresh the window so the lockout is measured from the last failure.
-        cache.set(key, cache.get(key), lockout_seconds)
-        _record_expiry(key, lockout_seconds)
+        try:
+            cache.set(key, cache.get(key), lockout_seconds)
+            _record_expiry(key, lockout_seconds)
+        except Exception:
+            pass
         logger.warning('Rate limit reached for key=%s', key[:12])
         return True, minutes_remaining(key)
 
@@ -141,30 +163,34 @@ def register_attempt_within_window(key, maximum, window_seconds):
     """Count an event inside a FIXED window (used for OTP resends / AI / etc.).
 
     Returns ``(allowed, minutes_remaining)``.
-
-    The window is created on the FIRST event and then left alone: neither the
-    counter's TTL nor the recorded deadline is refreshed by later events.
-    Refreshing them turned this into a *sliding* window, so a client that kept
-    hitting the endpoint never let the counter expire - once the limit was hit,
-    every retry pushed the reset a full window further out and the caller could
-    be locked out forever. A fixed window expires ``window_seconds`` after the
-    first event, which is what the callers (OTP resend, AI quota, emergency and
-    contact abuse limits) actually expect.
     """
-    existing = cache.get(key)
+    try:
+        existing = cache.get(key)
+    except Exception as exc:
+        logger.warning('Cache read failed for key=%s: %s', key[:12], exc)
+        return True, 0
 
     if existing is None:
         # First event opens the window and starts its clock.
-        cache.set(key, 1, window_seconds)
-        _record_expiry(key, window_seconds)
+        try:
+            cache.set(key, 1, window_seconds)
+            _record_expiry(key, window_seconds)
+        except Exception:
+            pass
         return True, 0
 
     try:
         count = cache.incr(key)
     except ValueError:
         # Key expired between get() and incr(): start a fresh window.
-        cache.set(key, 1, window_seconds)
-        _record_expiry(key, window_seconds)
+        try:
+            cache.set(key, 1, window_seconds)
+            _record_expiry(key, window_seconds)
+        except Exception:
+            pass
+        return True, 0
+    except Exception as exc:
+        logger.warning('Cache incr failed for key=%s: %s', key[:12], exc)
         return True, 0
 
     if count > maximum:
@@ -174,16 +200,25 @@ def register_attempt_within_window(key, maximum, window_seconds):
 
 def check_cooldown(key, cooldown_seconds):
     """True when ``key`` was touched too recently to allow another event."""
-    return cache.get(key) is not None
+    try:
+        return cache.get(key) is not None
+    except Exception:
+        return False
 
 
 def start_cooldown(key, cooldown_seconds):
-    cache.set(key, timezone.now().isoformat(), cooldown_seconds)
+    try:
+        cache.set(key, timezone.now().isoformat(), cooldown_seconds)
+    except Exception:
+        pass
 
 
 def clear(key):
-    cache.delete(key)
-    cache.delete(_expiry_key(key))
+    try:
+        cache.delete(key)
+        cache.delete(_expiry_key(key))
+    except Exception:
+        pass
 
 
 # Key builders - one place to look for what is rate limited.

@@ -98,6 +98,47 @@
 
         </div>
 
+        {% if active_booking %}
+        <!-- =================================================
+             ONGOING JOB LIVE TRACKER
+             Uber/Swiggy style live tracking banner
+        ================================================== -->
+        <div class="active-job-tracker" style="background: linear-gradient(135deg, #022c1e 0%, #064e3b 100%); border-radius: 18px; padding: 18px 24px; color: #ffffff; margin: 0 0 24px; box-shadow: 0 10px 30px rgba(6, 78, 59, 0.18); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(52, 211, 153, 0.2); border: 1.5px solid #34d399; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #34d399;">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #a7f3d0; display: flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #34d399;"></span>
+                        Active Ongoing Booking
+                    </div>
+                    <div style="font-size: 16.5px; font-weight: 800; color: #ffffff;">
+                        {{ active_booking.service.name }}
+                        {% if active_booking.worker and active_booking.worker.user %}
+                            &bull; Worker: {{ active_booking.worker.user.get_full_name|default:active_booking.worker.user.username }}
+                        {% endif %}
+                    </div>
+                    <small style="color: rgba(255,255,255,0.8); font-size: 12.5px;">
+                        Scheduled: {{ active_booking.date|date:"M d, Y" }} at {{ active_booking.time }}
+                    </small>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                {% if active_booking.arrival_otp and active_booking.status == 'ACCEPTED' %}
+                <div style="background: rgba(255,255,255,0.12); border: 1px dashed rgba(255,255,255,0.3); border-radius: 10px; padding: 6px 14px; text-align: center;">
+                    <span style="font-size: 10.5px; color: #a7f3d0; display: block; font-weight: 600;">Doorstep Security PIN</span>
+                    <strong style="font-size: 17px; letter-spacing: 2px; color: #ffffff;">{{ active_booking.arrival_otp }}</strong>
+                </div>
+                {% endif %}
+
+                <a href="{% url 'my_bookings' %}?booking_id={{ active_booking.id }}" style="padding: 10px 20px; border-radius: 10px; background: #34d399; color: #022c1e; font-weight: 800; font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.2);">
+                    Track &amp; PIN <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- =================================================
              STATISTICS
@@ -172,8 +213,7 @@
                 </div>
 
                 {% for b in emergency_bookings %}
-
-                <div class="booking emergency-booking">
+                <a href="{% url 'my_bookings' %}?booking_id={{ b.id }}" class="booking emergency-booking" style="text-decoration:none; cursor:pointer;" title="View emergency booking details">
                     <div class="booking-icon emergency-icon">
                         <i class="bi bi-lightning-charge-fill"></i>
                     </div>
@@ -199,8 +239,8 @@
                             {{ b.get_status_display }}
                         {% endif %}
                     </span>
-                </div>
-
+                    <i class="bi bi-chevron-right text-muted ms-2" style="font-size:14px;"></i>
+                </a>
                 {% endfor %}
 
             </div>
@@ -243,62 +283,35 @@
 
 
                     {% for b in bookings %}
-
-
-                    <div class="booking">
-
-
+                    <a href="{% url 'my_bookings' %}?booking_id={{ b.id }}" class="booking" style="text-decoration:none; cursor:pointer;" title="Click to view details and Doorstep Security PIN">
                         <div class="booking-icon">
-
                             <i class="bi bi-tools"></i>
-
                         </div>
-
 
                         <div class="booking-info">
-
                             <div class="booking-name">
-
                                 {{ b.service.name }}
-
                             </div>
-
 
                             <div class="booking-date">
-
                                 <i class="bi bi-calendar3"></i>
-
                                 {{ b.date }}
-
                             </div>
-
                         </div>
-
 
                         <span
                             class="booking-status
-
                             {% if b.status == 'COMPLETED' %}
-
                                 status-completed
-
                             {% elif b.status == 'EMERGENCY_PENDING' %}
-
                                 status-emergency
-
                             {% elif b.status == 'PENDING' or b.status == 'ACCEPTED' or b.status == 'IN_PROGRESS' %}
-
                                 status-progress
-
                             {% else %}
-
                                 status-pending
-
                             {% endif %}
-
                             "
                         >
-
                             {% if b.status == 'EMERGENCY_PENDING' %}
                                 Finding Worker
                             {% elif b.status == 'ACCEPTED' and b.booking_type == 'Emergency' %}
@@ -306,13 +319,9 @@
                             {% else %}
                                 {{ b.get_status_display }}
                             {% endif %}
-
                         </span>
-
-
-                    </div>
-
-
+                        <i class="bi bi-chevron-right text-muted ms-2" style="font-size:14px;"></i>
+                    </a>
                     {% endfor %}
 
 

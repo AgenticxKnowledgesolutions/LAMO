@@ -1,0 +1,485 @@
+/* ============================================================
+   LAMO LIVE ROUTE MAP & TRACKING SYSTEM (LEAFLET / OSM)
+   ============================================================ */
+
+.lamo-tracking-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  z-index: 10600 !important;
+  display: none;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding: 24px 16px !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+
+.lamo-tracking-modal.show,
+.lamo-tracking-modal[style*="display: block"] {
+  display: flex !important;
+}
+
+.modal-backdrop.show:last-of-type {
+  z-index: 10550 !important;
+}
+
+.lamo-tracking-modal .modal-dialog {
+  width: 100% !important;
+  max-width: 820px !important;
+  margin: 0 auto !important;
+  position: relative !important;
+  z-index: 10601 !important;
+  box-sizing: border-box !important;
+}
+
+.lamo-tracking-modal .modal-content {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  width: 100% !important;
+}
+
+.lamo-tracking-modal .modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 1rem 1.4rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.lamo-tracking-modal .btn-close,
+.lamo-tracking-modal .tracking-btn-close {
+  background: transparent !important;
+  border: none !important;
+  font-size: 1.25rem !important;
+  cursor: pointer !important;
+  color: #64748b !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.lamo-tracking-modal .btn-close:before {
+  content: '✕';
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.lamo-tracking-modal .btn-close:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.lamo-tracking-modal .row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin: 0 !important;
+}
+
+.lamo-tracking-modal .col-12.col-md-5 {
+  flex: 1 1 280px !important;
+  max-width: 100% !important;
+}
+
+.lamo-tracking-modal .col-12.col-md-7 {
+  flex: 1 1 320px !important;
+  max-width: 100% !important;
+}
+
+.lamo-tracking-modal .d-flex {
+  display: flex !important;
+}
+
+.lamo-tracking-modal .align-items-center {
+  align-items: center !important;
+}
+
+.lamo-tracking-modal .justify-content-between {
+  justify-content: space-between !important;
+}
+
+.lamo-tracking-modal .gap-2 {
+  gap: 8px !important;
+}
+
+.lamo-tracking-modal .gap-3 {
+  gap: 12px !important;
+}
+
+.tracking-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(8, 127, 91, 0.12);
+  color: #087f5b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.tracking-modal-title {
+  font-size: 1.15rem;
+  color: #1e293b;
+  letter-spacing: -0.3px;
+}
+
+.tracking-header-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.tracking-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #065f46;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.tracking-live-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.5);
+  animation: trackingPulseRing 1.8s infinite;
+}
+
+@keyframes trackingPulseRing {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Status & Telemetry Bar */
+.tracking-telemetry-bar {
+  padding: 0.65rem 1.4rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tracking-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #087f5b 0%, #056b4d 100%);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 6px rgba(8, 127, 91, 0.25);
+}
+
+.tracking-service-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.tracking-otp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.78rem;
+}
+
+.tracking-otp-pill strong {
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  color: #1d4ed8;
+  font-family: monospace;
+}
+
+/* Leaflet Map Wrapper */
+.tracking-map-wrapper {
+  width: 100%;
+  height: 320px;
+  background: #e2e8f0;
+  position: relative;
+}
+
+#lamoTrackingMap {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Loader Overlay */
+.tracking-map-loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tracking-map-loader.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Recenter Button */
+.btn-tracking-recenter {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 500;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-tracking-recenter:hover {
+  background: #087f5b;
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+/* Summary Panel */
+.tracking-summary-panel {
+  padding: 1.2rem 1.4rem;
+  background: #ffffff;
+}
+
+.tracking-avatar-wrap {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.tracking-worker-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #10b981;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+}
+
+.tracking-online-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+}
+
+.tracking-rating-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1e293b;
+  background: #fef3c7;
+  padding: 1px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Metric Boxes */
+.tracking-metric-box {
+  text-align: center;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  min-width: 90px;
+}
+
+.tracking-metric-box .metric-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.tracking-metric-box .metric-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-top: 1px;
+}
+
+.tracking-metric-box .metric-value.highlight {
+  color: #087f5b;
+}
+
+/* Action Buttons */
+.btn-tracking-call {
+  background: #087f5b;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(8, 127, 91, 0.25);
+}
+
+.btn-tracking-call:hover {
+  background: #066649;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-tracking-nav {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  box-shadow: 0 3px 8px rgba(59, 130, 246, 0.25);
+}
+
+.btn-tracking-nav:hover {
+  background: #2563eb;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Custom Marker Pins for Leaflet */
+.leaflet-customer-pin {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 3px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
+  font-size: 17px;
+  position: relative;
+}
+
+.leaflet-customer-pin::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #10b981;
+  animation: customerRadar 2s ease-out infinite;
+}
+
+@keyframes customerRadar {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.leaflet-worker-pin {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 3px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(2, 132, 199, 0.45);
+  font-size: 20px;
+  transition: transform 0.5s ease-out;
+}
+
+/* Button to trigger tracking modal from Booking Card */
+.btn-lamo-track-map {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff !important;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+  text-decoration: none;
+}
+
+.btn-lamo-track-map:hover {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+}
+
+@media (max-width: 768px) {
+  .tracking-map-wrapper {
+    height: 310px;
+  }
+  .tracking-metric-box {
+    padding: 4px 8px;
+    min-width: 70px;
+  }
+  .tracking-metric-box .metric-value {
+    font-size: 0.92rem;
+  }
+}

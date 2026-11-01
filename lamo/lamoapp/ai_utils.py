@@ -86,7 +86,7 @@ def _call_gemini_api(prompt_text):
     # and Google, which is a far wider blast radius than the app's own logs.
     url = (
         "https://generativelanguage.googleapis.com/"
-        "v1beta/models/gemini-2.0-flash:generateContent"
+        "v1beta/models/gemini-2.5-flash:generateContent"
     )
 
     payload = {
@@ -129,7 +129,7 @@ def _call_gemini_api(prompt_text):
         # logged (it is credential-free now, but the habit is what protects the
         # key), and the response body can echo request details back.
         logger.warning(
-            'gemini_http_error status=%s model=gemini-2.0-flash',
+            'gemini_http_error status=%s model=gemini-2.5-flash',
             exc.code,
         )
         return None
@@ -707,6 +707,12 @@ def geocode_place(place_name, district=None, state='Kerala'):
     place_value = (place_name or '').strip()
     if not place_value:
         return None, None
+
+    # Check local comprehensive Kerala locality dataset first for instant accurate coordinates
+    from .location_data import get_locality_coordinates
+    local_coords = get_locality_coordinates(district, place_value)
+    if local_coords and local_coords[0] is not None:
+        return local_coords
 
     query = place_value
     if district:

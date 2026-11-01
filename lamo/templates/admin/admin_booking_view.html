@@ -56,6 +56,37 @@ Booking details and information
 
         <div class="detail-grid">
 
+            {% if booking.status == 'DISPUTED' %}
+            <div class="detail-card full" style="border: 1px solid #fca5a5; background: #fff1f2; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <h3 style="color: #991b1b; margin-bottom: 6px; font-size: 16px; font-weight: 700;">
+                            <i class="bi bi-exclamation-octagon-fill me-2"></i> Dispute Awaiting Resolution
+                        </h3>
+                        <p style="color: #7f1d1d; margin: 0; font-size: 13px; line-height: 1.5;">
+                            <strong>Customer Dispute Reason:</strong> {{ booking.dispute_reason|default:"Customer disputed completion amount or service quality." }}
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <form method="POST" style="display: inline;" onsubmit="return confirm('Resolve dispute by confirming service completion and settling financials?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="resolve_complete">
+                            <button type="submit" class="btn btn-sm btn-success" style="background:#059669; border:none; color:#fff; font-weight:600; padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+                                <i class="bi bi-check-circle-fill me-1"></i> Resolve: Mark Completed
+                            </button>
+                        </form>
+                        <form method="POST" style="display: inline;" onsubmit="return confirm('Resolve dispute by cancelling booking and initiating customer refund if paid?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="resolve_cancel">
+                            <button type="submit" class="btn btn-sm btn-danger" style="background:#dc2626; border:none; color:#fff; font-weight:600; padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+                                <i class="bi bi-x-circle-fill me-1"></i> Resolve: Cancel & Refund
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
 
             <!-- BOOKING -->
 

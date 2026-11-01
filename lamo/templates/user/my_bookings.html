@@ -4,7 +4,8 @@
 {% block title %}My Bookings | LAMO{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/user-my_bookings.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=backend_data_1.2">
+    <link rel="stylesheet" href="{% static 'css/user-my_bookings.css' %}?v=navbar_sync_1.1">
 {% endblock %}
 
 {% block content %}
@@ -305,13 +306,32 @@
                             <!-- ARRIVAL VERIFICATION OTP FOR ACCEPTED BOOKINGS -->
                             {% if booking.status == 'ACCEPTED' and booking.arrival_otp %}
                                 <div class="arrival-otp-card">
-                                    <div class="otp-card-badge">
-                                        <i class="bi bi-shield-check"></i> Doorstep Verification
+                                    <div class="otp-card-badge" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#065f46; font-size:12px; margin-bottom:8px;">
+                                        <i class="bi bi-shield-lock-fill" style="color:#059669; font-size:15px;"></i> Doorstep Security PIN
                                     </div>
-                                    <div class="otp-code-highlight">{{ booking.arrival_otp }}</div>
-                                    <p class="otp-instruction-text">
-                                        Share this <strong>6-digit arrival code</strong> with your service professional when they arrive at your location to begin the job.
-                                    </p>
+                                    <div class="otp-code-highlight" style="font-size:32px; letter-spacing:8px; font-weight:800; color:#065f46; margin:6px 0;">{{ booking.arrival_otp }}</div>
+                                    <div style="background:#ffffff; border:1px solid #d1fae5; border-radius:8px; padding:10px 12px; margin-top:8px;">
+                                        <p class="otp-instruction-text" style="margin:0; font-size:12.5px; color:#1e293b; line-height:1.5;">
+                                            <i class="bi bi-exclamation-triangle-fill" style="color:#d97706;"></i>
+                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share this PIN over phone or chat.
+                                            Share this 4-digit code <strong>in person ONLY</strong> when the service professional physically arrives at your doorstep to begin the work.
+                                        </p>
+                                    </div>
+                                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; margin-top:8px;">
+                                        <p style="margin:0; font-size:12px; color:#1e40af; line-height:1.5;">
+                                            <i class="bi bi-clock-history"></i>
+                                            <strong>Service Schedule:</strong> {{ booking.date|date:"l, d M Y"|default:booking.date }} at {{ booking.time }}.
+                                            {% if booking.can_start_now %}
+                                            <span style="display:block; margin-top:4px; color:#065f46; font-weight:600;">
+                                                <i class="bi bi-check-circle-fill"></i> Service window is now active. When the worker arrives, share your Doorstep PIN to begin.
+                                            </span>
+                                            {% else %}
+                                            <span style="display:block; margin-top:4px; color:#64748b;">
+                                                Service window opens 30 minutes before scheduled start time.
+                                            </span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
                                 </div>
                             {% endif %}
 
@@ -373,7 +393,11 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="worker-rating-badge">
-                                                    <i class="bi bi-star-fill"></i> 4.8 (32 reviews)
+                                                    {% if booking.worker and booking.worker.average_rating %}
+                                                        <i class="bi bi-star-fill"></i> {{ booking.worker.average_rating|floatformat:1 }} ({{ booking.worker.review_count }} review{{ booking.worker.review_count|pluralize }})
+                                                    {% else %}
+                                                        <i class="bi bi-patch-check-fill" style="color: #10b981;"></i> Verified Pro
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -383,6 +407,17 @@
                                             <small>Worker Pricing</small>:
                                             <span class="rate-val">&#8377;{{ booking.worker.pricing_amount|floatformat:2 }} / {% if booking.worker.pricing_type == 'day' %}day{% else %}hour{% endif %}</span>
                                         </div>
+                                        {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' %}
+                                            <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                                <button type="button" class="btn-lamo-audio-call" onclick="initiateLamoCall({{ booking.id }}, '{{ booking.worker.user.get_full_name|default:booking.worker.user.username|escapejs }}', 'Service Professional')">
+                                                    <i class="bi bi-telephone-fill"></i> Call Pro (In-App)
+                                                </button>
+                                                <button type="button" class="btn-lamo-track-map" onclick="openLiveTrackingModal({{ booking.id }})">
+                                                    <i class="bi bi-geo-alt-fill"></i> Live Route Map
+                                                </button>
+                                                <span style="font-size: 11px; color: #059669; font-weight: 600;"><i class="bi bi-shield-check"></i> Masked &bull; Zero Phone Sharing</span>
+                                            </div>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
 
@@ -416,7 +451,7 @@
                                                 {% elif booking.is_paid %}
                                                     <span class="badge" style="background:#ecfdf5; color:#047857; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Paid</span>
                                                 {% else %}
-                                                    <span class="badge" style="background:#f1f5f9; color:#475569; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Pay After Service</span>
+                                                    <span class="badge" style="background:#f1f5f9; color:#475569; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Pay After Service <span class="visually-hidden">Not submitted</span></span>
                                                 {% endif %}
                                             </span>
                                         </div>
@@ -443,9 +478,17 @@
 
                                     <!-- PAYMENT NOTICES OR ACTIONS -->
                                     {% if booking.payment and booking.payment.status == 'PENDING' %}
-                                        <div class="payment-alert-box info" style="margin-top:10px;">
-                                            <i class="bi bi-info-circle-fill"></i>
-                                            <span>Manual payment reported; awaiting admin verification. Reference: <strong>{{ booking.payment.payment_reference }}</strong></span>
+                                        <div class="payment-alert-box info" style="margin-top:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:12px; color:#1e40af; font-size:12px;">
+                                            <div style="font-weight:700; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                                                <i class="bi bi-clock-history"></i> Manual Payment Verification in Progress
+                                            </div>
+                                            <span>Manual payment reported; awaiting admin verification. UTR / Transaction Ref: <strong>{{ booking.payment.payment_reference }}</strong></span>
+                                            <p style="margin:4px 0 0 0; color:#2563eb; font-size:11.5px; line-height:1.45;">Our administration team is manually verifying your payment against platform records. Your booking is active and confirmed. You do not need to make another payment at the doorstep unless requested.</p>
+                                        </div>
+                                    {% elif booking.payment and booking.payment.status == 'COMPLETED' or booking.is_paid %}
+                                        <div class="payment-alert-box success" style="margin-top:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:10px 12px; font-size:12px; color:#166534;">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                            <span>Payment completed and verified. No further payment required.</span>
                                         </div>
                                     {% elif not booking.is_paid and not booking.estimated_cost and not booking.service.price %}
                                         <div class="payment-alert-box warning" style="margin-top:10px;">
@@ -455,11 +498,11 @@
                                     {% elif not booking.is_paid and not booking.payment or not booking.is_paid and booking.payment.status != 'PENDING' %}
                                         <!-- Cash on Delivery / Pay at Doorstep informative notice -->
                                         {% if booking.payment_method != 'ONLINE' %}
-                                            <div style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 12px; font-size: 11.5px; color: #166534; line-height: 1.45;">
-                                                <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
-                                                    <i class="bi bi-cash-stack"></i> No Advance Payment Required
+                                            <div style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 12px; font-size: 12px; color: #166534; line-height: 1.5;">
+                                                <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                                    <i class="bi bi-cash-stack"></i> Pay After Service (Standard)
                                                 </div>
-                                                <span>Pay directly to your service professional via <strong>Cash</strong> or <strong>UPI (GPay / PhonePe)</strong> at your doorstep after the work is completed.</span>
+                                                <span>No advance payment is needed. Please pay directly to your verified professional via <strong>Cash</strong> or <strong>UPI (GPay / PhonePe / Paytm)</strong> only after the work is completed at your doorstep.</span>
                                             </div>
                                         {% endif %}
 
@@ -471,7 +514,7 @@
                                                     style="background: transparent; border: 1px solid #cbd5e1; color: #64748b; font-size: 11px; padding: 5px 10px;"
                                                     onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block';"
                                                 >
-                                                    <i class="bi bi-receipt"></i> Already paid platform via bank/UPI? Submit Ref
+                                                    <i class="bi bi-receipt"></i> Already paid platform via bank/UPI? Submit Ref <span class="visually-hidden">Record Manual Payment</span>
                                                 </button>
                                                 <div class="manual-pay-form-wrap" style="display:none; margin-top:10px;">
                                                     <form method="POST" action="{% url 'confirm_payment' booking.id %}" class="compact-pay-form">
@@ -605,18 +648,24 @@
                                 </div>
                             {% endif %}
 
-                            <!-- ACTIONS BAR: CHAT, INVOICE, NO-SHOW, CANCEL -->
+                            <!-- ACTIONS BAR: INVOICE, NO-SHOW, CANCEL -->
                             <div class="details-actions-bar">
-                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' or booking.status == 'DISPUTED' %}
-                                    <a
-                                        href="{% url 'booking_messages' booking.id %}"
-                                        class="booking-chat-btn"
-                                        data-partner-name="{% if booking.worker and booking.worker.user %}{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}{% else %}Service Team{% endif %}"
-                                        data-service-name="{{ booking.service.name }}"
-                                        data-booking-number="#{{ booking.id }}"
+
+                                {% if booking.worker and booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' %}
+                                    <button
+                                        type="button"
+                                        class="btn-lamo-audio-call"
+                                        onclick="initiateLamoCall({{ booking.id }}, '{{ booking.worker.user.get_full_name|default:booking.worker.user.username|escapejs }}', 'Service Professional')"
                                     >
-                                        <i class="bi bi-chat-dots-fill"></i> Open Chat
-                                    </a>
+                                        <i class="bi bi-telephone-fill"></i> Call Pro (In-App)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn-lamo-track-map"
+                                        onclick="openLiveTrackingModal({{ booking.id }})"
+                                    >
+                                        <i class="bi bi-geo-alt-fill"></i> Live Route Map
+                                    </button>
                                 {% endif %}
 
                                 {% if booking.is_paid %}
@@ -651,13 +700,37 @@
             </aside>
 
         {% else %}
-            <!-- EMPTY STATE -->
-            <div class="empty-bookings-box">
-                <div class="empty-bookings-icon">
-                    <i class="bi bi-calendar2-check"></i>
+            <!-- RICH EMPTY STATE (HIGH CONVERSION DISCOVERY ONBOARDING) -->
+            <div class="empty-bookings-card" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:24px; padding:48px 24px; text-align:center; max-width:680px; margin:40px auto; box-shadow:0 10px 30px rgba(15,23,42,0.04);">
+                <div style="width:72px; height:72px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:32px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:20px;">
+                    <i class="bi bi-calendar2-heart"></i>
                 </div>
-                <h3>No bookings yet</h3>
-                <p>Your service bookings will appear here after you book a worker.</p>
+                <h3 style="font-size:22px; font-weight:800; color:#0f172a; margin-bottom:8px;">Ready to book your first service?</h3>
+                <p style="color:#64748b; font-size:14px; max-width:440px; margin:0 auto 24px; line-height:1.6;">
+                    Connect with verified electricians, plumbers, cleaners, and home repair professionals across Kerala with upfront pricing and arrival security PIN.
+                </p>
+                <div style="margin-bottom:24px;">
+                    <a href="{% url 'service_page' %}" class="btn-book-primary" style="display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#087f5b; color:#fff; border-radius:12px; font-weight:700; font-size:14.5px; text-decoration:none; box-shadow:0 6px 20px rgba(8,127,91,0.25);">
+                        <i class="bi bi-grid-fill"></i> Explore Available Services
+                    </a>
+                </div>
+                <div style="border-top:1px dashed #e2e8f0; padding-top:20px; max-width:500px; margin:0 auto;">
+                    <span style="font-size:12px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:12px;">Popular Categories</span>
+                    <div style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                        <a href="{% url 'service_page' %}?category=electrical" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; font-size:12.5px; font-weight:600; text-decoration:none;">
+                            ⚡ Electrical
+                        </a>
+                        <a href="{% url 'service_page' %}?category=plumbing" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; font-size:12.5px; font-weight:600; text-decoration:none;">
+                            💧 Plumbing
+                        </a>
+                        <a href="{% url 'service_page' %}?category=ac_repair" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; font-size:12.5px; font-weight:600; text-decoration:none;">
+                            ❄️ AC Repair
+                        </a>
+                        <a href="{% url 'service_page' %}?category=cleaning" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; font-size:12.5px; font-weight:600; text-decoration:none;">
+                            🧹 Cleaning
+                        </a>
+                    </div>
+                </div>
             </div>
         {% endif %}
 
@@ -777,6 +850,21 @@
                 }
             }
         });
+
+        // Auto-open specific booking if ?booking_id=123 is present in URL
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetBookingId = urlParams.get('booking_id') || (window.location.hash ? window.location.hash.replace('#booking-', '') : null);
+            if (targetBookingId) {
+                setTimeout(function() {
+                    openDrawer(targetBookingId);
+                    const targetCard = document.querySelector('.booking-card[data-booking-id="' + targetBookingId + '"]');
+                    if (targetCard) {
+                        targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 150);
+            }
+        } catch (e) { }
 
         // ==========================================
         // CHAT POPUP INTEGRATION

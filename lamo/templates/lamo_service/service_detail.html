@@ -50,7 +50,7 @@
     <link rel="stylesheet" href="{% static 'css/lamo_service-service_detail_redesigned.css' %}">
     <link rel="stylesheet" href="{% static 'css/lamo_service-service_detail_ai_mode.css' %}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261024_wizard">
 {% endblock %}
 
 {% block content %}
@@ -132,8 +132,7 @@
                 </h2>
 
                 <p class="ai-mode-sub">
-                    Describe the job in your own words and LAMO ranks
-                    the best available workers for you.
+                    Select your district and locality to rank the best available verified workers near you.
                 </p>
 
             </div>
@@ -154,20 +153,7 @@
         >
             {% csrf_token %}
 
-            <div class="ai-mode-field">
-                <label for="ai_requirement" class="ai-label sd-field-label">
-                    Describe your requirement
-                </label>
-
-                <textarea
-                    id="ai_requirement"
-                    name="requirement"
-                    class="location-select"
-                    rows="3"
-                    placeholder="My kitchen tap is leaking and I need someone today."
-                    required
-                ></textarea>
-            </div>
+            <input type="hidden" id="ai_requirement" name="requirement" value="{{ service.name }}">
 
             <div class="ai-mode-grid">
 
@@ -230,15 +216,15 @@
 
             <ol>
                 <li>
-                    <strong>1. Describe</strong>
-                    <span>Tell LAMO what needs doing</span>
+                    <strong>1. Location</strong>
+                    <span>Select district &amp; locality</span>
                 </li>
                 <li>
-                    <strong>2. AI Matches</strong>
-                    <span>We rank the best available workers</span>
+                    <strong>2. Distance Match</strong>
+                    <span>We calculate real distances &amp; rank</span>
                 </li>
                 <li>
-                    <strong>3. Get Results</strong>
+                    <strong>3. Instant Book</strong>
                     <span>Pick, compare and book</span>
                 </li>
             </ol>
@@ -555,8 +541,10 @@
 
 </div>
 
+{{ service.name|json_script:"current-service-name" }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const currentServiceName = JSON.parse(document.getElementById('current-service-name').textContent);
         const modal = document.getElementById('aiRecommendationModal');
         const modalBody = document.getElementById('aiRecommendationBody');
         const closeBtn = document.getElementById('closeAiModalBtn');
@@ -608,17 +596,19 @@
                 openModal();
 
                 if (navigator.geolocation && !document.getElementById('aiLatitudeInput').value) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            document.getElementById('aiLatitudeInput').value = position.coords.latitude;
-                            document.getElementById('aiLongitudeInput').value = position.coords.longitude;
-                        },
-                        () => {
-                            document.getElementById('aiLatitudeInput').value = '';
-                            document.getElementById('aiLongitudeInput').value = '';
-                        },
-                        { enableHighAccuracy: true, timeout: 4000 }
-                    );
+                    await new Promise((resolve) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                document.getElementById('aiLatitudeInput').value = position.coords.latitude;
+                                document.getElementById('aiLongitudeInput').value = position.coords.longitude;
+                                resolve();
+                            },
+                            () => {
+                                resolve();
+                            },
+                            { enableHighAccuracy: true, timeout: 2000 }
+                        );
+                    });
                 }
 
                 const formData = new FormData(aiForm);
@@ -688,7 +678,7 @@
                                                 data-worker-district="${escapeHtml(worker.district || district)}"
                                                 data-worker-image="${escapeHtml(worker.worker_image || '')}"
                                                 data-service-id="{{ service.id }}"
-                                                data-service-name="{{ service.name|escapejs }}"
+                                                data-service-name="${escapeHtml(currentServiceName)}"
                                                 onclick="openBookingModal(this)">
                                             <i class="bi bi-calendar2-check"></i>
                                             Book Service
@@ -746,6 +736,18 @@
             aiModeModal.classList.add('show');
             aiModeModal.setAttribute('aria-hidden', 'false');
             document.body.classList.add('ai-mode-open');
+            if (navigator.geolocation && !document.getElementById('aiLatitudeInput')?.value) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const latEl = document.getElementById('aiLatitudeInput');
+                        const lngEl = document.getElementById('aiLongitudeInput');
+                        if (latEl) latEl.value = pos.coords.latitude;
+                        if (lngEl) lngEl.value = pos.coords.longitude;
+                    },
+                    () => {},
+                    { enableHighAccuracy: true, timeout: 3000 }
+                );
+            }
         };
 
         const closeAiMode = function () {

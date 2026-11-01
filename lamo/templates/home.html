@@ -1,16 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
+{# Security token contract: meta[name="csrf-token"] and csrfmiddlewaretoken #}
 
 {% block title %}Our Services, Your Experts | LAMO{% endblock %}
 
 {% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/home.js' %}" defer></script>
+<script src="{% static 'js/home.js' %}?v=backend_data_1.2" defer></script>
 {% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{% static 'css/home.css' %}">
+<link rel="stylesheet" href="{% static 'css/home.css' %}?v=backend_data_1.3">
 {% endblock %}
 
 {% block hero %}
@@ -30,8 +31,13 @@
 
           <!-- Main Value Proposition Heading -->
           <h1 class="hero-main-heading">
+            {% if user.is_authenticated and user.role == 'USER' %}
+            Welcome back, {{ user.username }}!<br>
+            <span class="hero-heading-green">Right at Your Doorstep</span>
+            {% else %}
             Trusted Home Services,<br>
             <span class="hero-heading-green">Right at Your Doorstep</span>
+            {% endif %}
           </h1>
 
           <!-- Short Supporting Subtext -->
@@ -65,7 +71,7 @@
                      name="q" 
                      id="liveServiceSearch" 
                      placeholder="What service do you need? (e.g. Electrician)" 
-                     aria-label="Search services" 
+                     aria-label="Search services by name or description" 
                      value="{{ query|default:'' }}" 
                      autocomplete="off">
               <button type="button" 
@@ -357,21 +363,32 @@
 <section id="services" class="popular-services-section py-4 scroll-reveal reveal-left">
   <div class="container">
 
-    <div class="section-top-bar d-flex justify-content-between align-items-center mb-4">
-      <h2 class="section-heading-clean">
-        Popular Services in <span class="text-brand-green" id="activeDistrictTitle">{{ district|default:"Kollam" }}</span>
+    <div class="section-top-bar d-flex justify-content-between align-items-center mb-3">
+      <h2 class="section-heading-clean mb-0">
+        <span class="visually-hidden">Find the Right Service: </span>Popular Services in <span class="text-brand-green" id="activeDistrictTitle">{{ district|default:"Kollam" }}</span>
         <span id="servicesCountBadge" class="badge-count-pill ms-2">{{ services|length }} Available</span>
       </h2>
-      <a href="{% url 'service_page' %}" class="view-all-link">
-        <span>View all services</span>
-        <i class="bi bi-arrow-right"></i>
-      </a>
+      <div class="d-flex align-items-center gap-3">
+        <div class="carousel-nav-btns d-flex align-items-center gap-1" id="carouselNavBtns">
+          <button type="button" class="btn-carousel-nav" id="btnPrevService" aria-label="Previous service" title="Scroll Left">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button type="button" class="btn-carousel-nav" id="btnNextService" aria-label="Next service" title="Scroll Right">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <a href="{% url 'service_page' %}" class="view-all-link">
+          <span>View all services</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
     </div>
 
-    <!-- Responsive Grid: 3 columns x 2 rows on desktop -->
-    <div class="popular-services-grid stagger-children" id="servicesGrid">
+    <!-- Horizontal Continuous Carousel Stream -->
+    <div class="services-carousel-wrapper" id="servicesCarouselWrapper">
+      <div class="popular-services-track stagger-children" id="servicesGrid">
       {% for service in services %}
-      <a href="{% if district %}{% url 'service_workers' service.id %}?district={{ district|urlencode }}{% else %}{% url 'service_detail' service.id %}{% endif %}" 
+      <a href="{% if district %}{% url 'service_workers' service.id %}?district={{ district|urlencode }}{% if locality %}&locality={{ locality|urlencode }}{% endif %}{% else %}{% url 'service_detail' service.id %}{% endif %}" 
          class="service-card-modern" 
          data-id="{{ service.id }}"
          data-name="{{ service.name|lower }}" 
@@ -416,11 +433,28 @@
         <div class="service-card-body">
           <h3 class="service-card-title">{{ service.name }}</h3>
 
-          <!-- Star Rating & Professionals Count -->
+          <!-- Star Rating & Professionals Count (Strictly Backend-Driven) -->
           <div class="service-card-rating">
-            <i class="bi bi-star-fill star-gold"></i>
-            <span class="rating-num">{{ service.actual_rating|default:"4.8"|floatformat:1 }}</span>
-            <span class="rating-pros-count">({{ service.worker_count|default:service.district_worker_count|default:"80+" }}+ professionals)</span>
+            {% if service.actual_rating %}
+              <i class="bi bi-star-fill star-gold"></i>
+              <span class="rating-num">{{ service.actual_rating|floatformat:1 }}</span>
+              {% if service.actual_review_count %}
+                <span class="rating-reviews-count" style="font-size: 11px; color: var(--text-muted, #64748b);">({{ service.actual_review_count }})</span>
+              {% endif %}
+            {% else %}
+              <span class="badge-new-service">Verified</span>
+            {% endif %}
+            <span class="rating-pros-count">
+              {% if service.worker_count and service.worker_count > 0 %}
+                ({{ service.worker_count }} pro{{ service.worker_count|pluralize }})
+              {% else %}
+                {% if district %}
+                  (No pros in area)
+                {% else %}
+                  (Pros on call)
+                {% endif %}
+              {% endif %}
+            </span>
           </div>
 
           <!-- Card Action Link -->
@@ -441,6 +475,7 @@
         </button>
       </div>
       {% endfor %}
+      </div>
     </div>
 
     <!-- Live Search No-Results Notice (Hidden by default) -->
@@ -615,75 +650,80 @@
 </section>
 
 <!-- =========================================================
-     H. WHAT OUR CUSTOMERS SAY (Reviews)
+     H. WHAT OUR CUSTOMERS SAY (Backend Reviews)
 ========================================================= -->
 <section id="reviews" class="customer-reviews-section py-4 scroll-reveal reveal-right">
   <div class="container">
     <div class="section-top-bar d-flex justify-content-between align-items-center mb-4">
-      <h2 class="section-heading-clean">What Our Customers Say</h2>
+      <div>
+        <h2 class="section-heading-clean mb-1">What Our Customers Say</h2>
+        <p class="text-muted mb-0" style="font-size: 13.5px;">Authentic feedback from verified bookings across Kerala</p>
+      </div>
       <a href="{% url 'service_page' %}" class="view-all-link">
-        <span>View all reviews</span>
+        <span>Browse All Services</span>
         <i class="bi bi-arrow-right"></i>
       </a>
     </div>
 
-    <div class="row g-4 stagger-children">
-      <!-- Testimonial 1: Anjali N. -->
-      <div class="col-md-4">
+    <div class="row g-4 justify-content-center stagger-children">
+      {% for r in reviews %}
+      <div class="col-md-6 col-lg-4">
         <div class="customer-review-card">
           <div class="review-top-row">
-            <img src="{% static 'img/avatar2.png' %}" alt="Anjali N." class="review-avatar-img">
+            {% if r.customer.profile_image %}
+              <img src="{{ r.customer.profile_image.url }}" alt="{{ r.customer.get_full_name|default:r.customer.username }}" class="review-avatar-img">
+            {% else %}
+              <div class="review-avatar-circle">
+                {{ r.customer.get_full_name|default:r.customer.username|slice:":1"|upper }}
+              </div>
+            {% endif %}
             <div class="review-stars-gold">
-              <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+              {% for i in '12345'|make_list %}
+                {% if forloop.counter <= r.rating %}
+                  <i class="bi bi-star-fill"></i>
+                {% else %}
+                  <i class="bi bi-star" style="opacity: 0.35;"></i>
+                {% endif %}
+              {% endfor %}
             </div>
           </div>
           <p class="review-text-quote">
-            "Great service and very professional. The electrician arrived on time and fixed the issue quickly. Highly recommend LAMO!"
+            "{{ r.comment|default:'Great service and very professional experience. Arrived on time and completed the work cleanly.' }}"
           </p>
           <div class="review-customer-info">
-            <h5 class="customer-name">Anjali N.</h5>
-            <span class="customer-location">Kollam</span>
+            <h5 class="customer-name">{{ r.customer.get_full_name|default:r.customer.username }}</h5>
+            <span class="customer-location">
+              <i class="bi bi-geo-alt-fill" style="font-size: 11px; color: #059669;"></i>
+              {% if r.booking.district %}{{ r.booking.district }}{% elif r.worker.district %}{{ r.worker.district }}{% else %}Kerala{% endif %}
+              {% if r.booking.service %} &bull; <strong>{{ r.booking.service.name }}</strong>{% endif %}
+            </span>
+            {% if r.worker and r.worker.user %}
+              <div class="review-worker-tag">
+                <i class="bi bi-patch-check-fill" style="color: #10b981;"></i>
+                <span>Worker: {{ r.worker.user.get_full_name|default:r.worker.user.username }}</span>
+                {% if r.worker.district %}<span class="text-muted" style="font-weight: 400; font-size: 11px;">({{ r.worker.district }})</span>{% endif %}
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>
-
-      <!-- Testimonial 2: Rohit S. -->
-      <div class="col-md-4">
-        <div class="customer-review-card">
-          <div class="review-top-row">
-            <img src="{% static 'img/avatar3.png' %}" alt="Rohit S." class="review-avatar-img">
-            <div class="review-stars-gold">
-              <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-            </div>
+      {% empty %}
+      <div class="col-12">
+        <div class="empty-reviews-state text-center py-5" style="background: rgba(255,255,255,0.7); border-radius: 16px; border: 1.5px dashed rgba(148,163,184,0.35); padding: 36px 20px;">
+          <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); color: #059669; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 12px;">
+            <i class="bi bi-chat-square-quote"></i>
           </div>
-          <p class="review-text-quote">
-            "The booking process was simple and quick. The plumber was polite and did an excellent job. Will definitely use LAMO again!"
+          <h5 style="font-weight: 700; color: #1e293b; margin-bottom: 6px;">No Customer Reviews Yet</h5>
+          <p style="font-size: 13.5px; color: #64748b; max-width: 440px; margin: 0 auto 16px;">
+            Verified customer reviews appear here automatically after service bookings are completed and rated.
           </p>
-          <div class="review-customer-info">
-            <h5 class="customer-name">Rohit S.</h5>
-            <span class="customer-location">Kollam</span>
-          </div>
+          <a href="{% url 'service_page' %}" class="btn-clean-primary" style="font-size: 13px; padding: 9px 20px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px;">
+            <span>Book a Service Today</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
         </div>
       </div>
-
-      <!-- Testimonial 3: Sneha M. -->
-      <div class="col-md-4">
-        <div class="customer-review-card">
-          <div class="review-top-row">
-            <img src="{% static 'img/avatar_sneha.jpg' %}" alt="Sneha M." class="review-avatar-img">
-            <div class="review-stars-gold">
-              <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-            </div>
-          </div>
-          <p class="review-text-quote">
-            "Reliable and skilled professionals. The home cleaning service was amazing. My house looks brand new!"
-          </p>
-          <div class="review-customer-info">
-            <h5 class="customer-name">Sneha M.</h5>
-            <span class="customer-location">Kollam</span>
-          </div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
@@ -805,7 +845,7 @@
           </div>
           <h2 style="font-size: clamp(24px, 3.2vw, 36px); font-weight: 800; line-height: 1.25; margin-bottom: 14px; color: #ffffff;">
             Grow Your Service Business.<br>
-            <span style="color: #34d399;">Join 500+ Verified Workers</span> on LAMO.
+            <span style="color: #34d399;">Join {{ verified_workers_count|default:"Our" }} Verified Workers</span> Across Kerala.
           </h2>
           <p style="font-size: 15px; color: rgba(255, 255, 255, 0.85); max-width: 620px; line-height: 1.6; margin-bottom: 22px;">
             Are you an electrician, plumber, cleaner, or appliance technician? Receive consistent bookings in your district, keep 100% earnings with 0% launch commission, and enjoy guaranteed payment security.
@@ -898,4 +938,23 @@
   ]
 }
 </script>
+
+{% if not user.is_authenticated %}
+<div id="lamoLoginOverlay" class="d-none" aria-hidden="true" style="display:none;">
+  <form id="lamoAutoLoginForm"></form>
+  <button type="button" id="lamoLoginClose" aria-label="Close"></button>
+</div>
+<script>
+  (function () {
+    try {
+      localStorage.removeItem("lamo_login_popup_shown");
+      var fromSplash = sessionStorage.getItem("lamo_from_splash");
+      var shown = sessionStorage.getItem("lamo_login_popup_shown");
+      function dismissPopup() {
+        sessionStorage.setItem("lamo_login_popup_dismissed", "true");
+      }
+    } catch (e) {}
+  })();
+</script>
+{% endif %}
 {% endblock %}

@@ -262,11 +262,8 @@
                                     <div class="booking-info">
                                         <p><i class="bi bi-person"></i>
                                             {{ booking.customer.get_full_name|default:booking.customer.username }}</p>
-                                        <p><i class="bi bi-geo-alt"></i> {{ booking.location }}</p>
-                                        <p><i class="bi bi-telephone"></i> {{ booking.phone }}</p>
-                                        {% if booking.district %}
-                                            <p><i class="bi bi-pin-map"></i> {{ booking.district }}</p>
-                                        {% endif %}
+                                        <p><i class="bi bi-geo-alt"></i> <i class="bi bi-lock-fill"></i> {{ booking.district|default:"Local District Area" }} <small style="color:#64748b;">(Address unlocked upon accept)</small></p>
+                                        <p><i class="bi bi-telephone"></i> <span style="color:#64748b;">•••••••••• (Phone unlocked upon accept)</span></p>
                                         {% if booking.description %}
                                             <p><i class="bi bi-chat-left-text"></i> {{ booking.description }}</p>
                                         {% endif %}

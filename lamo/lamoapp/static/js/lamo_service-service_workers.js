@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const tileMaxZoom = parseInt(mapContainer.dataset.tileMaxZoom, 10) || 19;
 
     const map = L.map("modalBookingMap").setView([defaultLat, defaultLng], 13);
+    window._bookingLeafletMap = map;
 
     L.tileLayer(tileUrl, {
         attribution: mapAttribution,
@@ -308,8 +309,8 @@ function openWorkerProfileModal(btn) {
         exp: btn.dataset.workerExp || '0',
         hours: btn.dataset.workerHours || 'Full Time',
         rate: btn.dataset.workerRate || '₹0.00 / Hour',
-        rating: btn.dataset.workerRating || '5.0',
-        reviews: btn.dataset.workerReviews || '1',
+        rating: btn.dataset.workerRating || 'New',
+        reviews: btn.dataset.workerReviews || '0',
         image: btn.dataset.workerImage || '',
         verified: btn.dataset.workerVerified === '1',
         bookable: btn.dataset.workerBookable === '1',
@@ -320,6 +321,7 @@ function openWorkerProfileModal(btn) {
     const serviceEl = document.getElementById('profileModalService');
     const ratingEl = document.getElementById('profileModalRating');
     const reviewsEl = document.getElementById('profileModalReviews');
+    const starWrap = document.getElementById('profileModalStarWrap');
     const statusPill = document.getElementById('profileModalStatusPill');
     const expEl = document.getElementById('profileModalExp');
     const hoursEl = document.getElementById('profileModalHours');
@@ -334,8 +336,24 @@ function openWorkerProfileModal(btn) {
 
     if (nameEl) nameEl.textContent = activeProfileData.workerName;
     if (serviceEl) serviceEl.textContent = activeProfileData.serviceName;
-    if (ratingEl) ratingEl.textContent = activeProfileData.rating;
-    if (reviewsEl) reviewsEl.textContent = `(${activeProfileData.reviews} review${activeProfileData.reviews === '1' ? '' : 's'})`;
+
+    const rCount = parseInt(activeProfileData.reviews, 10) || 0;
+    if (ratingEl) {
+        if (activeProfileData.rating && activeProfileData.rating !== 'New' && !isNaN(parseFloat(activeProfileData.rating))) {
+            ratingEl.textContent = parseFloat(activeProfileData.rating).toFixed(1);
+            if (starWrap) starWrap.style.display = 'inline-block';
+        } else {
+            ratingEl.textContent = 'New Pro';
+            if (starWrap) starWrap.style.display = 'none';
+        }
+    }
+    if (reviewsEl) {
+        if (rCount > 0) {
+            reviewsEl.textContent = `(${rCount} review${rCount === 1 ? '' : 's'})`;
+        } else {
+            reviewsEl.textContent = '(No reviews yet)';
+        }
+    }
 
     if (statusPill) {
         if (activeProfileData.bookable) {
@@ -539,7 +557,20 @@ function applyWorkerSort(sortBy) {
     const cards = Array.from(container.querySelectorAll('.worker-row-card'));
 
     cards.sort((a, b) => {
-        if (sortBy === 'rating-high') {
+        if (sortBy === 'distance-near') {
+            const distA = parseFloat(a.dataset.distance || '9999');
+            const distB = parseFloat(b.dataset.distance || '9999');
+            if (distA !== distB) return distA - distB;
+            return parseFloat(b.dataset.rating || '0') - parseFloat(a.dataset.rating || '0');
+        } else if (sortBy === 'recommended') {
+            const scoreA = parseFloat(a.dataset.aiScore || '0');
+            const scoreB = parseFloat(b.dataset.aiScore || '0');
+            if (scoreA !== scoreB) return scoreB - scoreA;
+            const distA = parseFloat(a.dataset.distance || '9999');
+            const distB = parseFloat(b.dataset.distance || '9999');
+            if (distA !== distB) return distA - distB;
+            return parseFloat(b.dataset.rating || '0') - parseFloat(a.dataset.rating || '0');
+        } else if (sortBy === 'rating-high') {
             return parseFloat(b.dataset.rating || '0') - parseFloat(a.dataset.rating || '0');
         } else if (sortBy === 'exp-high') {
             return parseFloat(b.dataset.exp || '0') - parseFloat(a.dataset.exp || '0');

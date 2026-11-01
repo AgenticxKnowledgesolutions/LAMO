@@ -1,8 +1,12 @@
-﻿# Secrets
+# Secrets
 .env
 .env.*
 # ...but the template must be committed so new developers can copy it
 !.env.example
+*.pem
+*.key
+*.crt
+cert/
 
 # Python cache
 __pycache__/

@@ -28,37 +28,66 @@
     ====================================================== */
     document.addEventListener("DOMContentLoaded", function () {
         const mainNav = document.getElementById("mainNav");
-        const backdrop = document.getElementById("mobileNavBackdrop");
-        if (!mainNav || !backdrop) return;
+        if (!mainNav) return;
+
+        let backdrop = document.getElementById("mobileNavBackdrop");
+        if (!backdrop) {
+            backdrop = document.createElement("div");
+            backdrop.id = "mobileNavBackdrop";
+            backdrop.className = "mobile-nav-backdrop";
+            document.body.appendChild(backdrop);
+        }
+
+        const closeBtn = document.querySelector(".mobile-drawer-close");
+
+        function setAiWidgetVisibility(visible) {
+            const aiWidget = document.getElementById("ai-assistant-widget");
+            if (aiWidget) {
+                aiWidget.style.display = visible ? "" : "none";
+            }
+        }
 
         function closeNav() {
             if (window.bootstrap && window.bootstrap.Collapse) {
-                const bsCollapse = window.bootstrap.Collapse.getInstance(mainNav);
-                if (bsCollapse) {
-                    bsCollapse.hide();
-                } else {
-                    mainNav.classList.remove("show");
-                    backdrop.classList.remove("show");
-                    document.body.style.overflow = "";
-                }
-            } else {
-                mainNav.classList.remove("show");
-                backdrop.classList.remove("show");
-                document.body.style.overflow = "";
+                const bsCollapse = window.bootstrap.Collapse.getInstance(mainNav) || new window.bootstrap.Collapse(mainNav, { toggle: false });
+                bsCollapse.hide();
             }
+            mainNav.classList.remove("show");
+            backdrop.classList.remove("show");
+            document.body.style.overflow = "";
+            document.body.classList.remove("mobile-nav-open");
+            setAiWidgetVisibility(true);
         }
 
         mainNav.addEventListener("show.bs.collapse", function () {
             backdrop.classList.add("show");
             document.body.style.overflow = "hidden";
+            document.body.classList.add("mobile-nav-open");
+            setAiWidgetVisibility(false);
+        });
+
+        mainNav.addEventListener("shown.bs.collapse", function () {
+            backdrop.classList.add("show");
+            document.body.style.overflow = "hidden";
+            document.body.classList.add("mobile-nav-open");
+            setAiWidgetVisibility(false);
         });
 
         mainNav.addEventListener("hidden.bs.collapse", function () {
             backdrop.classList.remove("show");
             document.body.style.overflow = "";
+            document.body.classList.remove("mobile-nav-open");
+            setAiWidgetVisibility(true);
         });
 
         backdrop.addEventListener("click", closeNav);
+
+        if (closeBtn) {
+            closeBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                closeNav();
+            });
+        }
 
         document.addEventListener("keydown", function (e) {
             if (e.key === "Escape" && mainNav.classList.contains("show")) {

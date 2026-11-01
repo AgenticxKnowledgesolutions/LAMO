@@ -1,0 +1,79 @@
+{% load static %}
+<!-- LAMO IN-APP WEBRTC AUDIO CALL MODAL (MASKED / ZERO PHONE SHARING) -->
+<div id="lamoCallOverlay" class="lamo-call-overlay" hidden aria-hidden="true">
+    <div class="lamo-call-card" role="dialog" aria-labelledby="lamoCallPartnerName">
+        
+        <!-- PRIVACY BADGE -->
+        <div class="lamo-call-privacy-pill">
+            <i class="bi bi-shield-lock-fill"></i>
+            <span>Masked In-App Audio &bull; No Phone Shared</span>
+        </div>
+
+        <!-- AVATAR & PULSE RINGS -->
+        <div class="lamo-call-avatar-wrapper">
+            <div class="lamo-call-pulse-ring ring-1"></div>
+            <div class="lamo-call-pulse-ring ring-2"></div>
+            <div class="lamo-call-avatar" id="lamoCallAvatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
+        </div>
+
+        <!-- CALL INFO -->
+        <h3 class="lamo-call-name" id="lamoCallPartnerName">Connecting...</h3>
+        <p class="lamo-call-sub" id="lamoCallSubtitle">LAMO Verified Service</p>
+        <div class="lamo-call-timer" id="lamoCallTimer" style="display: none;">00:00</div>
+        <p class="lamo-call-status" id="lamoCallStatusText">Ringing...</p>
+
+        <!-- SOUND WAVE ANIMATION (ACTIVE WHEN CONNECTED) -->
+        <div class="lamo-call-soundwaves" id="lamoCallWaves" style="display: none;">
+            <span></span><span></span><span></span><span></span><span></span>
+        </div>
+
+        <!-- CONTROLS CONTAINER -->
+        <div class="lamo-call-controls">
+            <!-- OUTGOING CONTROLS -->
+            <div id="lamoOutgoingControls" class="call-ctrl-group">
+                <button type="button" class="lamo-call-circle-btn btn-danger" id="lamoCallCancelBtn" title="Cancel Call">
+                    <i class="bi bi-telephone-x-fill"></i>
+                </button>
+                <span class="ctrl-label">Cancel</span>
+            </div>
+
+            <!-- INCOMING CONTROLS -->
+            <div id="lamoIncomingControls" class="call-ctrl-group-split" style="display: none;">
+                <div class="ctrl-btn-wrap">
+                    <button type="button" class="lamo-call-circle-btn btn-danger" id="lamoCallDeclineBtn" title="Decline">
+                        <i class="bi bi-telephone-x-fill"></i>
+                    </button>
+                    <span class="ctrl-label">Decline</span>
+                </div>
+                <div class="ctrl-btn-wrap">
+                    <button type="button" class="lamo-call-circle-btn btn-success" id="lamoCallAcceptBtn" title="Accept Call">
+                        <i class="bi bi-telephone-fill"></i>
+                    </button>
+                    <span class="ctrl-label">Accept</span>
+                </div>
+            </div>
+
+            <!-- ACTIVE / CONNECTED CONTROLS -->
+            <div id="lamoActiveControls" class="call-ctrl-group-active" style="display: none;">
+                <div class="ctrl-btn-wrap">
+                    <button type="button" class="lamo-call-circle-btn btn-neutral" id="lamoCallMuteBtn" title="Mute Microphone">
+                        <i class="bi bi-mic-fill" id="lamoMuteIcon"></i>
+                    </button>
+                    <span class="ctrl-label" id="lamoMuteLabel">Mute</span>
+                </div>
+                <div class="ctrl-btn-wrap">
+                    <button type="button" class="lamo-call-circle-btn btn-danger" id="lamoCallEndBtn" title="End Call">
+                        <i class="bi bi-telephone-x-fill"></i>
+                    </button>
+                    <span class="ctrl-label">End</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- HIDDEN REMOTE AUDIO PLAYBACK ELEMENT -->
+<audio id="lamoRemoteAudio" autoplay playsinline style="display:none;"></audio>

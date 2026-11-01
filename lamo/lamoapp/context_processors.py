@@ -24,9 +24,10 @@ def global_notifications(request):
     """Expose the user's notifications and location context to every template."""
     from .models import WorkerProfile
 
+    session = getattr(request, 'session', None)
     current_district = (
-        request.session.get('district')
-        or request.session.get('lamo_selected_district')
+        (session.get('district') if session else '')
+        or (session.get('lamo_selected_district') if session else '')
         or (
             getattr(request.user.user_profile, 'district', '')
             if request.user.is_authenticated and hasattr(request.user, 'user_profile')
@@ -35,10 +36,48 @@ def global_notifications(request):
         or ''
     )
 
+    current_locality = (
+        (session.get('locality') if session else '')
+        or (session.get('lamo_selected_locality') if session else '')
+        or (
+            getattr(request.user.user_profile, 'locality', '')
+            if request.user.is_authenticated and hasattr(request.user, 'user_profile')
+            else ''
+        )
+        or ''
+    )
+    current_lat = (session.get('lat') if session else '') or (session.get('lamo_selected_lat') if session else '') or ''
+    current_lng = (session.get('lng') if session else '') or (session.get('lamo_selected_lng') if session else '') or ''
+
+    import json
+    from .location_data import get_kerala_location_tree
+    kerala_location_tree = get_kerala_location_tree()
+    kerala_location_tree_json = json.dumps(kerala_location_tree)
     kerala_districts = WorkerProfile.DISTRICT_CHOICES
 
+    current_language = (
+        (session.get('lamo_lang') if session else None)
+        or request.COOKIES.get('lamo_lang', 'en')
+    )
+    if current_language not in ('en', 'ml'):
+        current_language = 'en'
+
+    vapid_public_key = getattr(settings, 'VAPID_PUBLIC_KEY', '')
+
+    base_context = {
+        'kerala_districts': kerala_districts,
+        'current_district': current_district,
+        'current_locality': current_locality,
+        'current_lat': current_lat,
+        'current_lng': current_lng,
+        'kerala_location_tree': kerala_location_tree,
+        'kerala_location_tree_json': kerala_location_tree_json,
+        'current_language': current_language,
+        'vapid_public_key': vapid_public_key,
+    }
+
     if request.user.is_authenticated:
-        from .models import Notification
+        from .models import Notification, PushSubscription
 
         notifications = Notification.objects.filter(
             recipient=request.user
@@ -50,15 +89,16 @@ def global_notifications(request):
             recipient=request.user, is_read=False
         ).count()
 
+        has_push_sub = PushSubscription.objects.filter(user=request.user).exists()
+
         return {
+            **base_context,
             'global_notifications': notifications,
             'global_unread_count': unread_count,
-            'kerala_districts': kerala_districts,
-            'current_district': current_district,
+            'has_push_subscription': has_push_sub,
         }
     return {
+        **base_context,
         'global_notifications': [],
         'global_unread_count': 0,
-        'kerala_districts': kerala_districts,
-        'current_district': current_district,
     }

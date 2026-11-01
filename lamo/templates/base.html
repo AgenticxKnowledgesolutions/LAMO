@@ -135,10 +135,15 @@
 
   <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
 
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.0">
   <link rel="stylesheet" href="{% static 'css/location-modal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/lamo-call.css' %}">
+  <!-- Leaflet.js Interactive Route Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{% static 'css/lamo-tracking.css' %}">
+  <link rel="stylesheet" href="{% static 'css/lamo-i18n.css' %}">
 
-  <script src="{% static 'js/base.js' %}" defer></script>
+  <script src="{% static 'js/base.js' %}?v=1.4" defer></script>
 
   {% if not user.is_authenticated and request.resolver_match.url_name != 'login' and request.resolver_match.url_name != 'register' %}
   <link rel="stylesheet" href="{% static 'css/auth-modal.css' %}">
@@ -210,16 +215,21 @@
       </div>
       {% endif %}
 
-      <form method="POST" action="{% url 'logout' %}" class="worker-logout-form">
+      <div class="d-flex align-items-center gap-2">
+        <div class="lamo-lang-switcher" title="Switch Language / ഭാഷ മാറ്റുക">
+          <button type="button" class="lamo-lang-btn {% if current_language == 'en' or not current_language %}active{% endif %}" data-lang="en">EN</button>
+          <span class="lamo-lang-divider">|</span>
+          <button type="button" class="lamo-lang-btn {% if current_language == 'ml' %}active{% endif %}" data-lang="ml">മലയാളം</button>
+        </div>
 
-        {% csrf_token %}
-
-        <button type="submit" class="worker-logout">
-          <i class="bi bi-box-arrow-right"></i>
-          Logout
-        </button>
-
-      </form>
+        <form method="POST" action="{% url 'logout' %}" class="worker-logout-form">
+          {% csrf_token %}
+          <button type="submit" class="worker-logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span data-i18n="nav_logout">Logout</span>
+          </button>
+        </form>
+      </div>
 
     </nav>
 
@@ -242,9 +252,9 @@
             <button type="button" class="btn-nav-location" id="navLocationBtn" aria-label="Choose your district location" title="Change district">
               <span class="nav-loc-icon-bubble"><i class="bi bi-geo-alt-fill"></i></span>
               <span class="nav-loc-content">
-                <small class="nav-loc-sub d-none d-sm-block">Location</small>
+                <small class="nav-loc-sub d-none d-sm-block" data-i18n="nav_location">Location</small>
                 <span class="nav-loc-name" id="navCurrentDistrict">
-                  {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
+                  {% if current_locality and current_district %}{{ current_locality }}, {{ current_district }}{% elif selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
                 </span>
               </span>
               <i class="bi bi-chevron-down nav-loc-caret"></i>
@@ -277,19 +287,31 @@
             </button>
           </div>
 
+          <!-- Mobile Drawer Language Box -->
+          <div class="mobile-nav-lang-box d-lg-none">
+            <span class="mobile-nav-lang-label">
+              <i class="bi bi-translate"></i> Language / ഭാഷ
+            </span>
+            <div class="lamo-lang-switcher" title="Switch Language / ഭാഷ മാറ്റുക">
+              <button type="button" class="lamo-lang-btn {% if current_language == 'en' or not current_language %}active{% endif %}" data-lang="en">EN</button>
+              <span class="lamo-lang-divider">|</span>
+              <button type="button" class="lamo-lang-btn {% if current_language == 'ml' %}active{% endif %}" data-lang="ml">മലയാളം</button>
+            </div>
+          </div>
+
           <!-- Mobile Drawer Location Card -->
           <div class="mobile-drawer-location d-lg-none">
             <button type="button" class="mobile-nav-location-btn" id="mobileNavLocationBtn" aria-label="Choose your district location">
               <div class="d-flex align-items-center gap-2">
                 <span class="nav-loc-icon-bubble"><i class="bi bi-geo-alt-fill"></i></span>
                 <div class="text-start">
-                  <small class="nav-loc-sub d-block text-muted" style="font-size:0.72rem; font-weight:600; text-transform:uppercase;">Your Location</small>
+                  <small class="nav-loc-sub d-block text-muted" style="font-size:0.72rem; font-weight:600; text-transform:uppercase;" data-i18n="nav_your_location">Your Location</small>
                   <span class="nav-loc-name d-block" id="mobileNavCurrentDistrict" style="font-weight:700; color:#111827;">
-                    {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
+                    {% if current_locality and current_district %}{{ current_locality }}, {{ current_district }}{% elif selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Select Location{% endif %}
                   </span>
                 </div>
               </div>
-              <span class="loc-change-badge">Change <i class="bi bi-chevron-right"></i></span>
+              <span class="loc-change-badge"><span data-i18n="nav_change">Change</span> <i class="bi bi-chevron-right"></i></span>
             </button>
           </div>
 
@@ -303,8 +325,8 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
                   href="{% url 'home' %}">
-                  <i class="bi bi-house-door d-lg-none me-2"></i>
-                  <span>Home</span>
+                  <i class="bi bi-house-door d-lg-none"></i>
+                  <span data-i18n="nav_home">Home</span>
                 </a>
               </li>
 
@@ -312,8 +334,8 @@
               <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'service_page' or request.resolver_match.url_name == 'service_detail' or request.resolver_match.url_name == 'service_workers' or request.resolver_match.url_name == 'service_list' %}active{% endif %}"
                   href="{% url 'service_page' %}">
-                  <i class="bi bi-grid d-lg-none me-2"></i>
-                  <span>Services</span>
+                  <i class="bi bi-grid d-lg-none"></i>
+                  <span data-i18n="nav_services">Services</span>
                 </a>
               </li>
 
@@ -322,14 +344,14 @@
                 {% if user.is_authenticated %}
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_bookings' %}active{% endif %}"
                   href="{% url 'my_bookings' %}">
-                  <i class="bi bi-calendar-check d-lg-none me-2"></i>
-                  <span>My Bookings</span>
+                  <i class="bi bi-calendar-check d-lg-none"></i>
+                  <span data-i18n="nav_bookings">My Bookings</span>
                 </a>
                 {% else %}
                 <a class="nav-link {% if request.resolver_match.url_name == 'my_bookings' %}active{% endif %} js-auth-trigger"
                   href="{% url 'login' %}?next={% url 'my_bookings' %}" data-auth-view="login" data-next-url="{% url 'my_bookings' %}" title="Log in to view your bookings">
-                  <i class="bi bi-calendar-check d-lg-none me-2"></i>
-                  <span>My Bookings</span>
+                  <i class="bi bi-calendar-check d-lg-none"></i>
+                  <span data-i18n="nav_bookings">My Bookings</span>
                 </a>
                 {% endif %}
               </li>
@@ -357,24 +379,16 @@
                 {% if user.is_authenticated %}
                 <a class="nav-link {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"
                   href="{% url 'notifications' %}">
-                  <div class="d-flex align-items-center justify-content-between w-100">
-                    <div>
-                      <i class="bi bi-bell me-2"></i>
-                      <span>Notifications</span>
-                    </div>
-                    {% if global_unread_count > 0 %}
-                    <span class="badge bg-danger rounded-pill">{{ global_unread_count }}</span>
-                    {% endif %}
-                  </div>
+                  <i class="bi bi-bell"></i>
+                  <span data-i18n="nav_notifications">Notifications</span>
+                  {% if global_unread_count > 0 %}
+                  <span class="badge bg-danger rounded-pill nav-drawer-badge">{{ global_unread_count }}</span>
+                  {% endif %}
                 </a>
                 {% else %}
                 <a class="nav-link js-auth-trigger" href="{% url 'login' %}?next={% url 'notifications' %}" data-auth-view="login" data-next-url="{% url 'notifications' %}">
-                  <div class="d-flex align-items-center justify-content-between w-100">
-                    <div>
-                      <i class="bi bi-bell me-2"></i>
-                      <span>Notifications</span>
-                    </div>
-                  </div>
+                  <i class="bi bi-bell"></i>
+                  <span data-i18n="nav_notifications">Notifications</span>
                 </a>
                 {% endif %}
               </li>
@@ -382,15 +396,11 @@
               <!-- 5. LOCATION / CHANGE DISTRICT (Mobile Menu Item) -->
               <li class="nav-item d-lg-none">
                 <a class="nav-link" href="?change_district=1">
-                  <div class="d-flex align-items-center justify-content-between w-100">
-                    <div>
-                      <i class="bi bi-geo-alt me-2"></i>
-                      <span>Change District</span>
-                    </div>
-                    <span class="badge bg-white text-dark border font-monospace" style="font-size:0.75rem; font-weight:600;">
-                      {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Kerala{% endif %}
-                    </span>
-                  </div>
+                  <i class="bi bi-geo-alt"></i>
+                  <span data-i18n="nav_change_district">Change District</span>
+                  <span class="badge bg-white text-dark border font-monospace nav-drawer-badge" style="font-size:0.75rem; font-weight:600;">
+                    {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Kerala{% endif %}
+                  </span>
                 </a>
               </li>
 
@@ -399,30 +409,23 @@
                 {% if user.is_authenticated %}
                 <a class="nav-link {% if request.resolver_match.url_name == 'user_dashboard' or request.resolver_match.url_name == 'edit_profile' %}active{% endif %}"
                   href="{% url 'user_dashboard' %}">
-                  <div class="d-flex align-items-center justify-content-between w-100">
-                    <div>
-                      <i class="bi bi-person-circle me-2"></i>
-                      <span>Account / Profile</span>
-                    </div>
-                    <span class="user-initial-mini">{{ user.username|first|upper }}</span>
-                  </div>
+                  <i class="bi bi-person-circle"></i>
+                  <span data-i18n="nav_account">Account / Profile</span>
+                  <span class="user-initial-mini nav-drawer-badge">{{ user.username|first|upper }}</span>
                 </a>
                 {% else %}
                 <a class="nav-link js-auth-trigger" href="{% url 'login' %}?next={% url 'user_dashboard' %}" data-auth-view="login" data-next-url="{% url 'user_dashboard' %}">
-                  <div class="d-flex align-items-center justify-content-between w-100">
-                    <div>
-                      <i class="bi bi-person-circle me-2"></i>
-                      <span>Account / Sign In</span>
-                    </div>
-                  </div>
+                  <i class="bi bi-person-circle"></i>
+                  <span data-i18n="nav_signin">Account / Sign In</span>
                 </a>
                 {% endif %}
               </li>
 
               <!-- Mobile Secondary Section (About Us & Contact) -->
               <li class="nav-item d-lg-none">
-                <a class="nav-link js-auth-trigger" href="{% url 'register' %}?role=worker" data-auth-view="register" data-auth-role="WORKER" style="color: #10b981; font-weight: 700; font-size: 0.9rem;">
-                  <i class="bi bi-briefcase-fill me-2" style="color: #10b981;"></i>Become a Worker
+                <a class="nav-link js-auth-trigger nav-link-worker" href="{% url 'register' %}?role=worker" data-auth-view="register" data-auth-role="WORKER">
+                  <i class="bi bi-briefcase-fill"></i>
+                  <span data-i18n="nav_become_worker">Become a Worker</span>
                 </a>
               </li>
               <li class="nav-item d-lg-none mobile-nav-secondary-divider">
@@ -430,14 +433,16 @@
               </li>
               <li class="nav-item d-lg-none">
                 <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}"
-                  href="{% url 'about' %}" style="font-size: 0.88rem; opacity: 0.85;">
-                  <i class="bi bi-info-circle me-2"></i>About Us
+                  href="{% url 'about' %}">
+                  <i class="bi bi-info-circle"></i>
+                  <span data-i18n="nav_about">About Us</span>
                 </a>
               </li>
               <li class="nav-item d-lg-none">
                 <a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}"
-                  href="{% url 'contact' %}" style="font-size: 0.88rem; opacity: 0.85;">
-                  <i class="bi bi-envelope me-2"></i>Contact
+                  href="{% url 'contact' %}">
+                  <i class="bi bi-envelope"></i>
+                  <span data-i18n="nav_contact">Contact</span>
                 </a>
               </li>
 
@@ -447,7 +452,15 @@
           <!-- =========================================
                RIGHT SIDE ACTIONS (DESKTOP) / DRAWER FOOTER (MOBILE)
           ========================================== -->
-          <div class="nav-actions" data-aos="fade-down" data-aos-delay="200">
+          <div class="nav-actions d-flex align-items-center gap-2" data-aos="fade-down" data-aos-delay="200">
+
+            <!-- Desktop Bilingual Language Switcher (EN | മലയാളം) -->
+            <div class="lamo-lang-switcher d-none d-lg-inline-flex" id="desktopLangSwitcher" title="Switch Language / ഭാഷ മാറ്റുക">
+              <button type="button" class="lamo-lang-btn {% if current_language == 'en' or not current_language %}active{% endif %}" data-lang="en" aria-label="English">EN</button>
+              <span class="lamo-lang-divider">|</span>
+              <button type="button" class="lamo-lang-btn {% if current_language == 'ml' %}active{% endif %}" data-lang="ml" aria-label="Malayalam">മലയാളം</button>
+            </div>
+
             {% if user.is_authenticated %}
             <!-- Authenticated User Dropdown (Desktop) -->
             <div class="user-menu" id="userMenu">
@@ -467,22 +480,22 @@
                 </div>
                 <a href="{% url 'user_dashboard' %}">
                   <i class="bi bi-speedometer2"></i>
-                  Dashboard
+                  <span data-i18n="nav_dashboard">Dashboard</span>
                 </a>
                 <a href="{% url 'edit_profile' %}">
                   <i class="bi bi-person-gear"></i>
-                  Account Profile
+                  <span data-i18n="nav_account">Account Profile</span>
                 </a>
                 <a href="{% url 'my_bookings' %}">
                   <i class="bi bi-calendar-check"></i>
-                  My Bookings
+                  <span data-i18n="nav_bookings">My Bookings</span>
                 </a>
                 <div class="dropdown-divider my-1"></div>
                 <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
                   {% csrf_token %}
                   <button type="submit" class="logout-item w-100 text-start">
                     <i class="bi bi-box-arrow-right"></i>
-                    Logout
+                    <span data-i18n="nav_logout">Logout</span>
                   </button>
                 </form>
               </div>
@@ -494,7 +507,7 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2" style="border-radius: 12px; padding: 10px;">
                   <i class="bi bi-box-arrow-right"></i>
-                  Logout ({{ user.username }})
+                  <span><span data-i18n="nav_logout">Logout</span> ({{ user.username }})</span>
                 </button>
               </form>
             </div>
@@ -503,15 +516,15 @@
             <!-- Guest Desktop & Mobile Actions -->
             <a href="{% url 'register' %}?role=worker" class="btn-become-pro d-none d-xl-inline-flex js-auth-trigger" data-auth-view="register" data-auth-role="WORKER" style="padding: 7px 15px; border-radius: 50px; background: rgba(8, 127, 91, 0.08); border: 1.5px solid rgba(8, 127, 91, 0.22); color: #087F5B; font-weight: 700; font-size: 0.82rem; text-decoration: none; align-items: center; gap: 6px;">
               <i class="bi bi-briefcase-fill" style="color: #087F5B;"></i>
-              Become a Worker
+              <span data-i18n="nav_become_worker">Become a Worker</span>
             </a>
-            <a href="{% url 'login' %}" class="btn-login">
+            <a href="{% url 'login' %}" class="btn-login js-auth-trigger" data-auth-view="login">
               <i class="bi bi-box-arrow-in-right me-1"></i>
-              Login
+              <span data-i18n="nav_login">Login</span>
             </a>
-            <a href="{% url 'register' %}" class="btn-register">
+            <a href="{% url 'register' %}" class="btn-register js-auth-trigger" data-auth-view="register">
               <i class="bi bi-person-plus me-1"></i>
-              Register
+              <span data-i18n="nav_register">Register</span>
             </a>
             {% endif %}
           </div>
@@ -898,6 +911,10 @@
             Terms &amp; Conditions
           </a>
 
+          <a href="{% url 'admin_login' %}">
+            <i class="bi bi-shield-lock-fill me-1"></i>Admin Portal
+          </a>
+
         </div>
 
 
@@ -1069,8 +1086,8 @@
     <div class="lamo-notif-head">
       <div class="lamo-notif-head-row">
         <div>
-          <h2 class="lamo-notif-title" id="lamoNotifTitle">Notifications</h2>
-          <p class="lamo-notif-subtitle">Stay updated with your jobs and messages</p>
+          <h2 class="lamo-notif-title" id="lamoNotifTitle" data-i18n="notif_title">Notifications</h2>
+          <p class="lamo-notif-subtitle" data-i18n="notif_subtitle">Stay updated with your jobs and messages</p>
         </div>
         <button type="button" class="lamo-notif-close" id="lamoNotifClose" aria-label="Close notifications">
           <i class="bi bi-x-lg"></i>
@@ -1080,16 +1097,35 @@
       <div class="lamo-notif-tabs" role="tablist" aria-label="Filter notifications">
         <button type="button" class="lamo-notif-tab active" data-lamo-notif-filter="all" role="tab"
           aria-selected="true">
-          All <span class="lamo-notif-tab-count" data-lamo-notif-count="all"></span>
+          <span data-i18n="notif_all">All</span> <span class="lamo-notif-tab-count" data-lamo-notif-count="all"></span>
         </button>
         <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="unread" role="tab" aria-selected="false">
-          Unread <span class="lamo-notif-tab-count" data-lamo-notif-count="unread"></span>
+          <span data-i18n="notif_unread">Unread</span> <span class="lamo-notif-tab-count" data-lamo-notif-count="unread"></span>
         </button>
         <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="messages" role="tab" aria-selected="false">
-          Messages <span class="lamo-notif-tab-count" data-lamo-notif-count="messages"></span>
+          <span data-i18n="notif_messages">Messages</span> <span class="lamo-notif-tab-count" data-lamo-notif-count="messages"></span>
         </button>
         <button type="button" class="lamo-notif-tab" data-lamo-notif-filter="bookings" role="tab" aria-selected="false">
-          Bookings <span class="lamo-notif-tab-count" data-lamo-notif-count="bookings"></span>
+          <span data-i18n="notif_bookings">Bookings</span> <span class="lamo-notif-tab-count" data-lamo-notif-count="bookings"></span>
+        </button>
+      </div>
+
+      <!-- Real-Time Web Push Alerts Bar -->
+      <div class="lamo-push-prompt-bar d-flex align-items-center justify-content-between p-2 mt-2 rounded {% if has_push_subscription %}is-active{% endif %}" id="lamoPushPromptBar" style="background: rgba(8, 127, 91, 0.08); border: 1px dashed rgba(8, 127, 91, 0.3);">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-broadcast text-success fs-5"></i>
+          <div style="line-height: 1.2;">
+            <small class="fw-bold d-block text-dark" data-i18n="push_title">Live Push Notifications</small>
+            <span class="text-muted" style="font-size: 0.72rem;" id="lamoPushStatusText" data-i18n="push_desc">
+              {% if has_push_subscription %}Push alerts are active on this device{% else %}Get instant alerts even when browser is closed{% endif %}
+            </span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm {% if has_push_subscription %}btn-outline-success{% else %}btn-success{% endif %} rounded-pill px-3 py-1" id="lamoEnablePushBtn" style="font-size: 0.75rem; font-weight: 600;" {% if has_push_subscription %}disabled{% endif %}>
+          <i class="bi bi-{% if has_push_subscription %}check-circle-fill{% else %}bell-fill{% endif %} me-1"></i>
+          <span id="lamoPushBtnLabel" data-i18n="{% if has_push_subscription %}push_active{% else %}push_enable{% endif %}">
+            {% if has_push_subscription %}Active{% else %}Enable{% endif %}
+          </span>
         </button>
       </div>
     </div>
@@ -1127,8 +1163,8 @@
       {% empty %}
       <li class="lamo-notif-empty">
         <i class="bi bi-bell-slash"></i>
-        <strong>No notifications</strong>
-        <p>You're all caught up.</p>
+        <strong data-i18n="notif_empty">No notifications</strong>
+        <p data-i18n="notif_caught_up">You're all caught up.</p>
       </li>
       {% endfor %}
     </ul>
@@ -1136,7 +1172,7 @@
     <div class="lamo-notif-foot">
       <a class="lamo-notif-viewall"
         href="{% if user.is_authenticated and user.role == 'WORKER' %}{% url 'worker_notifications' %}{% elif user.is_authenticated and user.role == 'ADMIN' %}{% url 'admin_notifications' %}{% else %}{% url 'notifications' %}{% endif %}">
-        View all notifications <i class="bi bi-arrow-right"></i>
+        <span data-i18n="notif_view_all">View all notifications</span> <i class="bi bi-arrow-right"></i>
       </a>
     </div>
   </section>
@@ -1302,6 +1338,113 @@
   <!-- Location Selection Modal Partial -->
   {% include 'includes/location_modal.html' %}
   <script src="{% static 'js/location-modal.js' %}" defer></script>
+
+  {% if user.is_authenticated %}
+    <!-- In-App WebRTC Audio Calling Modal Partial -->
+    {% include 'includes/call_modal.html' %}
+    <script src="{% static 'js/lamo-call.js' %}" defer></script>
+
+    <!-- Live Route Map & GPS Tracking Modal Partial (Leaflet / OSM) -->
+    {% include 'includes/tracking_modal.html' %}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="{% static 'js/lamo-tracking.js' %}" defer></script>
+
+    <!-- Automated Real-Time Web Push Client Controller -->
+    <script>
+      (function () {
+        var VAPID_KEY = "{{ vapid_public_key|default:'' }}";
+        var PUSH_URL = "{% url 'save_push_subscription' %}";
+        var btn = document.getElementById('lamoEnablePushBtn');
+        var label = document.getElementById('lamoPushBtnLabel');
+        var statusText = document.getElementById('lamoPushStatusText');
+        var bar = document.getElementById('lamoPushPromptBar');
+
+        function urlB64ToUint8(base64String) {
+          var padding = '='.repeat((4 - base64String.length % 4) % 4);
+          var base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+          var rawData = window.atob(base64);
+          var output = new Uint8Array(rawData.length);
+          for (var i = 0; i < rawData.length; ++i) {
+            output[i] = rawData.charCodeAt(i);
+          }
+          return output;
+        }
+
+        async function registerPush() {
+          if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert('Web Push notifications are not supported in your browser.');
+            return;
+          }
+          if (!VAPID_KEY) {
+            console.warn('VAPID public key not configured.');
+            return;
+          }
+
+          try {
+            if (btn) {
+              btn.disabled = true;
+              if (label) label.textContent = 'Enabling...';
+            }
+            var reg = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+
+            var perm = await Notification.requestPermission();
+            if (perm !== 'granted') {
+              alert('Please allow notification permission in your browser to receive instant booking and message alerts.');
+              if (btn) {
+                btn.disabled = false;
+                if (label) label.textContent = 'Enable';
+              }
+              return;
+            }
+
+            var sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+              sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlB64ToUint8(VAPID_KEY)
+              });
+            }
+
+            var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content ||
+              (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+
+            var res = await fetch(PUSH_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf
+              },
+              body: JSON.stringify(sub)
+            });
+
+            if (res.ok) {
+              if (btn) {
+                btn.className = 'btn btn-sm btn-outline-success rounded-pill px-3 py-1';
+                btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> <span id="lamoPushBtnLabel" data-i18n="push_active">Active</span>';
+                btn.disabled = true;
+              }
+              if (statusText) statusText.textContent = 'Push alerts are active on this device';
+              if (bar) bar.classList.add('is-active');
+            }
+          } catch (err) {
+            console.error('Failed to register Web Push:', err);
+            if (btn) {
+              btn.disabled = false;
+              if (label) label.textContent = 'Enable';
+            }
+          }
+        }
+
+        if (btn) {
+          btn.addEventListener('click', registerPush);
+        }
+      })();
+    </script>
+  {% endif %}
+
+  <!-- Bilingual Malayalam / English Engine -->
+  <script src="{% static 'js/lamo-i18n.js' %}"></script>
 
 </body>
 

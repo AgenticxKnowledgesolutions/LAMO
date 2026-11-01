@@ -1441,11 +1441,24 @@
                                         </td>
                                         <td>
                                             <i class="bi bi-geo-alt"></i>
-                                            {{ booking.location }}
+                                            {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETED' %}
+                                                {{ booking.location }}
+                                            {% else %}
+                                                <span title="Doorstep address unlocked upon acceptance"><i class="bi bi-lock-fill"></i> {{ booking.district|default:"Local District Area" }} <small style="color:#64748b; font-size:11px;">(Address unlocked upon accept)</small></span>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <i class="bi bi-telephone"></i>
-                                            {{ booking.phone }}
+                                            {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETED' %}
+                                                <button type="button" class="btn-lamo-audio-call" style="padding: 4px 10px; font-size: 11.5px;" onclick="initiateLamoCall({{ booking.id }}, '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}', 'Customer')">
+                                                    <i class="bi bi-telephone-fill"></i> Call Customer (In-App)
+                                                </button>
+                                                <button type="button" class="btn-lamo-track-map" style="padding: 4px 10px; font-size: 11.5px;" onclick="openLiveTrackingModal({{ booking.id }})">
+                                                    <i class="bi bi-geo-alt-fill"></i> Route Map
+                                                </button>
+                                            {% else %}
+                                                <span style="color:#64748b; font-size:12px;">•••••••••• <small>(Unlocked upon accept)</small></span>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1794,11 +1807,17 @@
 
                                             <div
                                                 class="table-value location-value"
-                                                title="{{ booking.location }}"
+                                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                                                    title="{{ booking.location }}"
+                                                {% else %}
+                                                    title="{{ booking.district|default:'Local Area' }} (Doorstep address unlocked upon booking acceptance)"
+                                                {% endif %}
                                             >
-
-                                                {{ booking.location|default:"Not specified" }}
-
+                                                {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                                                    {{ booking.location|default:"Not specified" }}
+                                                {% else %}
+                                                    <span style="color: #64748b;"><i class="bi bi-lock-fill"></i> {{ booking.district|default:"Local District Area" }} <small style="display:block; font-size:11px; color:#94a3b8;">Address revealed on accept</small></span>
+                                                {% endif %}
                                             </div>
 
                                         </td>
@@ -1868,20 +1887,7 @@
 
                             <div class="job-actions" style="flex-wrap: wrap;">
 
-                                <button
-                                    type="button"
-                                    class="job-button accept-button chat-open-btn"
-                                    style="flex: 1; min-width: 130px; text-decoration:none; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                                    data-booking-id="{{ booking.id }}"
-                                    data-customer-name="{{ booking.customer.get_full_name|default:booking.customer.username|escape }}"
-                                    data-service-name="{{ booking.service.name|escape }}"
-                                    data-chat-url="{% url 'booking_messages' booking.id %}"
-                                    aria-haspopup="dialog"
-                                >
-                                    <i class="bi bi-chat-dots-fill"></i>
-                                    <span>Open Chat</span>
-                                </button>
-
+                                {% if booking.can_start_now %}
                                 <button
                                     type="button"
                                     class="job-button start-button"
@@ -1890,6 +1896,38 @@
                                 >
                                     <i class="bi bi-shield-check"></i>
                                     <span>Start Job (Enter OTP)</span>
+                                </button>
+                                {% else %}
+                                <button
+                                    type="button"
+                                    class="job-button start-button"
+                                    style="flex: 1.2; min-width: 140px; background: #64748b; opacity: 0.9;"
+                                    onclick="openStartJobEarlyModal('{{ booking.date|date:'d M Y'|default:booking.date }}', '{{ booking.time|escapejs }}')"
+                                    title="Scheduled for {{ booking.date }} at {{ booking.time }}. Can be started up to 30 mins before scheduled time."
+                                >
+                                    <i class="bi bi-clock-history"></i>
+                                    <span>Scheduled ({{ booking.time }})</span>
+                                </button>
+                                {% endif %}
+
+                                <button
+                                    type="button"
+                                    class="btn-lamo-audio-call"
+                                    style="flex: 1; min-width: 140px; justify-content: center;"
+                                    onclick="initiateLamoCall({{ booking.id }}, '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}', 'Customer')"
+                                >
+                                    <i class="bi bi-telephone-fill"></i>
+                                    <span>Call Customer</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn-lamo-track-map"
+                                    style="flex: 1; min-width: 140px; justify-content: center;"
+                                    onclick="openLiveTrackingModal({{ booking.id }})"
+                                >
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Route to Customer</span>
                                 </button>
 
                                 <button
@@ -1919,30 +1957,36 @@
 
                         {% elif booking.status == 'IN_PROGRESS' %}
 
-                            <div class="job-actions">
-
-                                <button
-                                    type="button"
-                                    class="job-button accept-button chat-open-btn"
-                                    style="flex: 1; text-decoration:none; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                                    data-booking-id="{{ booking.id }}"
-                                    data-customer-name="{{ booking.customer.get_full_name|default:booking.customer.username|escape }}"
-                                    data-service-name="{{ booking.service.name|escape }}"
-                                    data-chat-url="{% url 'booking_messages' booking.id %}"
-                                    aria-haspopup="dialog"
-                                >
-                                    <i class="bi bi-chat-dots-fill"></i>
-                                    <span>Open Chat</span>
-                                </button>
+                            <div class="job-actions" style="flex-wrap: wrap;">
 
                                 <button
                                     type="button"
                                     class="job-button completion-button"
-                                    style="flex: 1.5;"
+                                    style="flex: 1.5; min-width: 160px;"
                                     onclick="openWorkerCompletionModal('{{ booking.id }}', '{{ booking.service.name|escapejs }}', '{{ booking.estimated_cost|default:'0' }}')"
                                 >
                                     <i class="bi bi-check2-circle"></i>
                                     <span>Request Completion</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn-lamo-audio-call"
+                                    style="flex: 1; min-width: 140px; justify-content: center;"
+                                    onclick="initiateLamoCall({{ booking.id }}, '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}', 'Customer')"
+                                >
+                                    <i class="bi bi-telephone-fill"></i>
+                                    <span>Call Customer</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="btn-lamo-track-map"
+                                    style="flex: 1; min-width: 140px; justify-content: center;"
+                                    onclick="openLiveTrackingModal({{ booking.id }})"
+                                >
+                                    <i class="bi bi-geo-alt-fill"></i>
+                                    <span>Route to Customer</span>
                                 </button>
 
                             </div>
@@ -2297,6 +2341,10 @@ function closeMessageElement(message) {
             message.parentNode.removeChild(message);
         }
     }, 350);
+}
+
+function openStartJobEarlyModal(bookingDate, bookingTime) {
+    alert("This job is scheduled for " + bookingDate + " at " + bookingTime + ".\n\nYou can only start the job up to 30 minutes before the scheduled service time.");
 }
 
 // START JOB MODAL

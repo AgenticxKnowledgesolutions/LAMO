@@ -179,18 +179,18 @@
 
                         <div class="mb-3">
                             <label for="id_location" class="form-label">Service Location</label>
-                            <input type="text" name="location" id="id_location" class="form-control" placeholder="Enter your complete service location or select on map" required>
+                            <input type="text" name="location" id="id_location" class="form-control" placeholder="Enter your complete service location or select on map" value="{{ customer_prefill.location|default:'' }}" required>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Select Location on Map</label>
                             <div id="bookServiceMap"
                                  data-district="{{ district|escapejs }}"
-                                 data-default-lat="{{ district_lat|default:9.9312 }}"
-                                 data-default-lng="{{ district_lng|default:76.2673 }}"
+                                 data-default-lat="{% if customer_prefill.latitude %}{{ customer_prefill.latitude }}{% else %}{{ district_lat|default:9.9312 }}{% endif %}"
+                                 data-default-lng="{% if customer_prefill.longitude %}{{ customer_prefill.longitude }}{% else %}{{ district_lng|default:76.2673 }}{% endif %}"
                                  style="height: 240px; border-radius: 14px; border: 1px solid #e5e7eb;"></div>
-                            <input type="hidden" name="latitude" id="id_latitude">
-                            <input type="hidden" name="longitude" id="id_longitude">
+                            <input type="hidden" name="latitude" id="id_latitude" value="{{ customer_prefill.latitude|default:'' }}">
+                            <input type="hidden" name="longitude" id="id_longitude" value="{{ customer_prefill.longitude|default:'' }}">
                             <div id="districtValidation" style="margin-top: 8px; font-size: 12px; display: none; color: #dc2626;">
                                 <i class="bi bi-exclamation-triangle-fill"></i>
                                 Please select a service location within {{ district }}.
@@ -209,16 +209,50 @@
                             <textarea name="description" id="id_description" class="form-control" rows="3" placeholder="Example: Kitchen tap is leaking..."></textarea>
                         </div>
 
+                        {% if not user.is_authenticated %}
+                        <div class="card p-3 mb-3" style="background:#f8fafc; border: 1.5px solid #e2e8f0; border-radius:12px;">
+                            <div style="font-weight: 600; color: #1e293b; font-size: 0.95rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-person-badge-fill text-success"></i>
+                                <span>First-Time Customer Account Setup</span>
+                            </div>
+                            <p class="text-muted" style="font-size: 0.82rem; margin-bottom: 12px; line-height: 1.4;">
+                                We'll create your customer account with email OTP verification so you can easily track and manage your booking.
+                            </p>
+
+                            <div class="mb-3">
+                                <label for="id_customer_name" class="form-label" style="font-size: 0.85rem; font-weight: 600;">
+                                    Full Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="customer_name" id="id_customer_name" class="form-control" placeholder="Enter your full name" maxlength="100">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="id_customer_email" class="form-label" style="font-size: 0.85rem; font-weight: 600;">
+                                    Email Address <span class="text-danger">*</span>
+                                </label>
+                                <input type="email" name="customer_email" id="id_customer_email" class="form-control" placeholder="name@example.com" maxlength="100">
+                                <small class="text-muted" style="font-size: 0.78rem;">A 6-digit OTP code will be sent to verify this email.</small>
+                            </div>
+
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="create_account_consent" id="id_create_account_consent" value="1" style="accent-color: #16a34a; cursor: pointer;">
+                                <label class="form-check-label text-muted" for="id_create_account_consent" style="font-size: 0.82rem; cursor: pointer;">
+                                    I agree to create a LAMO customer account and verify my email to complete this booking.
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <label for="id_phone" class="form-label">Contact Number</label>
-                            <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="Enter 10-digit mobile number" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" minlength="10" required>
+                            <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="Enter 10-digit mobile number" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" minlength="10" value="{{ customer_prefill.phone|default:'' }}" required>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label d-flex align-items-center justify-content-between" style="font-weight: 600;">
                                 <span>Payment Method</span>
                                 <span class="badge" style="background:#ecfdf5; color:#059669; font-weight:600; border:1px solid #a7f3d0; font-size:0.75rem;">
-                                    <i class="bi bi-shield-check"></i> Safe & Verified
+                                    <i class="bi bi-shield-check"></i> Safe &amp; Verified
                                 </span>
                             </label>
                             <div class="row g-2">
@@ -247,9 +281,19 @@
                             </div>
                         </div>
 
+                        {% if user.is_authenticated %}
                         <button type="submit" class="btn btn-book-submit w-100">
                             Continue Booking <i class="bi bi-arrow-right"></i>
                         </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-book-submit w-100">
+                            <i class="bi bi-shield-check me-1"></i> Verify Email &amp; Continue <i class="bi bi-arrow-right"></i>
+                        </button>
+                        <div class="text-center mt-3 text-muted" style="font-size: 0.85rem;">
+                            Already have an account?
+                            <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" style="color: #16a34a; font-weight: 600; text-decoration: none;">Log in here</a>
+                        </div>
+                        {% endif %}
 
                     </form>
 

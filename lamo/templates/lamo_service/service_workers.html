@@ -28,7 +28,7 @@
     >
 
     <link rel="stylesheet" href="{% static 'css/lamo_service-service_workers.css' %}">
-    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261024_wizard">
 
 
 </head>
@@ -38,60 +38,64 @@
 
 
 <!-- =========================================================
-     MINIMAL NAVIGATION
-     This page is a standalone full-HTML document (it does not
-     inherit from base.html), so it has no navbar. Converting it
-     would mean restructuring 1700+ lines that carry the worker
-     list and the Leaflet map - a far bigger regression risk than
-     the gap it closes. Instead a compact, role-aware utility bar
-     is added here in the page's own visual language. All existing
-     JavaScript and the map are kept on this standalone page.
+     TOP NAVIGATION & BREADCRUMB
+     Provides brand continuity, breadcrumb trail, and user account shortcuts.
      ========================================================= -->
+<div class="workers-top-header workers-page-nav" style="background:#ffffff; border-bottom:1px solid #e2e8f0; padding:12px 24px; position:sticky; top:0; z-index:100; box-shadow:0 2px 10px rgba(15,23,42,0.03);">
+    <div style="max-width:1320px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:14px;">
+            <a href="{% url 'home' %}" style="display:flex; align-items:center;">
+                <img src="{% static 'img/logoo.png' %}" alt="LAMO" style="height:26px; width:auto; object-fit:contain;">
+            </a>
+            <nav style="font-size:13px; font-weight:600; color:#64748b; display:flex; align-items:center; gap:6px;">
+                <a href="{% url 'home' %}" style="color:#64748b; text-decoration:none;">Home</a>
+                <span>/</span>
+                <a href="{% url 'service_page' %}{% if district %}?district={{ district|urlencode }}{% endif %}" style="color:#64748b; text-decoration:none;">Services</a>
+                <span>/</span>
+                <span style="color:#087f5b; font-weight:700;">{{ service.name }}{% if district %} in {{ district }}{% endif %}</span>
+            </nav>
+        </div>
 
-<div class="workers-page-nav" style="display: none;" aria-hidden="true">
-
-    <a href="{% url 'service_detail' service.id %}" class="workers-page-nav-back">
-        <i class="bi bi-arrow-left"></i>
-        {{ service.name }}
-    </a>
-
-    <span class="workers-page-nav-spacer"></span>
-
-    {% if request.user.is_authenticated %}
-        <a href="{% url 'notifications' %}" class="workers-page-nav-link" title="Notifications">
-            <i class="bi bi-bell"></i>
-        </a>
-        <a href="{% url 'my_bookings' %}" class="workers-page-nav-link" title="My bookings">
-            <i class="bi bi-list-check"></i>
-        </a>
-        <form method="POST" action="{% url 'logout' %}" class="d-inline">
-            {% csrf_token %}
-            <button type="submit" class="workers-page-nav-link workers-page-nav-btn" title="Log out">
-                <i class="bi bi-box-arrow-right"></i>
-            </button>
-        </form>
-    {% else %}
-        <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" class="workers-page-nav-link">
-            <i class="bi bi-person"></i>
-            Login
-        </a>
-        <a href="{% url 'register' %}?next={{ request.get_full_path|urlencode }}" class="workers-page-nav-link">
-            Register
-        </a>
-    {% endif %}
-
+        <div style="display:flex; align-items:center; gap:12px;">
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'my_bookings' %}" style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:10px; background:#f1f5f9; color:#1e293b; font-size:13px; font-weight:600; text-decoration:none;">
+                    <i class="bi bi-calendar-check text-success"></i> My Bookings
+                </a>
+                <a href="{% url 'user_dashboard' %}" style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:#087f5b; color:#fff; font-size:13px; font-weight:700; text-decoration:none;" title="{{ request.user.username }}">
+                    {{ request.user.username|first|upper }}
+                </a>
+                <form method="POST" action="{% url 'logout' %}" style="display:inline; margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" style="background:none; border:none; color:#64748b; font-size:13px; font-weight:600; cursor:pointer; padding:7px 10px;" title="Logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" style="color:#087f5b; font-size:13px; font-weight:700; text-decoration:none; padding:7px 14px;">
+                    Login
+                </a>
+                <a href="{% url 'register' %}?next={{ request.get_full_path|urlencode }}" style="padding:7px 16px; border-radius:10px; background:#087f5b; color:#fff; font-size:13px; font-weight:700; text-decoration:none;">
+                    Register
+                </a>
+            {% endif %}
+        </div>
+    </div>
 </div>
-
 
 <div class="workers-page">
 
     <div class="workers-page-body-wrap">
 
-        <!-- BACK TO SERVICE BUTTON -->
-        <a href="{% url 'service_detail' service.id %}" class="pill-back-btn">
-            <i class="bi bi-arrow-left"></i>
-            Back to {{ service.name }}
-        </a>
+        <!-- BACK & DETAILS DUAL NAV -->
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+            <a href="{% url 'service_page' %}{% if district %}?district={{ district|urlencode }}{% endif %}" class="pill-back-btn" style="margin-bottom:0;">
+                <i class="bi bi-arrow-left"></i>
+                Back to All Services
+            </a>
+            <a href="{% url 'service_detail' service.id %}" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#087f5b; text-decoration:none; background:#ffffff; border:1px solid #e2e8f0; border-radius:9999px; padding:7px 16px; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
+                <i class="bi bi-stars text-warning"></i> AI Match &amp; Service Guide
+            </a>
+        </div>
 
         <!-- EMERGENCY SERVICE BANNER (IMAGE 2 UI) -->
         <div class="emergency-banner-card">
@@ -115,55 +119,99 @@
             {% endif %}
         </div>
 
-        {% if ai_requirement %}
-            <section class="ai-recommendation-panel" style="margin-bottom: 24px;">
-                <div class="ai-panel-header">
+        {% if ai_recommendations %}
+            <section class="ai-recommendation-panel" style="margin-bottom: 28px; background: linear-gradient(135deg, #022c1e 0%, #064e3b 100%); border-radius: 20px; padding: 24px; color: #ffffff; box-shadow: 0 10px 30px rgba(6, 78, 59, 0.2); border: 1px solid rgba(167, 243, 208, 0.25);">
+                <div class="ai-panel-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 14px;">
                     <div>
-                        <span class="ai-kicker">🤖 AI Recommendation</span>
-                        <h2>Recommended Workers for: "{{ ai_requirement }}"</h2>
+                        <span class="ai-kicker" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(52, 211, 153, 0.2); border: 1px solid rgba(52, 211, 153, 0.4); border-radius: 9999px; padding: 4px 12px; font-size: 11.5px; font-weight: 700; color: #6ee7b7; letter-spacing: 0.5px; margin-bottom: 6px;">
+                            <i class="bi bi-robot"></i> AI Recommended Workers
+                        </span>
+                        <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; margin: 0;">
+                            Best Matches for {{ service.name }}{% if locality %} near {{ locality }}{% elif district %} in {{ district }}{% endif %}
+                        </h2>
+                    </div>
+                    <div style="font-size: 12px; color: #a7f3d0; background: rgba(255, 255, 255, 0.08); padding: 6px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                        <i class="bi bi-geo-alt-fill text-warning"></i> Ranked by proximity &amp; availability
                     </div>
                 </div>
 
-                {% if ai_recommendations %}
-                    <div class="ai-recommendations-grid">
-                        {% for recommendation in ai_recommendations %}
-                            {% with worker=recommendation.worker %}
-                                <article class="ai-worker-card">
-                                    <div class="ai-score-row">
-                                        <span class="ai-match-badge">{{ recommendation.match_score|floatformat:1 }}% Match</span>
-                                    </div>
-                                    <h3>{{ worker.user.get_full_name|default:worker.user.username }}</h3>
-                                    <p class="ai-service-name">{{ recommendation.service_name }}</p>
+                <div class="ai-recommendations-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px;">
+                    {% for recommendation in ai_recommendations %}
+                        {% with worker=recommendation.worker %}
+                            <article class="ai-worker-card" style="background: #ffffff; border-radius: 16px; padding: 18px; color: #1e293b; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+                                <div>
+                                    <!-- Badges Row -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                                        <span class="ai-match-badge" style="background: #ecfdf5; color: #065f46; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 9999px; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-stars" style="color: #059669;"></i> {{ recommendation.match_score|floatformat:0 }}% Match
+                                        </span>
 
-                                    <div class="ai-meta-row">
-                                        <span><i class="bi bi-geo-alt-fill"></i> {{ worker.district }}</span>
-                                        <span><i class="bi bi-star-fill"></i> {% if recommendation.avg_rating %}{{ recommendation.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}</span>
+                                        <span class="ai-distance-badge" style="background: #eff6ff; color: #1e40af; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-geo-alt-fill" style="color: #2563eb;"></i> {{ recommendation.distance_label }}
+                                        </span>
                                     </div>
 
-                                    <div class="ai-actions" style="margin-top: 14px; display: flex; gap: 8px;">
-                                        <button
-                                            type="button"
-                                            class="btn-book-primary"
-                                            style="padding: 8px 14px; font-size: 13px;"
-                                            data-worker-id="{{ worker.id }}"
-                                            data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
-                                            data-worker-district="{{ worker.district|escapejs }}"
-                                            data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
+                                    <!-- Worker info with avatar -->
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: #e2e8f0; flex-shrink: 0; border: 2px solid #10b981;">
                                             {% if worker.profile_image %}
-                                            data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                                <img src="{{ worker.profile_image.url }}" alt="{{ worker.user.get_full_name|default:worker.user.username }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                            {% else %}
+                                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #087f5b; color: #ffffff; font-weight: 700; font-size: 18px;">
+                                                    {{ worker.user.username|first|upper }}
+                                                </div>
                                             {% endif %}
-                                            data-service-id="{{ service.id }}"
-                                            data-service-name="{{ service.name|escapejs }}"
-                                            onclick="openBookingModal(this)"
-                                        >
-                                            Book Now
-                                        </button>
+                                        </div>
+                                        <div>
+                                            <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0 0 2px; display: flex; align-items: center; gap: 6px;">
+                                                {{ worker.user.get_full_name|default:worker.user.username }}
+                                                {% if worker.is_verified %}
+                                                    <i class="bi bi-patch-check-fill" style="color: #059669; font-size: 14px;" title="Verified Professional"></i>
+                                                {% endif %}
+                                            </h3>
+                                            <p style="font-size: 12.5px; color: #64748b; margin: 0; font-weight: 600;">
+                                                {{ recommendation.service_name }} &bull; &#8377;{{ worker.pricing_amount|default:'250' }}/hr
+                                            </p>
+                                        </div>
                                     </div>
-                                </article>
-                            {% endwith %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
+
+                                    <!-- Meta details -->
+                                    <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: #475569; margin-bottom: 14px; flex-wrap: wrap;">
+                                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-geo-alt" style="color: #64748b;"></i> {{ worker.address|default:worker.district }}
+                                        </span>
+                                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-star-fill" style="color: #eab308;"></i> {% if recommendation.avg_rating %}{{ recommendation.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}
+                                        </span>
+                                        {% if worker.experience_years %}
+                                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-briefcase" style="color: #64748b;"></i> {{ worker.experience_years }}y exp
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="btn-book-primary"
+                                    style="width: 100%; padding: 10px; font-size: 13.5px; font-weight: 700; border-radius: 10px; background: #087f5b; color: #ffffff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s;"
+                                    data-worker-id="{{ worker.id }}"
+                                    data-worker-name="{{ worker.user.get_full_name|default:worker.user.username }}"
+                                    data-worker-district="{{ worker.district }}"
+                                    data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
+                                    {% if worker.profile_image %}
+                                    data-worker-image="{{ worker.profile_image.url }}"
+                                    {% endif %}
+                                    data-service-id="{{ service.id }}"
+                                    data-service-name="{{ service.name }}"
+                                    onclick="openBookingModal(this)"
+                                >
+                                    <i class="bi bi-calendar-check"></i> Book Now
+                                </button>
+                            </article>
+                        {% endwith %}
+                    {% endfor %}
+                </div>
             </section>
         {% endif %}
 
@@ -286,7 +334,13 @@
                 <div class="results-header">
                     <div>
                         <h2>Available {{ service.name }}s</h2>
-                        <p>Choose a verified {{ service.name|lower }} that suits your needs.</p>
+                        <p>
+                            {% if locality %}
+                                AI-ranked by proximity from <strong>{{ locality }}, {{ district }}</strong>.
+                            {% else %}
+                                Choose a verified {{ service.name|lower }} in <strong>{{ district }}</strong>.
+                            {% endif %}
+                        </p>
                     </div>
 
                     <div class="sort-wrap">
@@ -294,7 +348,8 @@
                             <i class="bi bi-arrow-down-up"></i> Sort by:
                         </label>
                         <select id="workerSortSelect" class="sort-select" onchange="applyWorkerSort(this.value)">
-                            <option value="recommended">Recommended</option>
+                            <option value="recommended">AI Recommended (Nearest First)</option>
+                            <option value="distance-near">Distance: Nearest First</option>
                             <option value="rating-high">Rating: High to Low</option>
                             <option value="exp-high">Experience: High to Low</option>
                             <option value="price-low">Price: Low to High</option>
@@ -303,12 +358,42 @@
                     </div>
                 </div>
 
+                <!-- Active Location & Distance Calculation Context Bar -->
+                <div class="workers-location-context-bar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #a7f3d0; border-radius: 14px; padding: 12px 18px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(8, 127, 91, 0.06);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="width: 32px; height: 32px; border-radius: 50%; background: #087f5b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 2px 6px rgba(8, 127, 91, 0.25);">
+                            <i class="bi bi-geo-alt-fill"></i>
+                        </span>
+                        <div>
+                            <div style="font-size: 13.5px; color: #065f46; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                                {% if locality %}
+                                    Your Location: <span>{{ locality }}, {{ district }}</span>
+                                    <span style="background: #059669; color: #fff; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">AI Match Active</span>
+                                {% else %}
+                                    Location: {{ district }}
+                                    <span style="background: #e2e8f0; color: #475569; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 9999px;">District-wide</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 11.5px; color: #047857; margin-top: 1px;">
+                                {% if locality %}
+                                    <i class="bi bi-check-circle-fill text-success"></i> Real physical distances calculated via backend coordinates. Nearest workers ranked first.
+                                {% else %}
+                                    <i class="bi bi-info-circle"></i> Select your specific town/locality to see exact km distance for every worker.
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-change-locality-pill" onclick="if(window.openLocationModal) window.openLocationModal();" style="background: #ffffff; border: 1.5px solid #10b981; color: #065f46; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 9999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15); transition: all 0.2s;">
+                        <i class="bi bi-geo-alt"></i> {% if locality %}Change Town / Locality{% else %}Select Specific Town / Locality{% endif %}
+                    </button>
+                </div>
+
                 {% if workers %}
                     <div id="workersListContainer" class="workers-horizontal-list">
                         {% for worker in workers %}
                             <article
                                 id="worker-card-{{ worker.id }}"
-                                class="worker-row-card"
+                                class="worker-row-card {% if worker.is_ai_top_pick %}ai-top-pick-card{% endif %}"
                                 data-worker-id="{{ worker.id }}"
                                 data-name="{{ worker.user.get_full_name|default:worker.user.username }}"
                                 data-bookable="{% if worker.is_bookable %}1{% else %}0{% endif %}"
@@ -317,6 +402,8 @@
                                 data-hours="{{ worker.availability }}"
                                 data-price="{{ worker.pricing_amount|default:'0' }}"
                                 data-district="{{ worker.district }}"
+                                data-distance="{{ worker.distance_km|default:'9999' }}"
+                                data-ai-score="{{ worker.ai_match_score|default:'0' }}"
                             >
                                 <!-- Photo & Verified Badge -->
                                 <div class="worker-row-photo-wrap">
@@ -328,7 +415,7 @@
                                             onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
                                         >
                                         <div class="worker-photo-fallback" style="display:none;">
-                                            <i class="bi bi-person-fill"></i>
+                                             <i class="bi bi-person-fill"></i>
                                         </div>
                                     {% elif worker.user.profile_image %}
                                         <img
@@ -356,6 +443,30 @@
                                 <!-- Center Content -->
                                 <div class="worker-row-content">
                                     <div class="worker-row-main">
+
+                                        <!-- AI Recommended & Distance Badges Row -->
+                                        <div class="worker-badges-top-strip" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                                            {% if worker.is_ai_top_pick %}
+                                                <span class="worker-ai-pill-top" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                                                    <i class="bi bi-stars" style="color: #fef08a;"></i> AI Top Pick • {{ worker.ai_match_score }}% Match
+                                                </span>
+                                            {% elif worker.is_ai_recommended or worker.ai_match_score >= 80 %}
+                                                <span class="worker-ai-pill-rec" style="background: #ecfdf5; color: #065f46; border: 1.5px solid #a7f3d0; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <i class="bi bi-robot" style="color: #059669;"></i> AI Recommended • {{ worker.ai_match_score }}% Match
+                                                </span>
+                                            {% endif %}
+
+                                            {% if worker.distance_km is not None %}
+                                                <span class="worker-distance-pill" style="background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);">
+                                                    <i class="bi bi-geo-alt-fill" style="color: #2563eb;"></i> {{ worker.distance_label }}
+                                                </span>
+                                            {% elif locality %}
+                                                <span class="worker-distance-pill" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <i class="bi bi-geo-alt text-muted"></i> In {{ worker.district }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+
                                         <h3 class="worker-row-name">
                                             {{ worker.user.get_full_name|default:worker.user.username }}
                                         </h3>
@@ -365,11 +476,18 @@
                                         </div>
 
                                         <div class="worker-row-rating">
-                                            <i class="bi bi-star-fill star-gold"></i>
-                                            <strong>{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}</strong>
-                                            <span class="review-count">
-                                                ({{ worker.review_count|default:"1" }} review{{ worker.review_count|pluralize }})
-                                            </span>
+                                            {% if worker.avg_rating and worker.review_count %}
+                                                <i class="bi bi-star-fill star-gold"></i>
+                                                <strong>{{ worker.avg_rating|floatformat:1 }}</strong>
+                                                <span class="review-count">
+                                                    ({{ worker.review_count }} review{{ worker.review_count|pluralize }})
+                                                </span>
+                                            {% else %}
+                                                <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #059669; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px;">NEW PRO</span>
+                                                <span class="review-count" style="color: #64748b; font-size: 12px; margin-left: 4px;">
+                                                    (No reviews yet)
+                                                </span>
+                                            {% endif %}
                                         </div>
 
                                         <p class="worker-row-bio">
@@ -395,11 +513,16 @@
                                             </div>
                                         </div>
 
-                                        <div class="worker-spec-badge">
-                                            <i class="bi bi-geo-alt-fill spec-icon"></i>
+                                        <div class="worker-spec-badge {% if worker.distance_km is not None %}spec-has-distance{% endif %}">
+                                            <i class="bi bi-geo-alt-fill spec-icon {% if worker.distance_km is not None %}text-primary{% endif %}"></i>
                                             <div class="spec-meta">
-                                                <strong>{{ worker.district }}</strong>
-                                                <small>Location</small>
+                                                {% if worker.distance_km is not None %}
+                                                    <strong style="color: #1d4ed8; font-weight: 800;">{{ worker.distance_km }} km away</strong>
+                                                    <small>{{ worker.district }}</small>
+                                                {% else %}
+                                                    <strong>{{ worker.district }}</strong>
+                                                    <small>Location</small>
+                                                {% endif %}
                                             </div>
                                         </div>
 
@@ -435,16 +558,16 @@
                                                 type="button"
                                                 class="btn-book-primary"
                                                 data-worker-id="{{ worker.id }}"
-                                                data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
-                                                data-worker-district="{{ worker.district|escapejs }}"
+                                                data-worker-name="{{ worker.user.get_full_name|default:worker.user.username }}"
+                                                data-worker-district="{{ worker.district }}"
                                                 data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
                                                 {% if worker.profile_image %}
-                                                data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                                data-worker-image="{{ worker.profile_image.url }}"
                                                 {% elif worker.user.profile_image %}
-                                                data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
+                                                data-worker-image="{{ worker.user.profile_image.url }}"
                                                 {% endif %}
                                                 data-service-id="{{ service.id }}"
-                                                data-service-name="{{ service.name|escapejs }}"
+                                                data-service-name="{{ service.name }}"
                                                 onclick="openBookingModal(this)"
                                             >
                                                 Book Now <i class="bi bi-arrow-right"></i>
@@ -459,20 +582,20 @@
                                             type="button"
                                             class="btn-view-profile"
                                             data-worker-id="{{ worker.id }}"
-                                            data-worker-name="{{ worker.user.get_full_name|default:worker.user.username|escapejs }}"
-                                            data-worker-service="{{ service.name|escapejs }}"
-                                            data-worker-district="{{ worker.district|escapejs }}"
+                                            data-worker-name="{{ worker.user.get_full_name|default:worker.user.username }}"
+                                            data-worker-service="{{ service.name }}"
+                                            data-worker-district="{{ worker.district }}"
                                             data-worker-exp="{{ worker.experience_years }}"
-                                            data-worker-hours="{{ worker.availability|escapejs }}"
-                                            data-worker-rate="₹{{ worker.pricing_amount|floatformat:2 }} / {{ worker.get_pricing_type_display|default:'Hour'|escapejs }}"
-                                            data-worker-rating="{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}5.0{% endif %}"
-                                            data-worker-reviews="{{ worker.review_count|default:'1' }}"
+                                            data-worker-hours="{{ worker.availability }}"
+                                            data-worker-rate="₹{{ worker.pricing_amount|floatformat:2 }} / {{ worker.get_pricing_type_display|default:'Hour' }}"
+                                            data-worker-rating="{% if worker.avg_rating %}{{ worker.avg_rating|floatformat:1 }}{% else %}New{% endif %}"
+                                            data-worker-reviews="{{ worker.review_count|default:'0' }}"
                                             data-worker-verified="{% if worker.is_verified %}1{% else %}0{% endif %}"
                                             data-worker-bookable="{% if worker.is_bookable %}1{% else %}0{% endif %}"
                                             {% if worker.profile_image %}
-                                            data-worker-image="{{ worker.profile_image.url|escapejs }}"
+                                            data-worker-image="{{ worker.profile_image.url }}"
                                             {% elif worker.user.profile_image %}
-                                            data-worker-image="{{ worker.user.profile_image.url|escapejs }}"
+                                            data-worker-image="{{ worker.user.profile_image.url }}"
                                             {% endif %}
                                             data-service-id="{{ service.id }}"
                                             onclick="openWorkerProfileModal(this)"
@@ -540,9 +663,9 @@
                     <i class="bi bi-tools"></i> <span id="profileModalService">{{ service.name }}</span>
                 </div>
                 <div class="profile-modal-rating-row">
-                    <i class="bi bi-star-fill star-gold"></i>
-                    <strong id="profileModalRating">5.0</strong>
-                    <span id="profileModalReviews" class="review-count">(1 review)</span>
+                    <span id="profileModalStarWrap"><i class="bi bi-star-fill star-gold"></i></span>
+                    <strong id="profileModalRating">New</strong>
+                    <span id="profileModalReviews" class="review-count">(No reviews yet)</span>
                     <span class="profile-status-pill" id="profileModalStatusPill">Available</span>
                 </div>
             </div>

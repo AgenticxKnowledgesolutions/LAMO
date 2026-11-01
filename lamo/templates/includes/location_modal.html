@@ -1,7 +1,8 @@
 {% load static %}
 
 <!-- =========================================================
-     CHOOSE YOUR LOCATION POPUP MODAL (14 KERALA DISTRICTS)
+     CHOOSE YOUR LOCATION POPUP MODAL (14 KERALA DISTRICTS + ALL LOCALITIES + GPS)
+     Fixed layout with scrollable body and always-visible sticky save footer
      ========================================================= -->
 <div class="location-modal-overlay" 
      id="locationModalOverlay" 
@@ -9,11 +10,14 @@
      role="dialog" 
      aria-labelledby="locModalTitle" 
      style="display: none;" 
-     data-initial-district="{{ selected_district|default:current_district|default:'' }}">
+     data-initial-district="{{ selected_district|default:current_district|default:'' }}"
+     data-initial-locality="{{ selected_locality|default:current_locality|default:'' }}"
+     data-initial-lat="{{ current_lat|default:'' }}"
+     data-initial-lng="{{ current_lng|default:'' }}">
 
   <div class="location-modal-card" id="locationModalCard">
 
-    <!-- Close Button (active when district is already set or on change) -->
+    <!-- Close Button -->
     <button type="button" 
             class="loc-modal-close" 
             id="locModalCloseBtn" 
@@ -22,7 +26,7 @@
       <i class="bi bi-x-lg"></i>
     </button>
 
-    <!-- Modal Header -->
+    <!-- Modal Header (Fixed at top) -->
     <div class="loc-modal-header text-center">
       <div class="loc-icon-bubble">
         <i class="bi bi-geo-alt-fill"></i>
@@ -31,57 +35,154 @@
       <p class="loc-modal-subtitle">Find trusted home services available in your area.</p>
     </div>
 
-    <!-- Quick Search Filter Box -->
-    <div class="loc-search-box">
-      <i class="bi bi-search loc-search-icon"></i>
-      <input type="text" 
-             id="locDistrictFilterInput" 
-             class="loc-search-input" 
-             placeholder="Search your district (e.g. Kollam, Ernakulam...)" 
-             autocomplete="off"
-             aria-label="Search your district">
-      <button type="button" 
-              id="locClearFilterBtn" 
-              class="loc-clear-filter-btn" 
-              style="display: none;" 
-              aria-label="Clear filter">
-        <i class="bi bi-x-circle-fill"></i>
-      </button>
-    </div>
+    <!-- Scrollable Body (Accommodates district/locality content cleanly without clipping footer) -->
+    <div class="loc-modal-scrollable-body" id="locModalScrollBody">
 
-    <!-- Validation Error Alert Message -->
-    <div class="loc-validation-alert" id="locValidationAlert" style="display: none;" role="alert">
-      <i class="bi bi-exclamation-triangle-fill"></i>
-      <span>Please select your district to continue.</span>
-    </div>
+      <!-- GPS Auto-Detection Capsule -->
+      <div class="loc-gps-container">
+        <button type="button" class="loc-gps-detect-btn" id="btnGpsAutoDetect" title="Auto-detect current location via GPS">
+          <div class="loc-gps-icon-bubble" id="gpsIconBubble">
+            <i class="bi bi-crosshair2 loc-gps-crosshair"></i>
+          </div>
+          <div class="loc-gps-content">
+            <span class="loc-gps-main-text">Use My Current Location</span>
+            <span class="loc-gps-hint-text" id="gpsStatusText">Auto-detect nearest district &amp; locality via GPS</span>
+          </div>
+          <span class="loc-gps-badge" id="gpsBadgeIcon">
+            <i class="bi bi-chevron-right"></i>
+          </span>
+        </button>
+      </div>
 
-    <!-- 14 Kerala Districts Interactive Grid -->
-    <div class="loc-district-grid" id="locDistrictGrid">
-      {% for code, name in kerala_districts %}
-      <button type="button" 
-              class="loc-district-chip {% if selected_district == code or current_district == code %}selected{% endif %}" 
-              data-district="{{ code }}" 
-              aria-pressed="{% if selected_district == code or current_district == code %}true{% else %}false{% endif %}">
-        <span class="loc-chip-icon"><i class="bi bi-geo-alt"></i></span>
-        <span class="loc-chip-name">{{ name }}</span>
-        <span class="loc-chip-check"><i class="bi bi-check-circle-fill"></i></span>
-      </button>
-      {% endfor %}
-    </div>
+      <div class="loc-divider-strip">
+        <span>OR SELECT REGION &amp; LOCALITY</span>
+      </div>
 
-    <!-- No match state for search input -->
-    <div class="loc-no-match" id="locNoMatchState" style="display: none;">
-      <i class="bi bi-geo-slash loc-no-match-icon"></i>
-      <p>No district matching "<span id="locSearchTerm"></span>" found in Kerala.</p>
-    </div>
+      <!-- Validation Error Alert Message -->
+      <div class="loc-validation-alert" id="locValidationAlert" style="display: none;" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span id="locValidationText">Please select your district to continue.</span>
+      </div>
 
-    <!-- Footer Action -->
+      <!-- VIEW 1: DISTRICT SELECTION STEP -->
+      <div class="loc-step-view active" id="locStepDistrictsView">
+        <!-- Quick Search Filter Box for Districts -->
+        <div class="loc-search-box">
+          <i class="bi bi-search loc-search-icon"></i>
+          <input type="text" 
+                 id="locDistrictFilterInput" 
+                 class="loc-search-input" 
+                 placeholder="Search district (e.g. Kollam, Ernakulam...)" 
+                 autocomplete="off"
+                 aria-label="Search your district">
+          <button type="button" 
+                  id="locClearFilterBtn" 
+                  class="loc-clear-filter-btn" 
+                  style="display: none;" 
+                  aria-label="Clear filter">
+            <i class="bi bi-x-circle-fill"></i>
+          </button>
+        </div>
+
+        <!-- 14 Kerala Districts Interactive Grid -->
+        <div class="loc-district-grid" id="locDistrictGrid">
+          {% for code, name in kerala_districts %}
+          <button type="button" 
+                  class="loc-district-chip {% if selected_district == code or current_district == code %}selected{% endif %}" 
+                  data-district="{{ code }}" 
+                  aria-pressed="{% if selected_district == code or current_district == code %}true{% else %}false{% endif %}">
+            <span class="loc-chip-icon"><i class="bi bi-geo-alt"></i></span>
+            <span class="loc-chip-name">{{ name }}</span>
+            <span class="loc-chip-action"><i class="bi bi-chevron-right"></i></span>
+          </button>
+          {% endfor %}
+        </div>
+
+        <!-- No match state for district search -->
+        <div class="loc-no-match" id="locNoMatchState" style="display: none;">
+          <i class="bi bi-geo-slash loc-no-match-icon"></i>
+          <p>No district matching "<span id="locSearchTerm"></span>" found in Kerala.</p>
+        </div>
+      </div>
+
+      <!-- VIEW 2: LOCALITY SELECTION STEP (WITHIN SELECTED DISTRICT) -->
+      <div class="loc-step-view" id="locStepLocalitiesView" style="display: none;">
+        
+        <!-- Back to Districts Navigation Row + Top Quick Save -->
+        <div class="loc-locality-top-bar">
+          <button type="button" class="btn-loc-back-districts" id="btnBackToDistricts">
+            <i class="bi bi-arrow-left"></i> Change District
+          </button>
+          <div class="loc-top-bar-right">
+            <span class="loc-selected-district-badge" id="locActiveDistrictBadge">
+              <i class="bi bi-geo-alt-fill"></i> <strong id="locActiveDistrictName">Kollam</strong>
+            </span>
+            <button type="button" class="btn-loc-top-save" id="btnTopSaveLocation" title="Save selected location">
+              <i class="bi bi-check2"></i> Save
+            </button>
+          </div>
+        </div>
+
+        <!-- Locality Filter Search Input -->
+        <div class="loc-search-box mt-2">
+          <i class="bi bi-search loc-search-icon"></i>
+          <input type="text" 
+                 id="locLocalityFilterInput" 
+                 class="loc-search-input" 
+                 placeholder="Search town / locality (e.g. Karunagappally)..." 
+                 autocomplete="off"
+                 aria-label="Search locality">
+          <button type="button" 
+                  id="locClearLocalityFilterBtn" 
+                  class="loc-clear-filter-btn" 
+                  style="display: none;" 
+                  aria-label="Clear locality search">
+            <i class="bi bi-x-circle-fill"></i>
+          </button>
+        </div>
+
+        <!-- Popular Localities Section -->
+        <div class="loc-popular-strip" id="locPopularSection">
+          <div class="loc-popular-label">Popular in <span id="locPopularDistrictName">district</span>:</div>
+          <div class="loc-popular-pills-wrap" id="locPopularPillsContainer">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <!-- All Localities Scrollable Grid -->
+        <div class="loc-localities-list-wrap">
+          <div class="loc-all-localities-header">
+            <span>All Places in <strong id="locListDistrictName">District</strong></span>
+            <small class="text-muted" id="locTotalCountDisplay"></small>
+          </div>
+          <div class="loc-localities-grid" id="locLocalitiesGrid">
+            <!-- Populated dynamically via JS from comprehensive Kerala dataset -->
+          </div>
+        </div>
+
+        <!-- No match state for locality search -->
+        <div class="loc-no-match" id="locNoLocalityMatchState" style="display: none;">
+          <i class="bi bi-geo-slash loc-no-match-icon"></i>
+          <p>No place matching "<span id="locLocalitySearchTerm"></span>" found in this district.</p>
+        </div>
+      </div>
+
+    </div><!-- End loc-modal-scrollable-body -->
+
+    <!-- Footer Action (Always fixed & visible at bottom of modal card) -->
     <div class="loc-modal-footer">
+      <div class="loc-current-selection-summary" id="locCurrentSelectionSummary" style="display: none;">
+        <i class="bi bi-pin-map-fill text-success"></i>
+        <span>Selected: <strong id="locSummaryText">Kollam</strong></span>
+      </div>
       <button type="button" class="btn-continue-location" id="btnContinueLocation">
-        <span id="btnContinueLocationText">Continue</span>
-        <i class="bi bi-arrow-right" id="btnContinueLocationIcon"></i>
+        <i class="bi bi-check-circle-fill" id="btnContinueLocationIcon"></i>
+        <span id="btnContinueLocationText">Save Location</span>
       </button>
     </div>
 
   </div>
 </div>
+
+<!-- Embedded Kerala location tree data with all localities for all 14 districts -->
+<script id="keralaLocationTreeData" type="application/json">{{ kerala_location_tree_json|safe }}</script>

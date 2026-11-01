@@ -1,329 +1,686 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Our Services | LAMO{% endblock %}
-{% block meta_description %}Browse all verified professional services on LAMO. Find trusted workers for home maintenance, electrical repair, plumbing, and daily services across Kerala.{% endblock %}
+{% block title %}All Services in {{ selected_district }} | LAMO Home Services{% endblock %}
+{% block meta_description %}Browse all verified professional home services in {{ selected_district }} on LAMO. Find trusted workers for cleaning, electrical, plumbing, AC repair, painting, carpentry, and maintenance.{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/lamo_service-service_page.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.1">
+{% endblock %}
+
+{% block page_css %}
+    <link rel="stylesheet" href="{% static 'css/lamo_service-service_page.css' %}?v=2.2">
+    <style>
+    /* Instant-load Pagination Animations & Styles */
+    .services-pagination-wrap {
+        margin-top: 52px;
+        margin-bottom: 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        animation: paginationFadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes paginationFadeInUp {
+        0% { opacity: 0; transform: translateY(16px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .services-pagination-list {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        list-style: none !important;
+        list-style-type: none !important;
+        margin: 0 !important;
+        padding: 8px 12px !important;
+        background: #ffffff !important;
+        border: 1.5px solid rgba(8, 127, 91, 0.16) !important;
+        border-radius: 9999px !important;
+        box-shadow: 0 8px 28px rgba(8, 127, 91, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+        flex-wrap: wrap !important;
+        transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .services-pagination-list:hover {
+        border-color: rgba(8, 127, 91, 0.3) !important;
+        box-shadow: 0 12px 36px rgba(8, 127, 91, 0.12), 0 3px 8px rgba(0, 0, 0, 0.04) !important;
+    }
+    .services-pagination-list .page-item {
+        list-style: none !important;
+        list-style-type: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+    }
+    .services-pagination-list .page-item::before,
+    .services-pagination-list .page-item::marker {
+        display: none !important;
+        content: "" !important;
+    }
+    .services-pagination-list .page-link {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 42px !important;
+        height: 42px !important;
+        padding: 0 16px !important;
+        border-radius: 9999px !important;
+        font-size: 0.92rem !important;
+        font-weight: 600 !important;
+        font-family: "Poppins", sans-serif !important;
+        color: #374151 !important;
+        background: transparent !important;
+        border: 1.5px solid transparent !important;
+        text-decoration: none !important;
+        cursor: pointer !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .services-pagination-list .page-item:not(.active):not(.disabled) .page-link:hover {
+        background: #ecfdf5 !important;
+        color: #087f5b !important;
+        border-color: rgba(8, 127, 91, 0.35) !important;
+        transform: translateY(-2px) scale(1.05) !important;
+        box-shadow: 0 4px 14px rgba(8, 127, 91, 0.18) !important;
+    }
+    .services-pagination-list .page-item:not(.active):not(.disabled) .page-link:active {
+        transform: translateY(0) scale(0.96) !important;
+    }
+    .services-pagination-list .page-item.active .page-link {
+        background: linear-gradient(135deg, #087f5b 0%, #059669 100%) !important;
+        color: #ffffff !important;
+        border-color: #087f5b !important;
+        font-weight: 700 !important;
+        transform: scale(1.06) !important;
+        box-shadow: 0 6px 20px rgba(8, 127, 91, 0.4) !important;
+        animation: activePagePulse 2.8s infinite ease-in-out;
+    }
+    @keyframes activePagePulse {
+        0%, 100% { box-shadow: 0 4px 16px rgba(8, 127, 91, 0.35); }
+        50% { box-shadow: 0 6px 24px rgba(16, 185, 129, 0.6), 0 0 0 4px rgba(16, 185, 129, 0.15); }
+    }
+    .services-pagination-list .page-item.disabled .page-link {
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        background: transparent !important;
+        border-color: transparent !important;
+        color: #9ca3af !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .services-pagination-list .page-link i {
+        transition: transform 0.22s ease !important;
+    }
+    .services-pagination-list .page-item:not(.disabled) .page-link:hover .bi-chevron-left {
+        transform: translateX(-3px) !important;
+    }
+    .services-pagination-list .page-item:not(.disabled) .page-link:hover .bi-chevron-right {
+        transform: translateX(3px) !important;
+    }
+    .pagination-meta-info {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 6px 18px !important;
+        border-radius: 9999px !important;
+        background: #f0fdf4 !important;
+        border: 1px solid rgba(8, 127, 91, 0.18) !important;
+        font-size: 0.84rem !important;
+        color: #065f46 !important;
+        font-weight: 500 !important;
+        box-shadow: 0 2px 8px rgba(8, 127, 91, 0.05) !important;
+        transition: all 0.25s ease !important;
+    }
+    .pagination-meta-info:hover {
+        background: #e6fcf5 !important;
+        border-color: rgba(8, 127, 91, 0.3) !important;
+    }
+    .pagination-meta-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #10b981;
+        display: inline-block;
+        animation: metaDotPulse 1.8s infinite ease-in-out;
+    }
+    @keyframes metaDotPulse {
+        0%, 100% { transform: scale(0.9); opacity: 0.6; }
+        50% { transform: scale(1.3); opacity: 1; }
+    }
+    @media (max-width: 576px) {
+        .services-pagination-wrap { margin-top: 36px; gap: 12px; }
+        .services-pagination-list { padding: 6px 8px !important; gap: 4px !important; }
+        .services-pagination-list .page-link { min-width: 36px !important; height: 36px !important; padding: 0 12px !important; font-size: 0.84rem !important; }
+        .pagination-meta-info { font-size: 0.78rem !important; padding: 5px 14px !important; }
+    }
+    </style>
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/lamo_service-service_page.js' %}" defer></script>
+    <script src="{% static 'js/lamo_service-service_page.js' %}?v=2.1" defer></script>
 {% endblock %}
 
 {% block hero %}
-
-
 <!-- =========================================================
-     HERO
-     ========================================================= -->
-
-<section class="services-hero lamo-page-hero">
-
-    <span class="hero-orb one"></span>
-    <span class="hero-orb two"></span>
-    <span class="hero-orb three"></span>
-
-    <div class="services-hero-content">
-
-        <span class="hero-badge">
-            <i class="bi bi-grid-3x3-gap-fill"></i>
-            LAMO SERVICES
-        </span>
-
-        <h1>
-            Services that
-            <br>
-            <span>make life easier.</span>
+     SERVICES CATALOG HERO — COMPACT & DIRECTORY-FOCUSED
+     Distinct from home.html; delivers immediate visibility
+     to categories and available service cards.
+========================================================= -->
+<section class="services-hero-compact" style="background: linear-gradient(135deg, #022c1e 0%, #064e3b 100%); padding: 42px 0 36px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-7">
+        <div class="services-hero-kicker" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 9999px; padding: 4px 14px; font-size: 12px; font-weight: 700; color: #a7f3d0; margin-bottom: 12px; letter-spacing: 0.5px;">
+          <i class="bi bi-patch-check-fill text-success"></i> VERIFIED PROFESSIONAL SERVICES
+        </div>
+        <h1 class="services-hero-heading" style="font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-weight: 800; color: #ffffff; margin-bottom: 10px; line-height: 1.25;">
+          All Services in <span style="color: #34d399;">{{ selected_district|default:"Kollam" }}</span>
         </h1>
-
-        <p>
-            Find trusted service workers for your everyday needs.
-            From home repairs to essential services, LAMO helps
-            you find the right professional for your service.
+        <p class="services-hero-sub" style="color: rgba(255,255,255,0.85); font-size: 14.5px; margin-bottom: 22px; max-width: 580px;">
+          Compare verified professionals, check indicative pricing, and book doorstep assistance with arrival PIN security.
         </p>
 
+        <!-- SEARCH & DISTRICT CAPSULE -->
+        <form method="GET" action="{% url 'service_page' %}" class="search-capsule-bar" id="heroLocationForm" style="box-shadow: 0 12px 36px rgba(0,0,0,0.35);">
+          {% if selected_category and selected_category != 'all' %}
+          <input type="hidden" name="category" id="hiddenCategoryInput" value="{{ selected_category }}">
+          {% endif %}
+          {% if sort_by and sort_by != 'relevant' %}
+          <input type="hidden" name="sort" id="hiddenSortInput" value="{{ sort_by }}">
+          {% endif %}
+
+          <!-- District Selector -->
+          <div class="search-district-wrap">
+            <i class="bi bi-geo-alt-fill pin-icon"></i>
+            <select name="district" id="heroDistrictSelect" class="district-select-box" aria-label="Select District">
+              <option value="">All Kerala</option>
+              {% for code, name in kerala_districts %}
+              <option value="{{ name }}" {% if selected_district == name or selected_district == code %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Divider -->
+          <div class="search-divider"></div>
+
+          <!-- Query Input -->
+          <div class="search-query-wrap">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" 
+                   name="q" 
+                   id="liveServiceSearch" 
+                   placeholder="Search (e.g. Electrician, Plumbing...)" 
+                   aria-label="Search services" 
+                   value="{{ search_query|default:'' }}" 
+                   autocomplete="off">
+            <button type="button" 
+                    id="clearSearchBtn" 
+                    class="clear-search-btn" 
+                    title="Clear search" 
+                    style="{% if not search_query %}display:none;{% endif %}">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Find Services">
+            <span>Find Services</span>
+            <i class="bi bi-arrow-right"></i>
+          </button>
+        </form>
+      </div>
+
+      <div class="col-lg-5 d-none d-lg-block text-end">
+        <div style="display: inline-flex; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 18px; padding: 18px 24px; text-align: left; backdrop-filter: blur(8px);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+              <i class="bi bi-shield-lock-fill"></i>
+            </div>
+            <div>
+              <strong style="color: #fff; font-size: 14px; display: block;">4-Digit Arrival Security PIN</strong>
+              <small style="color: #94a3b8; font-size: 12px;">Share only when the worker arrives.</small>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #0284c7; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+              <i class="bi bi-stars"></i>
+            </div>
+            <div>
+              <strong style="color: #fff; font-size: 14px; display: block;">AI Smart Worker Matching</strong>
+              <small style="color: #94a3b8; font-size: 12px;">Instant trade ranking based on availability.</small>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
-
-    <!-- WAVE -->
-
-    <div class="hero-wave">
-
-        <svg
-            viewBox="0 0 1440 120"
-            preserveAspectRatio="none"
-        >
-
-            <path
-                d="
-                    M0,65
-                    C160,115
-                    310,15
-                    520,55
-                    C730,95
-                    850,115
-                    1060,50
-                    C1220,0
-                    1340,22
-                    1440,65
-                    L1440,120
-                    L0,120
-                    Z
-                "
-            ></path>
-
-        </svg>
-
-    </div>
-
+  </div>
 </section>
-
 {% endblock %}
 
 {% block content %}
-
 <!-- =========================================================
-     SERVICES
+     SERVICES PAGE: BREADCRUMBS, SIDEBAR FILTERS & 4-COL GRID
      ========================================================= -->
+<div class="services-page-wrapper">
+    <div class="services-main-container">
+        
+        <!-- Breadcrumb Navigation -->
+        <nav class="services-breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'home' %}">Home</a>
+            <i class="bi bi-chevron-right breadcrumb-separator"></i>
+            <span class="breadcrumb-current">Services</span>
+        </nav>
 
-<section class="services-section">
-
-    <div class="container">
-
-        <div class="services-heading">
-
-            <span class="services-eyebrow">
-                <i class="bi bi-stars"></i>
-                WHAT WE OFFER
-            </span>
-
-            <h2>
-                Find the right service
-                <br>
-                <span>for your need.</span>
-            </h2>
-
-            <p>
-                Browse our trusted services and connect with
-                skilled professionals who are ready to help.
-            </p>
-
+        <!-- Mobile Filter Bar (Visible only on screens < 992px) -->
+        <div class="mobile-filter-bar d-lg-none">
+            <button type="button" class="btn-mobile-filter-toggle" id="btnToggleMobileFilters" aria-label="Open filter sidebar">
+                <i class="bi bi-funnel-fill"></i>
+                <span>Filter & Categories</span>
+                {% if selected_category and selected_category != 'all' %}
+                <span class="mobile-filter-active-dot"></span>
+                {% endif %}
+            </button>
+            <div class="mobile-filter-status">
+                {% if selected_category and selected_category != 'all' %}
+                <span class="mobile-filter-pill-active">
+                    {{ selected_category|title }}
+                    <a href="?category=all{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="remove-pill" aria-label="Remove filter">
+                        <i class="bi bi-x"></i>
+                    </a>
+                </span>
+                {% endif %}
+            </div>
         </div>
 
+        <!-- Mobile Filter Overlay Backdrop -->
+        <div class="mobile-filter-overlay d-lg-none" id="mobileFilterOverlay"></div>
 
-        <!-- FILTERS -->
+        <!-- Layout Grid: Left Sidebar + Right Services Area -->
+        <div class="services-layout-grid">
+            
+            <!-- LEFT SIDEBAR: FILTERS CARD -->
+            <aside class="services-filter-sidebar" id="servicesFilterSidebar">
+                <div class="filter-card">
+                    
+                    <!-- Mobile Filter Header with Close Button (Visible only on screens < 992px) -->
+                    <div class="mobile-filter-drawer-header d-lg-none">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-sliders text-success fs-5"></i>
+                            <h4 class="m-0" style="font-size: 1.1rem; font-weight: 700; color: #111827;">Filters & Categories</h4>
+                        </div>
+                        <button type="button" class="btn-close-filter-drawer" id="btnCloseMobileFilter" aria-label="Close filters">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
 
-        <div class="service-filters">
+                    <!-- Section 1: Categories -->
+                    <div class="filter-section categories-section">
+                        <h3 class="filter-section-title">Categories</h3>
+                        
+                        <ul class="category-filter-list">
+                            <li class="category-item">
+                                <a href="?category=all{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'all' or not selected_category %}active{% endif %}"
+                                   data-category="all">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-grid-fill category-icon"></i>
+                                        All Services
+                                    </span>
+                                    <span class="category-count">({{ category_counts.all|default:all_services_count }})</span>
+                                </a>
+                            </li>
 
-            <button
-                type="button"
-                class="filter-btn active"
-                data-filter="all"
-            >
-                All Services
-            </button>
+                            <li class="category-item">
+                                <a href="?category=cleaning{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'cleaning' %}active{% endif %}"
+                                   data-category="cleaning">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-stars category-icon"></i>
+                                        Home Cleaning
+                                    </span>
+                                    <span class="category-count">({{ category_counts.cleaning|default:'0' }})</span>
+                                </a>
+                            </li>
 
-            <button
-                type="button"
-                class="filter-btn"
-                data-filter="featured"
-            >
-                <i class="bi bi-star-fill"></i>
-                Featured
-            </button>
+                            <li class="category-item">
+                                <a href="?category=electrical{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'electrical' %}active{% endif %}"
+                                   data-category="electrical">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-lightning-charge-fill category-icon"></i>
+                                        Electrical
+                                    </span>
+                                    <span class="category-count">({{ category_counts.electrical|default:'0' }})</span>
+                                </a>
+                            </li>
 
-            <button
-                type="button"
-                class="filter-btn"
-                data-filter="available"
-            >
-                Available Now
-            </button>
+                            <li class="category-item">
+                                <a href="?category=plumbing{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'plumbing' %}active{% endif %}"
+                                   data-category="plumbing">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-wrench-adjustable category-icon"></i>
+                                        Plumbing
+                                    </span>
+                                    <span class="category-count">({{ category_counts.plumbing|default:'0' }})</span>
+                                </a>
+                            </li>
 
-        </div>
+                            <li class="category-item">
+                                <a href="?category=ac_repair{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'ac_repair' %}active{% endif %}"
+                                   data-category="ac_repair">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-snow category-icon"></i>
+                                        AC Repair
+                                    </span>
+                                    <span class="category-count">({{ category_counts.ac_repair|default:'0' }})</span>
+                                </a>
+                            </li>
 
+                            <li class="category-item">
+                                <a href="?category=painting{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'painting' %}active{% endif %}"
+                                   data-category="painting">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-paint-bucket category-icon"></i>
+                                        Painting
+                                    </span>
+                                    <span class="category-count">({{ category_counts.painting|default:'0' }})</span>
+                                </a>
+                            </li>
 
-        {% if services %}
+                            <li class="category-item">
+                                <a href="?category=carpentry{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'carpentry' %}active{% endif %}"
+                                   data-category="carpentry">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-hammer category-icon"></i>
+                                        Carpentry
+                                    </span>
+                                    <span class="category-count">({{ category_counts.carpentry|default:'0' }})</span>
+                                </a>
+                            </li>
 
-        <div class="services-grid" id="servicesGrid">
+                            <li class="category-item">
+                                <a href="?category=appliance{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'appliance' %}active{% endif %}"
+                                   data-category="appliance">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-cpu category-icon"></i>
+                                        Appliance Repair
+                                    </span>
+                                    <span class="category-count">({{ category_counts.appliance|default:'0' }})</span>
+                                </a>
+                            </li>
 
-            {% for service in services %}
+                            <li class="category-item">
+                                <a href="?category=gardening{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'gardening' %}active{% endif %}"
+                                   data-category="gardening">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-flower1 category-icon"></i>
+                                        Gardening
+                                    </span>
+                                    <span class="category-count">({{ category_counts.gardening|default:'0' }})</span>
+                                </a>
+                            </li>
 
-            <article
-                class="service-card"
-                data-featured="{% if service.is_featured %}true{% else %}false{% endif %}"
-            >
+                            <li class="category-item">
+                                <a href="?category=pest_control{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'pest_control' %}active{% endif %}"
+                                   data-category="pest_control">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-bug-fill category-icon"></i>
+                                        Pest Control
+                                    </span>
+                                    <span class="category-count">({{ category_counts.pest_control|default:'0' }})</span>
+                                </a>
+                            </li>
 
-                <!-- IMAGE -->
+                            <li class="category-item">
+                                <a href="?category=more{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                                   class="category-link {% if selected_category == 'more' %}active{% endif %}"
+                                   data-category="more">
+                                    <span class="category-name-wrap">
+                                        <i class="bi bi-three-dots category-icon"></i>
+                                        More Services
+                                    </span>
+                                    <span class="category-count">({{ category_counts.more|default:'0' }})</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
 
-                <div class="service-image">
+                    <!-- Divider -->
+                    <hr class="filter-divider">
 
-                    {% if service.image %}
-
-                        <img
-                            src="{{ service.image.url }}"
-                            alt="{{ service.name }}"
-                            loading="lazy"
-                        >
-
-                    {% else %}
-
-                        <div
-                            style="
-                                width:100%;
-                                height:100%;
-                                display:flex;
-                                align-items:center;
-                                justify-content:center;
-                                background:linear-gradient(
-                                    135deg,
-                                    #e7f7ef,
-                                    #f7fbf9
-                                );
-                            "
-                        >
-
-                            <i
-                                class="{{ service.icon|default:'bi bi-tools' }}"
-                                style="
-                                    font-size:55px;
-                                    color:#087f5b;
-                                "
-                            ></i>
-
+                    <!-- Section 2: Price Range -->
+                    <div class="filter-section price-section">
+                        <h3 class="filter-section-title">Price Range</h3>
+                        <div class="price-input-row">
+                            <div class="price-input-wrap">
+                                <input type="number" id="minPriceInput" class="price-field" placeholder="Min" value="{{ min_price }}">
+                            </div>
+                            <span class="price-separator">-</span>
+                            <div class="price-input-wrap">
+                                <input type="number" id="maxPriceInput" class="price-field" placeholder="Max" value="{{ max_price }}">
+                            </div>
                         </div>
 
-                    {% endif %}
-
-
-                    <div class="service-badge">
-
-                        <i class="bi bi-tools"></i>
-
-                        Service
-
+                        <div class="price-slider-wrap">
+                            <input type="range" id="priceRangeSlider" min="200" max="3000" step="50" value="{% if max_price %}{{ max_price }}{% else %}2500{% endif %}" class="custom-range-slider" aria-label="Max Price Range">
+                            <div class="slider-track-fill" id="sliderTrackFill"></div>
+                        </div>
                     </div>
 
+                    <!-- Divider -->
+                    <hr class="filter-divider">
 
-                    {% if service.is_featured %}
-
-                    <div class="featured-badge">
-
-                        <i class="bi bi-star-fill"></i>
-
-                        Featured
-
+                    <!-- Section 3: Availability -->
+                    <div class="filter-section availability-section">
+                        <h3 class="filter-section-title">Availability</h3>
+                        <div class="availability-checkbox-group">
+                            <label class="custom-checkbox-label">
+                                <input type="checkbox" name="availability" value="today" checked class="checkbox-input">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Available Today</span>
+                            </label>
+                            <label class="custom-checkbox-label">
+                                <input type="checkbox" name="availability" value="week" class="checkbox-input">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Available This Week</span>
+                            </label>
+                            <label class="custom-checkbox-label">
+                                <input type="checkbox" name="availability" value="flexible" class="checkbox-input">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-text">Flexible</span>
+                            </label>
+                        </div>
                     </div>
 
-                    {% endif %}
+                    <!-- Mobile Drawer Footer Action -->
+                    <div class="mobile-filter-drawer-footer d-lg-none mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-apply-mobile-filter w-100" id="btnApplyMobileFilter">
+                            <i class="bi bi-check2-circle me-1"></i> Apply & View Results
+                        </button>
+                    </div>
 
                 </div>
+            </aside>
 
+            <!-- RIGHT MAIN CONTENT: SERVICES LISTING -->
+            <main class="services-content-main">
+                
+                <!-- Main Header: Count & Sort Dropdown -->
+                <div class="services-content-header">
+                    <div class="results-count-title">
+                        <h2>
+                            <span class="count-number" id="servicesCountDisplay">{{ total_services_count }}</span>
+                            Services Available in 
+                            <span class="district-badge-highlight">{{ selected_district }}</span>
+                        </h2>
+                    </div>
 
-                <!-- CONTENT -->
+                    <div class="sort-by-wrapper">
+                        <label for="serviceSortSelect" class="sort-label">Sort by</label>
+                        <div class="sort-select-box">
+                            <select id="serviceSortSelect" class="sort-dropdown-input">
+                                <option value="relevant" {% if sort_by == 'relevant' or not sort_by %}selected{% endif %}>Most Relevant</option>
+                                <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                                <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                                <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
+                            </select>
+                            <i class="bi bi-chevron-down sort-chevron-icon"></i>
+                        </div>
+                    </div>
+                </div>
 
-                <div class="service-content">
+                <!-- Active Filter Tags (if any search or category filter active) -->
+                {% if search_query or selected_category != 'all' or min_price or max_price %}
+                <div class="active-filter-chips">
+                    {% if search_query %}
+                    <span class="filter-chip">
+                        Query: "{{ search_query }}"
+                        <a href="?category={{ selected_category }}&district={{ selected_district }}" aria-label="Remove search filter"><i class="bi bi-x"></i></a>
+                    </span>
+                    {% endif %}
+                    {% if selected_category and selected_category != 'all' %}
+                    <span class="filter-chip">
+                        Category: {{ selected_category|title }}
+                        <a href="?district={{ selected_district }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Remove category filter"><i class="bi bi-x"></i></a>
+                    </span>
+                    {% endif %}
+                    <a href="{% url 'service_page' %}?district={{ selected_district }}" class="clear-all-chips">Clear All</a>
+                </div>
+                {% endif %}
 
-                    <h3>
-                        {{ service.name }}
-                    </h3>
+                <!-- Services Grid (Cards) -->
+                {% if services %}
+                <div class="services-reference-grid" id="servicesReferenceGrid">
+                    {% for service in services %}
+                    <div class="service-reference-card" 
+                         data-category="{{ service.category_key }}" 
+                         data-price="{{ service.price|default:0 }}"
+                         data-name="{{ service.name|lower }}">
+                        
+                        <!-- Card Media Banner -->
+                        <div class="card-media-banner">
+                            {% if service.img_url %}
+                                <img src="{{ service.img_url }}" alt="{{ service.name }}" class="service-card-thumbnail" loading="lazy">
+                            {% else %}
+                                <img src="{% static service.fallback_img %}" alt="{{ service.name }}" class="service-card-thumbnail" loading="lazy">
+                            {% endif %}
 
-
-                    <p class="service-description">
-
-                        {{ service.description }}
-
-                    </p>
-
-
-                    <div class="service-card-footer">
-
-                        <div class="availability">
-
-                            <span></span>
-
-                            Available
-
+                            <!-- Overlapping Floating Circular Thematic Badge -->
+                            <div class="card-floating-badge" style="background-color: {{ service.badge_bg }}; color: {{ service.badge_color }};">
+                                <i class="{{ service.icon_class }}"></i>
+                            </div>
                         </div>
 
+                        <!-- Card Body -->
+                        <div class="card-details-body">
+                            <h3 class="service-card-title">
+                                <a href="{% url 'service_workers' service.id %}?district={{ selected_district }}">{{ service.name }}</a>
+                            </h3>
 
-                        <a
-                            href="{% url 'service_detail' service.id %}"
-                            class="view-service"
-                        >
+                            <!-- Real Verified Worker Count Badge -->
+                            <div class="service-social-proof">
+                                {% if service.real_worker_count > 0 %}
+                                    <i class="bi bi-patch-check-fill verified-check-icon text-success"></i>
+                                    <span class="pros-count-text text-success fw-bold">{{ service.pro_count_display }}</span>
+                                {% elif service.tot_worker_count > 0 %}
+                                    <i class="bi bi-patch-check-fill verified-check-icon" style="color: #0d9488;"></i>
+                                    <span class="pros-count-text" style="color: #0f766e; font-weight: 600;">{{ service.pro_count_display }}</span>
+                                {% else %}
+                                    <i class="bi bi-shield-slash verified-check-icon text-muted"></i>
+                                    <span class="pros-count-text text-muted">{{ service.pro_count_display }}</span>
+                                {% endif %}
+                            </div>
 
-                            View Service
-
-                            <i class="bi bi-arrow-right"></i>
-
-                        </a>
+                            <!-- Card Action Button -->
+                            <div class="card-action-row">
+                                <a href="{% url 'service_workers' service.id %}?district={{ selected_district }}" 
+                                   class="view-workers-btn"
+                                   id="btn-workers-{{ service.id }}">
+                                    View Workers <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
 
                     </div>
-
+                    {% endfor %}
                 </div>
 
-            </article>
+                <!-- Pagination Component -->
+                {% if services.paginator.num_pages > 1 %}
+                <div class="services-pagination-wrap" id="servicesPaginationWrap">
+                    <nav aria-label="Services pagination">
+                        <ul class="services-pagination-list">
+                            <!-- Previous -->
+                            {% if services.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ services.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}" aria-label="Previous">
+                                    <i class="bi bi-chevron-left me-1"></i> Prev
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="bi bi-chevron-left me-1"></i> Prev</span>
+                            </li>
+                            {% endif %}
 
-            {% endfor %}
+                            <!-- Page Numbers -->
+                            {% for num in services.paginator.page_range %}
+                                {% if num == services.number %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > services.number|add:"-3" and num < services.number|add:"3" %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if pagination_query %}&{{ pagination_query }}{% endif %}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
 
+                            <!-- Next -->
+                            {% if services.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ services.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}" aria-label="Next">
+                                    Next <i class="bi bi-chevron-right ms-1"></i>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">Next <i class="bi bi-chevron-right ms-1"></i></span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    <div class="pagination-meta-info">
+                        <span class="pagination-meta-dot"></span>
+                        <span>Showing page <strong>{{ services.number }}</strong> of <strong>{{ services.paginator.num_pages }}</strong> &bull; <strong>{{ total_services_count }}</strong> verified services</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <!-- Empty State -->
+                <div class="empty-services-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <h3 class="empty-title">No services found</h3>
+                    <p class="empty-desc">We couldn't find any services matching your criteria in <strong>{{ selected_district }}</strong>. Try adjusting your filters or search terms.</p>
+                    <a href="{% url 'service_page' %}?district={{ selected_district }}" class="reset-filters-btn">View All Services</a>
+                </div>
+                {% endif %}
+
+            </main>
         </div>
-
-
-        {% else %}
-
-        <!-- EMPTY -->
-
-        <div class="empty-services">
-
-            <i class="bi bi-tools"></i>
-
-            <h3>
-                No services available
-            </h3>
-
-            <p>
-                We are currently adding new services.
-                Please check again soon.
-            </p>
-
-        </div>
-
-        {% endif %}
-
-
-        <!-- =================================================
-             CTA
-        ================================================== -->
-
-        <!-- <div class="service-cta">
-
-            <h2>
-                Can't find what you need?
-            </h2>
-
-            <p>
-                Tell us what kind of help you are looking for
-                and we will help you find the right professional.
-            </p>
-
-            <a
-                href="{% url 'contact' %}"
-                class="cta-btn"
-            >
-
-                Contact LAMO
-
-                <i class="bi bi-arrow-right"></i>
-
-            </a>
-
-        </div> -->
 
     </div>
-
-</section>
-
-
+</div>
 {% endblock %}

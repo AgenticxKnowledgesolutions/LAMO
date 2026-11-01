@@ -878,13 +878,13 @@ class BookingMessagingTest(TestCase):
                 response = self.client.get(reverse('booking_messages', args=[self.booking.id]))
                 self.assertEqual(response.status_code, 200)
 
-    def test_my_bookings_shows_one_chat_action_only_after_acceptance(self):
+    def test_my_bookings_shows_no_chat_action_after_removal(self):
         self.client.login(username='customer_chat', password='Password123!')
 
         response = self.client.get(reverse('my_bookings'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode().count('class="booking-chat-btn"'), 1)
-        self.assertContains(response, 'Open Chat')
+        self.assertEqual(response.content.decode().count('class="booking-chat-btn"'), 0)
+        self.assertNotContains(response, 'Open Chat')
         self.assertNotContains(response, '>Messages</a>')
 
         self.booking.status = 'PENDING'
@@ -7515,8 +7515,10 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertTrue(bool(self.booking.arrival_otp))
         self.assertEqual(len(self.booking.arrival_otp), 4)
 
-        # Transition to ACCEPTED
+        # Transition to ACCEPTED on today's active window
         self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today()
+        self.booking.start_time = (timezone.localtime() - timedelta(minutes=5)).time()
         self.booking.save()
 
         # Worker logs in
@@ -7538,6 +7540,8 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
     def test_worker_jobs_start_alias_route(self):
         """Worker can verify OTP and start job using the /worker/jobs/<id>/start/ route."""
         self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today()
+        self.booking.start_time = (timezone.localtime() - timedelta(minutes=5)).time()
         self.booking.save()
         self.client.login(username="worker_p1", password="Password123!")
 
@@ -7696,6 +7700,273 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
 # MULTILINGUAL AI ASSISTANT TESTS
 # Covers Malayalam, Manglish, English, spelling variations, mixed queries
 # ==========================================================================
+
+    def test_worker_cannot_start_job_on_future_date(self):
+        """Worker cannot start a job scheduled for a future date."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today() + timedelta(days=2)
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        start_url = reverse('worker_start_job', args=[self.booking.id])
+        resp = self.client.post(start_url, {'arrival_otp': self.booking.arrival_otp})
+        self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')  # Remains ACCEPTED, not started
+
+    def test_worker_cannot_start_job_more_than_30_mins_early(self):
+        """Worker cannot start a scheduled job more than 30 minutes before slot start."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today()
+        # Scheduled 2 hours in the future
+        self.booking.start_time = (timezone.localtime() + timedelta(hours=2)).time()
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        start_url = reverse('worker_start_job', args=[self.booking.id])
+        resp = self.client.post(start_url, {'arrival_otp': self.booking.arrival_otp})
+        self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'ACCEPTED')
+
+    def test_emergency_booking_can_start_immediately(self):
+        """Emergency bookings can always start immediately regardless of date/time."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.booking_type = 'Emergency'
+        self.booking.date = date_type.today() + timedelta(days=5)
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        start_url = reverse('worker_start_job', args=[self.booking.id])
+        resp = self.client.post(start_url, {'arrival_otp': self.booking.arrival_otp})
+        self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'IN_PROGRESS')
+
+    def test_booking_schedule_notifications_milestones(self):
+        """Tests upcoming reminder, arrival check, and no-show alert milestones."""
+        from lamoapp.booking_reminders import process_booking_schedule_notifications
+        now = timezone.localtime()
+
+        # 1. Upcoming reminder (scheduled 45 mins in future)
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = now.date()
+        self.booking.start_time = (now + timedelta(minutes=45)).time()
+        self.booking.save()
+
+        sent = process_booking_schedule_notifications(now=now)
+        self.assertGreaterEqual(sent, 1)
+        cust_notif = Notification.objects.filter(recipient=self.customer, message__startswith='Upcoming Service Reminder:').first()
+        self.assertIsNotNone(cust_notif)
+
+        # 2. Arrival check (scheduled 15 mins ago, status still ACCEPTED)
+        self.booking.start_time = (now - timedelta(minutes=15)).time()
+        self.booking.save()
+        sent2 = process_booking_schedule_notifications(now=now)
+        self.assertGreaterEqual(sent2, 1)
+        arrival_notif = Notification.objects.filter(recipient=self.customer, message__startswith='Arrival Check:').first()
+        self.assertIsNotNone(arrival_notif)
+
+        # 3. No-Show eligibility alert (scheduled 40 mins ago, status still ACCEPTED)
+        self.booking.start_time = (now - timedelta(minutes=40)).time()
+        self.booking.save()
+        sent3 = process_booking_schedule_notifications(now=now)
+        self.assertGreaterEqual(sent3, 1)
+        no_show_notif = Notification.objects.filter(recipient=self.customer, message__startswith='Service Alert:').first()
+        self.assertIsNotNone(no_show_notif)
+
+    def test_worker_cannot_take_leave_on_date_with_active_booking(self):
+        """Worker cannot mark leave on a date where they have an active scheduled booking."""
+        target_date = date_type.today() + timedelta(days=3)
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = target_date
+        self.booking.save()
+
+        self.client.login(username="worker_p1", password="Password123!")
+        leave_url = reverse('worker_leave')
+        resp = self.client.post(leave_url, {
+            'leave_date': target_date.strftime('%Y-%m-%d'),
+            'reason': 'Family vacation'
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        # WorkerLeave should NOT have been created
+        self.assertFalse(WorkerLeave.objects.filter(worker=self.worker_profile, leave_date=target_date).exists())
+
+        # Now cancel the booking
+        self.booking.status = 'CANCELLED'
+        self.booking.save()
+
+        # Worker can now take leave on that date
+        resp2 = self.client.post(leave_url, {
+            'leave_date': target_date.strftime('%Y-%m-%d'),
+            'reason': 'Family vacation'
+        })
+        self.assertEqual(resp2.status_code, 302)
+        self.assertTrue(WorkerLeave.objects.filter(worker=self.worker_profile, leave_date=target_date).exists())
+
+    def test_admin_suspend_worker_auto_cancels_upcoming_bookings(self):
+        """When an admin suspends a worker, all upcoming active bookings are auto-cancelled and customers notified."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.date = date_type.today() + timedelta(days=2)
+        self.booking.save()
+
+        # Second pending booking for another customer
+        other_cust = _make_user('other_cust')
+        booking2 = Booking.objects.create(
+            customer=other_cust,
+            worker=self.worker_profile,
+            service=self.service,
+            date=date_type.today() + timedelta(days=4),
+            time="11:00",
+            location="Kochi Port",
+            phone="9876543210",
+            status="PENDING",
+            estimated_cost=Decimal("350.00")
+        )
+
+        admin_user = _make_user('admin_suspender', role='ADMIN')
+        self.client.login(username=admin_user.username, password="Password123!")
+
+        suspend_url = reverse('admin_suspend_worker', args=[self.worker_profile.id])
+        resp = self.client.post(suspend_url, {'action': 'suspend'})
+        self.assertEqual(resp.status_code, 302)
+
+        # Worker is suspended
+        self.worker_profile.refresh_from_db()
+        self.assertEqual(self.worker_profile.work_status, 'SUSPENDED')
+        self.assertFalse(self.worker_profile.user.is_active)
+
+        # Both bookings are auto-cancelled
+        self.booking.refresh_from_db()
+        booking2.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+        self.assertEqual(self.booking.cancelled_by, 'ADMIN_SUSPEND')
+        self.assertEqual(booking2.status, 'CANCELLED')
+        self.assertEqual(booking2.cancelled_by, 'ADMIN_SUSPEND')
+
+        # Customer received notification
+        notif = Notification.objects.filter(recipient=self.customer, booking=self.booking).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('no longer available', notif.message)
+
+    def test_online_booking_completion_credits_worker_payout_offset(self):
+        """When an online booking completes, worker wallet receives payout offset."""
+        self.booking.status = 'COMPLETION_REQUESTED'
+        self.booking.payment_method = 'ONLINE'
+        self.booking.final_amount = Decimal('500.00')
+        self.booking.save()
+
+        # Customer confirms completion
+        self.client.login(username="customer_p1", password="Password123!")
+        confirm_url = reverse('confirm_completion', args=[self.booking.id])
+        resp = self.client.post(confirm_url)
+        self.assertEqual(resp.status_code, 302)
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETED')
+        self.assertTrue(self.booking.fee_settled)
+
+        # Worker wallet received payout offset (500 - 50 fee = 450)
+        wallet = WorkerWallet.objects.get(worker=self.worker_profile)
+        expected_payout = Decimal('500.00') - self.booking.platform_fee
+        self.assertEqual(wallet.balance, expected_payout)
+
+        tx = WalletTransaction.objects.filter(booking=self.booking, transaction_type='ONLINE_PAYOUT_OFFSET').first()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.amount, expected_payout)
+
+    def test_paid_booking_cancellation_triggers_refund_alert(self):
+        """When a paid booking is cancelled, Payment is marked REFUNDED and Admin receives alert."""
+        self.booking.status = 'ACCEPTED'
+        self.booking.is_paid = True
+        self.booking.save()
+
+        payment = Payment.objects.create(
+            booking=self.booking,
+            amount=Decimal('400.00'),
+            payment_method='UPI',
+            status='PAID'
+        )
+
+        admin_user = _make_user('admin_refund_auditor', role='ADMIN')
+
+        self.client.login(username="customer_p1", password="Password123!")
+        cancel_url = reverse('cancel_booking', args=[self.booking.id])
+        resp = self.client.post(cancel_url, {'cancellation_reason': 'Changed plans'})
+        self.assertEqual(resp.status_code, 302)
+
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'CANCELLED')
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'REFUNDED')
+
+        # Admin received notification to process refund
+        admin_notif = Notification.objects.filter(recipient=admin_user, notification_type='PAYMENT').first()
+        self.assertIsNotNone(admin_notif)
+        self.assertIn('Refund Required', admin_notif.message)
+
+    def test_admin_resolve_disputed_booking(self):
+        """Admin can resolve a DISPUTED booking to COMPLETED or CANCELLED from booking detail."""
+        self.booking.status = 'DISPUTED'
+        self.booking.dispute_reason = 'Worker did not finish full cleanup'
+        self.booking.save()
+
+        admin_user = _make_user('admin_dispute_resolver', role='ADMIN')
+        self.client.login(username=admin_user.username, password="Password123!")
+
+        view_url = reverse('admin_booking_view', args=[self.booking.id])
+
+        # 1. Resolve as Completed
+        resp = self.client.post(view_url, {'action': 'resolve_complete', 'remark': 'Inspection verified work'})
+        self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETED')
+
+        # 2. Test cancel resolution on second disputed booking
+        booking2 = Booking.objects.create(
+            customer=self.customer,
+            worker=self.worker_profile,
+            service=self.service,
+            date=date_type.today(),
+            time="16:00",
+            location="MG Road",
+            phone="9876543210",
+            status="DISPUTED",
+            dispute_reason="Wrong service delivered"
+        )
+        resp2 = self.client.post(reverse('admin_booking_view', args=[booking2.id]), {
+            'action': 'resolve_cancel',
+            'remark': 'Cancelled after mediation'
+        })
+        self.assertEqual(resp2.status_code, 302)
+        booking2.refresh_from_db()
+        self.assertEqual(booking2.status, 'CANCELLED')
+        self.assertEqual(booking2.cancelled_by, 'ADMIN')
+
+    def test_worker_recharge_wallet_validation_and_duplicate_check(self):
+        """Worker recharge requires valid UTR and prevents duplicate submissions."""
+        self.client.login(username="worker_p1", password="Password123!")
+        recharge_url = reverse('worker_recharge_wallet')
+
+        # 1. Short or empty UTR rejected
+        resp_short = self.client.post(recharge_url, {'amount': '200.00', 'reference_id': '123'})
+        self.assertEqual(resp_short.status_code, 302)
+        self.assertFalse(WalletTransaction.objects.filter(reference_id='123').exists())
+
+        # 2. Valid UTR succeeds
+        utr = 'UPI987654321012'
+        resp_valid = self.client.post(recharge_url, {'amount': '200.00', 'reference_id': utr})
+        self.assertEqual(resp_valid.status_code, 302)
+        tx = WalletTransaction.objects.filter(reference_id=utr).first()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.amount, Decimal('200.00'))
+
+        # 3. Duplicate UTR rejected
+        resp_dup = self.client.post(recharge_url, {'amount': '200.00', 'reference_id': utr})
+        self.assertEqual(resp_dup.status_code, 302)
+        self.assertEqual(WalletTransaction.objects.filter(reference_id=utr).count(), 1)
 
 class MultilingualLanguageDetectionTest(TestCase):
     """Unit tests for detect_user_language() in ai_utils."""
@@ -8751,20 +9022,13 @@ class WorkerPortalAuditedFixesTests(TestCase):
 
     # --- ISSUE 4: My Jobs Open Chat Modal Popup ---
     def test_my_jobs_open_chat_modal_button_and_popup_markup(self):
-        """My Jobs renders Open Chat as a modal trigger rather than an outbound navigation link."""
+        """My Jobs renders jobs without open chat button when feature is removed."""
         self.client.login(username="test_worker_audit", password="Password123!")
         resp = self.client.get(reverse('worker_jobs'))
         self.assertEqual(resp.status_code, 200)
         content = resp.content.decode('utf-8')
-        # Button with chat-open-btn class
-        self.assertIn('chat-open-btn', content)
-        self.assertIn(f'data-booking-id="{self.booking.id}"', content)
-        self.assertIn(f'data-chat-url="/booking/{self.booking.id}/messages/"', content)
-        # Modal and backdrop
-        self.assertIn('id="lamoChatModal"', content)
-        self.assertIn('id="lamoChatBackdrop"', content)
-        # Reused dashboard chat script
-        self.assertIn('worker-dashboard-chat.js', content)
+        # Open Chat button is removed
+        self.assertNotIn('Open Chat', content)
 
     # --- ISSUE 5: My Jobs No Show Routing and Validation ---
     def test_worker_report_customer_no_show_urls_do_not_404(self):
