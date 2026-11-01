@@ -131,6 +131,41 @@ body {
 
 /* Toggler button for mobile */
 @media (max-width: 991.98px) {
+  .navbar > .container,
+  .navbar.lamo-navbar > .container {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .nav-brand-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: calc(100% - 56px) !important;
+  }
+  .brand-logo {
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .nav-location-capsule {
+    min-width: 0 !important;
+    flex: 0 1 auto !important;
+  }
+  .nav-location-capsule .btn-nav-location {
+    max-width: 100% !important;
+    white-space: nowrap !important;
+  }
+  .nav-location-capsule .nav-loc-name {
+    max-width: 105px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+  }
   .navbar.lamo-navbar .navbar-toggler,
   .navbar-toggler {
     color: #087F5B !important;
@@ -139,7 +174,9 @@ body {
     background: rgba(255, 255, 255, 0.95) !important;
     padding: 6px 10px !important;
     box-shadow: 0 2px 8px rgba(8, 127, 91, 0.08) !important;
-    margin-left: auto;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+    align-self: center !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -150,6 +187,18 @@ body {
     font-size: 1.5rem !important;
     display: block;
     line-height: 1;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav-location-capsule .nav-loc-name {
+    max-width: 78px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .nav-location-capsule .nav-loc-name {
+    max-width: 60px !important;
   }
 }
 
