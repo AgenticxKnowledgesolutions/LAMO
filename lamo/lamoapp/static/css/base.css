@@ -1287,9 +1287,23 @@
   }
 
   .navbar-toggler {
+    color: #087F5B !important;
+    border: 1.5px solid rgba(8, 127, 91, 0.25) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    padding: 6px 10px !important;
+    box-shadow: 0 2px 8px rgba(8, 127, 91, 0.08) !important;
     margin-left: auto;
-    padding: 0.25rem 0.45rem;
-    color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .navbar-toggler i {
+    color: #087F5B !important;
+    font-size: 1.5rem !important;
+    display: block;
+    line-height: 1;
   }
 
   /* Mobile Navbar Backdrop */

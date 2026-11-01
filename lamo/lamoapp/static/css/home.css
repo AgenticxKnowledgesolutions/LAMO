@@ -337,12 +337,95 @@ body {
 
 @media (max-width: 991px) {
   .home-hero-exact {
-    background-position: center center;
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.88) 100%), url("../img/hero_home_main.png");
-    background-size: cover;
-    padding: 75px 0 35px;
+    background-position: center top;
+    background-image: radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.12) 0%, transparent 60%), linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%);
+    background-size: auto;
+    padding: 104px 0 32px;
     min-height: auto;
   }
+  .hero-main-heading {
+    font-size: clamp(1.8rem, 5.2vw, 2.25rem);
+    line-height: 1.22;
+    margin-bottom: 10px;
+  }
+  .hero-supporting-subtext {
+    font-size: 0.94rem;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+}
+
+/* Mobile Hero Art Showcase (Sharp, Framed & Centered on Technician) */
+.mobile-hero-art {
+  margin: 14px 0 20px;
+  width: 100%;
+}
+
+.mobile-hero-art-card {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1.5px solid rgba(8, 127, 91, 0.22);
+  box-shadow: 0 12px 32px rgba(8, 127, 91, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  background: #E8F5E9;
+}
+
+.mobile-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 84% 20%;
+  display: block;
+  transform: scale(1.02);
+  transition: transform 0.4s ease;
+}
+
+.mobile-hero-art-card:hover .mobile-hero-img {
+  transform: scale(1.06);
+}
+
+.mobile-hero-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.mobile-hero-badge .mobile-badge-icon i {
+  color: #087F5B;
+  font-size: 1rem;
+  display: block;
+}
+
+.mobile-hero-badge .mobile-badge-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.mobile-hero-badge .mobile-badge-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mobile-hero-badge .mobile-badge-sub {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #087F5B;
 }
 
 .hero-container {

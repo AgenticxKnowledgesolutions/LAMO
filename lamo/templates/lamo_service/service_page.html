@@ -335,6 +335,48 @@
                 </span>
                 {% endif %}
             </div>
+                </div>
+
+        <!-- Mobile Horizontal Categories Carousel (Swipeable chips just like home page) -->
+        <div class="mobile-categories-chips-wrap d-lg-none">
+            <div class="mobile-categories-scroll">
+                <a href="?category=all{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'all' or not selected_category %}active{% endif %}">
+                    <i class="bi bi-grid-fill"></i> All
+                </a>
+                <a href="?category=cleaning{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'cleaning' %}active{% endif %}">
+                    <i class="bi bi-stars"></i> Cleaning
+                </a>
+                <a href="?category=electrical{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'electrical' %}active{% endif %}">
+                    <i class="bi bi-lightning-charge-fill"></i> Electrical
+                </a>
+                <a href="?category=plumbing{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'plumbing' %}active{% endif %}">
+                    <i class="bi bi-wrench-adjustable"></i> Plumbing
+                </a>
+                <a href="?category=ac_repair{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'ac_repair' %}active{% endif %}">
+                    <i class="bi bi-snow"></i> AC Repair
+                </a>
+                <a href="?category=painting{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'painting' %}active{% endif %}">
+                    <i class="bi bi-paint-bucket"></i> Painting
+                </a>
+                <a href="?category=carpentry{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'carpentry' %}active{% endif %}">
+                    <i class="bi bi-hammer"></i> Carpentry
+                </a>
+                <a href="?category=appliance{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'appliance' %}active{% endif %}">
+                    <i class="bi bi-cpu"></i> Appliance
+                </a>
+                <a href="?category=gardening{% if selected_district %}&district={{ selected_district }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" 
+                   class="mobile-cat-chip {% if selected_category == 'gardening' %}active{% endif %}">
+                    <i class="bi bi-flower1"></i> Gardening
+                </a>
+            </div>
         </div>
 
         <!-- Mobile Filter Overlay Backdrop -->

@@ -45,6 +45,23 @@
             Find verified professionals for all your home needs in {{ district|default:"Kollam" }} and across Kerala.
           </p>
 
+          
+          <!-- MOBILE HERO ART CARD (Prominent, crisp technician visual on mobile) -->
+          <div class="mobile-hero-art d-lg-none" data-aos="fade-up" data-aos-duration="600">
+            <div class="mobile-hero-art-card">
+              <img src="{% static 'img/hero_home_main.png' %}" alt="LAMO Verified Professionals" class="mobile-hero-img" loading="eager">
+              <div class="mobile-hero-badge">
+                <div class="mobile-badge-icon">
+                  <i class="bi bi-patch-check-fill"></i>
+                </div>
+                <div class="mobile-badge-text">
+                  <span class="mobile-badge-title">Local Experts</span>
+                  <span class="mobile-badge-sub">PIN-Secured Doorstep Assistance</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- PROMINENT SEARCH CAPSULE DIRECTLY ON HERO -->
           <form method="GET" action="{% url 'home' %}#services" class="search-capsule-bar" id="heroLocationForm">
             <input type="hidden" name="from_splash" value="1">
