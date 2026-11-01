@@ -1351,6 +1351,20 @@ body.drawer-open {
     box-shadow: 0 0 0 4px rgba(8, 127, 91, 0.15);
 }
 
+.timeline-step.step-active:last-child .step-dot,
+.timeline-step.step-active.is-current .step-dot {
+    animation: timelineDotPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes timelineDotPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(8, 127, 91, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(8, 127, 91, 0.05);
+    }
+}
+
 .timeline-step.step-active .step-label {
     color: #087f5b;
     font-weight: 800;
@@ -1419,10 +1433,39 @@ body.drawer-open {
 .arrival-otp-card {
     padding: 16px 18px;
     margin-bottom: 20px;
-    background: #ecfdf5;
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
     border: 1px solid #a7f3d0;
     border-left: 4px solid #087f5b;
     border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    animation: otpCardAura 3s ease-in-out infinite;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@keyframes otpCardAura {
+    0%, 100% {
+        box-shadow: 0 2px 10px rgba(8, 127, 91, 0.08), 0 0 0 0 rgba(8, 127, 91, 0.2);
+    }
+    50% {
+        box-shadow: 0 4px 18px rgba(8, 127, 91, 0.14), 0 0 0 4px rgba(8, 127, 91, 0.06);
+    }
+}
+
+.otp-code-highlight {
+    font-size: 32px;
+    letter-spacing: 8px;
+    font-weight: 850;
+    color: #065f46;
+    margin: 6px 0;
+    display: inline-block;
+    animation: otpPulseText 2.4s ease-in-out infinite;
+    will-change: transform;
+}
+
+@keyframes otpPulseText {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); color: #047857; }
 }
 
 .otp-display-row {
@@ -1447,6 +1490,97 @@ body.drawer-open {
     box-shadow: 0 2px 6px rgba(8, 127, 91, 0.12);
 }
 
+/* =========================================================
+   COMPLETED STATE CELEBRATION (PURE CSS - ZERO LAG)
+   ========================================================= */
+.booking-completed-celebration {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #86efac;
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.08);
+    animation: celebrationSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes celebrationSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.celebration-circle {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    position: relative;
+}
+
+.celebration-svg {
+    width: 36px;
+    height: 36px;
+    display: block;
+}
+
+.celebration-circle-track {
+    stroke: #dcfce7;
+    stroke-width: 2.5;
+}
+
+.celebration-circle-fill {
+    stroke: #10b981;
+    stroke-width: 3;
+    stroke-dasharray: 146;
+    stroke-dashoffset: 146;
+    animation: celebrationCircleDraw 0.65s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.celebration-check {
+    stroke: #059669;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: celebrationCheckDraw 0.4s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+}
+
+@keyframes celebrationCircleDraw {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes celebrationCheckDraw {
+    to { stroke-dashoffset: 0; }
+}
+
+.celebration-title {
+    font-size: 15.5px;
+    font-weight: 800;
+    color: #065f46;
+    margin: 0 0 3px 0;
+}
+
+.celebration-sub {
+    font-size: 12.5px;
+    color: #047857;
+    margin: 0;
+    line-height: 1.45;
+}
+
 /* COMPLETION REVIEW CARD */
 .completion-amount-review-card {
     padding: 18px 20px;
@@ -1454,6 +1588,16 @@ body.drawer-open {
     background: #f0fdf4;
     border: 1.5px solid #bbf7d0;
     border-radius: 14px;
+    animation: celebrationSlideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pay-card-option {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.pay-card-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(8, 127, 91, 0.12);
 }
 
 .completion-review-grid {

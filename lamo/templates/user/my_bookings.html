@@ -589,7 +589,7 @@
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
                                         
                                         <!-- OPTION 1: UPI / QR CODE -->
-                                        <div style="border: 1.5px solid #087f5b; border-radius: 12px; padding: 14px; background: #fafdfc; display: flex; flex-direction: column; justify-content: space-between;">
+                                        <div class="pay-card-option" style="border: 1.5px solid #087f5b; border-radius: 12px; padding: 14px; background: #fafdfc; display: flex; flex-direction: column; justify-content: space-between;">
                                             <div>
                                                 <div style="font-weight: 700; color: #087f5b; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
                                                     <i class="bi bi-qr-code-scan"></i> Pay via UPI QR Code
@@ -627,7 +627,7 @@
                                         </div>
 
                                         <!-- OPTION 2: CASH PAYMENT -->
-                                        <div style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+                                        <div class="pay-card-option" style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
                                             <div>
                                                 <div style="font-weight: 700; color: #334155; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
                                                     <i class="bi bi-cash-stack"></i> Pay Cash to Worker
@@ -663,6 +663,22 @@
                                     <div class="dispute-status-title"><i class="bi bi-exclamation-triangle-fill"></i> Dispute Under Admin Investigation</div>
                                     <p class="dispute-status-reason"><strong>Reason:</strong> {{ booking.dispute_reason }}</p>
                                     <small class="dispute-status-note">Our administration team is investigating this issue with the service provider and will contact you directly to resolve any discrepancies.</small>
+                                </div>
+                            {% endif %}
+
+                            {% if booking.status == 'COMPLETED' %}
+                                <div class="booking-completed-celebration">
+                                    <div class="celebration-circle">
+                                        <svg class="celebration-svg" viewBox="0 0 52 52" aria-hidden="true">
+                                            <circle class="celebration-circle-track" cx="26" cy="26" r="23" fill="none"/>
+                                            <circle class="celebration-circle-fill" cx="26" cy="26" r="23" fill="none"/>
+                                            <path class="celebration-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                                        </svg>
+                                    </div>
+                                    <div class="celebration-info">
+                                        <h4 class="celebration-title">Service Completed &amp; Verified!</h4>
+                                        <p class="celebration-sub">Work finished successfully. Payment has been settled with the service professional.</p>
+                                    </div>
                                 </div>
                             {% endif %}
 

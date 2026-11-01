@@ -95,8 +95,32 @@
   width:18px;height:18px;border-radius:50%;
   background:#fff;transition:transform .2s;
 }
-.toggle.on{background:var(--g)}
+.toggle.on{background:var(--g); box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.2); animation: toggleOnGlow 2.5s ease-in-out infinite;}
 .toggle.on span{transform:translateX(20px)}
+
+@keyframes toggleOnGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(8, 127, 91, 0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(8, 127, 91, 0.06); }
+}
+
+.hero-status.status-active .hero-status-text strong::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-right: 6px;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: statusGreenPulse 1.8s infinite;
+  vertical-align: middle;
+}
+
+@keyframes statusGreenPulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
 
 /* ---------- STATS ---------- */
 .worker-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}

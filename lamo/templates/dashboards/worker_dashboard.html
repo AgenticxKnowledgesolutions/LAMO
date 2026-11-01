@@ -135,7 +135,7 @@ Worker Dashboard | LAMO
             {% endif %}
         </div>
 
-        <form class="hero-status" method="POST" action="{% url 'worker_update_status' %}">
+        <form class="hero-status {% if worker_profile.work_status == 'AVAILABLE' %}status-active{% endif %}" method="POST" action="{% url 'worker_update_status' %}">
             {% csrf_token %}
             {% if worker_profile.work_status == 'AVAILABLE' %}
                 <input type="hidden" name="work_status" value="LEAVE">
