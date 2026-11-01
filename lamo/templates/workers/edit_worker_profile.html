@@ -120,6 +120,24 @@
                 </div>
 
 
+                <!-- UPI ROW -->
+                <div class="ep-row">
+                    <div class="ep-field" style="flex: 1 1 100%;">
+                        <label for="{{ form.upi_id.id_for_label }}">
+                            <i class="bi bi-qr-code"></i> Personal UPI ID (for direct customer payments)
+                        </label>
+                        {{ form.upi_id }}
+                        <small style="color: #64748b; font-size: 11.5px; margin-top: 4px; display: block;">
+                            Enter your Google Pay / PhonePe / Paytm UPI ID (e.g. <code>9876543210@paytm</code> or <code>name@okaxis</code>). When jobs are completed, customers scan your UPI QR code to pay you directly.
+                        </small>
+                        {% if form.upi_id.errors %}
+                            <small class="ep-error">
+                                {{ form.upi_id.errors.0 }}
+                            </small>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- ROW 2 -->
 
                 <div class="ep-row">

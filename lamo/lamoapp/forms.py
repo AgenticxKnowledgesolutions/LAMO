@@ -116,6 +116,7 @@ class WorkerProfileForm(forms.ModelForm):
 
         fields = [
             'phone',
+            'upi_id',
             'service',
             'experience_years',
             'district',
@@ -136,6 +137,11 @@ class WorkerProfileForm(forms.ModelForm):
                 'placeholder': 'Phone Number',
                 'maxlength': '10',
                 'inputmode': 'numeric',
+            }),
+            'upi_id': forms.TextInput(attrs={
+                'class': 'worker-input',
+                'placeholder': 'UPI ID (e.g. 9876543210@paytm or name@okaxis)',
+                'maxlength': '100',
             }),
 
             'service': forms.Select(attrs={

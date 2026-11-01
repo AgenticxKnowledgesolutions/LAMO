@@ -2144,38 +2144,71 @@
     </div>
 </div>
 
-<!-- REQUEST COMPLETION MODAL (FINAL AMOUNT) -->
+<!-- REQUEST COMPLETION MODAL (ITEMIZED BILL) -->
 <div id="requestCompletionModal" class="worker-modal-overlay" style="display: none;">
     <div class="worker-modal-card">
         <div class="worker-modal-header">
-            <h3><i class="bi bi-check2-circle" style="color:#1769aa;"></i> Service Completion &amp; Bill</h3>
+            <h3><i class="bi bi-check2-circle" style="color:#1769aa;"></i> Generate Service Bill &amp; Complete</h3>
             <button type="button" class="worker-modal-close" onclick="closeWorkerCompletionModal()">&times;</button>
         </div>
         <form id="requestCompletionForm" method="POST" action="">
             {% csrf_token %}
             <div class="worker-modal-body">
-                <p style="margin: 0 0 14px; color: #4b5563;">
-                    Submit the final service amount for <strong id="completionService">Service</strong>. The customer will review and confirm this amount for cash/UPI payment.
+                <p style="margin: 0 0 12px; color: #4b5563; font-size: 13px;">
+                    Enter the bill breakdown for <strong id="completionService">Service</strong>. The customer will verify and pay you directly via Cash or your UPI QR Code.
                 </p>
-                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px; margin-bottom:14px; font-size:12.5px; color:#1e40af;">
-                    Initial Estimate: ₹<span id="completionEstCost">0</span>
+                
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; color:#1e40af; display: flex; justify-content: space-between;">
+                    <span>Initial Booking Estimate:</span>
+                    <strong>₹<span id="completionEstCost">0</span></strong>
                 </div>
-                <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:6px; text-transform:uppercase;">
-                    Final Billable Amount (₹)
-                </label>
-                <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    name="final_amount"
-                    id="finalAmountInput"
-                    required
-                    style="width:100%; box-sizing:border-box; padding:10px 14px; font-size:18px; font-weight:800; border:1.5px solid #cbd5e1; border-radius:10px; outline:none;"
-                >
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size:11.5px; font-weight:700; color:#374151; margin-bottom:5px; text-transform:uppercase;">
+                        <i class="bi bi-tools" style="color: #087f5b;"></i> Labor &amp; Service Charge (₹)
+                    </label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        name="labor_amount"
+                        id="laborAmountInput"
+                        required
+                        placeholder="e.g. 500"
+                        oninput="updateWorkerCompletionTotal()"
+                        style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:16px; font-weight:700; border:1.5px solid #cbd5e1; border-radius:10px; outline:none;"
+                    >
+                    <small style="color: #64748b; font-size: 11px; display: block; margin-top: 3px;">Platform commission (10%, max ₹300) is deducted only from labor.</small>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display:block; font-size:11.5px; font-weight:700; color:#374151; margin-bottom:5px; text-transform:uppercase;">
+                        <i class="bi bi-box-seam" style="color: #0284c7;"></i> Spare Parts / Materials Purchased (₹, optional)
+                    </label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        name="material_amount"
+                        id="materialAmountInput"
+                        value="0"
+                        placeholder="0.00"
+                        oninput="updateWorkerCompletionTotal()"
+                        style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:16px; font-weight:700; border:1.5px solid #cbd5e1; border-radius:10px; outline:none;"
+                    >
+                    <small style="color: #059669; font-size: 11px; display: block; margin-top: 3px;">100% exempt from commission — customer reimburses this in full.</small>
+                </div>
+
+                <input type="hidden" name="final_amount" id="finalAmountInput" value="0">
+
+                <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700; color:#166534; font-size:13.5px;">Total Customer Payable:</span>
+                    <span style="font-weight:800; color:#047857; font-size:20px;">₹<span id="completionTotalDisplay">0.00</span></span>
+                </div>
             </div>
             <div class="worker-modal-footer">
                 <button type="button" class="job-button" style="background:#f1f5f3; color:#475569;" onclick="closeWorkerCompletionModal()">Cancel</button>
-                <button type="submit" class="job-button completion-button">Submit Final Bill</button>
+                <button type="submit" class="job-button completion-button">Submit Bill to Customer</button>
             </div>
         </form>
     </div>
@@ -2364,17 +2397,27 @@ function closeStartJobModal() {
     document.getElementById("startJobOtpModal").style.display = "none";
 }
 
-// COMPLETION MODAL
+// COMPLETION MODAL & DYNAMIC BILL CALCULATION
+function updateWorkerCompletionTotal() {
+    const labor = parseFloat(document.getElementById("laborAmountInput").value) || 0;
+    const material = parseFloat(document.getElementById("materialAmountInput").value) || 0;
+    const total = labor + material;
+    document.getElementById("finalAmountInput").value = total.toFixed(2);
+    document.getElementById("completionTotalDisplay").innerText = total.toFixed(2);
+}
+
 function openWorkerCompletionModal(bookingId, serviceName, estimatedCost) {
     const modal = document.getElementById("requestCompletionModal");
     const form = document.getElementById("requestCompletionForm");
     document.getElementById("completionService").innerText = serviceName;
     document.getElementById("completionEstCost").innerText = estimatedCost;
-    document.getElementById("finalAmountInput").value = estimatedCost;
+    document.getElementById("laborAmountInput").value = estimatedCost;
+    document.getElementById("materialAmountInput").value = "0";
+    updateWorkerCompletionTotal();
     form.action = "/worker/jobs/" + bookingId + "/request-completion/";
     modal.style.display = "flex";
     setTimeout(function() {
-        document.getElementById("finalAmountInput").focus();
+        document.getElementById("laborAmountInput").focus();
     }, 100);
 }
 

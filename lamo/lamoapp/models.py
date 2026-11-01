@@ -495,6 +495,13 @@ class WorkerProfile(models.Model):
 
     phone = models.CharField(max_length=15)
 
+    upi_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="Worker's personal UPI ID for direct customer payments (e.g. 9876543210@paytm)"
+    )
+
 
 
     service = models.ForeignKey(
@@ -1131,6 +1138,13 @@ class Booking(models.Model):
 
     )
 
+    material_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Materials and spare parts cost reported by worker (exempt from platform fee)"
+    )
+
 
 
     cancellation_reason = models.TextField(
@@ -1308,6 +1322,12 @@ class Booking(models.Model):
         return allowed
 
 
+
+    @property
+    def labor_amount(self):
+        mat = self.material_amount if self.material_amount is not None else Decimal('0.00')
+        tot = self.final_amount if self.final_amount is not None else (self.estimated_cost or Decimal('0.00'))
+        return max(Decimal('0.00'), Decimal(str(tot)) - Decimal(str(mat)))
 
     def check_can_start(self):
 

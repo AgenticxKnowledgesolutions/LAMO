@@ -3722,7 +3722,7 @@ def confirm_payment(request, booking_id):
             reference = ''
 
         payment.amount = amount
-        payment.payment_method = payment_method
+        payment.payment_method = booking.payment_method
         payment.payment_reference = reference or build_server_reference()
         payment.gateway = 'manual'
         payment.status = 'PENDING'
@@ -4090,6 +4090,15 @@ def worker_accept_booking(request, booking_id):
     is_verified, error_msg = _check_worker_verification(worker)
     if not is_verified:
         messages.error(request, error_msg)
+        return redirect('worker_dashboard')
+
+    # Check worker wallet dues lock:
+    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker)
+    if wallet.is_locked:
+        messages.error(
+            request,
+            f'Cannot accept new bookings: Your wallet balance is ₹{wallet.balance:.2f} (below ₹-500 credit limit). Please recharge your wallet to continue receiving jobs.'
+        )
         return redirect('worker_dashboard')
 
     with transaction.atomic():
@@ -7305,20 +7314,22 @@ def admin_delete_worker(request, worker_id):
 
 def _settle_booking_completion_financials(booking):
     """
-    Settles platform fee and credits worker payout upon booking completion.
-    - Cash booking: deducts platform fee (FEE_DEDUCTION) from worker's wallet balance.
-    - Online booking: credits net payout (ONLINE_PAYOUT_OFFSET) to worker's wallet balance.
+    Settles platform fee upon booking completion.
+    - Direct payment (Cash or UPI to worker): deducts platform fee (FEE_DEDUCTION) from worker's wallet balance.
+    - Platform fee is calculated on labor charges (final_amount - material_amount), 10% min ₹15, max cap ₹300.
     """
     if not booking.worker or booking.fee_settled:
         return
 
     worker = booking.worker
     job_amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+    material_cost = getattr(booking, 'material_amount', Decimal('0.00')) or Decimal('0.00')
+    labor_amount = max(Decimal('0.00'), job_amount - material_cost)
 
     if worker.is_in_launch:
         platform_fee = Decimal('0.00')
     else:
-        platform_fee = max(job_amount * Decimal('0.10'), Decimal('15.00'))
+        platform_fee = max(labor_amount * Decimal('0.10'), Decimal('15.00'))
 
     booking.platform_fee = platform_fee
 
@@ -7326,7 +7337,8 @@ def _settle_booking_completion_financials(booking):
         wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker)
         current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
 
-        if booking.payment_method == 'CASH':
+        # Direct customer-to-worker payment (Cash or UPI)
+        if booking.payment_method in ('CASH', 'UPI', None, ''):
             if platform_fee > Decimal('0.00'):
                 wallet.balance = current_balance - platform_fee
                 wallet.save()
@@ -7341,7 +7353,7 @@ def _settle_booking_completion_financials(booking):
                     transaction_type='FEE_DEDUCTION',
                     amount=-platform_fee,
                     balance_after=wallet.balance,
-                    notes=f"Platform fee (10% min ₹15) for Cash Booking #{booking.id}"
+                    notes=f"Platform fee (10% on ₹{labor_amount:.2f} labor, parts ₹{material_cost:.2f} exempt) for Booking #{booking.id}"
                 )
             else:
                 WalletTransaction.objects.create(
@@ -7350,10 +7362,10 @@ def _settle_booking_completion_financials(booking):
                     transaction_type='FEE_DEDUCTION',
                     amount=Decimal('0.00'),
                     balance_after=wallet.balance,
-                    notes=f"Launch Offer Benefit: 0% Platform Fee for Cash Booking #{booking.id}"
+                    notes=f"Launch Offer Benefit: 0% Platform Fee for Booking #{booking.id}"
                 )
         else:
-            # ONLINE payment - Credit worker net payout (job_amount - platform_fee)
+            # ONLINE payment via platform - Credit worker net payout (job_amount - platform_fee)
             payout_amount = max(Decimal('0.00'), job_amount - platform_fee)
             wallet.balance = current_balance + payout_amount
             wallet.save()
@@ -9539,6 +9551,11 @@ def my_bookings(request):
         .order_by('-created_at')
     )
 
+    # Attach dynamic UPI QR and direct payment info
+    for b in bookings:
+        if b.status in ('COMPLETION_REQUESTED', 'ACCEPTED', 'IN_PROGRESS'):
+            b.upi_data = get_booking_upi_payment_data(b)
+
     return render(
         request,
         'user/my_bookings.html',
@@ -9660,6 +9677,52 @@ def admin_broadcast_announcement(request):
     return redirect('admin_dashboard')
 
 
+def get_booking_upi_payment_data(booking):
+    """Generate dynamic NPCI-standard UPI QR Code and deep-link for direct customer-to-worker payment."""
+    worker = booking.worker
+    if not worker:
+        return None
+
+    payee_name = worker.user.get_full_name() or worker.user.username
+    worker_upi = (getattr(worker, 'upi_id', '') or '').strip()
+    if not worker_upi and getattr(worker, 'phone', ''):
+        clean_phone = re.sub(r'\D', '', str(worker.phone))[-10:]
+        if len(clean_phone) == 10:
+            worker_upi = f"{clean_phone}@upi"
+
+    amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+    amount_str = f"{amount:.2f}"
+
+    qr_b64 = None
+    upi_intent_url = ""
+
+    if worker_upi and amount > 0:
+        from urllib.parse import quote
+        import io, base64
+        encoded_name = quote(payee_name)
+        upi_intent_url = f"upi://pay?pa={worker_upi}&pn={encoded_name}&am={amount_str}&cu=INR&tn=LAMO_Job_{booking.id}"
+
+        try:
+            import qrcode
+            qr = qrcode.QRCode(box_size=5, border=2)
+            qr.add_data(upi_intent_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            qr_b64 = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+        except Exception:
+            qr_b64 = None
+
+    return {
+        'worker_upi': worker_upi,
+        'payee_name': payee_name,
+        'amount': amount,
+        'upi_intent_url': upi_intent_url,
+        'qr_b64': qr_b64,
+    }
+
+
 @login_required
 def confirm_completion(request, booking_id):
 
@@ -9700,21 +9763,46 @@ def confirm_completion(request, booking_id):
     # COMPLETION REQUESTED → COMPLETED
     # ==========================================
 
+    post_method = request.POST.get('payment_method', '').strip().upper()
+    if post_method in ('CASH', 'UPI', 'ONLINE'):
+        booking.payment_method = post_method
+    elif not booking.payment_method:
+        booking.payment_method = 'CASH'
+
     if booking.final_amount and booking.final_amount > 0:
         booking.estimated_cost = booking.final_amount
 
     booking.status = 'COMPLETED'
+    booking.is_paid = True
 
-    # ==========================================
-    # PLATFORM FEE & WALLET SETTLEMENT (Cash fee / Online payout)
-    # ==========================================
     booking.save(
         update_fields=[
             'status',
             'estimated_cost',
+            'is_paid',
+            'payment_method',
             'updated_at'
         ]
     )
+
+    # Record or update Payment model so invoice/receipt is officially marked PAID
+    try:
+        final_amt = booking.final_amount or booking.estimated_cost or Decimal('0.00')
+        payment, _ = Payment.objects.get_or_create(booking=booking)
+        payment.amount = final_amt
+        payment.payment_method = booking.payment_method
+        payment.status = 'PAID'
+        payment.paid_at = timezone.now()
+        payment.gateway = 'direct_to_worker'
+        if not payment.payment_reference:
+            payment.payment_reference = f"DIRECT-{booking.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        payment.save()
+    except Exception as e:
+        logger.warning(f"Could not record payment for booking {booking.id}: {e}")
+
+    # ==========================================
+    # PLATFORM FEE & WALLET SETTLEMENT (Auto-deduct from Worker Wallet)
+    # ==========================================
     _settle_booking_completion_financials(booking)
 
 
@@ -9956,10 +10044,30 @@ def worker_request_completion(request, booking_id):
 
         return redirect('worker_jobs')
 
-    # Parse and validate final service amount
+    # Parse and validate labor, material, and final service amount
     raw_amount = request.POST.get('final_amount', '').strip()
+    raw_labor = request.POST.get('labor_amount', '').strip()
+    raw_material = request.POST.get('material_amount', '0').strip()
+
+    material_amount = Decimal('0.00')
+    if raw_material:
+        try:
+            m_parsed = Decimal(raw_material)
+            if m_parsed >= 0:
+                material_amount = m_parsed
+        except (ValueError, TypeError, ArithmeticError):
+            material_amount = Decimal('0.00')
+
     final_amount = None
-    if raw_amount:
+    if raw_labor:
+        try:
+            l_parsed = Decimal(raw_labor)
+            if l_parsed > 0:
+                final_amount = l_parsed + material_amount
+        except (ValueError, TypeError, ArithmeticError):
+            pass
+
+    if not final_amount and raw_amount:
         try:
             parsed = Decimal(raw_amount)
             if parsed > 0:
@@ -9976,12 +10084,14 @@ def worker_request_completion(request, booking_id):
     # ==========================================
 
     booking.final_amount = final_amount
+    booking.material_amount = material_amount
     booking.status = 'COMPLETION_REQUESTED'
 
     booking.save(
         update_fields=[
             'status',
             'final_amount',
+            'material_amount',
             'updated_at'
         ]
     )

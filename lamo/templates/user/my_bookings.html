@@ -531,7 +531,6 @@
                                                                 Submit
                                                             </button>
                                                         </div>
-                                                        <small class="pay-hint">Enter the 12-digit UPI / UTR reference ID if you paid the LAMO platform account directly.</small>
                                                     </form>
                                                 </div>
                                             </div>
@@ -555,26 +554,107 @@
                             </div>
 
                             {% if booking.status == 'COMPLETION_REQUESTED' %}
-                                <!-- WORKER SUBMITTED COMPLETION & FINAL AMOUNT -->
-                                <div class="completion-amount-review-card">
-                                    <div class="amount-review-header">
-                                        <div class="review-tag"><i class="bi bi-receipt"></i> Worker Completed Job</div>
-                                        <div class="review-sum">&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</div>
+                                <!-- WORKER SUBMITTED COMPLETION & ITEMIZED BILL -->
+                                <div class="completion-amount-review-card" style="border: 2px solid #10b981; border-radius: 14px; padding: 18px; background: #ffffff; box-shadow: 0 4px 18px rgba(16, 185, 129, 0.08);">
+                                    <div class="amount-review-header" style="border-bottom: 1.5px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
+                                        <div class="review-tag" style="background: #ecfdf5; color: #047857; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 6px;">
+                                            <i class="bi bi-check2-circle"></i> Service Completed &mdash; Verify &amp; Pay
+                                        </div>
+                                        <div class="review-sum" style="font-size: 22px; font-weight: 800; color: #065f46;">
+                                            &#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}
+                                        </div>
                                     </div>
-                                    <p class="amount-review-desc">The worker has submitted this final service amount. Please verify the completed work and confirm or submit a dispute below.</p>
-                                    <div style="background: #ffffff; border: 1px dashed #bbf7d0; border-radius: 9px; padding: 9px 12px; margin-bottom: 12px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
-                                        <i class="bi bi-cash-stack" style="font-size: 16px;"></i>
-                                        <span>Please pay <strong>&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</strong> directly to <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong> via Cash or UPI before confirming.</span>
+
+                                    <!-- ITEMIZED BREAKDOWN -->
+                                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px;">
+                                        <div>
+                                            <span style="color: #64748b;">Labor / Service Charge:</span>
+                                            <strong style="color: #1e293b; margin-left: 4px;">&#8377;{{ booking.labor_amount|floatformat:2 }}</strong>
+                                        </div>
+                                        {% if booking.material_amount > 0 %}
+                                        <div>
+                                            <span style="color: #64748b;">Spare Parts / Materials:</span>
+                                            <strong style="color: #059669; margin-left: 4px;">&#8377;{{ booking.material_amount|floatformat:2 }}</strong>
+                                        </div>
+                                        {% endif %}
                                     </div>
-                                    <div class="amount-review-actions-wrap">
-                                        <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0; flex:1;">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn-confirm-amount-complete">
-                                                <i class="bi bi-check2-circle"></i> Confirm Completion &amp; Paid
-                                            </button>
-                                        </form>
-                                        <button type="button" class="btn-open-dispute" onclick="openDisputeModal({{ booking.id }})">
-                                            <i class="bi bi-exclamation-octagon"></i> Dispute Amount
+
+                                    <!-- GUARANTEE NOTICE -->
+                                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
+                                        <i class="bi bi-shield-check" style="font-size: 16px; color: #059669;"></i>
+                                        <span><strong>LAMO 30-Day Guarantee:</strong> Billed directly by verified professional <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong>. Choose an option below to settle.</span>
+                                    </div>
+
+                                    <!-- PAYMENT OPTIONS -->
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                                        
+                                        <!-- OPTION 1: UPI / QR CODE -->
+                                        <div style="border: 1.5px solid #087f5b; border-radius: 12px; padding: 14px; background: #fafdfc; display: flex; flex-direction: column; justify-content: space-between;">
+                                            <div>
+                                                <div style="font-weight: 700; color: #087f5b; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                                    <i class="bi bi-qr-code-scan"></i> Pay via UPI QR Code
+                                                </div>
+                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 10px;">Instant GPay / PhonePe / Paytm directly to worker.</p>
+                                                
+                                                {% if booking.upi_data and booking.upi_data.qr_b64 %}
+                                                    <div style="text-align: center; margin-bottom: 10px;">
+                                                        <img src="{{ booking.upi_data.qr_b64 }}" alt="Worker UPI QR" style="width: 145px; height: 145px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                                                        <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+                                                            UPI: <strong>{{ booking.upi_data.worker_upi }}</strong>
+                                                        </div>
+                                                    </div>
+                                                    {% if booking.upi_data.upi_intent_url %}
+                                                        <div style="text-align: center; margin-bottom: 10px;">
+                                                            <a href="{{ booking.upi_data.upi_intent_url }}" style="display: inline-flex; align-items: center; gap: 6px; background: #087f5b; color: #ffffff; text-decoration: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;">
+                                                                <i class="bi bi-phone"></i> Tap to Open UPI App
+                                                            </a>
+                                                        </div>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; font-size: 12px; color: #475569; text-align: center; margin-bottom: 10px;">
+                                                        Ask worker for their GPay / PhonePe QR code in person.
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                            <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0;">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="payment_method" value="UPI">
+                                                <button type="submit" class="btn-confirm-amount-complete" style="width: 100%; justify-content: center; background: #087f5b; padding: 9px; font-size: 12.5px;">
+                                                    <i class="bi bi-check2-circle"></i> Confirm Paid via UPI
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        <!-- OPTION 2: CASH PAYMENT -->
+                                        <div style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
+                                            <div>
+                                                <div style="font-weight: 700; color: #334155; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                                    <i class="bi bi-cash-stack"></i> Pay Cash to Worker
+                                                </div>
+                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 14px;">Pay exact cash amount directly to your service professional.</p>
+                                                
+                                                <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 14px;">
+                                                    <span style="font-size: 12px; color: #64748b; display: block;">Total Cash to Hand Over:</span>
+                                                    <span style="font-size: 22px; font-weight: 800; color: #0f172a;">&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</span>
+                                                </div>
+                                            </div>
+
+                                            <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0;">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="payment_method" value="CASH">
+                                                <button type="submit" class="btn-confirm-amount-complete" style="width: 100%; justify-content: center; background: #334155; padding: 9px; font-size: 12.5px;">
+                                                    <i class="bi bi-check2-circle"></i> Confirm Paid via Cash
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                    </div>
+
+                                    <!-- DISPUTE BUTTON -->
+                                    <div style="text-align: right; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                                        <button type="button" class="btn-open-dispute" onclick="openDisputeModal({{ booking.id }})" style="font-size: 12px;">
+                                            <i class="bi bi-exclamation-octagon"></i> Dispute / Incorrect Amount?
                                         </button>
                                     </div>
                                 </div>
