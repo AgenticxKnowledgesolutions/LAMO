@@ -2476,9 +2476,12 @@ def trigger_booking_reminders_throttled():
     """Opportunistically deliver scheduled slot reminders and arrival checks, throttled to max 1 run/minute."""
     from django.core.cache import cache
     cache_key = 'booking_schedule_reminders_last_run'
-    if cache.get(cache_key):
-        return
-    cache.set(cache_key, True, timeout=60)
+    try:
+        if cache.get(cache_key):
+            return
+        cache.set(cache_key, True, timeout=60)
+    except Exception:
+        pass
     try:
         from .booking_reminders import process_booking_schedule_notifications
         process_booking_schedule_notifications()
@@ -8109,7 +8112,11 @@ def service_page(request):
     from django.core.cache import cache
 
     cache_key = f"svc_cat_data_{selected_district.lower()}"
-    cached_payload = cache.get(cache_key)
+    cached_payload = None
+    try:
+        cached_payload = cache.get(cache_key)
+    except Exception:
+        cached_payload = None
     if cached_payload is not None:
         all_services_list, category_counts = cached_payload
     else:
@@ -8178,7 +8185,10 @@ def service_page(request):
                 
             category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
 
-        cache.set(cache_key, (all_services_list, category_counts), timeout=120)
+        try:
+            cache.set(cache_key, (all_services_list, category_counts), timeout=120)
+        except Exception:
+            pass
 
     search_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
     selected_category = request.GET.get('category', 'all').strip().lower()

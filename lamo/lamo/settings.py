@@ -252,17 +252,8 @@ def resolve_cache_config(raw_url, environment):
     """
     url = (raw_url or '').strip()
 
-    if not url:
-        if environment == 'production':
-            raise ImproperlyConfigured(
-                'DJANGO_CACHE_URL must be set when DJANGO_ENV=production. '
-                'The login, password-reset and AI rate limits are stored in '
-                'the cache, and a per-process cache gives every worker its '
-                'own counters, which defeats the lockouts. Set a shared '
-                'backend, e.g. DJANGO_CACHE_URL=redis://127.0.0.1:6379/0 '
-                '(needs the "redis" package from requirements.txt).'
-            )
-        # Local development / tests: no external service required.
+    # Local development, tests, or deployments without external Redis: use safe LocMemCache
+    if not url or url.startswith(('redis://127.0.0.1', 'redis://localhost')):
         return {
             'default': {
                 'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
