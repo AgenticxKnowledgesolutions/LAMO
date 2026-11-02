@@ -562,11 +562,11 @@ else:
         DATABASES = {
             'default': {
                 'ENGINE': _DB_ENGINE,
-                'NAME': os.getenv('DJANGO_DB_NAME', 'lamo_project'),
-                'USER': os.getenv('DJANGO_DB_USER', 'root'),
-                'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', ''),
-                'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1'),
-                'PORT': os.getenv('DJANGO_DB_PORT', '3306'),
+                'NAME': os.getenv('DJANGO_DB_NAME', 'lamo_project').strip(),
+                'USER': os.getenv('DJANGO_DB_USER', 'root').strip(),
+                'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', '').strip(),
+                'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1').strip(),
+                'PORT': os.getenv('DJANGO_DB_PORT', '3306').strip(),
                 'CONN_MAX_AGE': int(os.getenv('DJANGO_DB_CONN_MAX_AGE', '60')),
                 'OPTIONS': dict(_MYSQL_OPTIONS, **_MYSQL_SSL) if _DB_ENGINE == 'django.db.backends.mysql' else {},
             }
