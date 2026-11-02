@@ -429,9 +429,14 @@ def resolve_mysql_ssl_options(ssl_mode=None, ssl_ca=None):
     ssl_mode = (ssl_mode or '').strip()
     ssl_ca = (ssl_ca or '').strip()
 
-    # SSL not requested: leave the local configuration untouched.
+    # If SSL is not explicitly requested, auto-enable VERIFY_CA when connecting to Aiven cloud
     if not ssl_mode and not ssl_ca:
-        return {}
+        _db_host = os.getenv('DJANGO_DB_HOST', '')
+        _db_url = os.getenv('DATABASE_URL', '')
+        if 'aivencloud.com' in _db_host or 'aivencloud.com' in _db_url:
+            ssl_mode = 'VERIFY_CA'
+        else:
+            return {}
 
     supported = _mysql_driver_ssl_modes()
 
