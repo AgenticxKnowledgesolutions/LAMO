@@ -175,6 +175,15 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# Automatically support Render deployments and subdomains
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+for _default_render_host in ('.onrender.com', 'lamo-39by.onrender.com'):
+    if _default_render_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_default_render_host)
+
 
 # Application definition
 
@@ -773,6 +782,15 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
     if origin.strip()
 ]
+
+if RENDER_EXTERNAL_HOSTNAME:
+    _render_origin = f'https://{RENDER_EXTERNAL_HOSTNAME}'
+    if _render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_render_origin)
+
+for _default_render_origin in ('https://*.onrender.com', 'https://lamo-39by.onrender.com'):
+    if _default_render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_default_render_origin)
 
 
 # ============================================================
