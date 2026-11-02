@@ -2,7 +2,7 @@
 
 <!-- =========================================================
      CHOOSE YOUR LOCATION POPUP MODAL (14 KERALA DISTRICTS + ALL LOCALITIES + GPS)
-     Fixed layout with scrollable body and always-visible sticky save footer
+     Luxury Split-Panel Layout with Visual Trust Banner & 3-Column District Grid
      ========================================================= -->
 <div class="location-modal-overlay" 
      id="locationModalOverlay" 
@@ -17,7 +17,7 @@
 
   <div class="location-modal-card" id="locationModalCard">
 
-    <!-- Close Button -->
+    <!-- Close Button (Top right of modal) -->
     <button type="button" 
             class="loc-modal-close" 
             id="locModalCloseBtn" 
@@ -26,17 +26,73 @@
       <i class="bi bi-x-lg"></i>
     </button>
 
-    <!-- Modal Header (Fixed at top) -->
-    <div class="loc-modal-header text-center">
-      <div class="loc-icon-bubble">
-        <i class="bi bi-geo-alt-fill"></i>
-      </div>
-      <h3 id="locModalTitle" class="loc-modal-title">Choose Your Location</h3>
-      <p class="loc-modal-subtitle">Find trusted home services available in your area.</p>
-    </div>
+    <!-- LEFT SIDEBAR: Brand & Trust Visual Panel -->
+    <aside class="loc-modal-visual-sidebar" aria-hidden="true">
+      <div class="loc-sidebar-brand-content">
+        <!-- LAMO Brand Logo -->
+        <div class="loc-brand-logo-wrap">
+          <svg class="loc-brand-svg-logo" viewBox="0 0 170 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="LAMO">
+            <!-- Roof icon -->
+            <path d="M24 6L5 22H13V42H35V22H43L24 6Z" fill="#22c55e" />
+            <circle cx="24" cy="29" r="4.5" fill="#fbbf24" />
+            <!-- LAMO typography -->
+            <text x="50" y="37" font-family="'Segoe UI', -apple-system, system-ui, sans-serif" font-weight="900" font-size="32" fill="#ffffff" letter-spacing="1.2">LAMO</text>
+          </svg>
+        </div>
 
-    <!-- Scrollable Body (Accommodates district/locality content cleanly without clipping footer) -->
-    <div class="loc-modal-scrollable-body" id="locModalScrollBody">
+        <!-- Dynamic headline -->
+        <h4 class="loc-sidebar-title" id="locSidebarTitle">Find Services<br>in Your Area</h4>
+
+        <!-- Trust Badges -->
+        <ul class="loc-trust-badges-list" id="locTrustBadgesList">
+          <li class="loc-trust-badge-item">
+            <span class="loc-trust-badge-icon"><i class="bi bi-geo-alt-fill"></i></span>
+            <span class="loc-trust-badge-text">Local &amp; Verified Workers</span>
+          </li>
+          <li class="loc-trust-badge-item">
+            <span class="loc-trust-badge-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+            <span class="loc-trust-badge-text">Faster Booking</span>
+          </li>
+          <li class="loc-trust-badge-item">
+            <span class="loc-trust-badge-icon"><i class="bi bi-shield-check"></i></span>
+            <span class="loc-trust-badge-text">Reliable &amp; Safe Service</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Bottom illustration -->
+      <div class="loc-sidebar-art-wrap">
+        <img src="{% static 'img/loc_modal_technician.png' %}" 
+             alt="Verified Technician in Kerala" 
+             class="loc-sidebar-art active" 
+             id="locSidebarArtTechnician"
+             loading="eager">
+        <img src="{% static 'img/loc_modal_houseboat.png' %}" 
+             alt="Kerala Backwaters" 
+             class="loc-sidebar-art" 
+             id="locSidebarArtHouseboat"
+             style="display: none;"
+             loading="eager">
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN CONTENT: Interactive Selection -->
+    <main class="loc-modal-main-content">
+
+      <!-- Modal Header (3D Map Pin & Subtitle) -->
+      <div class="loc-modal-header text-center">
+        <div class="loc-3d-pin-wrap">
+          <img src="{% static 'img/loc_modal_pin_map.png' %}" 
+               alt="Location Pin on Map" 
+               class="loc-3d-pin-img"
+               onerror="this.style.display='none'; document.getElementById('locFallbackBubble').style.display='inline-flex';">
+          <div class="loc-icon-bubble" id="locFallbackBubble" style="display: none;">
+            <i class="bi bi-geo-alt-fill"></i>
+          </div>
+        </div>
+        <h3 id="locModalTitle" class="loc-modal-title">Choose Your Location</h3>
+        <p class="loc-modal-subtitle">Find trusted home services available in your area.</p>
+      </div>
 
       <!-- GPS Auto-Detection Capsule -->
       <div class="loc-gps-container">
@@ -54,8 +110,9 @@
         </button>
       </div>
 
+      <!-- Clean OR Divider -->
       <div class="loc-divider-strip">
-        <span>OR SELECT REGION &amp; LOCALITY</span>
+        <span>OR</span>
       </div>
 
       <!-- Validation Error Alert Message -->
@@ -64,122 +121,132 @@
         <span id="locValidationText">Please select your district to continue.</span>
       </div>
 
-      <!-- VIEW 1: DISTRICT SELECTION STEP -->
-      <div class="loc-step-view active" id="locStepDistrictsView">
-        <!-- Quick Search Filter Box for Districts -->
-        <div class="loc-search-box">
-          <i class="bi bi-search loc-search-icon"></i>
-          <input type="text" 
-                 id="locDistrictFilterInput" 
-                 class="loc-search-input" 
-                 placeholder="Search district (e.g. Kollam, Ernakulam...)" 
-                 autocomplete="off"
-                 aria-label="Search your district">
-          <button type="button" 
-                  id="locClearFilterBtn" 
-                  class="loc-clear-filter-btn" 
-                  style="display: none;" 
-                  aria-label="Clear filter">
-            <i class="bi bi-x-circle-fill"></i>
-          </button>
-        </div>
+      <!-- Scrollable Body (Houses District Grid & Locality Views cleanly) -->
+      <div class="loc-modal-scrollable-body" id="locModalScrollBody">
 
-        <!-- 14 Kerala Districts Interactive Grid -->
-        <div class="loc-district-grid" id="locDistrictGrid">
-          {% for code, name in kerala_districts %}
-          <button type="button" 
-                  class="loc-district-chip {% if selected_district == code or current_district == code %}selected{% endif %}" 
-                  data-district="{{ code }}" 
-                  aria-pressed="{% if selected_district == code or current_district == code %}true{% else %}false{% endif %}">
-            <span class="loc-chip-icon"><i class="bi bi-geo-alt"></i></span>
-            <span class="loc-chip-name">{{ name }}</span>
-            <span class="loc-chip-action"><i class="bi bi-chevron-right"></i></span>
-          </button>
-          {% endfor %}
-        </div>
-
-        <!-- No match state for district search -->
-        <div class="loc-no-match" id="locNoMatchState" style="display: none;">
-          <i class="bi bi-geo-slash loc-no-match-icon"></i>
-          <p>No district matching "<span id="locSearchTerm"></span>" found in Kerala.</p>
-        </div>
-      </div>
-
-      <!-- VIEW 2: LOCALITY SELECTION STEP (WITHIN SELECTED DISTRICT) -->
-      <div class="loc-step-view" id="locStepLocalitiesView" style="display: none;">
-        
-        <!-- Back to Districts Navigation Row + Top Quick Save -->
-        <div class="loc-locality-top-bar">
-          <button type="button" class="btn-loc-back-districts" id="btnBackToDistricts">
-            <i class="bi bi-arrow-left"></i> Change District
-          </button>
-          <div class="loc-top-bar-right">
-            <span class="loc-selected-district-badge" id="locActiveDistrictBadge">
-              <i class="bi bi-geo-alt-fill"></i> <strong id="locActiveDistrictName">Kollam</strong>
-            </span>
-            <button type="button" class="btn-loc-top-save" id="btnTopSaveLocation" title="Save selected location">
-              <i class="bi bi-check2"></i> Save
+        <!-- VIEW 1: DISTRICT SELECTION STEP -->
+        <div class="loc-step-view active" id="locStepDistrictsView">
+          <!-- Quick Search Filter Box for Districts -->
+          <div class="loc-search-box">
+            <i class="bi bi-search loc-search-icon"></i>
+            <input type="text" 
+                   id="locDistrictFilterInput" 
+                   class="loc-search-input" 
+                   placeholder="Search district (e.g. Kollam, Ernakulam...)" 
+                   autocomplete="off"
+                   aria-label="Search your district">
+            <button type="button" 
+                    id="locClearFilterBtn" 
+                    class="loc-clear-filter-btn" 
+                    style="display: none;" 
+                    aria-label="Clear filter">
+              <i class="bi bi-x-circle-fill"></i>
             </button>
           </div>
-        </div>
 
-        <!-- Locality Filter Search Input -->
-        <div class="loc-search-box mt-2">
-          <i class="bi bi-search loc-search-icon"></i>
-          <input type="text" 
-                 id="locLocalityFilterInput" 
-                 class="loc-search-input" 
-                 placeholder="Search town / locality (e.g. Karunagappally)..." 
-                 autocomplete="off"
-                 aria-label="Search locality">
-          <button type="button" 
-                  id="locClearLocalityFilterBtn" 
-                  class="loc-clear-filter-btn" 
-                  style="display: none;" 
-                  aria-label="Clear locality search">
-            <i class="bi bi-x-circle-fill"></i>
-          </button>
-        </div>
+          <!-- Section Label -->
+          <div class="loc-section-label-strip">
+            <span>SELECT YOUR DISTRICT</span>
+          </div>
 
-        <!-- Popular Localities Section -->
-        <div class="loc-popular-strip" id="locPopularSection">
-          <div class="loc-popular-label">Popular in <span id="locPopularDistrictName">district</span>:</div>
-          <div class="loc-popular-pills-wrap" id="locPopularPillsContainer">
-            <!-- Populated dynamically via JS -->
+          <!-- 14 Kerala Districts: High-Efficiency 3-Column Grid -->
+          <div class="loc-district-grid loc-district-grid-3col" id="locDistrictGrid">
+            {% for code, name in kerala_districts %}
+            <button type="button" 
+                    class="loc-district-chip {% if selected_district == code or current_district == code %}selected{% endif %}" 
+                    data-district="{{ code }}" 
+                    aria-pressed="{% if selected_district == code or current_district == code %}true{% else %}false{% endif %}">
+              <span class="loc-chip-icon"><i class="bi bi-geo-alt"></i></span>
+              <span class="loc-chip-name">{{ name }}</span>
+              <span class="loc-chip-action"><i class="bi bi-chevron-right"></i></span>
+            </button>
+            {% endfor %}
+          </div>
+
+          <!-- No match state for district search -->
+          <div class="loc-no-match" id="locNoMatchState" style="display: none;">
+            <i class="bi bi-geo-slash loc-no-match-icon"></i>
+            <p>No district matching "<span id="locSearchTerm"></span>" found in Kerala.</p>
           </div>
         </div>
 
-        <!-- All Localities Scrollable Grid -->
-        <div class="loc-localities-list-wrap">
-          <div class="loc-all-localities-header">
-            <span>All Places in <strong id="locListDistrictName">District</strong></span>
-            <small class="text-muted" id="locTotalCountDisplay"></small>
+        <!-- VIEW 2: LOCALITY SELECTION STEP (WITHIN SELECTED DISTRICT) -->
+        <div class="loc-step-view" id="locStepLocalitiesView" style="display: none;">
+          
+          <!-- Back to Districts Navigation Row + Top Quick Save -->
+          <div class="loc-locality-top-bar">
+            <button type="button" class="btn-loc-back-districts" id="btnBackToDistricts">
+              <i class="bi bi-arrow-left"></i> Change District
+            </button>
+            <div class="loc-top-bar-right">
+              <span class="loc-selected-district-badge" id="locActiveDistrictBadge">
+                <i class="bi bi-geo-alt-fill"></i> <strong id="locActiveDistrictName">Kollam</strong>
+              </span>
+              <button type="button" class="btn-loc-top-save" id="btnTopSaveLocation" title="Save selected location">
+                <i class="bi bi-check2"></i> Save
+              </button>
+            </div>
           </div>
-          <div class="loc-localities-grid" id="locLocalitiesGrid">
-            <!-- Populated dynamically via JS from comprehensive Kerala dataset -->
+
+          <!-- Locality Filter Search Input -->
+          <div class="loc-search-box mt-2">
+            <i class="bi bi-search loc-search-icon"></i>
+            <input type="text" 
+                   id="locLocalityFilterInput" 
+                   class="loc-search-input" 
+                   placeholder="Search town in Kollam..." 
+                   autocomplete="off"
+                   aria-label="Search locality">
+            <button type="button" 
+                    id="locClearLocalityFilterBtn" 
+                    class="loc-clear-filter-btn" 
+                    style="display: none;" 
+                    aria-label="Clear locality search">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+
+          <!-- Popular Localities Section -->
+          <div class="loc-popular-strip" id="locPopularSection">
+            <div class="loc-popular-label">POPULAR IN <span id="locPopularDistrictName">KOLLAM</span>:</div>
+            <div class="loc-popular-pills-wrap" id="locPopularPillsContainer">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+
+          <!-- All Localities Scrollable Grid -->
+          <div class="loc-localities-list-wrap">
+            <div class="loc-all-localities-header">
+              <span>ALL PLACES IN <strong id="locListDistrictName">KOLLAM</strong></span>
+              <small class="text-muted" id="locTotalCountDisplay"></small>
+            </div>
+            <div class="loc-localities-grid" id="locLocalitiesGrid">
+              <!-- Populated dynamically via JS from comprehensive Kerala dataset -->
+            </div>
+          </div>
+
+          <!-- No match state for locality search -->
+          <div class="loc-no-match" id="locNoLocalityMatchState" style="display: none;">
+            <i class="bi bi-geo-slash loc-no-match-icon"></i>
+            <p>No place matching "<span id="locLocalitySearchTerm"></span>" found in this district.</p>
           </div>
         </div>
 
-        <!-- No match state for locality search -->
-        <div class="loc-no-match" id="locNoLocalityMatchState" style="display: none;">
-          <i class="bi bi-geo-slash loc-no-match-icon"></i>
-          <p>No place matching "<span id="locLocalitySearchTerm"></span>" found in this district.</p>
+      </div><!-- End loc-modal-scrollable-body -->
+
+      <!-- Footer Action (Always fixed & visible at bottom of modal card) -->
+      <div class="loc-modal-footer">
+        <div class="loc-current-selection-summary" id="locCurrentSelectionSummary" style="display: none;">
+          <i class="bi bi-pin-map-fill text-success"></i>
+          <span>Selected: <strong id="locSummaryText">Kollam</strong></span>
         </div>
+        <button type="button" class="btn-continue-location" id="btnContinueLocation">
+          <i class="bi bi-check-circle-fill" id="btnContinueLocationIcon"></i>
+          <span id="btnContinueLocationText">Save Location</span>
+        </button>
       </div>
 
-    </div><!-- End loc-modal-scrollable-body -->
-
-    <!-- Footer Action (Always fixed & visible at bottom of modal card) -->
-    <div class="loc-modal-footer">
-      <div class="loc-current-selection-summary" id="locCurrentSelectionSummary" style="display: none;">
-        <i class="bi bi-pin-map-fill text-success"></i>
-        <span>Selected: <strong id="locSummaryText">Kollam</strong></span>
-      </div>
-      <button type="button" class="btn-continue-location" id="btnContinueLocation">
-        <i class="bi bi-check-circle-fill" id="btnContinueLocationIcon"></i>
-        <span id="btnContinueLocationText">Save Location</span>
-      </button>
-    </div>
+    </main>
 
   </div>
 </div>

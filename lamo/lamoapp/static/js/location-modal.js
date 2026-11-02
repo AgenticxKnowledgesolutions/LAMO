@@ -113,11 +113,60 @@
     // -------------------------------------------------------------
     // SWITCH BETWEEN DISTRICT & LOCALITY VIEWS
     // -------------------------------------------------------------
+    function updateSidebarVisual(step, districtName) {
+      const sideTitle = document.getElementById("locSidebarTitle");
+      const sideTechnician = document.getElementById("locSidebarArtTechnician");
+      const sideHouseboat = document.getElementById("locSidebarArtHouseboat");
+      const sideBadges = document.getElementById("locTrustBadgesList");
+
+      if (step === "districts") {
+        if (sideTitle) sideTitle.innerHTML = "Find Services<br>in Your Area";
+        if (sideTechnician) sideTechnician.style.display = "block";
+        if (sideHouseboat) sideHouseboat.style.display = "none";
+        if (sideBadges) {
+          sideBadges.innerHTML =
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-geo-alt-fill"></i></span>' +
+            '  <span class="loc-trust-badge-text">Local &amp; Verified Workers</span>' +
+            '</li>' +
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-lightning-charge-fill"></i></span>' +
+            '  <span class="loc-trust-badge-text">Faster Booking</span>' +
+            '</li>' +
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-shield-check"></i></span>' +
+            '  <span class="loc-trust-badge-text">Reliable &amp; Safe Service</span>' +
+            '</li>';
+        }
+      } else if (step === "localities") {
+        const dist = districtName || selectedDistrict || "Your Area";
+        if (sideTitle) sideTitle.innerHTML = "Book Trusted<br>Home Services<br>in " + dist;
+        if (sideTechnician) sideTechnician.style.display = "none";
+        if (sideHouseboat) sideHouseboat.style.display = "block";
+        if (sideBadges) {
+          sideBadges.innerHTML =
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-shield-check"></i></span>' +
+            '  <span class="loc-trust-badge-text">Verified Professionals</span>' +
+            '</li>' +
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-lightning-charge-fill"></i></span>' +
+            '  <span class="loc-trust-badge-text">Quick Booking</span>' +
+            '</li>' +
+            '<li class="loc-trust-badge-item">' +
+            '  <span class="loc-trust-badge-icon"><i class="bi bi-headset"></i></span>' +
+            '  <span class="loc-trust-badge-text">Reliable Support</span>' +
+            '</li>';
+        }
+      }
+    }
+
     function showDistrictsStep() {
       if (stepDistrictsView) stepDistrictsView.style.display = "block";
       if (stepLocalitiesView) stepLocalitiesView.style.display = "none";
       syncDistrictChips();
       updateSummaryDisplay();
+      updateSidebarVisual("districts");
       if (continueBtnText) {
         continueBtnText.textContent = selectedDistrict ? "Save Entire " + selectedDistrict : "Save Location";
       }
@@ -146,6 +195,7 @@
       }
 
       updateSummaryDisplay();
+      updateSidebarVisual("localities", districtName);
       if (continueBtnText) {
         continueBtnText.textContent = selectedLocality 
           ? "Save " + selectedLocality + ", " + districtName 

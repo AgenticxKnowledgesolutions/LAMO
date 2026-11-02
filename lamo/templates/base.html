@@ -136,7 +136,7 @@
   <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
 
   <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.2">
-  <link rel="stylesheet" href="{% static 'css/location-modal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/location-modal.css' %}?v=3.0">
   <link rel="stylesheet" href="{% static 'css/lamo-call.css' %}">
   <!-- Leaflet.js Interactive Route Map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -1337,7 +1337,7 @@
 
   <!-- Location Selection Modal Partial -->
   {% include 'includes/location_modal.html' %}
-  <script src="{% static 'js/location-modal.js' %}" defer></script>
+  <script src="{% static 'js/location-modal.js' %}?v=3.0" defer></script>
 
   {% if user.is_authenticated %}
     <!-- In-App WebRTC Audio Calling Modal Partial -->
