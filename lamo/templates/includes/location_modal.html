@@ -2,7 +2,7 @@
 
 <!-- =========================================================
      CHOOSE YOUR LOCATION POPUP MODAL (14 KERALA DISTRICTS + ALL LOCALITIES + GPS)
-     Luxury Split-Panel Layout with Visual Trust Banner & 3-Column District Grid
+     Luxury Split-Panel Layout with User-Provided Art Background
      ========================================================= -->
 <div class="location-modal-overlay" 
      id="locationModalOverlay" 
@@ -26,7 +26,7 @@
       <i class="bi bi-x-lg"></i>
     </button>
 
-    <!-- LEFT SIDEBAR: Brand & Trust Visual Panel -->
+    <!-- LEFT SIDEBAR: Brand & Trust Overlay over Green Wave -->
     <aside class="loc-modal-visual-sidebar" aria-hidden="true">
       <div class="loc-sidebar-brand-content">
         <!-- LAMO Brand Logo -->
@@ -60,23 +60,11 @@
         </ul>
       </div>
 
-      <!-- Bottom illustration -->
-      <div class="loc-sidebar-art-wrap">
-        <img src="{% static 'img/loc_modal_technician.png' %}" 
-             alt="Verified Technician in Kerala" 
-             class="loc-sidebar-art active" 
-             id="locSidebarArtTechnician"
-             loading="eager">
-        <img src="{% static 'img/loc_modal_houseboat.png' %}" 
-             alt="Kerala Backwaters" 
-             class="loc-sidebar-art" 
-             id="locSidebarArtHouseboat"
-             style="display: none;"
-             loading="eager">
-      </div>
+      <!-- Bottom spacer: preserves space for the technician painted in background -->
+      <div class="loc-sidebar-technician-spacer"></div>
     </aside>
 
-    <!-- RIGHT MAIN CONTENT: Interactive Selection -->
+    <!-- RIGHT MAIN CONTENT: Location Selector over Mint/White Area -->
     <main class="loc-modal-main-content">
 
       <!-- Modal Header (3D Map Pin & Subtitle) -->
@@ -121,7 +109,7 @@
         <span id="locValidationText">Please select your district to continue.</span>
       </div>
 
-      <!-- Scrollable Body (Houses District Grid & Locality Views cleanly) -->
+      <!-- Scrollable Body (District Grid & Locality Views) -->
       <div class="loc-modal-scrollable-body" id="locModalScrollBody">
 
         <!-- VIEW 1: DISTRICT SELECTION STEP -->
