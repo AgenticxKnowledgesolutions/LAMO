@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}My Bookings | LAMO{% endblock %}
@@ -1121,7 +1121,7 @@
                                     </a>
                                 {% endif %}
 
-                                {% if booking.status == 'ACCEPTED' %}
+                                {% if booking.status == 'ACCEPTED' and booking.can_report_worker_no_show %}
                                     <button
                                         type="button"
                                         class="report-no-show-action-btn"

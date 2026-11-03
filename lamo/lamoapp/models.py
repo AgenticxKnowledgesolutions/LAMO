@@ -1431,6 +1431,105 @@ class Booking(models.Model):
 
 
 
+    @property
+    def can_report_worker_no_show(self):
+        """
+        Customer can only report worker no-show when:
+        1. Booking status is 'ACCEPTED' (and worker has not verified arrival OTP/started)
+        2. Booking is not already reported for no-show
+        3. Scheduled date is today or past, AND current time >= scheduled_time + 30 minutes.
+        (For emergency bookings, 30 minutes after created_at).
+        """
+        if self.status != 'ACCEPTED':
+            return False
+
+        if getattr(self, 'worker_no_show_reported_at', None):
+            return False
+
+        now_local = timezone.localtime()
+
+        if self.booking_type == 'Emergency':
+            base_time = self.created_at
+            if base_time:
+                return now_local >= (timezone.localtime(base_time) + timedelta(minutes=30))
+            return False
+
+        if not self.date:
+            return False
+
+        today = now_local.date()
+        if self.date > today:
+            return False
+
+        if self.date < today:
+            return True
+
+        s_time = self.start_time
+        if not s_time and self.time:
+            try:
+                from .views import parse_time_range
+                s_time, _ = parse_time_range(self.time)
+            except Exception:
+                pass
+        if not s_time:
+            from datetime import time as tm_cls
+            s_time = tm_cls(9, 0)
+
+        from datetime import datetime as dt_cls
+        scheduled_dt = timezone.make_aware(
+            dt_cls.combine(today, s_time),
+            timezone.get_current_timezone()
+        )
+        allowed_dt = scheduled_dt + timedelta(minutes=30)
+        return now_local >= allowed_dt
+
+    @property
+    def can_report_customer_no_show(self):
+        """Worker can report customer no-show 15 minutes after scheduled start time."""
+        if self.status != 'ACCEPTED':
+            return False
+
+        if getattr(self, 'customer_no_show_reported_at', None):
+            return False
+
+        now_local = timezone.localtime()
+
+        if self.booking_type == 'Emergency':
+            base_time = self.created_at
+            if base_time:
+                return now_local >= (timezone.localtime(base_time) + timedelta(minutes=15))
+            return False
+
+        if not self.date:
+            return False
+
+        today = now_local.date()
+        if self.date > today:
+            return False
+
+        if self.date < today:
+            return True
+
+        s_time = self.start_time
+        if not s_time and self.time:
+            try:
+                from .views import parse_time_range
+                s_time, _ = parse_time_range(self.time)
+            except Exception:
+                pass
+        if not s_time:
+            from datetime import time as tm_cls
+            s_time = tm_cls(9, 0)
+
+        from datetime import datetime as dt_cls
+        scheduled_dt = timezone.make_aware(
+            dt_cls.combine(today, s_time),
+            timezone.get_current_timezone()
+        )
+        allowed_dt = scheduled_dt + timedelta(minutes=15)
+        return now_local >= allowed_dt
+
+
     def __str__(self):
 
 

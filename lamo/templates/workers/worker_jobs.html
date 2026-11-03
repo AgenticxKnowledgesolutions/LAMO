@@ -1,4 +1,4 @@
-{% extends "workers/worker_sidebar.html" %}
+﻿{% extends "workers/worker_sidebar.html" %}
 {% load static %}
 
 {% block title %}My Jobs | LAMO{% endblock %}
@@ -1991,6 +1991,7 @@
                                     <span>Cancel Job</span>
                                 </button>
 
+                                {% if booking.can_report_customer_no_show %}
                                 <button
                                     type="button"
                                     class="job-button noshow-button"
@@ -2000,6 +2001,7 @@
                                     <i class="bi bi-person-x"></i>
                                     <span>Customer No-Show</span>
                                 </button>
+                                {% endif %}
 
                             </div>
 
