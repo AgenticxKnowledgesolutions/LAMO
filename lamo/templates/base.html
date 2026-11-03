@@ -393,17 +393,6 @@
                 {% endif %}
               </li>
 
-              <!-- 5. LOCATION / CHANGE DISTRICT (Mobile Menu Item) -->
-              <li class="nav-item d-lg-none">
-                <a class="nav-link" href="?change_district=1">
-                  <i class="bi bi-geo-alt"></i>
-                  <span data-i18n="nav_change_district">Change District</span>
-                  <span class="badge bg-white text-dark border font-monospace nav-drawer-badge" style="font-size:0.75rem; font-weight:600;">
-                    {% if selected_district %}{{ selected_district }}{% elif current_district %}{{ current_district }}{% else %}Kerala{% endif %}
-                  </span>
-                </a>
-              </li>
-
               <!-- 6. ACCOUNT / PROFILE (Mobile Menu Item) -->
               <li class="nav-item d-lg-none">
                 {% if user.is_authenticated %}

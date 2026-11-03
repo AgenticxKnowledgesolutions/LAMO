@@ -708,6 +708,75 @@
     color: #EF4444;
 }
 
+/* ==========================================================================
+   MOBILE CATEGORIES CHIPS SCROLLBAR (SWIPEABLE HORIZONTAL PILLS)
+   ========================================================================== */
+.mobile-categories-chips-wrap {
+    margin: -6px 0 16px 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.mobile-categories-scroll {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 8px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-categories-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.mobile-cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 15px;
+    border-radius: 9999px;
+    background: #FFFFFF;
+    border: 1.5px solid #E2E8F0;
+    color: #334155 !important;
+    font-size: 0.84rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
+}
+
+.mobile-cat-chip:hover {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #059669 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.12);
+}
+
+.mobile-cat-chip i {
+    font-size: 0.92rem;
+    color: #059669;
+    transition: color 0.2s ease;
+}
+
+.mobile-cat-chip.active {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    border-color: #059669;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+}
+
+.mobile-cat-chip.active i {
+    color: #FFFFFF !important;
+}
+
 .mobile-filter-overlay {
     position: fixed;
     inset: 0;
