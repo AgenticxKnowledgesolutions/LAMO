@@ -642,7 +642,7 @@ LANGUAGE_CODE = 'en-us'
 
 # Existing data is stored in UTC. Leaving the default as UTC keeps today's
 # behaviour identical; set DJANGO_TIME_ZONE=Asia/Kolkata for local time.
-TIME_ZONE = os.getenv('DJANGO_TIME_ZONE', 'UTC')
+TIME_ZONE = os.getenv('DJANGO_TIME_ZONE', 'Asia/Kolkata')
 
 USE_I18N = True
 
