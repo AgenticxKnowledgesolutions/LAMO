@@ -97,14 +97,13 @@
         inset: 0;
 
         z-index: 1;
-/* 
         background:
             linear-gradient(90deg,
                 rgba(1, 37, 28, 0.94) 0%,
                 rgba(1, 37, 28, 0.82) 35%,
-                rgba(1, 37, 28, 0.35) 58%,
-                rgba(1, 37, 28, 0.05) 78%,
-                rgba(1, 37, 28, 0.00) 100%); */
+                rgba(1, 37, 28, 0.45) 58%,
+                rgba(1, 37, 28, 0.15) 78%,
+                rgba(1, 37, 28, 0.05) 100%);
 
         pointer-events: none;
     }
