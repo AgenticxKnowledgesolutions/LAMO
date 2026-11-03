@@ -9325,6 +9325,39 @@ EXPORT_DATASETS = {
             ('message', 'Message'),
         ],
     ),
+    'workers': (
+        WorkerProfile,
+        [
+            ('id', 'Worker ID'),
+            ('user__username', 'Username'),
+            ('user__first_name', 'First Name'),
+            ('user__last_name', 'Last Name'),
+            ('user__email', 'Email'),
+            ('phone', 'Phone'),
+            ('service__name', 'Service'),
+            ('district', 'District'),
+            ('experience_years', 'Experience (Years)'),
+            ('pricing_type', 'Pricing Type'),
+            ('pricing_amount', 'Rate'),
+            ('work_status', 'Work Status'),
+            ('is_verified', 'Verified'),
+            ('created_at', 'Registered Date'),
+        ],
+    ),
+    'users': (
+        CustomUser,
+        [
+            ('id', 'User ID'),
+            ('username', 'Username'),
+            ('first_name', 'First Name'),
+            ('last_name', 'Last Name'),
+            ('email', 'Email'),
+            ('role', 'Role'),
+            ('is_email_verified', 'Email Verified'),
+            ('is_active', 'Active'),
+            ('date_joined', 'Joined Date'),
+        ],
+    ),
 }
 
 

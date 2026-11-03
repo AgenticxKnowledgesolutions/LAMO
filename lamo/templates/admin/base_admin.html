@@ -123,6 +123,18 @@
                     <span>Enquiries CSV</span>
                 </a>
             </li>
+            <li>
+                <a href="{% url 'admin_export_csv' 'workers' %}" data-title="Workers CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Workers CSV</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'admin_export_csv' 'users' %}" data-title="Users CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span>Users CSV</span>
+                </a>
+            </li>
         </ul>
 
         <div class="logout-wrapper mt-4">

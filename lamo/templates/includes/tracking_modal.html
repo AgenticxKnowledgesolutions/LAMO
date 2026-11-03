@@ -106,7 +106,7 @@
                     <span class="d-none d-sm-inline">Call</span>
                   </button>
                   <!-- Turn-by-Turn Google Maps Navigation -->
-                  <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-tracking-nav" id="btnTrackingGmaps" title="Open Turn-by-Turn in Google Maps">
+                  <a href="javascript:void(0)" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-tracking-nav" id="btnTrackingGmaps" title="Open Turn-by-Turn in Google Maps" onclick="if(this.getAttribute('href')==='javascript:void(0)'){event.preventDefault();}">
                     <i class="bi bi-sign-turn-right-fill"></i>
                     <span class="d-none d-sm-inline">Directions</span>
                   </a>
