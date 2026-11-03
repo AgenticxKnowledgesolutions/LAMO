@@ -269,16 +269,27 @@
    RIGHT SIDE-PANEL / DRAWER
    ========================================================= */
 body.drawer-open {
-    overflow: hidden;
+    overflow: hidden !important;
+}
+
+/* Hide fixed top navbar when booking drawer is open so it NEVER covers header or buttons */
+body.drawer-open .navbar,
+body.drawer-open #mainNavbar,
+body.drawer-open .lamo-navbar,
+body.drawer-open .nav-location-capsule {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
 }
 
 .drawer-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    z-index: 10060 !important;
+    z-index: 999998 !important;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -295,8 +306,10 @@ body.drawer-open {
     right: 0;
     bottom: 0;
     width: min(600px, 100vw);
+    height: 100vh;
+    height: 100dvh;
     background: #ffffff;
-    z-index: 10070 !important;
+    z-index: 999999 !important;
     box-shadow: -10px 0 45px rgba(0, 0, 0, 0.22);
     display: flex;
     flex-direction: column;

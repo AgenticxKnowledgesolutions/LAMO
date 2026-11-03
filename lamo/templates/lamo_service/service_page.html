@@ -9,8 +9,78 @@
 {% endblock %}
 
 {% block page_css %}
-    <link rel="stylesheet" href="{% static 'css/lamo_service-service_page.css' %}?v=2.3">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-service_page.css' %}?v=chips_v5.0">
     <style>
+    /* =========================================================
+       CRITICAL MOBILE CATEGORY CHIPS & COLLISION GUARD
+       ========================================================= */
+    .mobile-categories-chips-wrap {
+        margin: 6px 0 16px 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        clear: both !important;
+        display: block !important;
+    }
+    .mobile-categories-scroll {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 4px 2px 10px 2px !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
+    }
+    .mobile-categories-scroll::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    .mobile-cat-chip {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        padding: 8px 16px !important;
+        border-radius: 9999px !important;
+        background: #ffffff !important;
+        border: 1.5px solid #e2e8f0 !important;
+        color: #334155 !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        text-decoration: none !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.22s ease !important;
+        flex-shrink: 0 !important;
+    }
+    .mobile-cat-chip:hover,
+    .mobile-cat-chip:active {
+        background: #ecfdf5 !important;
+        border-color: #a7f3d0 !important;
+        color: #059669 !important;
+    }
+    .mobile-cat-chip i {
+        font-size: 0.95rem !important;
+        color: #059669 !important;
+    }
+    .mobile-cat-chip.active {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        border-color: #059669 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
+    }
+    .mobile-cat-chip.active i {
+        color: #ffffff !important;
+    }
+
+    @media (max-width: 991px) {
+        .services-content-header {
+            margin-top: 16px !important;
+            clear: both !important;
+        }
+    }
     /* Instant-load Pagination Animations & Styles */
     .services-pagination-wrap {
         margin-top: 52px;

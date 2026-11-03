@@ -331,3 +331,4 @@
 
     window.initLamoSearchSuggestions = initSearchSuggestions;
 })();
+
