@@ -319,98 +319,79 @@
 
 
     /* =====================================================
-           MAIN OVAL NAVIGATION
+           MAIN OVAL NAVIGATION (DESKTOP FLOATING PILL)
            CENTERED ON THE SCREEN.
         ====================================================== */
+    @media (min-width: 992px) {
+      .nav-pill {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.28rem 0.42rem;
+        border-radius: 60px;
+        background: rgba(255, 255, 255, 0.90);
+        border: 1px solid rgba(226, 232, 240, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.07);
+        transition:
+          background 0.35s ease,
+          border-color 0.35s ease,
+          box-shadow 0.35s ease;
+        z-index: 2;
+      }
 
-    .nav-pill {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.28rem 0.42rem;
-      border-radius: 60px;
-      background: rgba(255, 255, 255, 0.90);
-      border: 1px solid rgba(226, 232, 240, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.07);
-      transition:
-        background 0.35s ease,
-        border-color 0.35s ease,
-        box-shadow 0.35s ease;
-      z-index: 2;
-    }
+      /* NAV LIST */
+      .nav-pill .navbar-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        margin: 0;
+      }
 
+      /* NAV LINKS */
+      .nav-pill .nav-link {
+        position: relative;
+        color: #1e293b !important;
+        font-weight: 600;
+        font-size: 0.91rem;
+        padding: 0.5rem 0.95rem !important;
+        border-radius: 30px;
+        white-space: nowrap;
+        transition:
+          color 0.25s ease,
+          background 0.25s ease,
+          transform 0.25s ease;
+      }
 
-    /* =====================================================
-           NAV LIST
-        ====================================================== */
+      /* NAV HOVER */
+      .nav-pill .nav-link:hover {
+        color: #087f5b !important;
+        background: rgba(8, 127, 91, 0.08);
+        transform: translateY(-1px);
+      }
 
-    .nav-pill .navbar-nav {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      margin: 0;
-    }
+      /* ACTIVE NAVIGATION */
+      .nav-pill .nav-link.active {
+        color: #087f5b !important;
+        background: rgba(8, 127, 91, 0.12);
+        box-shadow: none;
+      }
 
-
-    /* =====================================================
-           NAV LINKS
-        ====================================================== */
-
-    .nav-pill .nav-link {
-      position: relative;
-      color: #1e293b !important;
-      font-weight: 600;
-      font-size: 0.91rem;
-      padding: 0.5rem 0.95rem !important;
-      border-radius: 30px;
-      white-space: nowrap;
-      transition:
-        color 0.25s ease,
-        background 0.25s ease,
-        transform 0.25s ease;
-    }
-
-
-    /* =====================================================
-           NAV HOVER
-        ====================================================== */
-
-    .nav-pill .nav-link:hover {
-      color: #087f5b !important;
-      background: rgba(8, 127, 91, 0.08);
-      transform: translateY(-1px);
-    }
-
-
-    /* =====================================================
-           ACTIVE NAVIGATION
-        ====================================================== */
-
-    .nav-pill .nav-link.active {
-      color: #087f5b !important;
-      background: rgba(8, 127, 91, 0.12);
-      box-shadow: none;
-    }
-
-
-    /* =====================================================
-           ACTIVE GREEN INDICATOR
-        ====================================================== */
-
-    .nav-pill .nav-link.active::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      bottom: 4px;
-      transform: translateX(-50%);
-      width: 14px;
-      height: 3px;
-      border-radius: 3px;
-      background: #087f5b;
-      box-shadow: 0 0 8px rgba(8, 127, 91, 0.4);
+      /* ACTIVE GREEN INDICATOR */
+      .nav-pill .nav-link.active::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 4px;
+        transform: translateX(-50%);
+        width: 14px;
+        height: 3px;
+        border-radius: 3px;
+        background: #087f5b;
+        box-shadow: 0 0 8px rgba(8, 127, 91, 0.4);
+      }
     }
 
 
@@ -921,106 +902,111 @@
     }
 
 
-    .navbar.scrolled .nav-pill {
-      background: rgba(255, 255, 255, 0.95);
-      border-color: rgba(226, 232, 240, 0.9);
-      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-    }
-
-    .navbar.scrolled .nav-pill .nav-link {
-      color: #1e293b !important;
-    }
-
-    .navbar.scrolled .nav-pill .nav-link:hover {
-      color: #087f5b !important;
-      background: rgba(8, 127, 91, 0.08);
-    }
-
-    .navbar.scrolled .nav-pill .nav-link.active {
-      color: #087f5b !important;
-      background: rgba(8, 127, 91, 0.12);
-      box-shadow: none;
-    }
-
-    .navbar.scrolled .nav-pill .nav-link.active::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      bottom: 4px;
-      transform: translateX(-50%);
-      width: 14px;
-      height: 3px;
-      border-radius: 3px;
-      background: #087f5b;
-      box-shadow: 0 0 8px rgba(8, 127, 91, 0.4);
-    }
-
-
     /* =====================================================
-           SCROLLED LOGO
-        ====================================================== */
-
-    .navbar.scrolled .brand-name,
-    .navbar.scrolled .brand-logo {
-
-      color: #ffffff;
-
+       DESKTOP SCROLLED NAVBAR (HIGH-CONTRAST MINT/WHITE)
+       ===================================================== */
+    @media (min-width: 992px) {
+      .navbar.scrolled .nav-pill {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(226, 232, 240, 0.9);
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      }
+  
+      .navbar.scrolled .nav-pill .nav-link {
+        color: #1e293b !important;
+      }
+  
+      .navbar.scrolled .nav-pill .nav-link:hover {
+        color: #087f5b !important;
+        background: rgba(8, 127, 91, 0.08);
+      }
+  
+      .navbar.scrolled .nav-pill .nav-link.active {
+        color: #087f5b !important;
+        background: rgba(8, 127, 91, 0.12);
+        box-shadow: none;
+      }
+  
+      .navbar.scrolled .nav-pill .nav-link.active::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 4px;
+        transform: translateX(-50%);
+        width: 14px;
+        height: 3px;
+        border-radius: 3px;
+        background: #087f5b;
+        box-shadow: 0 0 8px rgba(8, 127, 91, 0.4);
+      }
+  
+  
+      /* =====================================================
+             SCROLLED LOGO
+          ====================================================== */
+  
+      .navbar.scrolled .brand-name,
+      .navbar.scrolled .brand-logo {
+  
+        color: #ffffff;
+  
+      }
+  
+  
+      .navbar.scrolled .brand-sub {
+  
+        color: #a7f3d0;
+  
+      }
+  
+  
+      /* =====================================================
+             SCROLLED USER MENU (High-Contrast for Light Scrolled Navbar)
+          ====================================================== */
+  
+      .navbar.scrolled .user-menu-trigger {
+        color: #0f172a !important;
+        background: #ffffff !important;
+        border: 1.5px solid #e2e8f0 !important;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+      }
+  
+      .navbar.scrolled .user-menu-trigger .bi-chevron-down {
+        color: #64748b !important;
+      }
+  
+      .navbar.scrolled .user-menu-trigger:hover {
+        background: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+        color: #087f5b !important;
+      }
+  
+      .navbar.scrolled .user-menu-trigger:hover .bi-chevron-down {
+        color: #087f5b !important;
+      }
+  
+      /* =====================================================
+             SCROLLED LOGIN
+          ====================================================== */
+  
+      .navbar.scrolled .btn-login {
+        color: #087f5b !important;
+        border: 1.5px solid rgba(8, 127, 91, 0.25) !important;
+        background: rgba(8, 127, 91, 0.08) !important;
+      }
+  
+      .navbar.scrolled .btn-login:hover {
+        color: #ffffff !important;
+        border-color: #087f5b !important;
+        background: #087f5b !important;
+      }
+  
+      /* =====================================================
+             MOBILE TOGGLE
+          ====================================================== */
+  
+  
     }
-
-
-    .navbar.scrolled .brand-sub {
-
-      color: #a7f3d0;
-
-    }
-
-
-    /* =====================================================
-           SCROLLED USER MENU (High-Contrast for Light Scrolled Navbar)
-        ====================================================== */
-
-    .navbar.scrolled .user-menu-trigger {
-      color: #0f172a !important;
-      background: #ffffff !important;
-      border: 1.5px solid #e2e8f0 !important;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
-    }
-
-    .navbar.scrolled .user-menu-trigger .bi-chevron-down {
-      color: #64748b !important;
-    }
-
-    .navbar.scrolled .user-menu-trigger:hover {
-      background: #f8fafc !important;
-      border-color: #cbd5e1 !important;
-      color: #087f5b !important;
-    }
-
-    .navbar.scrolled .user-menu-trigger:hover .bi-chevron-down {
-      color: #087f5b !important;
-    }
-
-    /* =====================================================
-           SCROLLED LOGIN
-        ====================================================== */
-
-    .navbar.scrolled .btn-login {
-      color: #087f5b !important;
-      border: 1.5px solid rgba(8, 127, 91, 0.25) !important;
-      background: rgba(8, 127, 91, 0.08) !important;
-    }
-
-    .navbar.scrolled .btn-login:hover {
-      color: #ffffff !important;
-      border-color: #087f5b !important;
-      background: #087f5b !important;
-    }
-
-    /* =====================================================
-           MOBILE TOGGLE
-        ====================================================== */
-
-
     .navbar-toggler {
 
       color: #ffffff !important;
@@ -1450,64 +1436,112 @@
     gap: 2px;
   }
 
-  .nav-pill {
-    grid-column: auto;
-    position: static;
-    transform: none;
-    width: 100%;
-    border-radius: 0;
-    padding: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
+  .nav-pill,
+  .navbar-collapse .nav-pill,
+  .navbar.scrolled .navbar-collapse .nav-pill,
+  .navbar .nav-pill {
+    grid-column: auto !important;
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
-  .nav-pill .navbar-nav {
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
+  .nav-pill .navbar-nav,
+  .navbar-collapse .navbar-nav,
+  .navbar.scrolled .navbar-collapse .navbar-nav {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 2px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
-  .nav-pill .nav-item {
-    width: 100%;
+  .nav-pill .nav-item,
+  .navbar-collapse .nav-item,
+  .navbar.scrolled .navbar-collapse .nav-item {
+    width: 100% !important;
+    background: transparent !important;
   }
 
   /* Compact Clean Left Alignment for Mobile Nav Links */
-  .nav-pill .nav-link {
-    width: 100%;
-    text-align: left;
+  .nav-pill .nav-link,
+  .navbar-collapse .nav-link,
+  .navbar.scrolled .navbar-collapse .nav-link {
+    width: 100% !important;
+    text-align: left !important;
     padding: 0.52rem 0.82rem !important;
     min-height: 38px !important;
-    border-radius: 10px;
+    border-radius: 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 10px !important;
-    font-size: 0.91rem;
-    font-weight: 500;
+    font-size: 0.91rem !important;
+    font-weight: 500 !important;
     color: rgba(255, 255, 255, 0.88) !important;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
   }
 
-  .nav-pill .nav-link:hover {
+  .nav-pill .nav-link span,
+  .navbar-collapse .nav-link span,
+  .navbar.scrolled .navbar-collapse .nav-link span {
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-size: 0.91rem !important;
+    font-weight: 500 !important;
+  }
+
+  .nav-pill .nav-link:hover,
+  .navbar-collapse .nav-link:hover,
+  .navbar.scrolled .navbar-collapse .nav-link:hover {
     background: rgba(255, 255, 255, 0.1) !important;
     color: #ffffff !important;
   }
 
-  .nav-pill .nav-link.active {
+  .nav-pill .nav-link:hover span,
+  .navbar-collapse .nav-link:hover span,
+  .navbar.scrolled .navbar-collapse .nav-link:hover span {
+    color: #ffffff !important;
+  }
+
+  .nav-pill .nav-link.active,
+  .navbar-collapse .nav-link.active,
+  .navbar.scrolled .navbar-collapse .nav-link.active {
     background: rgba(32, 201, 151, 0.2) !important;
     border-color: rgba(56, 217, 169, 0.45) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 14px rgba(32, 201, 151, 0.15) !important;
   }
 
-  .nav-pill .nav-link.active::after {
-    display: none;
+  .nav-pill .nav-link.active span,
+  .navbar-collapse .nav-link.active span,
+  .navbar.scrolled .navbar-collapse .nav-link.active span {
+    color: #ffffff !important;
+    font-weight: 600 !important;
   }
 
-  .nav-pill .nav-link i {
+  .nav-pill .nav-link.active::after,
+  .navbar-collapse .nav-link.active::after,
+  .navbar.scrolled .navbar-collapse .nav-link.active::after {
+    display: none !important;
+  }
+
+  .nav-pill .nav-link i,
+  .navbar-collapse .nav-link i,
+  .navbar.scrolled .navbar-collapse .nav-link i {
     font-size: 1.1rem !important;
     width: 22px !important;
     min-width: 22px !important;
@@ -1518,10 +1552,12 @@
     text-align: center !important;
     flex-shrink: 0 !important;
     margin: 0 !important;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.85) !important;
   }
 
-  .nav-pill .nav-link.active i {
+  .nav-pill .nav-link.active i,
+  .navbar-collapse .nav-link.active i,
+  .navbar.scrolled .navbar-collapse .nav-link.active i {
     color: #38d9a9 !important;
   }
 
