@@ -275,10 +275,10 @@ body.drawer-open {
 .drawer-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 1090;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 10060 !important;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -296,8 +296,8 @@ body.drawer-open {
     bottom: 0;
     width: min(600px, 100vw);
     background: #ffffff;
-    z-index: 1100;
-    box-shadow: -10px 0 45px rgba(0, 0, 0, 0.16);
+    z-index: 10070 !important;
+    box-shadow: -10px 0 45px rgba(0, 0, 0, 0.22);
     display: flex;
     flex-direction: column;
     transform: translateX(100%);
@@ -315,48 +315,83 @@ body.drawer-open {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 22px 28px;
+    gap: 14px;
+    padding: max(20px, env(safe-area-inset-top, 20px)) 24px 18px;
     border-bottom: 1px solid var(--booking-border-light);
     background: #ffffff;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 25;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.drawer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.drawer-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.drawer-back-btn:hover,
+.drawer-back-btn:active {
+    background: #e2e8f0;
+    color: #047857;
+    transform: translateX(-2px);
 }
 
 .drawer-title {
     margin: 0;
     color: var(--booking-text-dark);
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 850;
     letter-spacing: -0.02em;
+    line-height: 1.25;
 }
 
 .drawer-subtitle {
-    margin: 3px 0 0;
+    margin: 2px 0 0;
     color: var(--booking-muted);
-    font-size: 13px;
+    font-size: 12.5px;
+    line-height: 1.35;
 }
 
 .drawer-close-btn {
     width: 38px;
     height: 38px;
-    border-radius: 50%;
+    border-radius: 10px;
     background: #f1f5f9;
-    border: none;
+    border: 1px solid #e2e8f0;
     color: #475569;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
     transition: all 0.2s ease;
     flex-shrink: 0;
 }
 
 .drawer-close-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
     transform: scale(1.05);
 }
 
@@ -916,7 +951,7 @@ body.drawer-open {
 .booking-chat-modal {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: 10090 !important;
     display: none;
     align-items: center;
     justify-content: center;
@@ -1258,7 +1293,7 @@ body.drawer-open {
     }
 
     .drawer-header {
-        padding: 18px 20px;
+        padding: max(16px, env(safe-area-inset-top, 16px)) 18px 16px;
     }
 
     .drawer-body {
@@ -1272,7 +1307,7 @@ body.drawer-open {
     }
 
     .drawer-header {
-        padding: 14px 16px;
+        padding: max(14px, env(safe-area-inset-top, 14px)) 14px 14px;
     }
 
     .drawer-body {
@@ -1429,65 +1464,215 @@ body.drawer-open {
     color: #991b1b;
 }
 
-/* ARRIVAL OTP CARD */
-.arrival-otp-card {
-    padding: 16px 18px;
-    margin-bottom: 20px;
-    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-    border: 1px solid #a7f3d0;
-    border-left: 4px solid #087f5b;
-    border-radius: 12px;
+/* =========================================================
+   REDESIGNED ARRIVAL OTP CARD (DOORSTEP SECURITY PIN)
+   ========================================================= */
+.arrival-otp-card-redesigned {
+    margin-bottom: 22px;
+    background: linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%);
+    border: 1.5px solid #a7f3d0;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
     position: relative;
     overflow: hidden;
-    animation: otpCardAura 3s ease-in-out infinite;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-@keyframes otpCardAura {
-    0%, 100% {
-        box-shadow: 0 2px 10px rgba(8, 127, 91, 0.08), 0 0 0 0 rgba(8, 127, 91, 0.2);
-    }
-    50% {
-        box-shadow: 0 4px 18px rgba(8, 127, 91, 0.14), 0 0 0 4px rgba(8, 127, 91, 0.06);
-    }
+.arrival-otp-card-redesigned::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #059669, #10b981, #34d399);
 }
 
-.otp-code-highlight {
-    font-size: 32px;
-    letter-spacing: 8px;
-    font-weight: 850;
-    color: #065f46;
-    margin: 6px 0;
-    display: inline-block;
-    animation: otpPulseText 2.4s ease-in-out infinite;
-    will-change: transform;
-}
-
-@keyframes otpPulseText {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); color: #047857; }
-}
-
-.otp-display-row {
+.otp-card-topbar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 10px;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
 }
 
-.otp-digit-box {
-    width: 42px;
-    height: 48px;
-    border-radius: 10px;
+.otp-shield-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 750;
+}
+
+.otp-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: otpPulseDot 1.8s infinite;
+}
+
+@keyframes otpPulseDot {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+.otp-secure-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 650;
+    color: #047857;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.otp-display-center {
+    text-align: center;
+    padding: 14px 12px 18px;
     background: #ffffff;
-    border: 2px solid #087f5b;
-    color: #087f5b;
+    border: 1px solid #d1fae5;
+    border-radius: 14px;
+    margin-bottom: 14px;
+}
+
+.otp-instruction-lead {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    color: #475569;
+    font-weight: 600;
+}
+
+.otp-boxes-group {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    gap: 12px;
+    margin: 4px auto 4px;
+}
+
+.otp-digit-box {
+    width: 48px;
+    height: 56px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 2px solid #059669;
+    color: #065f46;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
     font-weight: 850;
-    box-shadow: 0 2px 6px rgba(8, 127, 91, 0.12);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, monospace;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.otp-digit-box:hover {
+    transform: translateY(-2px);
+    border-color: #047857;
+}
+
+.otp-safety-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-left: 4px solid #f59e0b;
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+.safety-icon-bubble {
+    color: #d97706;
+    font-size: 16px;
+    line-height: 1;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.safety-content {
+    font-size: 12px;
+    color: #78350f;
+    line-height: 1.55;
+}
+
+.safety-content strong {
+    color: #92400e;
+    font-weight: 750;
+}
+
+.otp-schedule-footer {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.schedule-icon-bubble {
+    color: #0284c7;
+    font-size: 16px;
+    line-height: 1;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.schedule-content {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.schedule-main-line {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.schedule-sub-line {
+    color: #64748b;
+    margin-top: 3px;
+    font-size: 11.5px;
+}
+
+.schedule-sub-line.is-ready {
+    color: #059669;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .arrival-otp-card-redesigned {
+        padding: 16px 14px;
+    }
+    .otp-boxes-group {
+        gap: 8px;
+    }
+    .otp-digit-box {
+        width: 40px;
+        height: 48px;
+        font-size: 22px;
+        border-radius: 10px;
+    }
 }
 
 /* =========================================================
@@ -1646,7 +1831,7 @@ body.drawer-open {
 .lamo-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 2000;
+    z-index: 10100 !important;
     display: flex;
     align-items: center;
     justify-content: center;

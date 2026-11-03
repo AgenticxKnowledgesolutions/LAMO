@@ -143,9 +143,14 @@
             <aside id="bookingDetailsDrawer" class="booking-drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
                 <!-- DRAWER HEADER -->
                 <div class="drawer-header">
-                    <div>
-                        <h2 id="drawerTitle" class="drawer-title">Booking Details</h2>
-                        <p class="drawer-subtitle">Complete information about your service booking.</p>
+                    <div class="drawer-header-left">
+                        <button type="button" class="drawer-back-btn d-md-none" data-close-drawer="true" aria-label="Back to bookings">
+                            <i class="bi bi-arrow-left"></i>
+                        </button>
+                        <div>
+                            <h2 id="drawerTitle" class="drawer-title">Booking Details</h2>
+                            <p class="drawer-subtitle">Complete information about your service booking.</p>
+                        </div>
                     </div>
                     <button type="button" class="drawer-close-btn" data-close-drawer="true" aria-label="Close details">
                         <i class="bi bi-x-lg"></i>
@@ -305,32 +310,54 @@
 
                             <!-- ARRIVAL VERIFICATION OTP FOR ACCEPTED BOOKINGS -->
                             {% if booking.status == 'ACCEPTED' and booking.arrival_otp %}
-                                <div class="arrival-otp-card">
-                                    <div class="otp-card-badge" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#065f46; font-size:12px; margin-bottom:8px;">
-                                        <i class="bi bi-shield-lock-fill" style="color:#059669; font-size:15px;"></i> Doorstep Security PIN
+                                <div class="arrival-otp-card-redesigned">
+                                    <div class="otp-card-topbar">
+                                        <div class="otp-shield-pill">
+                                            <span class="otp-pulse-dot"></span>
+                                            <i class="bi bi-shield-lock-fill"></i>
+                                            <span>Doorstep Security PIN</span>
+                                        </div>
+                                        <span class="otp-secure-badge"><i class="bi bi-lock-fill"></i> In-Person Only</span>
                                     </div>
-                                    <div class="otp-code-highlight" style="font-size:32px; letter-spacing:8px; font-weight:800; color:#065f46; margin:6px 0;">{{ booking.arrival_otp }}</div>
-                                    <div style="background:#ffffff; border:1px solid #d1fae5; border-radius:8px; padding:10px 12px; margin-top:8px;">
-                                        <p class="otp-instruction-text" style="margin:0; font-size:12.5px; color:#1e293b; line-height:1.5;">
-                                            <i class="bi bi-exclamation-triangle-fill" style="color:#d97706;"></i>
-                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share this PIN over phone or chat.
-                                            Share this 4-digit code <strong>in person ONLY</strong> when the service professional physically arrives at your doorstep to begin the work.
-                                        </p>
+
+                                    <div class="otp-display-center">
+                                        <p class="otp-instruction-lead">Share this 4-digit code with your worker upon arrival to start service:</p>
+                                        <div class="otp-boxes-group" role="group" aria-label="Security PIN {{ booking.arrival_otp }}">
+                                            {% for digit in booking.arrival_otp|stringformat:"s" %}
+                                                <span class="otp-digit-box">{{ digit }}</span>
+                                            {% empty %}
+                                                <span class="otp-digit-box">{{ booking.arrival_otp }}</span>
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; margin-top:8px;">
-                                        <p style="margin:0; font-size:12px; color:#1e40af; line-height:1.5;">
+
+                                    <div class="otp-safety-callout">
+                                        <div class="safety-icon-bubble">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                        </div>
+                                        <div class="safety-content">
+                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share this PIN over phone or chat. Share this 4-digit code <strong>in person ONLY</strong> when the service professional physically arrives at your doorstep to begin the work.
+                                        </div>
+                                    </div>
+
+                                    <div class="otp-schedule-footer">
+                                        <div class="schedule-icon-bubble">
                                             <i class="bi bi-clock-history"></i>
-                                            <strong>Service Schedule:</strong> {{ booking.date|date:"l, d M Y"|default:booking.date }} at {{ booking.time }}.
+                                        </div>
+                                        <div class="schedule-content">
+                                            <div class="schedule-main-line">
+                                                <strong>Service Schedule:</strong> {{ booking.date|date:"l, d M Y"|default:booking.date }} at {{ booking.time }}
+                                            </div>
                                             {% if booking.can_start_now %}
-                                            <span style="display:block; margin-top:4px; color:#065f46; font-weight:600;">
-                                                <i class="bi bi-check-circle-fill"></i> Service window is now active. When the worker arrives, share your Doorstep PIN to begin.
-                                            </span>
+                                                <div class="schedule-sub-line is-ready">
+                                                    <i class="bi bi-check-circle-fill"></i> Service window is active now. When the worker arrives, share your Doorstep PIN to begin.
+                                                </div>
                                             {% else %}
-                                            <span style="display:block; margin-top:4px; color:#64748b;">
-                                                Service window opens 30 minutes before scheduled start time.
-                                            </span>
+                                                <div class="schedule-sub-line">
+                                                    Service window opens 30 minutes before scheduled start time.
+                                                </div>
                                             {% endif %}
-                                        </p>
+                                        </div>
                                     </div>
                                 </div>
                             {% endif %}
@@ -746,23 +773,6 @@
 
                             <!-- ACTIONS BAR: INVOICE, NO-SHOW, CANCEL -->
                             <div class="details-actions-bar">
-
-                                {% if booking.worker and booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' %}
-                                    <button
-                                        type="button"
-                                        class="btn-lamo-audio-call"
-                                        onclick="initiateLamoCall({{ booking.id }}, '{{ booking.worker.user.get_full_name|default:booking.worker.user.username|escapejs }}', 'Service Professional')"
-                                    >
-                                        <i class="bi bi-telephone-fill"></i> Call Pro (In-App)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn-lamo-track-map"
-                                        onclick="openLiveTrackingModal({{ booking.id }})"
-                                    >
-                                        <i class="bi bi-geo-alt-fill"></i> Live Route Map
-                                    </button>
-                                {% endif %}
 
                                 {% if booking.is_paid %}
                                     <a href="{% url 'booking_invoice' booking.id %}" class="receipt-action-btn">

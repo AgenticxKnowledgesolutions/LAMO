@@ -409,42 +409,45 @@
 .ep-location-btn {
 
     width: 100%;
-    min-height: 45px;
+    min-height: 46px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    gap: 7px;
+    gap: 8px;
 
-    padding: 10px 12px;
+    padding: 11px 16px;
 
-    border: 1.5px solid #16a34a;
+    border: none;
 
-    border-radius: 11px;
+    border-radius: 12px;
 
-    background: #f0fdf4;
+    background: linear-gradient(135deg, #087f5b 0%, #059669 100%);
 
-    color: #15803d;
+    color: #ffffff;
 
     font-family: inherit;
 
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
 
     cursor: pointer;
 
-    transition: .25s ease;
+    box-shadow: 0 4px 12px rgba(8, 127, 91, 0.2);
+
+    transition: all .2s ease;
 }
 
 .ep-location-btn:hover {
 
-    background: #dcfce7;
+    background: linear-gradient(135deg, #066c4d 0%, #047857 100%);
 
     transform: translateY(-2px);
 
     box-shadow:
-        0 8px 18px rgba(22,163,74,.14);
+        0 8px 18px rgba(8,127,91,.28);
+    color: #ffffff;
 }
 
 .ep-location-btn:active {
