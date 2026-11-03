@@ -1311,7 +1311,7 @@
 
         .about-hero {
 
-            min-height: 620px;
+            min-height: 520px;
 
             background-position:
                 65% bottom;
@@ -1355,7 +1355,11 @@
 
         .about-hero {
 
-            min-height: 620px;
+            min-height: 440px;
+
+            padding-top: 86px;
+
+            padding-bottom: 30px;
 
             align-items: flex-start;
 
@@ -1437,13 +1441,13 @@
         .roles-section,
         .workflow-section {
 
-            padding: 65px 0;
+            padding: 38px 0;
         }
 
 
         .section-heading {
 
-            margin-bottom: 38px;
+            margin-bottom: 26px;
         }
 
 
@@ -1496,7 +1500,11 @@
 
         .about-hero {
 
-            min-height: 450px;
+            min-height: 400px;
+
+            padding-top: 80px;
+
+            padding-bottom: 24px;
 
             background-position:
                 70% bottom;

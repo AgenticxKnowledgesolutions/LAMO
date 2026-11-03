@@ -976,62 +976,45 @@
 
 
     /* =====================================================
-           SCROLLED USER MENU
+           SCROLLED USER MENU (High-Contrast for Light Scrolled Navbar)
         ====================================================== */
 
     .navbar.scrolled .user-menu-trigger {
-
-      color: #ffffff;
-
-      background:
-        rgba(255, 255, 255, 0.08);
-
-      border-color:
-        rgba(255, 255, 255, 0.28);
-
+      color: #0f172a !important;
+      background: #ffffff !important;
+      border: 1.5px solid #e2e8f0 !important;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
     }
 
+    .navbar.scrolled .user-menu-trigger .bi-chevron-down {
+      color: #64748b !important;
+    }
 
     .navbar.scrolled .user-menu-trigger:hover {
-
-      background:
-        rgba(255, 255, 255, 0.15);
-
-      border-color:
-        rgba(255, 255, 255, 0.50);
-
+      background: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #087f5b !important;
     }
 
+    .navbar.scrolled .user-menu-trigger:hover .bi-chevron-down {
+      color: #087f5b !important;
+    }
 
     /* =====================================================
            SCROLLED LOGIN
         ====================================================== */
 
     .navbar.scrolled .btn-login {
-
-      color: #ffffff;
-
-      border-color:
-        rgba(255, 255, 255, 0.35);
-
-      background:
-        rgba(255, 255, 255, 0.06);
-
+      color: #087f5b !important;
+      border: 1.5px solid rgba(8, 127, 91, 0.25) !important;
+      background: rgba(8, 127, 91, 0.08) !important;
     }
-
 
     .navbar.scrolled .btn-login:hover {
-
-      color: #ffffff;
-
-      border-color:
-        rgba(255, 255, 255, 0.60);
-
-      background:
-        rgba(255, 255, 255, 0.13);
-
+      color: #ffffff !important;
+      border-color: #087f5b !important;
+      background: #087f5b !important;
     }
-
 
     /* =====================================================
            MOBILE TOGGLE
@@ -2455,8 +2438,7 @@
 
 /* Login hover */
 .btn-login:hover,
-.navbar .btn-login:hover,
-.navbar.scrolled .btn-login:hover {
+.navbar:not(.scrolled) .btn-login:hover {
     background: rgba(255, 255, 255, 0.18) !important;
     border-color: rgba(255, 255, 255, 0.80) !important;
     color: #ffffff !important;

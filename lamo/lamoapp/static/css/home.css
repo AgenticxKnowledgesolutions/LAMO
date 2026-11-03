@@ -1927,3 +1927,28 @@ body {
     transition: none !important;
   }
 }
+/* =========================================================
+   ACTIVE ONGOING JOB TRACKER - MOBILE POLISH
+   ========================================================= */
+@media (max-width: 576px) {
+  .active-job-tracker {
+    padding: 14px 16px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .active-job-tracker > div:first-child {
+    gap: 10px !important;
+  }
+
+  .active-job-tracker > div:last-child {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .active-job-tracker a {
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+  }
+}

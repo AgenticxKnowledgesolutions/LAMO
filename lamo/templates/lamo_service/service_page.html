@@ -162,7 +162,7 @@
        ========================================================= */
     .services-hero-compact {
         position: relative;
-        padding: 54px 0 46px;
+        padding: 94px 0 36px;
         background:
             radial-gradient(circle at 18% 45%, rgba(16, 185, 129, 0.28) 0%, transparent 55%),
             radial-gradient(circle at 82% 30%, rgba(5, 150, 105, 0.22) 0%, transparent 50%),
@@ -196,6 +196,14 @@
     .services-hero-trust-box:hover {
         transform: translateY(-2px);
         box-shadow: 0 25px 55px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(52, 211, 153, 0.28);
+    }
+    @media (max-width: 991px) {
+        .services-hero-compact {
+            padding: 96px 0 28px !important;
+        }
+        .services-hero-compact .services-hero-heading {
+            font-size: clamp(1.6rem, 5vw, 2.1rem) !important;
+        }
     }
     </style>
 {% endblock %}
