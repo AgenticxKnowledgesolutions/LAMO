@@ -1326,27 +1326,8 @@ def home(request):
     else:
         services_qs = Service.objects.filter(is_active=True)
 
-    if query:
-        query_lower = query.lower()
-        if query_lower in ('ac', 'a/c', 'a.c.'):
-            services_qs = services_qs.filter(
-                Q(name__icontains='ac ') | Q(name__icontains='ac repair') | Q(name__icontains='air condition') | Q(description__icontains='air condition')
-            )
-        elif query_lower in ('plumber', 'plumbers'):
-            services_qs = services_qs.filter(Q(name__icontains='plumb') | Q(description__icontains='plumb'))
-        elif query_lower in ('electrician', 'electricians', 'electrical'):
-            services_qs = services_qs.filter(Q(name__icontains='electr') | Q(description__icontains='electr'))
-        elif query_lower in ('carpenter', 'carpenters', 'carpentry'):
-            services_qs = services_qs.filter(Q(name__icontains='carpent') | Q(description__icontains='carpent'))
-        elif query_lower in ('painter', 'painters', 'painting'):
-            services_qs = services_qs.filter(Q(name__icontains='paint') | Q(description__icontains='paint'))
-        elif query_lower in ('cleaner', 'cleaners', 'cleaning'):
-            services_qs = services_qs.filter(Q(name__icontains='clean') | Q(description__icontains='clean'))
-        else:
-            services_qs = services_qs.filter(
-                Q(name__icontains=query) | Q(description__icontains=query)
-            )
-
+    corrected_query = None
+    had_typo = False
     if category and category != 'all':
         if category == 'more':
             q_exclude = Q()
@@ -1413,6 +1394,17 @@ def home(request):
 
     services_list.sort(key=lambda x: (x.is_featured, x.name.lower()), reverse=True)
 
+    if query:
+        from .search_utils import search_and_rank_services
+        for s in services_list:
+            meta = _map_service_metadata(s)
+            s.category_key = meta['category_key']
+            s.category_label = meta['category_label']
+        ranked_services, corrected_query, had_typo = search_and_rank_services(
+            services_list, query
+        )
+        services_list = ranked_services
+
     # Extra categories for "More Services"
     all_active_services = Service.objects.filter(is_active=True).order_by('name')
     more_categories = []
@@ -1453,6 +1445,8 @@ def home(request):
             'selected_district': selected_district,
             'selected_locality': selected_locality,
             'query': query,
+            'corrected_query': corrected_query,
+            'had_typo': had_typo,
             'category': category or 'all',
             'services_count': len(services_list),
             'services': services_data,
@@ -1490,6 +1484,8 @@ def home(request):
         'locality': selected_locality,
         'districts': kerala_districts,
         'query': query,
+        'corrected_query': corrected_query,
+        'had_typo': had_typo,
         'category': category or 'all',
         'reviews': reviews,
         'verified_workers_count': verified_workers_count,
@@ -8198,15 +8194,14 @@ def service_page(request):
 
     filtered_services = all_services_list
 
-    if search_query:
-        q_lower = search_query.lower()
-        filtered_services = [
-            s for s in filtered_services
-            if q_lower in s.name.lower()
-            or (s.description and q_lower in s.description.lower())
-            or q_lower in s.category_label.lower()
-        ]
+    corrected_query = None
+    had_typo = False
 
+    if search_query:
+        from .search_utils import search_and_rank_services
+        filtered_services, corrected_query, had_typo = search_and_rank_services(
+            filtered_services, search_query
+        )
     if selected_category and selected_category != 'all':
         filtered_services = [s for s in filtered_services if s.category_key == selected_category]
 
@@ -8258,6 +8253,8 @@ def service_page(request):
             'kerala_districts': kerala_districts,
             'selected_district': selected_district,
             'search_query': search_query,
+            'corrected_query': corrected_query,
+            'had_typo': had_typo,
             'selected_category': selected_category,
             'sort_by': sort_by,
             'min_price': min_price_val,
@@ -8269,6 +8266,62 @@ def service_page(request):
     )
     response.set_cookie('lamo_selected_district', selected_district, max_age=86400 * 30, samesite='Lax')
     return response
+
+
+def api_search_suggestions(request):
+    """
+    Returns live search suggestions and popular services.
+    Supports typo-tolerance, phonetic matching, and category aliases.
+    """
+    raw_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
+    district = (
+        request.GET.get('district')
+        or request.session.get('district')
+        or request.session.get('lamo_selected_district')
+        or 'Kollam'
+    ).strip()
+
+    services_qs = Service.objects.filter(is_active=True).order_by('-is_featured', 'name')
+    all_services = list(services_qs)
+
+    today = timezone.localdate()
+    try:
+        workers_on_leave_ids = set(
+            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
+        )
+    except Exception:
+        workers_on_leave_ids = set()
+
+    eligible_workers = WorkerProfile.objects.filter(
+        is_verified=True,
+        work_status='AVAILABLE',
+        user__is_active=True,
+        is_paused_for_dues=False,
+    ).exclude(id__in=workers_on_leave_ids)
+
+    district_worker_counts = dict(
+        eligible_workers.filter(
+            district__iexact=district,
+        ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
+    )
+
+    for s in all_services:
+        meta = _map_service_metadata(s)
+        s.category_key = meta['category_key']
+        s.category_label = meta['category_label']
+        s.icon_class = meta['icon_class']
+        s.badge_bg = meta['badge_bg']
+        s.badge_color = meta['badge_color']
+        cnt = district_worker_counts.get(s.id, 0)
+        s.real_worker_count = cnt
+        if cnt > 0:
+            s.pro_count_display = f"{cnt} Verified Pro{'s' if cnt != 1 else ''} in {district}"
+        else:
+            s.pro_count_display = "Verified across Kerala"
+
+    from .search_utils import get_search_suggestions_payload
+    payload = get_search_suggestions_payload(all_services, raw_query, district=district, limit=8)
+    return JsonResponse(payload)
 @login_required
 def admin_payments(request):
     """List recorded manual payment reports for admin review.

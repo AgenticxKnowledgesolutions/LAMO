@@ -485,6 +485,7 @@
     // 3. LIVE BACKEND AJAX FETCHING
     // -------------------------------------------------------------
     function fetchFilteredServices(options) {
+    window.fetchFilteredServices = fetchFilteredServices;
       const opts = options || {};
       const district = opts.district !== undefined ? opts.district : (districtSelect ? districtSelect.value : "");
       const query = opts.query !== undefined ? opts.query : (searchInput ? searchInput.value.trim() : "");

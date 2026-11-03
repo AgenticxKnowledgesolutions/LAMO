@@ -631,6 +631,20 @@
                     </div>
                 </div>
 
+                <!-- Typo / Auto-correction Notice -->
+                {% if had_typo and corrected_query %}
+                <div class="search-autocorrect-banner">
+                    <div class="autocorrect-icon-wrap">
+                        <i class="bi bi-magic"></i>
+                    </div>
+                    <div class="autocorrect-text">
+                        Showing verified services for <strong>{{ corrected_query }}</strong> (auto-corrected from "<em>{{ search_query }}</em>").
+                    </div>
+                    <a href="?q={{ corrected_query }}&district={{ selected_district }}" class="autocorrect-accept-pill">
+                        Keep {{ corrected_query }}
+                    </a>
+                </div>
+                {% endif %}
                 <!-- Active Filter Tags (if any search or category filter active) -->
                 {% if search_query or selected_category != 'all' or min_price or max_price %}
                 <div class="active-filter-chips">
@@ -759,14 +773,23 @@
                 </div>
                 {% endif %}
                 {% else %}
-                <!-- Empty State -->
+                <!-- Empty State with Intelligent Suggestions -->
                 <div class="empty-services-state">
                     <div class="empty-state-icon">
                         <i class="bi bi-search"></i>
                     </div>
-                    <h3 class="empty-title">No services found</h3>
-                    <p class="empty-desc">We couldn't find any services matching your criteria in <strong>{{ selected_district }}</strong>. Try adjusting your filters or search terms.</p>
-                    <a href="{% url 'service_page' %}?district={{ selected_district }}" class="reset-filters-btn">View All Services</a>
+                    <h3 class="empty-title">No services found{% if search_query %} for "{{ search_query }}"{% endif %}</h3>
+                    <p class="empty-desc">We couldn't find an exact match in <strong>{{ selected_district }}</strong>. Did you mean one of our popular services below?</p>
+                    <div class="empty-suggestions-pills">
+                        <a href="?q=Electrician&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-lightning-charge-fill text-warning"></i> Electrician</a>
+                        <a href="?q=Plumbing&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-wrench-adjustable text-primary"></i> Plumbing</a>
+                        <a href="?q=AC+Repair&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-snow text-info"></i> AC Repair</a>
+                        <a href="?q=Cleaning&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-stars text-success"></i> Home Cleaning</a>
+                        <a href="?q=Carpentry&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-hammer text-danger"></i> Carpentry</a>
+                        <a href="?q=Painting&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-paint-bucket text-primary"></i> Painting</a>
+                        <a href="?q=Appliance&district={{ selected_district }}" class="suggest-pill"><i class="bi bi-cpu" style="color:#6366f1;"></i> Appliance Repair</a>
+                    </div>
+                    <a href="{% url 'service_page' %}?district={{ selected_district }}" class="reset-filters-btn mt-3">View All Services</a>
                 </div>
                 {% endif %}
 

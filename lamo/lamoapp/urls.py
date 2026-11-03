@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/location/gps/', views.api_gps_location, name='api_gps_location'),
     path('api/location/set/', views.api_set_location, name='api_set_location'),
     path('api/language/set/', views.set_language, name='set_language'),
+    path('api/search-suggestions/', views.api_search_suggestions, name='api_search_suggestions'),
 
     # In-App WebRTC Audio Calling (Masked / Zero Phone Sharing)
     path('api/call/<int:booking_id>/initiate/', views.api_call_initiate, name='api_call_initiate'),
