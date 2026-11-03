@@ -161,6 +161,13 @@
       }
     }
 
+    function formatSaveButtonText(dist, loc) {
+      const isMl = (window.LAMO_I18N && window.LAMO_I18N.getLanguage && window.LAMO_I18N.getLanguage() === 'ml');
+      if (!dist) return isMl ? "സ്ഥലം സേവ് ചെയ്യുക" : "Save Location";
+      if (loc) return isMl ? loc + ", " + dist + " സേവ് ചെയ്യുക" : "Save " + loc + ", " + dist;
+      return isMl ? dist + " മുഴുവൻ സേവ് ചെയ്യുക" : "Save Entire " + dist;
+    }
+
     function showDistrictsStep() {
       if (stepDistrictsView) stepDistrictsView.style.display = "block";
       if (stepLocalitiesView) stepLocalitiesView.style.display = "none";
@@ -168,7 +175,7 @@
       updateSummaryDisplay();
       updateSidebarVisual("districts");
       if (continueBtnText) {
-        continueBtnText.textContent = selectedDistrict ? "Save Entire " + selectedDistrict : "Save Location";
+        continueBtnText.textContent = formatSaveButtonText(selectedDistrict, "");
       }
       if (continueBtnIcon) {
         continueBtnIcon.className = "bi bi-check-circle-fill";
@@ -197,9 +204,7 @@
       updateSummaryDisplay();
       updateSidebarVisual("localities", districtName);
       if (continueBtnText) {
-        continueBtnText.textContent = selectedLocality 
-          ? "Save " + selectedLocality + ", " + districtName 
-          : "Save Entire " + districtName;
+        continueBtnText.textContent = formatSaveButtonText(districtName, selectedLocality);
       }
       if (continueBtnIcon) {
         continueBtnIcon.className = "bi bi-check-circle-fill";
@@ -309,9 +314,7 @@
       updateSummaryDisplay();
 
       if (continueBtnText) {
-        continueBtnText.textContent = selectedLocality 
-          ? "Save " + selectedLocality + ", " + selectedDistrict 
-          : "Save Entire " + selectedDistrict;
+        continueBtnText.textContent = formatSaveButtonText(selectedDistrict, selectedLocality);
       }
       if (continueBtnIcon) {
         continueBtnIcon.className = "bi bi-check-circle-fill";

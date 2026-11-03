@@ -253,7 +253,7 @@
             <input type="text" 
                    name="q" 
                    id="liveServiceSearch" 
-                   placeholder="Search (e.g. Electrician, Plumbing...)" 
+                   placeholder="Search (e.g. Electrician, Plumbing...)" data-i18n-placeholder="service_search_placeholder" 
                    aria-label="Search services" 
                    value="{{ search_query|default:'' }}" 
                    autocomplete="off">
@@ -268,7 +268,7 @@
 
           <!-- Submit Button -->
           <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Find Services">
-            <span>Find Services</span>
+            <span data-i18n="btn_find_services">Find Services</span>
             <i class="bi bi-arrow-right"></i>
           </button>
         </form>
@@ -311,16 +311,16 @@
         
         <!-- Breadcrumb Navigation -->
         <nav class="services-breadcrumb" aria-label="Breadcrumb">
-            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'home' %}" data-i18n="nav_home">Home</a>
             <i class="bi bi-chevron-right breadcrumb-separator"></i>
-            <span class="breadcrumb-current">Services</span>
+            <span class="breadcrumb-current" data-i18n="nav_services">Services</span>
         </nav>
 
         <!-- Mobile Filter Bar (Visible only on screens < 992px) -->
         <div class="mobile-filter-bar d-lg-none">
             <button type="button" class="btn-mobile-filter-toggle" id="btnToggleMobileFilters" aria-label="Open filter sidebar">
                 <i class="bi bi-funnel-fill"></i>
-                <span>Filter & Categories</span>
+                <span data-i18n="filter_categories">Filter &amp; Categories</span>
                 {% if selected_category and selected_category != 'all' %}
                 <span class="mobile-filter-active-dot"></span>
                 {% endif %}

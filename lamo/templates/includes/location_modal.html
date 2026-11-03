@@ -78,8 +78,8 @@
             <i class="bi bi-geo-alt-fill"></i>
           </div>
         </div>
-        <h3 id="locModalTitle" class="loc-modal-title">Choose Your Location</h3>
-        <p class="loc-modal-subtitle">Find trusted home services available in your area.</p>
+        <h3 id="locModalTitle" class="loc-modal-title" data-i18n="loc_modal_title">Choose Your Location</h3>
+        <p class="loc-modal-subtitle" data-i18n="loc_modal_subtitle">Find trusted home services available in your area.</p>
       </div>
 
       <!-- GPS Auto-Detection Capsule -->
@@ -89,8 +89,8 @@
             <i class="bi bi-crosshair2 loc-gps-crosshair"></i>
           </div>
           <div class="loc-gps-content">
-            <span class="loc-gps-main-text">Use My Current Location</span>
-            <span class="loc-gps-hint-text" id="gpsStatusText">Auto-detect nearest district &amp; locality via GPS</span>
+            <span class="loc-gps-main-text" data-i18n="loc_gps_main">Use My Current Location</span>
+            <span class="loc-gps-hint-text" id="gpsStatusText" data-i18n="loc_gps_hint">Auto-detect nearest district &amp; locality via GPS</span>
           </div>
           <span class="loc-gps-badge" id="gpsBadgeIcon">
             <i class="bi bi-chevron-right"></i>
@@ -120,7 +120,7 @@
             <input type="text" 
                    id="locDistrictFilterInput" 
                    class="loc-search-input" 
-                   placeholder="Search district (e.g. Kollam, Ernakulam...)" 
+                   placeholder="Search district (e.g. Kollam, Ernakulam...)" data-i18n-placeholder="loc_search_district" 
                    autocomplete="off"
                    aria-label="Search your district">
             <button type="button" 
@@ -134,7 +134,7 @@
 
           <!-- Section Label -->
           <div class="loc-section-label-strip">
-            <span>SELECT YOUR DISTRICT</span>
+            <span data-i18n="loc_select_district">SELECT YOUR DISTRICT</span>
           </div>
 
           <!-- 14 Kerala Districts: High-Efficiency 3-Column Grid -->
@@ -164,7 +164,7 @@
           <!-- Back to Districts Navigation Row + Top Quick Save -->
           <div class="loc-locality-top-bar">
             <button type="button" class="btn-loc-back-districts" id="btnBackToDistricts">
-              <i class="bi bi-arrow-left"></i> Change District
+              <i class="bi bi-arrow-left"></i> <span data-i18n="loc_change_district">Change District</span>
             </button>
             <div class="loc-top-bar-right">
               <span class="loc-selected-district-badge" id="locActiveDistrictBadge">
@@ -230,7 +230,7 @@
         </div>
         <button type="button" class="btn-continue-location" id="btnContinueLocation">
           <i class="bi bi-check-circle-fill" id="btnContinueLocationIcon"></i>
-          <span id="btnContinueLocationText">Save Location</span>
+          <span id="btnContinueLocationText" data-i18n="loc_save_location">Save Location</span>
         </button>
       </div>
 

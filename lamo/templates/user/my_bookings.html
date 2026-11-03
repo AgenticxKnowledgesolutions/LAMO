@@ -15,10 +15,10 @@
         <!-- TOP HEADER -->
         <header class="bookings-header">
             <a href="{% url 'home' %}" class="back-link">
-                <i class="bi bi-arrow-left"></i> Back to Home
+                <i class="bi bi-arrow-left"></i> <span data-i18n="Back to Home">Back to Home</span>
             </a>
-            <h1>My Bookings</h1>
-            <p>Track your service requests and booking status.</p>
+            <h1 data-i18n="nav_bookings">My Bookings</h1>
+            <p data-i18n="bookings_sub">Track your service requests and booking status.</p>
         </header>
 
         {% if bookings %}

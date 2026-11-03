@@ -2345,6 +2345,21 @@
     }
 
 
+        .footer-agenticx-link {
+      color: #34d399;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      display: inline-block;
+    }
+
+    .footer-agenticx-link:hover {
+      color: #10b981;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transform: translateY(-1px);
+    }
+
     .footer-bottom-links a {
 
       color: #d1d5db;

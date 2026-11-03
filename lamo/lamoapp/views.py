@@ -289,7 +289,7 @@ def set_language(request):
 
         request.session['lamo_lang'] = lang
         response = JsonResponse({'ok': True, 'lang': lang})
-        response.set_cookie('lamo_lang', lang, max_age=365*24*60*60, samesite='Lax')
+        response.set_cookie('lamo_lang', lang, max_age=365*24*60*60, path='/', samesite='Lax')
         return response
     except Exception as ex:
         logger.error("Failed to set language: %s", str(ex))

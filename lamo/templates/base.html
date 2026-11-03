@@ -1,7 +1,7 @@
 {% load static %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language|default:'en' }}">
 
 <head>
 
@@ -674,7 +674,7 @@
         <div class="col-lg-2 col-md-6" data-aos="fade-up" data-aos-delay="100">
 
 
-          <h5 class="footer-heading">
+          <h5 class="footer-heading" data-i18n="footer_quick_links">
             Quick Links
           </h5>
 
@@ -741,7 +741,7 @@
         <div class="col-lg-2 col-md-6" data-aos="fade-up" data-aos-delay="200">
 
 
-          <h5 class="footer-heading">
+          <h5 class="footer-heading" data-i18n="footer_for_customers">
             For Customers
           </h5>
 
@@ -798,7 +798,7 @@
         <div class="col-lg-2 col-md-6" data-aos="fade-up" data-aos-delay="300">
 
 
-          <h5 class="footer-heading">
+          <h5 class="footer-heading" data-i18n="footer_for_workers">
             For Workers
           </h5>
 
@@ -839,7 +839,7 @@
         <div class="col-lg-2 col-md-6" data-aos="fade-up" data-aos-delay="400">
 
 
-          <h5 class="footer-heading">
+          <h5 class="footer-heading" data-i18n="footer_contact_info">
             Contact Info
           </h5>
 
@@ -896,23 +896,23 @@
 
         <p class="mb-1">
 
-          &copy; 2026 AgenticX. All rights reserved.
+          &copy; 2026 <a href="https://agenticx.co.in" target="_blank" rel="noopener noreferrer" class="footer-agenticx-link">AgenticX</a>. <span data-i18n="footer_rights">All rights reserved.</span>
 
         </p>
 
 
         <div class="footer-bottom-links">
 
-          <a href="{% url 'privacy' %}">
+          <a href="{% url 'privacy' %}" data-i18n="footer_privacy">
             Privacy Policy
           </a>
 
-          <a href="{% url 'terms' %}">
+          <a href="{% url 'terms' %}" data-i18n="footer_terms">
             Terms &amp; Conditions
           </a>
 
           <a href="{% url 'admin_login' %}">
-            <i class="bi bi-shield-lock-fill me-1"></i>Admin Portal
+            <i class="bi bi-shield-lock-fill me-1"></i><span data-i18n="footer_admin">Admin Portal</span>
           </a>
 
         </div>

@@ -35,8 +35,8 @@
             Welcome back, {{ user.username }}!<br>
             <span class="hero-heading-green">Right at Your Doorstep</span>
             {% else %}
-            Trusted Home Services,<br>
-            <span class="hero-heading-green">Right at Your Doorstep</span>
+            <span data-i18n="hero_title_1">Trusted Home Services,</span><br>
+            <span class="hero-heading-green" data-i18n="hero_doorstep">Right at Your Doorstep</span>
             {% endif %}
           </h1>
 
@@ -87,7 +87,7 @@
               <input type="text" 
                      name="q" 
                      id="liveServiceSearch" 
-                     placeholder="What service do you need? (e.g. Electrician)" 
+                     placeholder="What service do you need? (e.g. Electrician)" data-i18n-placeholder="hero_search_placeholder" 
                      aria-label="Search services by name or description" 
                      value="{{ query|default:'' }}" 
                      autocomplete="off">
@@ -102,7 +102,7 @@
 
             <!-- Submit Button -->
             <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Find Services">
-              <span>Find Services</span>
+              <span data-i18n="btn_find_services">Find Services</span>
               <i class="bi bi-arrow-right"></i>
             </button>
 
@@ -114,23 +114,23 @@
           <div class="hero-trust-badges">
             <div class="trust-badge-item">
               <i class="bi bi-check2-circle"></i>
-              <span>Verified Professionals</span>
+              <span data-i18n="badge_verified">Verified Professionals</span>
             </div>
             <div class="trust-badge-item">
               <i class="bi bi-calendar-check"></i>
-              <span>Easy Booking</span>
+              <span data-i18n="badge_easy_booking">Easy Booking</span>
             </div>
             <div class="trust-badge-item">
               <i class="bi bi-scale"></i>
-              <span>Transparent Pricing</span>
+              <span data-i18n="badge_transparent_pricing">Transparent Pricing</span>
             </div>
             <div class="trust-badge-item">
               <i class="bi bi-shield-lock"></i>
-              <span>Safe &amp; Secure</span>
+              <span data-i18n="badge_safe_secure">Safe &amp; Secure</span>
             </div>
             <div class="trust-badge-item">
               <i class="bi bi-headset"></i>
-              <span>Support When You Need It</span>
+              <span data-i18n="badge_support">Support When You Need It</span>
             </div>
           </div>
 
