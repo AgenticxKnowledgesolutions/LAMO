@@ -2557,6 +2557,59 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
     return expired_list
 
 
+def check_and_expire_stale_accepted_bookings(customer=None, worker=None):
+    """
+    Expire ACCEPTED bookings that were never started and are older than 48 hours
+    past their scheduled date. Gives customer 48 hours to report worker no-show,
+    then automatically archives stale active bookings to EXPIRED status.
+    Refunds any pre-payments and notifies both parties.
+    """
+    from datetime import timedelta
+    from django.utils import timezone as dj_timezone
+
+    cutoff_date = dj_timezone.localdate() - timedelta(days=2)
+    qs = Booking.objects.filter(
+        status='ACCEPTED',
+        date__lt=cutoff_date,
+    )
+    if customer:
+        qs = qs.filter(customer=customer)
+    elif worker:
+        qs = qs.filter(worker=worker)
+
+    expired_list = []
+    for candidate in qs.select_related('customer', 'service', 'worker__user'):
+        with transaction.atomic():
+            b = Booking.objects.select_for_update().filter(id=candidate.id).first()
+            if not b or b.status != 'ACCEPTED':
+                continue
+            b.status = 'EXPIRED'
+            b.cancellation_reason = 'Scheduled service date elapsed without being started (auto-expired after 48h grace window).'
+            b.cancelled_by = 'SYSTEM'
+            b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+            expired_list.append(b)
+
+            try:
+                _handle_booking_cancellation_refund(b)
+            except Exception:
+                pass
+
+            Notification.objects.create(
+                recipient=b.customer,
+                booking=b,
+                notification_type='BOOKING_UPDATE',
+                message=f"Booking #{b.id} for {b.service.name} was automatically closed because the scheduled date has passed without being started."
+            )
+            if b.worker and b.worker.user:
+                Notification.objects.create(
+                    recipient=b.worker.user,
+                    booking=b,
+                    notification_type='BOOKING_UPDATE',
+                    message=f"Booking #{b.id} for {b.service.name} has been archived (scheduled date passed without being started)."
+                )
+    return expired_list
+
+
 def _generate_recurring_dates(start_date, end_date, frequency, preferred_day):
     """Generate a list of dates for a recurring booking series."""
     from datetime import timedelta
@@ -9420,6 +9473,7 @@ def worker_jobs(request):
 
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(worker=worker)
+    check_and_expire_stale_accepted_bookings(worker=worker)
 
     # Get bookings assigned to this worker, prioritized by status and schedule
     today = timezone.localdate()
@@ -9654,6 +9708,7 @@ def my_bookings(request):
 
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(customer=request.user)
+    check_and_expire_stale_accepted_bookings(customer=request.user)
 
     today = timezone.localdate()
     active_statuses = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'EMERGENCY_PENDING']

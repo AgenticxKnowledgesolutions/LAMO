@@ -397,6 +397,34 @@
     line-height: 1.4;
 }
 
+.stale-booking-archived-notice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 20px 20px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.stale-booking-archived-notice i {
+    font-size: 20px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+.stale-booking-archived-notice strong {
+    color: #475569;
+    display: block;
+    margin-bottom: 2px;
+}
+.stale-booking-archived-notice p {
+    margin: 0;
+    font-size: 12px;
+}
+
 .overdue-card-banner i {
     font-size: 16px;
     color: #d97706;
@@ -1978,14 +2006,7 @@
 
                         </div>
 
-                        {% if booking.is_past_due %}
-                            <div class="overdue-card-banner">
-                                <i class="bi bi-clock-history"></i>
-                                <span>
-                                    <strong>Schedule Notice:</strong> This booking was scheduled for {{ booking.date|date:"M d, Y" }}{% if booking.time %} ({{ booking.time }}){% endif %}. You can still start, complete, or resolve this job with the customer.
-                                </span>
-                            </div>
-                        {% endif %}
+
 
 
                         <!-- =================================================
@@ -2041,6 +2062,18 @@
 
                         {% elif booking.status == 'ACCEPTED' %}
 
+                            {% if booking.is_past_due %}
+
+                                <div class="stale-booking-archived-notice">
+                                    <i class="bi bi-calendar-x-fill"></i>
+                                    <div>
+                                        <strong>Past Scheduled Date &mdash; Inactive</strong>
+                                        <p>This appointment was scheduled for {{ booking.date|date:"M d, Y" }}{% if booking.time %} ({{ booking.time }}){% endif %} and was not started. Action buttons are disabled for past dates.</p>
+                                    </div>
+                                </div>
+
+                            {% else %}
+
                             <div class="job-actions" style="flex-wrap: wrap;">
 
                                 {% if booking.can_start_now %}
@@ -2066,6 +2099,7 @@
                                 </button>
                                 {% endif %}
 
+                                {% if not booking.is_past_due %}
                                 <button
                                     type="button"
                                     class="btn-lamo-audio-call"
@@ -2085,7 +2119,7 @@
                                     <i class="bi bi-geo-alt-fill"></i>
                                     <span>Route to Customer</span>
                                 </button>
-
+                                {% endif %}
                                 <button
                                     type="button"
                                     class="job-button cancel-job-button"
@@ -2110,6 +2144,8 @@
 
                             </div>
 
+                            {% endif %}
+
 
                         <!-- IN PROGRESS -->
 
@@ -2127,6 +2163,7 @@
                                     <span>Request Completion</span>
                                 </button>
 
+                                {% if not booking.is_past_due %}
                                 <button
                                     type="button"
                                     class="btn-lamo-audio-call"
@@ -2146,6 +2183,7 @@
                                     <i class="bi bi-geo-alt-fill"></i>
                                     <span>Route to Customer</span>
                                 </button>
+                                {% endif %}
 
                             </div>
 
