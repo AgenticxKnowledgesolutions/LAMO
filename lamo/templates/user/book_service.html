@@ -175,6 +175,7 @@
                                 <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
                             </select>
                             <input type="hidden" name="time" id="id_time" value="">
+                            <div id="bookServiceWorkerNotice" style="display:none; margin-top:8px; padding:8px 12px; border-radius:8px; font-size:12.5px; font-weight:600; line-height:1.4;"></div>
                         </div>
 
                         <div class="mb-3">
@@ -382,6 +383,56 @@ document.addEventListener('DOMContentLoaded', function() {
             timeSlot.value = '';
             if (timeHidden) timeHidden.value = '';
         }
+
+        // Live Worker Availability (Pillar 1)
+        {% if worker %}
+        const workerId = "{{ worker.id }}";
+        const dateVal = dateInput ? dateInput.value : '';
+        if (workerId && dateVal) {
+            fetch(`/api/worker/${workerId}/availability/?date=${dateVal}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const noticeEl = document.getElementById('bookServiceWorkerNotice');
+                        if (noticeEl) {
+                            if (data.on_leave) {
+                                noticeEl.style.display = 'block';
+                                noticeEl.style.background = '#fef2f2';
+                                noticeEl.style.color = '#991b1b';
+                                noticeEl.style.border = '1px solid #fecaca';
+                                noticeEl.innerHTML = `<i class="bi bi-calendar-x"></i> <strong>${data.worker_name}</strong> is on leave on this date. Please choose another date.`;
+                            } else if (data.open_windows_text) {
+                                noticeEl.style.display = 'block';
+                                noticeEl.style.background = '#f0fdf4';
+                                noticeEl.style.color = '#166534';
+                                noticeEl.style.border = '1px solid #bbf7d0';
+                                noticeEl.innerHTML = `<i class="bi bi-calendar2-check-fill" style="color:#059669;"></i> <strong>${data.worker_name}'s Open Slots:</strong> ${data.open_windows_text}`;
+                            }
+                        }
+
+                        if (data.slots) {
+                            const slotMap = {};
+                            data.slots.forEach(s => { slotMap[s.slot] = s; });
+                            Array.from(timeSlot.options).forEach(function(opt) {
+                                if (!opt.value) return;
+                                const info = slotMap[opt.value];
+                                if (info && !info.available) {
+                                    opt.disabled = true;
+                                    if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
+                                        opt.text = opt.value + ` (${info.reason})`;
+                                    }
+                                }
+                            });
+                        }
+                        if (timeSlot.selectedOptions.length && timeSlot.selectedOptions[0].disabled) {
+                            timeSlot.value = '';
+                            if (timeHidden) timeHidden.value = '';
+                        }
+                    }
+                })
+                .catch(err => { console.warn('Worker availability check:', err); });
+        }
+        {% endif %}
     }
     if (dateInput) {
         const now = new Date();

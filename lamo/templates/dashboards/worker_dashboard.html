@@ -305,6 +305,7 @@ Worker Dashboard | LAMO
                                 {% csrf_token %}
                                 <button type="submit" class="btn-accept">Accept</button>
                             </form>
+                            <a href="{% url 'worker_jobs' %}" class="btn-view" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-weight:700;" title="Propose different time">Counter-Offer</a>
                             <form method="POST" action="{% url 'worker_reject_booking' booking.id %}">
                                 {% csrf_token %}
                                 <button type="submit" class="btn-reject">Reject</button>

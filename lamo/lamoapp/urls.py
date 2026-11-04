@@ -114,6 +114,11 @@ urlpatterns = [
     path('worker/booking/<int:booking_id>/report-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show'),
     path('worker/jobs/<int:booking_id>/report-customer-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show_alias'),
     path('worker/emergency/<int:booking_id>/accept/', views.worker_accept_emergency, name='worker_accept_emergency'),
+    path('worker/booking/<int:booking_id>/propose-reschedule/', views.worker_propose_reschedule, name='worker_propose_reschedule'),
+    path('worker/jobs/<int:booking_id>/propose-reschedule/', views.worker_propose_reschedule, name='worker_propose_reschedule_alias'),
+    path('booking/<int:booking_id>/accept-reschedule/', views.customer_accept_reschedule, name='customer_accept_reschedule'),
+    path('booking/<int:booking_id>/decline-reschedule/', views.customer_decline_reschedule, name='customer_decline_reschedule'),
+    path('api/worker/<int:worker_id>/availability/', views.api_worker_availability, name='api_worker_availability'),
 
     # Notifications
     path('notifications/', views.notifications_view, name='notifications'),

@@ -372,6 +372,7 @@
                                     <span>Same-day bookings require at least 60 minutes advance notice for pro travel.</span>
                                 </div>
                             </div>
+                            <div id="modalWorkerAvailabilityNotice" style="display:none; margin-top:8px; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600; line-height:1.4;"></div>
                         </div>
 
                         <!-- RECURRING BOTTOM OPTIONS (End Date) -->
@@ -1332,18 +1333,18 @@ function parseTimeToMinutes(timeStr) {
 function updateModalTimeSlotAvailability() {
     const bookingDateInput = document.getElementById('modalBookingDate');
     const timeSlotSelect = document.getElementById('modalTimeSlot');
+    const workerIdInput = document.getElementById('modalWorkerId');
     if (!timeSlotSelect) return;
 
     const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    const todayStr = `${year}-${month}-${day}`;
+    const pad2 = function(n) { return String(n).padStart(2, "0"); };
+    const todayStr = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
 
-    const isToday = bookingDateInput && (bookingDateInput.value === todayStr);
+    const dateVal = (bookingDateInput && bookingDateInput.value) ? bookingDateInput.value : todayStr;
+    const isToday = (dateVal === todayStr);
     const nowMinutes = today.getHours() * 60 + today.getMinutes();
-
     const minBufferMinutes = nowMinutes + 60;
+
     Array.from(timeSlotSelect.options).forEach(function(opt) {
         if (!opt.value) return;
         const parts = opt.value.split(/\s*-\s*/);
@@ -1362,6 +1363,56 @@ function updateModalTimeSlotAvailability() {
             opt.text = opt.value;
         }
     });
+
+    // Fetch Live Worker Availability (Pillar 1)
+    const workerId = workerIdInput ? workerIdInput.value : '';
+    if (workerId && dateVal) {
+        fetch(`/api/worker/${workerId}/availability/?date=${dateVal}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const noticeEl = document.getElementById('modalWorkerAvailabilityNotice');
+                    if (noticeEl) {
+                        if (data.on_leave) {
+                            noticeEl.style.display = 'block';
+                            noticeEl.style.background = '#fef2f2';
+                            noticeEl.style.color = '#991b1b';
+                            noticeEl.style.border = '1px solid #fecaca';
+                            noticeEl.innerHTML = `<i class="bi bi-calendar-x"></i> <strong>${data.worker_name}</strong> is on leave on this date. Please choose another date.`;
+                        } else if (data.open_windows_text) {
+                            noticeEl.style.display = 'block';
+                            noticeEl.style.background = '#f0fdf4';
+                            noticeEl.style.color = '#166534';
+                            noticeEl.style.border = '1px solid #bbf7d0';
+                            noticeEl.innerHTML = `<i class="bi bi-calendar2-check-fill" style="color:#059669;"></i> <strong>${data.worker_name}'s Open Slots Today:</strong> ${data.open_windows_text}`;
+                        }
+                    }
+
+                    if (data.slots) {
+                        const slotMap = {};
+                        data.slots.forEach(s => { slotMap[s.slot] = s; });
+
+                        Array.from(timeSlotSelect.options).forEach(function(opt) {
+                            if (!opt.value) return;
+                            const info = slotMap[opt.value];
+                            if (info && !info.available) {
+                                opt.disabled = true;
+                                if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
+                                    opt.text = opt.value + ` (${info.reason})`;
+                                }
+                            }
+                        });
+                    }
+
+                    if (timeSlotSelect.selectedOptions.length && timeSlotSelect.selectedOptions[0].disabled) {
+                        timeSlotSelect.value = '';
+                        const finalTime = document.getElementById('modalFinalTime');
+                        if (finalTime) finalTime.value = '';
+                    }
+                }
+            })
+            .catch(err => { console.warn('Worker availability check:', err); });
+    }
 
     if (timeSlotSelect.selectedOptions.length && timeSlotSelect.selectedOptions[0].disabled) {
         timeSlotSelect.value = '';

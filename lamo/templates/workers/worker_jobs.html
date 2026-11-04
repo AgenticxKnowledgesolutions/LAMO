@@ -2023,6 +2023,17 @@
                                 <span>30-min Response Timer: <strong class="worker-timer-countdown">calculating...</strong></span>
                             </div>
 
+                            {% if booking.has_pending_reschedule %}
+                                <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 12.5px; color: #854d0e; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <i class="bi bi-clock-history" style="color:#ca8a04;"></i>
+                                        <strong>Counter-Offer Sent:</strong> {{ booking.proposed_date|date:"M d, Y" }} at {{ booking.proposed_time }}
+                                        {% if booking.reschedule_note %}<span style="color:#a16207; font-style:italic;"> &mdash; "{{ booking.reschedule_note }}"</span>{% endif %}
+                                    </div>
+                                    <span style="background: #fde047; color: #713f12; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Awaiting Customer Decision</span>
+                                </div>
+                            {% endif %}
+
                             <div class="job-actions">
 
                                 <!-- ACCEPT -->
@@ -2039,6 +2050,17 @@
                                         <span>Accept Booking</span>
                                     </button>
                                 </form>
+
+                                <!-- PROPOSE NEW TIME (COUNTER-OFFER) -->
+                                <button
+                                    type="button"
+                                    class="job-button"
+                                    style="background: #eef2ff; color: #3730a3; border: 1.5px solid #c7d2fe; font-weight: 700;"
+                                    onclick="openProposeRescheduleModal('{{ booking.id }}', '{{ booking.service.name|escapejs }}', '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}', '{{ booking.date|date:'Y-m-d' }}', '{{ booking.time|escapejs }}')"
+                                >
+                                    <i class="bi bi-calendar2-range"></i>
+                                    <span>Propose New Time</span>
+                                </button>
 
                                 <!-- REJECT -->
                                 <form
@@ -2471,6 +2493,40 @@
     </div>
 </div>
 
+<!-- PROPOSE RESCHEDULE / COUNTER-OFFER MODAL -->
+<div id="proposeRescheduleModal" class="worker-modal-overlay" style="display: none;">
+    <div class="worker-modal-card">
+        <div class="worker-modal-header">
+            <h3><i class="bi bi-calendar2-range" style="color:#4f46e5;"></i> Propose Alternative Time</h3>
+            <button type="button" class="worker-modal-close" onclick="closeProposeRescheduleModal()">&times;</button>
+        </div>
+        <form id="proposeRescheduleForm" method="POST" action="">
+            {% csrf_token %}
+            <div class="worker-modal-body">
+                <p style="margin: 0 0 12px; color: #4b5563; font-size: 13px;">
+                    Can't make it to <strong id="rescheduleCustomer">Customer</strong> at their requested time (<span id="rescheduleOriginalTime">Time</span>)? Propose a time that fits your schedule instead of rejecting:
+                </p>
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Proposed Date</label>
+                    <input type="date" name="proposed_date" id="rescheduleDateInput" required style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Proposed Time / Slot</label>
+                    <input type="text" name="proposed_time" id="rescheduleTimeInput" required placeholder="e.g. 4:30 PM or 4:00 PM - 6:00 PM" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Reason / Quick Note for Customer (Optional)</label>
+                    <input type="text" name="reschedule_note" id="rescheduleNoteInput" placeholder="e.g. Finishing another job nearby until 4 PM" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                </div>
+            </div>
+            <div class="worker-modal-footer">
+                <button type="button" class="job-button" style="background:#f1f5f3; color:#475569;" onclick="closeProposeRescheduleModal()">Cancel</button>
+                <button type="submit" class="job-button" style="background:#4f46e5; color:#ffffff; font-weight:700;">Send Counter-Offer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- WORKER REPORT CUSTOMER NO-SHOW MODAL -->
 <div id="workerNoShowModal" class="worker-modal-overlay" style="display: none;">
     <div class="worker-modal-card">
@@ -2593,6 +2649,36 @@ function closeMessageElement(message) {
 
 function openStartJobEarlyModal(bookingDate, bookingTime) {
     alert("This job is scheduled for " + bookingDate + " at " + bookingTime + ".\n\nYou can only start the job up to 30 minutes before the scheduled service time.");
+}
+
+// PROPOSE RESCHEDULE MODAL
+function openProposeRescheduleModal(bookingId, serviceName, customerName, bookingDate, bookingTime) {
+    const modal = document.getElementById("proposeRescheduleModal");
+    const form = document.getElementById("proposeRescheduleForm");
+    document.getElementById("rescheduleCustomer").innerText = customerName;
+    document.getElementById("rescheduleOriginalTime").innerText = bookingDate + " at " + bookingTime;
+    const dateInput = document.getElementById("rescheduleDateInput");
+    if (dateInput) {
+        const today = new Date();
+        const pad2 = function(n) { return String(n).padStart(2, "0"); };
+        const minStr = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+        dateInput.min = minStr;
+        dateInput.value = bookingDate || minStr;
+    }
+    const timeInput = document.getElementById("rescheduleTimeInput");
+    if (timeInput) timeInput.value = "";
+    const noteInput = document.getElementById("rescheduleNoteInput");
+    if (noteInput) noteInput.value = "";
+
+    form.action = "/worker/jobs/" + bookingId + "/propose-reschedule/";
+    modal.style.display = "flex";
+    setTimeout(function() {
+        if (timeInput) timeInput.focus();
+    }, 100);
+}
+
+function closeProposeRescheduleModal() {
+    document.getElementById("proposeRescheduleModal").style.display = "none";
 }
 
 // START JOB MODAL

@@ -426,9 +426,15 @@
                                         <i class="bi bi-exclamation-triangle-fill"></i> Disputed
                                     </span>
                                 {% elif booking.status == 'PENDING' %}
-                                    <span class="status-pill pending">
-                                        <i class="bi bi-hourglass-split"></i> Pending
-                                    </span>
+                                    {% if booking.has_pending_reschedule %}
+                                        <span class="status-pill" style="background: #eff6ff; color: #1d4ed8; border: 1.5px solid #93c5fd; font-weight: 700;">
+                                            <i class="bi bi-calendar2-range-fill"></i> New Time Proposed
+                                        </span>
+                                    {% else %}
+                                        <span class="status-pill pending">
+                                            <i class="bi bi-hourglass-split"></i> Pending
+                                        </span>
+                                    {% endif %}
                                 {% elif booking.status == 'ACCEPTED' %}
                                     {% if booking.can_report_worker_no_show %}
                                         <span class="status-pill no-show-eligible" style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 600;" title="Scheduled time has passed. You can report a worker no-show.">
@@ -695,6 +701,51 @@
                                             <button type="button" class="btn-report-no-show-action" onclick="openNoShowModal({{ booking.id }})" style="background: #ef4444; color: #ffffff; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
                                                 <i class="bi bi-person-x"></i> Report Worker No-Show
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- WORKER RESCHEDULE PROPOSAL (COUNTER-OFFER) -->
+                            {% if booking.has_pending_reschedule %}
+                                <div class="worker-reschedule-proposal-callout" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-left: 4px solid #2563eb; border-radius: 14px; padding: 16px; margin-bottom: 18px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);">
+                                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                        <div style="width: 38px; height: 38px; border-radius: 10px; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;">
+                                            <i class="bi bi-calendar2-range-fill"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 4px;">
+                                                <strong style="color: #1e40af; font-size: 14.5px;">Pro Proposed Alternative Schedule</strong>
+                                                <span style="background: #2563eb; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">Counter-Offer</span>
+                                            </div>
+                                            <p style="margin: 0 0 10px; font-size: 13px; color: #1e3a8a; line-height: 1.45;">
+                                                <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong> is unavailable at your requested time ({{ booking.time }}), but offered to come at:
+                                            </p>
+                                            <div style="background: #ffffff; border: 1.5px solid #3b82f6; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                                <span style="font-size: 12.5px; color: #475569; font-weight: 600;">Proposed Time:</span>
+                                                <strong style="font-size: 15.5px; color: #1d4ed8; font-weight: 800;">
+                                                    📅 {{ booking.proposed_date|date:"l, d M Y" }} at ⏰ {{ booking.proposed_time }}
+                                                </strong>
+                                            </div>
+                                            {% if booking.reschedule_note %}
+                                            <div style="font-size: 12.5px; color: #1e40af; background: rgba(255,255,255,0.7); padding: 7px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px dashed #bfdbfe;">
+                                                <i class="bi bi-chat-quote-fill"></i> <em>"{{ booking.reschedule_note }}"</em>
+                                            </div>
+                                            {% endif %}
+                                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                                <form method="POST" action="{% url 'customer_accept_reschedule' booking.id %}" style="flex: 1.5; min-width: 140px;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" style="width: 100%; padding: 10px 16px; border-radius: 10px; background: #059669; color: #ffffff; font-weight: 800; font-size: 13px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);">
+                                                        <i class="bi bi-check-circle-fill"></i> Accept &amp; Confirm Booking
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{% url 'customer_decline_reschedule' booking.id %}" style="flex: 1; min-width: 100px;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" style="width: 100%; padding: 10px 16px; border-radius: 10px; background: #ffffff; color: #dc2626; font-weight: 700; font-size: 13px; border: 1.5px solid #fca5a5; cursor: pointer;">
+                                                        <i class="bi bi-x-circle"></i> Decline
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

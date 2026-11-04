@@ -1134,6 +1134,48 @@ class Booking(models.Model):
 
     )
 
+    proposed_date = models.DateField(
+
+        blank=True,
+
+        null=True,
+
+        help_text="Alternative service date proposed by worker during reschedule negotiation"
+
+    )
+
+    proposed_time = models.CharField(
+
+        max_length=100,
+
+        blank=True,
+
+        null=True,
+
+        help_text="Alternative service time proposed by worker during reschedule negotiation"
+
+    )
+
+    reschedule_note = models.TextField(
+
+        blank=True,
+
+        null=True,
+
+        help_text="Explanation note from worker for the proposed reschedule"
+
+    )
+
+    reschedule_proposed_at = models.DateTimeField(
+
+        blank=True,
+
+        null=True,
+
+        help_text="Timestamp when worker submitted the counter-offer"
+
+    )
+
 
 
     final_amount = models.DecimalField(
@@ -1338,6 +1380,14 @@ class Booking(models.Model):
             return f"{val:02d}"
 
         return "48"
+
+
+
+    @property
+
+    def has_pending_reschedule(self):
+
+        return bool(self.status == 'PENDING' and self.proposed_time)
 
 
 

@@ -12212,3 +12212,266 @@ def api_worker_update_coordinates(request):
         'message': 'Coordinates updated successfully.'
     })
 
+
+
+# =========================================================================
+# PILLAR 1: LIVE WORKER AVAILABILITY API (FOR TIME SLOTS & CUSTOM TIME)
+# =========================================================================
+
+def api_worker_availability(request, worker_id):
+    """Return JSON availability map and busy windows for a worker on a given date.
+    
+    Used by booking_modal and book_service to color-code slots and guide custom time.
+    """
+    from datetime import datetime, timedelta
+    worker = get_object_or_404(WorkerProfile.objects.select_related('user'), id=worker_id)
+    date_str = request.GET.get('date', '').strip()
+    
+    now_local = timezone.localtime()
+    target_date = now_local.date()
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = now_local.date()
+            
+    is_today = (target_date == now_local.date())
+    is_past = (target_date < now_local.date())
+    
+    # 1. Leave check
+    on_leave = WorkerLeave.objects.filter(worker=worker, leave_date=target_date).exists()
+    
+    # 2. Existing active bookings
+    active_bookings = Booking.objects.filter(
+        worker=worker,
+        date=target_date,
+        status__in=ACTIVE_BOOKING_STATUSES
+    ).exclude(status='CANCELLED')
+    
+    standard_slots = [
+        "8:00 AM - 10:00 AM",
+        "10:00 AM - 12:00 PM",
+        "12:00 PM - 2:00 PM",
+        "2:00 PM - 4:00 PM",
+        "4:00 PM - 6:00 PM",
+        "6:00 PM - 8:00 PM",
+    ]
+    
+    now_mins = now_local.hour * 60 + now_local.minute
+    min_buffer_mins = now_mins + 60
+    
+    busy_list = []
+    for b in active_bookings:
+        start_t = b.start_time
+        end_t = b.end_time
+        if not start_t and b.time:
+            start_t, end_t = parse_time_range(b.time)
+        if start_t and end_t:
+            busy_list.append({
+                'id': b.id,
+                'time': b.time,
+                'start_minutes': start_t.hour * 60 + start_t.minute,
+                'end_minutes': end_t.hour * 60 + end_t.minute,
+                'start_formatted': start_t.strftime('%I:%M %p').lstrip('0'),
+                'end_formatted': end_t.strftime('%I:%M %p').lstrip('0'),
+            })
+            
+    slots_data = []
+    for slot_str in standard_slots:
+        slot_start, slot_end = parse_time_range(slot_str)
+        s_mins = slot_start.hour * 60 + slot_start.minute if slot_start else 0
+        e_mins = slot_end.hour * 60 + slot_end.minute if slot_end else 0
+        
+        status = 'available'
+        reason = ''
+        
+        if is_past:
+            status = 'past'
+            reason = 'Past Date'
+        elif on_leave:
+            status = 'on_leave'
+            reason = 'Worker On Leave'
+        elif is_today and s_mins < min_buffer_mins:
+            if s_mins <= now_mins:
+                status = 'passed'
+                reason = 'Passed'
+            else:
+                status = 'too_soon'
+                reason = '1hr Travel Buffer'
+        else:
+            for busy in busy_list:
+                if s_mins < busy['end_minutes'] and e_mins > busy['start_minutes']:
+                    status = 'busy'
+                    reason = 'Worker Already Booked'
+                    break
+                    
+        slots_data.append({
+            'slot': slot_str,
+            'status': status,
+            'available': (status == 'available'),
+            'reason': reason
+        })
+        
+    open_slots = [s['slot'] for s in slots_data if s['available']]
+    if on_leave:
+        open_windows_text = "On Leave"
+    elif not open_slots:
+        open_windows_text = "Fully Booked Today"
+    else:
+        open_windows_text = ", ".join(open_slots)
+        
+    return JsonResponse({
+        'success': True,
+        'worker_id': worker.id,
+        'worker_name': worker.user.get_full_name() or worker.user.username,
+        'date': target_date.strftime('%Y-%m-%d'),
+        'on_leave': on_leave,
+        'is_today': is_today,
+        'busy_count': len(busy_list),
+        'busy_windows': [f"{b['start_formatted']} - {b['end_formatted']}" for b in busy_list],
+        'slots': slots_data,
+        'open_windows_text': open_windows_text
+    })
+
+
+# =========================================================================
+# PILLAR 2: WORKER COUNTER-OFFER / PROPOSE NEW TIME WORKFLOW
+# =========================================================================
+
+@login_required
+def worker_propose_reschedule(request, booking_id):
+    """Allow an assigned worker to propose an alternative date/time instead of outright rejecting."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    booking = get_object_or_404(Booking.objects.select_related('worker__user', 'customer', 'service'), id=booking_id)
+    
+    if not (booking.worker and booking.worker.user == request.user):
+        messages.error(request, 'Unauthorized action.')
+        return redirect('worker_jobs')
+        
+    if booking.status != 'PENDING':
+        messages.error(request, 'Reschedule proposals can only be made on pending job requests.')
+        return redirect('worker_jobs')
+        
+    proposed_date_str = request.POST.get('proposed_date', '').strip()
+    proposed_time_str = request.POST.get('proposed_time', '').strip()
+    reschedule_note = request.POST.get('reschedule_note', '').strip()
+    
+    if not proposed_date_str or not proposed_time_str:
+        messages.error(request, 'Please provide both an alternative date and time.')
+        return redirect('worker_jobs')
+        
+    from datetime import datetime, timedelta
+    try:
+        p_date = datetime.strptime(proposed_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        messages.error(request, 'Invalid date format.')
+        return redirect('worker_jobs')
+        
+    now_local = timezone.localtime()
+    if p_date < now_local.date():
+        messages.error(request, 'Proposed date cannot be in the past.')
+        return redirect('worker_jobs')
+        
+    start_t, end_t = parse_time_range(proposed_time_str)
+    if not start_t or not end_t:
+        messages.error(request, 'Invalid time format. Please provide a valid time (e.g., 4:30 PM or 4:00 PM - 6:00 PM).')
+        return redirect('worker_jobs')
+        
+    if p_date == now_local.date() and start_t < (now_local + timedelta(minutes=60)).time():
+        messages.error(request, 'Proposed time today must be at least 60 minutes in advance.')
+        return redirect('worker_jobs')
+        
+    if has_worker_schedule_conflict(booking.worker, booking_date=p_date, start_time=start_t, end_time=end_t, exclude_booking_id=booking.id):
+        messages.error(request, 'You already have another active appointment at this proposed time.')
+        return redirect('worker_jobs')
+        
+    booking.proposed_date = p_date
+    booking.proposed_time = proposed_time_str
+    booking.reschedule_note = reschedule_note
+    booking.reschedule_proposed_at = timezone.now()
+    booking.save(update_fields=['proposed_date', 'proposed_time', 'reschedule_note', 'reschedule_proposed_at', 'updated_at'])
+    
+    worker_name = request.user.get_full_name() or request.user.username
+    Notification.objects.create(
+        recipient=booking.customer,
+        booking=booking,
+        notification_type='BOOKING_UPDATE',
+        message=f"{worker_name} proposed a new time for Booking #{booking.id}: {p_date.strftime('%b %d, %Y')} at {proposed_time_str}. Tap to review and accept."
+    )
+    
+    messages.success(request, f'Proposed new time ({p_date.strftime("%b %d")} at {proposed_time_str}) sent to customer!')
+    return redirect('worker_jobs')
+
+
+@login_required
+def customer_accept_reschedule(request, booking_id):
+    """Customer accepts worker's proposed counter-offer; booking is confirmed and scheduled."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    booking = get_object_or_404(Booking.objects.select_related('customer', 'worker__user', 'service'), id=booking_id)
+    if booking.customer != request.user:
+        messages.error(request, 'Unauthorized action.')
+        return redirect('my_bookings')
+        
+    if not booking.has_pending_reschedule:
+        messages.error(request, 'No pending reschedule proposal found for this booking.')
+        return redirect('my_bookings')
+        
+    new_date = booking.proposed_date
+    new_time = booking.proposed_time
+    start_t, end_t = parse_time_range(new_time)
+    
+    booking.date = new_date
+    booking.time = new_time
+    booking.start_time = start_t
+    booking.end_time = end_t
+    booking.status = 'ACCEPTED'
+    booking.proposed_date = None
+    booking.proposed_time = None
+    booking.reschedule_note = None
+    booking.generate_arrival_otp()
+    booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'status', 'proposed_date', 'proposed_time', 'reschedule_note', 'arrival_otp', 'worker_badge_code', 'updated_at'])
+    
+    cust_name = request.user.get_full_name() or request.user.username
+    if booking.worker and booking.worker.user:
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Great news! {cust_name} accepted your proposed time of {new_time} on {new_date.strftime('%b %d')}. Booking #{booking.id} is now confirmed!"
+        )
+        
+    messages.success(request, f'Rescheduled to {new_date.strftime("%b %d, %Y")} at {new_time}! Your booking is now confirmed.')
+    return redirect('my_bookings')
+
+
+@login_required
+def customer_decline_reschedule(request, booking_id):
+    """Customer declines worker's proposed counter-offer; returns to normal pending state."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+        
+    booking = get_object_or_404(Booking.objects.select_related('customer', 'worker__user', 'service'), id=booking_id)
+    if booking.customer != request.user:
+        messages.error(request, 'Unauthorized action.')
+        return redirect('my_bookings')
+        
+    booking.proposed_date = None
+    booking.proposed_time = None
+    booking.reschedule_note = None
+    booking.save(update_fields=['proposed_date', 'proposed_time', 'reschedule_note', 'updated_at'])
+    
+    if booking.worker and booking.worker.user:
+        cust_name = request.user.get_full_name() or request.user.username
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"{cust_name} declined your proposed alternative time for Booking #{booking.id}."
+        )
+        
+    messages.info(request, 'Counter-offer declined. The original request remains pending or you may cancel.')
+    return redirect('my_bookings')
