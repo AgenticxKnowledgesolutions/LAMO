@@ -1529,6 +1529,64 @@ class Booking(models.Model):
         allowed_dt = scheduled_dt + timedelta(minutes=15)
         return now_local >= allowed_dt
 
+    @property
+    def is_past_due(self):
+        """
+        Returns True if the booking is currently active (not in a terminal state)
+        and its scheduled date/time has passed.
+        Terminal states (COMPLETED, CANCELLED, REJECTED, EXPIRED, DISPUTED) are never overdue.
+        """
+        if self.status in ['COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED', 'DISPUTED']:
+            return False
+
+        if not self.date:
+            return False
+
+        now_local = timezone.localtime()
+        today = now_local.date()
+
+        if self.date < today:
+            return True
+
+        if self.date == today:
+            e_time = self.end_time
+            if not e_time and self.time:
+                try:
+                    from .views import parse_time_range
+                    _, e_time = parse_time_range(self.time)
+                except Exception:
+                    pass
+            if e_time:
+                return now_local.time() > e_time
+
+            s_time = self.start_time
+            if not s_time and self.time:
+                try:
+                    from .views import parse_time_range
+                    s_time, _ = parse_time_range(self.time)
+                except Exception:
+                    pass
+            if s_time:
+                from datetime import datetime as dt_cls, timedelta as td_cls
+                sched_dt = timezone.make_aware(
+                    dt_cls.combine(today, s_time),
+                    timezone.get_current_timezone()
+                )
+                return now_local > (sched_dt + td_cls(hours=2))
+
+        return False
+
+    @property
+    def overdue_days(self):
+        """
+        Returns how many calendar days past the scheduled date this booking is (>= 0).
+        """
+        if not self.date:
+            return 0
+        today = timezone.localtime().date()
+        diff = (today - self.date).days
+        return max(0, diff)
+
 
     def __str__(self):
 

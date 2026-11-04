@@ -304,6 +304,28 @@
             font-size: 22px !important;
         }
     }
+    .booking-card--overdue {
+        border-left: 4px solid #f59e0b !important;
+        background: #fffdfa !important;
+        opacity: 0.9 !important;
+        transition: opacity .2s ease, transform .2s ease;
+    }
+    .booking-card--overdue:hover {
+        opacity: 1 !important;
+    }
+    .customer-overdue-tag {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #b45309 !important;
+        background: #fef3c7 !important;
+        border: 1px solid #fde68a !important;
+        padding: 1px 6px !important;
+        border-radius: 4px !important;
+        margin-left: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+    }
     </style>
 {% endblock %}
 
@@ -327,7 +349,7 @@
                 <div class="bookings-list" id="bookingsList">
                     {% for booking in bookings %}
                         <article
-                            class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}"
+                            class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}{% if booking.is_past_due %} booking-card--overdue{% endif %}"
                             data-booking-id="{{ booking.id }}"
                             tabindex="0"
                             role="button"
@@ -362,6 +384,9 @@
                                     <div class="card-meta-row">
                                         <span class="meta-item">
                                             <i class="bi bi-calendar3"></i> {{ booking.date|date:"M d, Y" }}
+                                            {% if booking.is_past_due %}
+                                                <span class="customer-overdue-tag"><i class="bi bi-clock-history"></i> {% if booking.overdue_days == 0 %}Overdue today{% else %}{{ booking.overdue_days }}d past{% endif %}</span>
+                                            {% endif %}
                                         </span>
                                         <span class="meta-item">
                                             <i class="bi bi-clock"></i> {{ booking.time }}

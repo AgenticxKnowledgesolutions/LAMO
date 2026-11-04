@@ -9421,15 +9421,24 @@ def worker_jobs(request):
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(worker=worker)
 
-    # Get bookings assigned to this worker
+    # Get bookings assigned to this worker, prioritized by status and schedule
+    today = timezone.localdate()
+    active_statuses = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'EMERGENCY_PENDING']
+
     bookings = Booking.objects.filter(
         worker=worker
     ).select_related(
         'customer',
         'service'
-    ).order_by(
-        '-created_at'
-    )
+    ).annotate(
+        priority_group=Case(
+            When(status__in=active_statuses, date__gte=today, then=Value(1)),
+            When(status__in=active_statuses, date__isnull=True, then=Value(1)),
+            When(status__in=active_statuses, date__lt=today, then=Value(2)),
+            default=Value(3),
+            output_field=IntegerField(),
+        )
+    ).order_by('priority_group', 'date', '-created_at')
 
     # Get emergency bookings that are pending (no worker assigned yet).
     # Only this worker's own trade is broadcast here: without the service
@@ -9646,6 +9655,9 @@ def my_bookings(request):
     # Automatically expire any pending bookings past 30-min window
     check_and_expire_pending_bookings(customer=request.user)
 
+    today = timezone.localdate()
+    active_statuses = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'EMERGENCY_PENDING']
+
     bookings = (
         Booking.objects
         .filter(customer=request.user)
@@ -9657,7 +9669,16 @@ def my_bookings(request):
             'review',
             'payment',
         )
-        .order_by('-created_at')
+        .annotate(
+            priority_group=Case(
+                When(status__in=active_statuses, date__gte=today, then=Value(1)),
+                When(status__in=active_statuses, date__isnull=True, then=Value(1)),
+                When(status__in=active_statuses, date__lt=today, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by('priority_group', 'date', '-created_at')
     )
 
     # Attach dynamic UPI QR and direct payment info
