@@ -123,6 +123,18 @@ Booking details and information
 
                 </div>
 
+                {% if booking.arrival_otp %}
+                <div class="info-row">
+                    <span class="info-label">
+                        Doorstep Security PIN
+                    </span>
+                    <span class="info-value">
+                        <strong style="letter-spacing: 2px; color: #059669; font-size: 15px; font-family: monospace;">{{ booking.arrival_otp }}</strong>
+                        <small style="color: #64748b; font-size: 11px; margin-left: 6px;">(Customer verification code)</small>
+                    </span>
+                </div>
+                {% endif %}
+
 
                 <div class="info-row">
 
