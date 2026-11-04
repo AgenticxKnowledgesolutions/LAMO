@@ -707,13 +707,44 @@
                                         <div class="otp-shield-pill">
                                             <span class="otp-pulse-dot"></span>
                                             <i class="bi bi-shield-lock-fill"></i>
-                                            <span>Doorstep Security PIN</span>
+                                            <span>Doorstep Security Handshake</span>
                                         </div>
-                                        <span class="otp-secure-badge"><i class="bi bi-lock-fill"></i> In-Person Only</span>
+                                        <span class="otp-secure-badge"><i class="bi bi-shield-check"></i> 2-Way Protection</span>
                                     </div>
 
-                                    <div class="otp-display-center">
-                                        <p class="otp-instruction-lead">Share this 4-digit code with your worker upon arrival to start service:</p>
+                                    <!-- STEP 1: VERIFY WORKER FIRST (COUNTER-CODE) -->
+                                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                                            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #1e40af; background: #dbeafe; padding: 3px 8px; border-radius: 6px;">
+                                                <i class="bi bi-person-badge"></i> Step 1 &bull; Verify Worker Identity First
+                                            </span>
+                                            <span style="font-size: 11.5px; color: #2563eb; font-weight: 600;">
+                                                <i class="bi bi-shield-fill-check"></i> Impostor Protection
+                                            </span>
+                                        </div>
+                                        <p style="margin: 0 0 10px; font-size: 13px; color: #334155; line-height: 1.45;">
+                                            Before opening your door, ask the service professional for their <strong>LAMO Verification Code</strong>:
+                                        </p>
+                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: #ffffff; border: 1.5px dashed #3b82f6; border-radius: 10px; padding: 10px 16px;">
+                                            <span style="font-size: 12.5px; font-weight: 600; color: #475569;">Expected Pro Code:</span>
+                                            <strong style="font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #1d4ed8; font-family: monospace;">#{{ booking.get_worker_badge_code }}</strong>
+                                        </div>
+                                        <div style="margin-top: 8px; font-size: 12px; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-check-circle-fill" style="color: #2563eb;"></i> If their code matches <strong>#{{ booking.get_worker_badge_code }}</strong>, they are officially dispatched by LAMO.
+                                        </div>
+                                    </div>
+
+                                    <!-- STEP 2: SHARE DOORSTEP PIN TO START SERVICE -->
+                                    <div class="otp-display-center" style="margin: 4px 0 14px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                                            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #065f46; background: #d1fae5; padding: 3px 8px; border-radius: 6px;">
+                                                <i class="bi bi-key-fill"></i> Step 2 &bull; Share PIN to Start Service
+                                            </span>
+                                            <span style="font-size: 11.5px; color: #059669; font-weight: 600;">
+                                                <i class="bi bi-lock-fill"></i> In-Person Only
+                                            </span>
+                                        </div>
+                                        <p class="otp-instruction-lead" style="margin-bottom: 10px;">Once verified, share this 4-digit PIN with your pro to begin the work:</p>
                                         <div class="otp-boxes-group" role="group" aria-label="Security PIN {{ booking.arrival_otp }}">
                                             {% for digit in booking.arrival_otp|stringformat:"s" %}
                                                 <span class="otp-digit-box">{{ digit }}</span>
@@ -728,7 +759,7 @@
                                             <i class="bi bi-exclamation-triangle-fill"></i>
                                         </div>
                                         <div class="safety-content">
-                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share this PIN over phone or chat. Share this 4-digit code <strong>in person ONLY</strong> when the service professional physically arrives at your doorstep to begin the work.
+                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share your PIN over phone or chat. Confirm their badge code <strong>#{{ booking.get_worker_badge_code }}</strong> in person first, then share your PIN to start.
                                         </div>
                                     </div>
 

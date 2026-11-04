@@ -143,6 +143,20 @@ Booking details and information
                 </div>
                 {% endif %}
 
+                {% if booking.get_worker_badge_code %}
+                <div class="info-row">
+                    <span class="info-label">
+                        Worker Badge Code
+                    </span>
+                    <span class="info-value">
+                        <span style="background: #eef2ff; color: #3730a3; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; border: 1px solid #c7d2fe; letter-spacing: 1px; font-family: monospace;">
+                            #{{ booking.get_worker_badge_code }}
+                        </span>
+                        <small style="color: #64748b; margin-left: 6px;">(Identity handshake code shown to worker)</small>
+                    </span>
+                </div>
+                {% endif %}
+
 
                 <div class="info-row">
 

@@ -3515,8 +3515,17 @@ def book_service(request):
         if booking_date < now_local.date():
             return respond_error('Cannot book for past dates.')
 
-        if booking_date == now_local.date() and start_t <= now_local.time():
-            return respond_error('Cannot book a time slot that has already passed today.')
+        if booking_date == now_local.date():
+            if start_t <= now_local.time():
+                return respond_error('Cannot book a time slot that has already passed today.')
+            from datetime import timedelta
+            min_lead_cutoff = (now_local + timedelta(minutes=60)).time()
+            if start_t < min_lead_cutoff:
+                lead_time_formatted = (now_local + timedelta(minutes=60)).strftime('%I:%M %p').lstrip('0')
+                return respond_error(
+                    f'For same-day service, please choose a time at least 60 minutes in advance '
+                    f'(after {lead_time_formatted}) to allow your professional time to prepare and travel.'
+                )
 
         worker_on_leave = False
         try:
@@ -4211,7 +4220,7 @@ def worker_accept_booking(request, booking_id):
 
         booking.status = 'ACCEPTED'
         booking.generate_arrival_otp()
-        booking.save(update_fields=['status', 'arrival_otp', 'updated_at'])
+        booking.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
 
     Notification.objects.create(
         recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',

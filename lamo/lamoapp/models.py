@@ -1112,6 +1112,18 @@ class Booking(models.Model):
 
     )
 
+    worker_badge_code = models.CharField(
+
+        max_length=6,
+
+        blank=True,
+
+        null=True,
+
+        help_text="2-digit counter-code shown to worker to verify identity with customer before entry"
+
+    )
+
 
 
     arrival_verified_at = models.DateTimeField(
@@ -1285,29 +1297,61 @@ class Booking(models.Model):
 
     def generate_arrival_otp(self):
 
-        """Generate and save a 4-digit arrival verification OTP if not already present."""
+        """Generate and save arrival verification OTP and worker badge code if not present."""
+
+        import secrets
+
+        fields_to_update = []
 
         if not self.arrival_otp:
 
-            import secrets
-
             self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
 
-            if self.pk:
+            fields_to_update.append('arrival_otp')
 
-                self.save(update_fields=['arrival_otp'])
+        if not self.worker_badge_code:
+
+            self.worker_badge_code = f"{secrets.randbelow(90) + 10}"
+
+            fields_to_update.append('worker_badge_code')
+
+        if self.pk and fields_to_update:
+
+            self.save(update_fields=fields_to_update)
 
         return self.arrival_otp
 
 
 
+    @property
+
+    def get_worker_badge_code(self):
+
+        if self.worker_badge_code:
+
+            return self.worker_badge_code
+
+        if self.arrival_otp:
+
+            val = (int(self.arrival_otp) * 7 + 13) % 90 + 10
+
+            return f"{val:02d}"
+
+        return "48"
+
+
+
     def save(self, *args, **kwargs):
+
+        import secrets
 
         if not self.arrival_otp:
 
-            import secrets
-
             self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
+
+        if not self.worker_badge_code:
+
+            self.worker_badge_code = f"{secrets.randbelow(90) + 10}"
 
         super().save(*args, **kwargs)
 

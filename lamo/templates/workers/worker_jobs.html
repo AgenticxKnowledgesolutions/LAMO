@@ -2074,6 +2074,16 @@
 
                             {% else %}
 
+                                <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #166534; font-weight: 600;">
+                                        <i class="bi bi-person-badge-fill" style="font-size: 18px; color: #059669;"></i>
+                                        <span>Your Doorstep Verification Code:</span>
+                                    </div>
+                                    <span style="font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #065f46; background: #ffffff; padding: 3px 12px; border-radius: 8px; border: 1.5px solid #86efac; font-family: monospace;">
+                                        #{{ booking.get_worker_badge_code }}
+                                    </span>
+                                </div>
+
                             <div class="job-actions" style="flex-wrap: wrap;">
 
                                 {% if booking.can_start_now %}
@@ -2081,7 +2091,7 @@
                                     type="button"
                                     class="job-button start-button"
                                     style="flex: 1.2; min-width: 140px;"
-                                    onclick="openStartJobModal('{{ booking.id }}', '{{ booking.service.name|escapejs }}', '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}')"
+                                    onclick="openStartJobModal('{{ booking.id }}', '{{ booking.service.name|escapejs }}', '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}', '{{ booking.get_worker_badge_code }}')"
                                 >
                                     <i class="bi bi-shield-check"></i>
                                     <span>Start Job (Enter OTP)</span>
@@ -2315,11 +2325,20 @@
                 <p style="margin: 0 0 14px; color: #4b5563;">
                     You are starting service for <strong id="startJobCustomer">Customer</strong> (<span id="startJobService">Service</span>).
                 </p>
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px; margin-bottom:12px; font-size:12.5px; color:#1e40af;">
+                    <div style="font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                        <i class="bi bi-shield-check" style="color:#2563eb;"></i> Step 1 &bull; Identity Handshake
+                    </div>
+                    Tell the customer your verification code: <strong style="font-size:16px; color:#1d4ed8; background:#ffffff; padding:2px 8px; border-radius:6px; border:1px solid #bfdbfe;">#<span id="startJobBadgeCode">--</span></strong> so they know you are officially from LAMO before opening the door.
+                </div>
                 <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px; margin-bottom:14px; font-size:12.5px; color:#166534;">
-                    <i class="bi bi-info-circle-fill"></i> Please ask the customer for the <strong>4-digit Doorstep Arrival OTP</strong> shown in their LAMO booking drawer to verify your arrival.
+                    <div style="font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                        <i class="bi bi-key-fill" style="color:#059669;"></i> Step 2 &bull; Customer PIN Entry
+                    </div>
+                    Ask the customer for their <strong>4-digit Doorstep PIN</strong> shown in their LAMO app to begin the job.
                 </div>
                 <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:6px; text-transform:uppercase;">
-                    Enter 4-Digit Arrival OTP
+                    Enter Customer 4-Digit PIN
                 </label>
                 <input
                     type="text"
@@ -2577,11 +2596,13 @@ function openStartJobEarlyModal(bookingDate, bookingTime) {
 }
 
 // START JOB MODAL
-function openStartJobModal(bookingId, serviceName, customerName) {
+function openStartJobModal(bookingId, serviceName, customerName, badgeCode) {
     const modal = document.getElementById("startJobOtpModal");
     const form = document.getElementById("startJobForm");
     document.getElementById("startJobService").innerText = serviceName;
     document.getElementById("startJobCustomer").innerText = customerName;
+    const badgeEl = document.getElementById("startJobBadgeCode");
+    if (badgeEl) badgeEl.innerText = badgeCode || "--";
     form.action = "/worker/jobs/" + bookingId + "/start/";
     modal.style.display = "flex";
     setTimeout(function() {

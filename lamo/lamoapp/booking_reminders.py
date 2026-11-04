@@ -107,15 +107,16 @@ def process_booking_schedule_notifications(now=None):
                     if booking.worker and booking.worker.user else "your service professional"
                 )
 
-                # Prompt customer if worker arrived
+                # Prompt customer if worker arrived (Two-Way Handshake)
                 pin_text = f" Doorstep PIN: {booking.arrival_otp}." if booking.arrival_otp else ""
+                badge_code = booking.get_worker_badge_code
                 Notification.objects.create(
                     recipient=booking.customer,
                     booking=booking,
                     notification_type='BOOKING_UPDATE',
                     message=(
                         f"Arrival Check: Your {booking.service.name} service slot started at {booking.time}. "
-                        f"Has {worker_name} arrived? When they arrive at your door, share your{pin_text} to start the job."
+                        f"Has {worker_name} arrived? First verify their code (#{badge_code}), then share your{pin_text} to start."
                     )
                 )
 
@@ -127,7 +128,7 @@ def process_booking_schedule_notifications(now=None):
                         notification_type='BOOKING_UPDATE',
                         message=(
                             f"Arrival Check: Your scheduled slot for Booking #{booking.id} ({booking.service.name}) "
-                            f"started at {booking.time}. Please verify the customer's Doorstep PIN upon arrival to start."
+                            f"started at {booking.time}. Tell customer your code (#{badge_code}) and enter their Doorstep PIN to start."
                         )
                     )
 

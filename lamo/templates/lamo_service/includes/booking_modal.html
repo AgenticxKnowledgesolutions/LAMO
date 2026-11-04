@@ -366,7 +366,11 @@
                                        name="custom_time"
                                        id="modalCustomTime"
                                        class="modal-input"
-                                       placeholder="e.g., 10:30 AM or After 5 PM">
+                                       placeholder="e.g., 2:30 PM or 5:00 PM">
+                                <div id="customTimeTravelNotice" style="margin-top:6px; font-size:11.5px; color:#047857; display:flex; align-items:center; gap:5px; font-weight:500;">
+                                    <i class="bi bi-clock-history"></i>
+                                    <span>Same-day bookings require at least 60 minutes advance notice for pro travel.</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1126,6 +1130,30 @@ function validateStep(step) {
                 if (customTime) customTime.focus();
                 return false;
             }
+            // 60-Minute Travel Buffer validation for same-day bookings
+            const bType = (document.getElementById("modalBookingType") || {}).value || "One Time";
+            const dateInput = document.getElementById("modalBookingDate");
+            const today = new Date();
+            const pad2 = function(n) { return String(n).padStart(2, '0'); };
+            const todayStr = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+
+            if (bType === "One Time" && dateInput && dateInput.value === todayStr) {
+                const parsedMins = parseTimeToMinutes(customTime.value.trim());
+                if (parsedMins !== null) {
+                    const nowMins = today.getHours() * 60 + today.getMinutes();
+                    if (parsedMins < nowMins + 60) {
+                        const minDate = new Date(today.getTime() + 60 * 60 * 1000);
+                        let h = minDate.getHours();
+                        const ap = h >= 12 ? 'PM' : 'AM';
+                        h = h % 12;
+                        h = h ? h : 12;
+                        const minStr = `${h}:${pad2(minDate.getMinutes())} ${ap}`;
+                        showBookingError(errorBox, `Same-day service requires at least 60 minutes notice. Please choose a time after ${minStr} so your worker can travel.`);
+                        if (customTime) customTime.focus();
+                        return false;
+                    }
+                }
+            }
             if (finalTime) finalTime.value = customTime.value.trim();
         }
 
@@ -1315,14 +1343,19 @@ function updateModalTimeSlotAvailability() {
     const isToday = bookingDateInput && (bookingDateInput.value === todayStr);
     const nowMinutes = today.getHours() * 60 + today.getMinutes();
 
+    const minBufferMinutes = nowMinutes + 60;
     Array.from(timeSlotSelect.options).forEach(function(opt) {
         if (!opt.value) return;
         const parts = opt.value.split(/\s*-\s*/);
         const startMinutes = parseTimeToMinutes(parts[0]);
-        if (isToday && startMinutes !== null && startMinutes <= nowMinutes) {
+        if (isToday && startMinutes !== null && startMinutes < minBufferMinutes) {
             opt.disabled = true;
-            if (!opt.text.endsWith(' (Passed)')) {
-                opt.text = opt.value + ' (Passed)';
+            if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
+                if (startMinutes <= nowMinutes) {
+                    opt.text = opt.value + ' (Passed)';
+                } else {
+                    opt.text = opt.value + ' (Unavailable - 1hr Travel Notice)';
+                }
             }
         } else {
             opt.disabled = false;
