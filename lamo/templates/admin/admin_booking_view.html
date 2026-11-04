@@ -129,8 +129,16 @@ Booking details and information
                         Doorstep Security PIN
                     </span>
                     <span class="info-value">
-                        <strong style="letter-spacing: 2px; color: #059669; font-size: 15px; font-family: monospace;">{{ booking.arrival_otp }}</strong>
-                        <small style="color: #64748b; font-size: 11px; margin-left: 6px;">(Customer verification code)</small>
+                        {% if booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
+                            <span style="color: #059669; font-weight: 600; font-size: 13px;">
+                                <i class="bi bi-shield-check"></i> Verified by Worker at Doorstep
+                            </span>
+                        {% else %}
+                            <span style="color: #64748b; font-weight: 600; font-size: 13px;">
+                                <i class="bi bi-shield-lock-fill" style="color: #059669;"></i> &bull;&bull;&bull;&bull;
+                                <small style="color: #94a3b8; font-weight: 400; margin-left: 6px;">(Masked &mdash; Customer In-Person Secret)</small>
+                            </span>
+                        {% endif %}
                     </span>
                 </div>
                 {% endif %}
