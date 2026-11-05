@@ -1120,17 +1120,18 @@ function validateStep(step) {
 
         if (slotBtn && slotBtn.classList.contains("active")) {
             if (!timeSlot || !timeSlot.value) {
-                showBookingError(errorBox, "Please select a preferred time slot.");
+                showBookingError(errorBox, "Please select an available time slot.");
                 if (timeSlot) timeSlot.focus();
                 return false;
             }
             if (finalTime) finalTime.value = timeSlot.value;
         } else {
             if (!customTime || !customTime.value.trim()) {
-                showBookingError(errorBox, "Please enter your preferred custom time.");
+                showBookingError(errorBox, "Please enter your preferred custom time (e.g., 2:30 PM).");
                 if (customTime) customTime.focus();
                 return false;
             }
+            if (finalTime) finalTime.value = customTime.value.trim();
             // 60-Minute Travel Buffer validation for same-day bookings
             const bType = (document.getElementById("modalBookingType") || {}).value || "One Time";
             const dateInput = document.getElementById("modalBookingDate");
@@ -1379,27 +1380,35 @@ function updateModalTimeSlotAvailability() {
                             noticeEl.style.color = '#991b1b';
                             noticeEl.style.border = '1px solid #fecaca';
                             noticeEl.innerHTML = `<i class="bi bi-calendar-x"></i> <strong>${data.worker_name}</strong> is on leave on this date. Please choose another date.`;
-                        } else if (data.open_windows_text) {
-                            noticeEl.style.display = 'block';
-                            noticeEl.style.background = '#f0fdf4';
-                            noticeEl.style.color = '#166534';
-                            noticeEl.style.border = '1px solid #bbf7d0';
-                            noticeEl.innerHTML = `<i class="bi bi-calendar2-check-fill" style="color:#059669;"></i> <strong>${data.worker_name}'s Open Slots Today:</strong> ${data.open_windows_text}`;
+                        } else {
+                            noticeEl.style.display = 'none';
                         }
                     }
 
-                    if (data.slots) {
+                    if (data.on_leave) {
+                        Array.from(timeSlotSelect.options).forEach(function(opt) {
+                            if (!opt.value) {
+                                opt.text = 'Worker is on leave on this date';
+                            } else {
+                                opt.disabled = true;
+                                opt.text = opt.value + ' (Worker on leave)';
+                            }
+                        });
+                    } else if (data.slots) {
                         const slotMap = {};
                         data.slots.forEach(s => { slotMap[s.slot] = s; });
 
                         Array.from(timeSlotSelect.options).forEach(function(opt) {
-                            if (!opt.value) return;
+                            if (!opt.value) {
+                                opt.text = isToday ? 'Select time slot (Today)' : 'Select time slot';
+                                return;
+                            }
                             const info = slotMap[opt.value];
                             if (info && !info.available) {
                                 opt.disabled = true;
-                                if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
-                                    opt.text = opt.value + ` (${info.reason})`;
-                                }
+                                opt.text = opt.value + ` (${info.reason})`;
+                            } else if (!opt.disabled) {
+                                opt.text = opt.value + (isToday ? ' (Available Today)' : ' (Available)');
                             }
                         });
                     }
@@ -1654,6 +1663,15 @@ function submitDirectBooking() {
     }
 
     const formData = new FormData(form);
+    const slotBtn = document.getElementById("timeSlotBtn");
+    const timeSlot = document.getElementById("modalTimeSlot");
+    const customTime = document.getElementById("modalCustomTime");
+    if (slotBtn && slotBtn.classList.contains("active") && timeSlot) {
+        formData.set("time", timeSlot.value);
+    } else if (customTime && customTime.value.trim()) {
+        formData.set("time", customTime.value.trim());
+        formData.set("custom_time", customTime.value.trim());
+    }
 
     fetch(form.action, {
         method: "POST",

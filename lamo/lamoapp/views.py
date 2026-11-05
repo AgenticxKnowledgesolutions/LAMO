@@ -474,11 +474,26 @@ def _parse_clock_time(value):
     text = str(value).strip().upper()
     if not text:
         return None
+    # Normalize dot time format (e.g., '2.30 PM' -> '2:30 PM')
+    text = re.sub(r'(\d{1,2})\.(\d{2})', r'\1:\2', text)
+    # Normalize spacing before AM/PM (e.g., '2:30PM' -> '2:30 PM', '2pm' -> '2 PM')
+    text = re.sub(r'(\d{1,2}(?::\d{2})?)\s*([AP]M)', r'\1 \2', text)
     for fmt in _TIME_FORMATS:
         try:
             return datetime.strptime(text, fmt).time()
         except ValueError:
             continue
+    # Fallback: if user entered time without AM/PM (e.g., '2:30')
+    # During normal work hours (1 to 6), default to PM
+    m = re.match(r'^(\d{1,2}):(\d{2})$', text)
+    if m:
+        h = int(m.group(1))
+        mins = int(m.group(2))
+        if 1 <= h <= 6:
+            try:
+                return datetime.strptime(f'{h}:{mins:02d} PM', '%I:%M %p').time()
+            except ValueError:
+                pass
     return None
 
 
@@ -3444,7 +3459,9 @@ def book_service(request):
 
         start_t, end_t = parse_time_range(time)
         if start_t is None or end_t is None:
-            return respond_error('Please select a valid time slot.')
+            if custom_time:
+                return respond_error('Please enter a valid custom time (e.g., 2:30 PM or 5:00 PM).')
+            return respond_error('Please select an available time slot.')
 
         # -------------------------------------------------------------------------
         # RECURRING BOOKING PATH
