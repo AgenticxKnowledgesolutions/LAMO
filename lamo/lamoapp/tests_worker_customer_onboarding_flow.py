@@ -150,3 +150,4 @@ class WorkerCustomerOnboardingFlowTests(TestCase):
 
         # Worker must now be authenticated
         self.assertEqual(int(self.client.session['_auth_user_id']), self.worker_user.id)
+

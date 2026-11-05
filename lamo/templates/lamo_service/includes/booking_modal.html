@@ -1321,11 +1321,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function parseTimeToMinutes(timeStr) {
     if (!timeStr) return null;
-    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    let s = timeStr.trim().replace(/\./g, ':');
+    const match = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
     if (!match) return null;
     let hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    const ampm = match[3].toUpperCase();
+    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+    let ampm = match[3] ? match[3].toUpperCase() : null;
+    if (!ampm) {
+        if (hours >= 1 && hours <= 6) ampm = 'PM';
+        else if (hours >= 7 && hours <= 11) ampm = 'AM';
+        else if (hours === 12) ampm = 'PM';
+    }
     if (ampm === 'PM' && hours < 12) hours += 12;
     if (ampm === 'AM' && hours === 12) hours = 0;
     return hours * 60 + minutes;
