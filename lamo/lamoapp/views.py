@@ -31,6 +31,7 @@ from datetime import timedelta
 from .models import CustomUser, UserProfile, Service, WorkerProfile, Booking, BookingSeries, BookingMessage, Notification, Complaint, Review, WorkerLeave, ContactEnquiry, ServiceRequest, Payment, StrikeRecord, WorkerWallet, WalletTransaction, PushSubscription, CallSession
 from .push_utils import send_web_push_async, broadcast_web_push_async
 from .email_utils import send_email_safely
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from .rate_limit import (
     AI_ASSISTANT_PER_HOUR,
     AI_ASSISTANT_PER_MINUTE,
@@ -1893,15 +1894,42 @@ def verify_otp_view(request):
                     messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
                     return redirect('my_bookings')
 
+                # ----------------------------------------------------
+                # IF WORKER: Redirect to dedicated "Application Under Review" screen
+                # (Never send to login page; worker is pending admin approval)
+                # ----------------------------------------------------
+                if user.role == 'WORKER':
+                    request.session['under_review_worker_id'] = getattr(user, 'worker_profile', None).id if hasattr(user, 'worker_profile') and user.worker_profile else None
+                    msg = 'Email verified successfully! Your application has been submitted for admin review.'
+                    if is_ajax:
+                        return JsonResponse({
+                            'success': True,
+                            'redirect_url': reverse('worker_application_status'),
+                            'message': msg
+                        })
+                    messages.success(request, msg)
+                    return redirect('worker_application_status')
+
+                # ----------------------------------------------------
+                # IF CUSTOMER (USER): Auto-login immediately!
+                # (Zero friction, no login page, no redundant second OTP)
+                # ----------------------------------------------------
+                login(request, user)
+                request.session.cycle_key()
+
+                requested_next = request.session.pop('registration_next', None)
+                safe_next = _safe_internal_path(request, requested_next, '')
+                dest = safe_next if safe_next else reverse('home')
+                msg = f'Welcome to LAMO, {user.first_name or user.username}! Your email has been verified.'
+
                 if is_ajax:
-                    login(request, user)
                     return JsonResponse({
                         'success': True,
-                        'redirect_url': reverse('home'),
-                        'message': 'Email verified successfully!'
+                        'redirect_url': dest,
+                        'message': msg
                     })
-                messages.success(request, 'Email verified successfully! You can now login.')
-                return redirect('login')
+                messages.success(request, msg)
+                return redirect(dest)
             else:
                 # Increment attempts ONLY for this user
                 user.otp_failed_attempts += 1
@@ -5821,6 +5849,18 @@ def login_view(request):
                 rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
                 return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
 
+            if user.role == 'WORKER':
+                try:
+                    wp = user.worker_profile
+                    if not wp.is_verified:
+                        return JsonResponse({
+                            'success': False,
+                            'pending_verification': True,
+                            'error': 'Your worker application is currently pending admin verification. Once verified, an approval email with your direct dashboard link will be sent to your email.'
+                        })
+                except WorkerProfile.DoesNotExist:
+                    pass
+
             user.generate_otp()
             if user.email:
                 send_otp_email(user)
@@ -5849,6 +5889,18 @@ def login_view(request):
             if user.otp_locked_until and timezone.now() < user.otp_locked_until:
                 rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
                 return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
+
+            if user.role == 'WORKER':
+                try:
+                    wp = user.worker_profile
+                    if not wp.is_verified:
+                        return JsonResponse({
+                            'success': False,
+                            'pending_verification': True,
+                            'error': 'Your worker application is currently pending admin verification. Once verified, an approval email with your direct dashboard link will be sent to your email.'
+                        })
+                except WorkerProfile.DoesNotExist:
+                    pass
 
             if not user.email_verification_otp or user.email_verification_otp != otp:
                 user.otp_failed_attempts = (user.otp_failed_attempts or 0) + 1
@@ -8586,12 +8638,97 @@ def worker_verify(request, pk):
         defaults={'balance': Decimal('0.00')}
     )
 
+    # --------------------------------------------------------
+    # GENERATE SECURE 1-CLICK MAGIC LOGIN LINK & EMAIL WORKER
+    # --------------------------------------------------------
+    try:
+        signer = TimestampSigner(salt='worker-magic-login')
+        magic_token = signer.sign(str(worker.user.id))
+        magic_url = request.build_absolute_uri(reverse('worker_magic_login', args=[magic_token]))
+
+        worker_name = worker.user.first_name or worker.user.username
+        service_name = worker.service.name if worker.service else (worker.custom_service or 'Service Professional')
+
+        email_body = (
+            f"Hello {worker_name},\n\n"
+            f"Great news! Your LAMO Partner application for {service_name} has been verified and approved by our Admin team.\n\n"
+            f"You have been granted a 30-day 0% commission launch period to get started!\n\n"
+            f"Click the link below to activate your account and open your Worker Dashboard directly (no password or extra OTP required):\n"
+            f"{magic_url}\n\n"
+            f"Welcome to the LAMO Professional Network!\n"
+            f"Team LAMO"
+        )
+        send_email_safely(
+            subject='🎉 Congratulations! Your LAMO Partner Account is Approved',
+            message=email_body,
+            recipient_list=[worker.user.email],
+            purpose='worker_approved_activation'
+        )
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Could not dispatch approval email to worker %s: %s", worker.id, exc)
+
     messages.success(
         request,
-        f'{worker.user.username} has been verified successfully with a 30-day 0% commission launch period.'
+        f'{worker.user.username} has been verified successfully. An approval email with a direct 1-click dashboard link has been sent to {worker.user.email}.'
     )
 
     return redirect('workers_list')
+
+
+def worker_application_status(request):
+    """Displays the clear 'Application Under Review' screen for newly registered workers.
+
+    Prevents unverified workers from being dumped on the login page or trapped in OTP loops.
+    """
+    worker = None
+    worker_id = request.session.get('under_review_worker_id')
+    if worker_id:
+        worker = WorkerProfile.objects.select_related('user', 'service').filter(id=worker_id).first()
+    elif request.user.is_authenticated and request.user.role == 'WORKER':
+        worker = getattr(request.user, 'worker_profile', None)
+
+    if not worker:
+        return redirect('home')
+
+    # If the worker has already been verified, navigate them forward
+    if worker.is_verified:
+        if request.user.is_authenticated:
+            return redirect('worker_dashboard')
+        messages.info(request, 'Your worker account has already been approved! Please sign in.')
+        return redirect('login')
+
+    return render(request, 'accounts/worker_under_review.html', {
+        'worker': worker,
+    })
+
+
+def worker_magic_login(request, token):
+    """Direct, 1-click activation and login for approved workers from their verification email.
+
+    Validates a cryptographic timestamp token (valid for 7 days), logs the worker in directly
+    without passwords or redundant OTPs, and lands them on their Worker Dashboard.
+    """
+    signer = TimestampSigner(salt='worker-magic-login')
+    try:
+        user_id = signer.unsign(token, max_age=86400 * 7)
+        user = CustomUser.objects.get(id=user_id, role='WORKER')
+    except (BadSignature, SignatureExpired, CustomUser.DoesNotExist, ValueError):
+        messages.error(request, 'This activation link is invalid or has expired. Please sign in with your credentials.')
+        return redirect('login')
+
+    worker = getattr(user, 'worker_profile', None)
+    if not worker or not worker.is_verified:
+        messages.warning(request, 'Your worker profile is still awaiting admin verification.')
+        return redirect('login')
+
+    # Authenticate worker session directly
+    login(request, user)
+    request.session.cycle_key()
+    messages.success(
+        request,
+        f'Welcome to LAMO, {user.first_name or user.username}! Your worker account has been activated successfully.'
+    )
+    return redirect('worker_dashboard')
 
 
 @login_required

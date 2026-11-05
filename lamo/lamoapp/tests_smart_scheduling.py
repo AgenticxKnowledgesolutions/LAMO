@@ -149,3 +149,4 @@ class SmartSchedulingEngineTest(TestCase):
         self.assertEqual(booking.status, 'PENDING')
         self.assertFalse(booking.has_pending_reschedule)
         self.assertIsNone(booking.proposed_time)
+

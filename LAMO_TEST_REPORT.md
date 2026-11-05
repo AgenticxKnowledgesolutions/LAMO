@@ -266,3 +266,4 @@ All screenshots were captured live during execution by Playwright and stored in 
 
 ---
 *Report Compiled & Signed off by Senior QA Full-Stack Reviewer.*
+
