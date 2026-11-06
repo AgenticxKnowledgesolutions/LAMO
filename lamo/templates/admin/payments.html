@@ -45,6 +45,101 @@ Review manual payment reports and verify them against external payment evidence.
 
 
     <!-- =====================================================
+         WORKER WALLET RECHARGES (Manual UTR Verification)
+    ===================================================== -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:12px;">
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-wallet2 text-primary me-2"></i>Worker Wallet Recharges (UPI / Bank Verification)</h5>
+                <small class="text-muted">Verify bank or UPI statement before approving recharge credit to worker ledger.</small>
+            </div>
+            {% if wallet_recharges %}
+                <span class="badge bg-primary rounded-pill">{{ wallet_recharges|length }} request(s)</span>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            {% if wallet_recharges %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tx ID</th>
+                                <th>Worker</th>
+                                <th>Requested Amount</th>
+                                <th>Bank UTR / Reference</th>
+                                <th>Date Submitted</th>
+                                <th>Status</th>
+                                <th>Notes / Audit</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wr in wallet_recharges %}
+                                <tr>
+                                    <td class="fw-bold">#{{ wr.id }}</td>
+                                    <td>
+                                        <div class="fw-semibold">{{ wr.wallet.worker.user.get_full_name|default:wr.wallet.worker.user.username }}</div>
+                                        <small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ wr.wallet.worker.user.phone_number }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-success fs-6">
+                                            &#8377;{% if wr.amount > 0 %}{{ wr.amount }}{% else %}{{ wr.notes|slice:"24:35"|default:"-" }}{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <code class="px-2 py-1 bg-light rounded text-dark border">{{ wr.reference_id }}</code>
+                                    </td>
+                                    <td class="small text-muted">{{ wr.created_at|date:"d M Y, h:i A" }}</td>
+                                    <td>
+                                        {% if wr.transaction_type == 'RECHARGE_PENDING' %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Pending Verification</span>
+                                        {% elif wr.transaction_type == 'RECHARGE' %}
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Approved & Credited</span>
+                                        {% elif wr.transaction_type == 'RECHARGE_REJECTED' %}
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Rejected</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ wr.transaction_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small text-muted" style="max-width:220px;">
+                                        {{ wr.notes|default:"-" }}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if wr.transaction_type == 'RECHARGE_PENDING' %}
+                                            <div class="d-flex justify-content-end gap-1">
+                                                <form method="post" action="{% url 'admin_approve_wallet_recharge' wr.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Verify bank receipt for UTR: {{ wr.reference_id }}. Approve and credit wallet balance?');">
+                                                        <i class="bi bi-check-lg me-1"></i>Approve
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{% url 'admin_reject_wallet_recharge' wr.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="rejection_reason" value="Payment not found in bank statement">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Reject recharge request with UTR: {{ wr.reference_id }}?');">
+                                                        <i class="bi bi-x-lg me-1"></i>Reject
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted small">Processed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-wallet2 text-muted" style="font-size:1.8rem;"></i>
+                    <p class="text-muted small mt-2 mb-0">No worker wallet recharge requests found.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- =====================================================
          FILTERS - plain GET, so filters live in the URL and survive
          a reload or a shared link. Pagination carries them forward.
     ===================================================== -->

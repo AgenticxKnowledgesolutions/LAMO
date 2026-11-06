@@ -97,6 +97,56 @@ from .ai_utils import (
 logger = logging.getLogger(__name__)
 
 
+def _create_idempotent_notification(recipient, message, booking=None, notification_type='SYSTEM', dedupe_window_seconds=10):
+    """Creates a notification ensuring rapid duplicate requests within dedupe_window_seconds are ignored.
+    
+    Safe across web requests without schema migrations: uses cache atomic check with fallback to DB window check.
+    """
+    if not recipient:
+        return None
+
+    import hashlib
+    from django.core.cache import cache
+    from django.utils import timezone
+    from datetime import timedelta
+
+    booking_id = booking.id if booking else 0
+    raw_key = f"{recipient.id}:{booking_id}:{notification_type}:{message.strip()}"
+    key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:24]
+    cache_key = f"notif_dedupe:{key_hash}"
+
+    # 1. Atomic cache lock (fast path)
+    try:
+        acquired = cache.add(cache_key, True, timeout=dedupe_window_seconds)
+        if not acquired:
+            logger.info("Deduplicated duplicate notification for user %s (cache match)", recipient.username)
+            return None
+    except Exception:
+        # Cache backend failed/unavailable, proceed to DB check
+        pass
+
+    # 2. Database recency check (defense in depth)
+    recent_cutoff = timezone.now() - timedelta(seconds=dedupe_window_seconds)
+    duplicate_exists = Notification.objects.filter(
+        recipient=recipient,
+        booking=booking,
+        notification_type=notification_type,
+        message=message,
+        created_at__gte=recent_cutoff
+    ).exists()
+
+    if duplicate_exists:
+        logger.info("Deduplicated duplicate notification for user %s (DB match)", recipient.username)
+        return None
+
+    return Notification.objects.create(
+        recipient=recipient,
+        booking=booking,
+        notification_type=notification_type,
+        message=message
+    )
+
+
 def _safe_coord(value):
     """Parse a client-supplied latitude/longitude, or return ``None``.
 
@@ -431,6 +481,8 @@ def api_worker_new_jobs(request):
     pending_qs = Booking.objects.filter(
         worker=worker_profile,
         status='PENDING'
+    ).filter(
+        Q(series__isnull=True) | Q(series__is_active=True)
     ).select_related('customer', 'service').order_by('-created_at')[:5]
 
     jobs_data = []
@@ -598,6 +650,8 @@ def has_worker_schedule_conflict(worker, booking_date, start_time=None, end_time
         worker=worker,
         date=booking_date,
         status__in=ACTIVE_BOOKING_STATUSES
+    ).filter(
+        Q(series__isnull=True) | Q(series__is_active=True)
     )
 
     if exclude_booking_id:
@@ -648,6 +702,9 @@ def build_worker_availability_maps(booking_date, start_time=None, end_time=None)
         .filter(
             date=booking_date,
             status__in=ACTIVE_BOOKING_STATUSES,
+        )
+        .filter(
+            Q(series__isnull=True) | Q(series__is_active=True)
         )
         .exclude(worker__isnull=True)
         .values_list('worker_id', 'start_time', 'end_time', 'time')
@@ -1323,22 +1380,15 @@ def home(request):
 
     # Task 4: When a district is set, restrict services with the same rules service_workers uses
     if selected_district:
+        # Get active services that have at least one eligible available worker in the selected district
+        service_ids_with_workers = eligible_workers_qs.filter(
+            district__iexact=selected_district
+        ).values_list('service_id', flat=True).distinct()
+
         services_qs = Service.objects.filter(
-            is_active=True,
-            workers__is_verified=True,
-            workers__work_status='AVAILABLE',
-            workers__district__iexact=selected_district,
-        ).annotate(
-            worker_count=Count(
-                'workers',
-                filter=Q(
-                    workers__is_verified=True,
-                    workers__work_status='AVAILABLE',
-                    workers__district__iexact=selected_district,
-                ),
-                distinct=True
-            )
-        ).filter(worker_count__gt=0).distinct()
+            id__in=service_ids_with_workers,
+            is_active=True
+        )
     else:
         services_qs = Service.objects.filter(is_active=True)
 
@@ -1542,6 +1592,62 @@ def send_otp_email(user):
         purpose='otp_verification',
     )
     return otp, sent
+
+
+def send_otp_sms(phone_number, otp):
+    """Send a verification OTP via SMS / Twilio if configured.
+
+    Safe and resilient:
+    - Checks settings.SMS_OTP_ENABLED or presence of Twilio credentials.
+    - If unconfigured or disabled, gracefully logs and returns False.
+    - Masks phone number in logs to avoid PII exposure.
+    """
+    if not phone_number or not otp:
+        return False
+
+    sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
+    account_sid = os.getenv('TWILIO_ACCOUNT_SID') or getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+    auth_token = os.getenv('TWILIO_AUTH_TOKEN') or getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+    from_number = os.getenv('TWILIO_PHONE_NUMBER') or getattr(settings, 'TWILIO_PHONE_NUMBER', '')
+
+    if not (sms_enabled or (account_sid and auth_token and from_number)):
+        return False
+
+    if not (account_sid and auth_token and from_number):
+        logger.info('SMS OTP is enabled, but Twilio credentials are not configured in settings/environment.')
+        return False
+
+    clean_digits = re.sub(r'\D', '', str(phone_number))
+    if len(clean_digits) == 10:
+        to_phone = '+91' + clean_digits
+    elif len(clean_digits) == 12 and clean_digits.startswith('91'):
+        to_phone = '+' + clean_digits
+    else:
+        to_phone = str(phone_number).strip()
+        if not to_phone.startswith('+'):
+            to_phone = '+' + to_phone
+
+    body = f'Your LAMO verification code is: {otp}. Valid for 10 minutes. Do not share this code.'
+
+    try:
+        import requests
+        url = f'https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json'
+        data = {
+            'To': to_phone,
+            'From': from_number,
+            'Body': body,
+        }
+        response = requests.post(url, data=data, auth=(account_sid, auth_token), timeout=5)
+        if response.status_code in (200, 201):
+            logger.info('SMS OTP sent successfully.')
+            return True
+        else:
+            logger.warning('Twilio SMS send returned HTTP %s', response.status_code)
+            return False
+    except Exception as exc:
+        logger.warning('Failed to send SMS OTP via Twilio: %s', exc)
+        return False
+
 
 
 def _send_booking_verification_code(request, email, customer_name=None, phone=None):
@@ -1827,15 +1933,25 @@ def verify_otp_view(request):
 
                 pending_booking = request.session.pop('pending_booking_data', None)
                 if pending_booking:
-                    _create_booking_from_pending(request, user, pending_booking)
-                    if is_ajax:
-                        return JsonResponse({
-                            'success': True,
-                            'redirect_url': reverse('my_bookings'),
-                            'message': 'Your email has been verified and your booking has been placed successfully!'
-                        })
-                    messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
-                    return redirect('my_bookings')
+                    created_b = _create_booking_from_pending(request, user, pending_booking)
+                    if created_b:
+                        if is_ajax:
+                            return JsonResponse({
+                                'success': True,
+                                'redirect_url': reverse('my_bookings'),
+                                'message': 'Your email has been verified and your booking has been placed successfully!'
+                            })
+                        messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
+                        return redirect('my_bookings')
+                    else:
+                        # Conflict or unavailable occurred; user account is created and logged in
+                        if is_ajax:
+                            return JsonResponse({
+                                'success': True,
+                                'redirect_url': reverse('service_page'),
+                                'message': 'Your email has been verified, but the requested slot was taken. Please select an available slot or worker.'
+                            })
+                        return redirect('service_page')
 
                 if is_ajax:
                     return JsonResponse({'success': True, 'redirect_url': reverse('home'), 'message': 'Email verified successfully!'})
@@ -1897,17 +2013,26 @@ def verify_otp_view(request):
                 # Check for pending booking from guest customer account creation flow
                 pending_booking = request.session.pop('pending_booking_data', None)
                 if pending_booking:
-                    _create_booking_from_pending(request, user, pending_booking)
+                    created_b = _create_booking_from_pending(request, user, pending_booking)
                     login(request, user)
                     request.session.cycle_key()
-                    if is_ajax:
-                        return JsonResponse({
-                            'success': True,
-                            'redirect_url': reverse('my_bookings'),
-                            'message': 'Your email has been verified and your booking has been placed successfully!'
-                        })
-                    messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
-                    return redirect('my_bookings')
+                    if created_b:
+                        if is_ajax:
+                            return JsonResponse({
+                                'success': True,
+                                'redirect_url': reverse('my_bookings'),
+                                'message': 'Your email has been verified and your booking has been placed successfully!'
+                            })
+                        messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
+                        return redirect('my_bookings')
+                    else:
+                        if is_ajax:
+                            return JsonResponse({
+                                'success': True,
+                                'redirect_url': reverse('service_page'),
+                                'message': 'Your email has been verified, but the requested slot was taken. Please select an available slot or worker.'
+                            })
+                        return redirect('service_page')
 
                 # ----------------------------------------------------
                 # IF WORKER: Redirect to dedicated "Application Under Review" screen
@@ -2197,6 +2322,7 @@ def contact(request):
                     message=full_message,
                     recipient_list=[admin_mailbox],
                     purpose='contact_enquiry',
+                    async_send=True,
                 )
             else:
                 logger.warning(
@@ -2807,6 +2933,48 @@ def _create_booking_from_pending(request, user, pending_data):
         booking_dates = _generate_recurring_dates(start_d, end_d, frequency, preferred_day)
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+
+            # Defensive schedule re-validation for recurring series
+            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+                messages.warning(
+                    request,
+                    'Your email was verified, but the service professional is temporarily unavailable for new requests. Please choose another available worker.'
+                )
+                return None
+
+            for b_date in booking_dates:
+                # Check worker leave
+                try:
+                    if WorkerLeave.objects.filter(worker=locked_worker, leave_date=b_date).exists():
+                        messages.warning(
+                            request,
+                            f'Your email was verified, but the worker is on leave on {b_date.strftime("%Y-%m-%d")}. Please adjust the date range.'
+                        )
+                        return None
+                except Exception:
+                    pass
+
+                # Check duplicate user booking
+                duplicate_user_booking = Booking.objects.filter(
+                    customer=user, worker=locked_worker, service=service,
+                    date=b_date,
+                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
+                ).exists()
+                if duplicate_user_booking:
+                    messages.warning(
+                        request,
+                        f'Your email was verified, but you already have an active booking with this worker on {b_date.strftime("%Y-%m-%d")}.'
+                    )
+                    return None
+
+                # Check worker availability
+                if has_worker_schedule_conflict(locked_worker, booking_date=b_date, start_time=start_t, end_time=end_t, time_value=time):
+                    messages.warning(
+                        request,
+                        f'Your email was verified, but this worker is already booked on {b_date.strftime("%Y-%m-%d")} at the selected time.'
+                    )
+                    return None
+
             series = BookingSeries.objects.create(
                 customer=user,
                 worker=locked_worker,
@@ -2851,7 +3019,7 @@ def _create_booking_from_pending(request, user, pending_data):
 
             if created_bookings:
                 first_b = created_bookings[0]
-                Notification.objects.create(
+                _create_idempotent_notification(
                     recipient=worker.user,
                     booking=first_b,
                     notification_type='BOOKING',
@@ -2864,7 +3032,7 @@ def _create_booking_from_pending(request, user, pending_data):
                     url="/worker-dashboard/"
                 )
                 for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
-                    Notification.objects.create(
+                    _create_idempotent_notification(
                         recipient=admin,
                         booking=first_b,
                         notification_type='BOOKING',
@@ -2881,7 +3049,8 @@ def _create_booking_from_pending(request, user, pending_data):
                         f'Thanks for choosing LAMO!'
                     ),
                     recipient_list=[user.email],
-                    purpose='booking_request'
+                    purpose='booking_request',
+                    async_send=True,
                 )
                 return first_b
     else:
@@ -2904,6 +3073,32 @@ def _create_booking_from_pending(request, user, pending_data):
 
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+
+            # Defensive schedule re-validation: verify worker hasn't become unavailable or booked in the gap
+            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+                messages.warning(
+                    request,
+                    'Your email was verified, but the service professional is temporarily unavailable for new requests. Please choose another available worker.'
+                )
+                return None
+
+            try:
+                if WorkerLeave.objects.filter(worker=locked_worker, leave_date=b_date).exists():
+                    messages.warning(
+                        request,
+                        'Your email was verified, but the worker is marked on leave on the chosen date. Please choose an alternative date.'
+                    )
+                    return None
+            except Exception:
+                pass
+
+            if has_worker_schedule_conflict(locked_worker, booking_date=b_date, start_time=start_t, end_time=end_t, time_value=time):
+                messages.warning(
+                    request,
+                    'Your email was verified, but this time slot was just booked by another customer. Please choose an alternative time slot.'
+                )
+                return None
+
             booking = Booking.objects.create(
                 customer=user,
                 worker=locked_worker,
@@ -2938,7 +3133,7 @@ def _create_booking_from_pending(request, user, pending_data):
                 url="/worker-dashboard/"
             )
             for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
-                Notification.objects.create(
+                _create_idempotent_notification(
                     recipient=admin,
                     booking=booking,
                     notification_type='BOOKING',
@@ -2962,6 +3157,7 @@ def _create_booking_from_pending(request, user, pending_data):
                 ),
                 recipient_list=[user.email],
                 purpose='booking_request',
+                async_send=True,
             )
 
             # Ensure UserProfile has saved phone/address
@@ -3200,6 +3396,7 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
         ),
         recipient_list=[request.user.email],
         purpose='booking_recurring_confirmation',
+        async_send=True,
     )
 
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
@@ -3719,6 +3916,7 @@ def book_service(request):
             ),
             recipient_list=[request.user.email],
             purpose='booking_request',
+            async_send=True,
         )
 
         messages.success(request, 'Booking submitted successfully!')
@@ -3969,8 +4167,8 @@ def api_call_initiate(request, booking_id):
     if not (is_cust or is_work):
         return JsonResponse({'error': 'You are not authorized to call on this booking.'}, status=403)
 
-    if booking.status in {'CANCELLED', 'EXPIRED'}:
-        return JsonResponse({'error': 'Calls cannot be initiated for cancelled or expired bookings.'}, status=400)
+    if booking.status in {'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED'}:
+        return JsonResponse({'error': f'Calls cannot be initiated for {booking.status.lower()} bookings.'}, status=400)
 
     receiver = booking.worker.user if is_cust else booking.customer
     if not receiver:
@@ -4218,6 +4416,14 @@ def worker_accept_booking(request, booking_id):
             messages.warning(request, 'This booking has already been processed.')
             return redirect('worker_dashboard')
 
+        if not booking.customer.is_active:
+            messages.error(request, 'Cannot accept booking: The customer account is no longer active.')
+            return redirect('worker_dashboard')
+
+        if booking.series and not booking.series.is_active:
+            messages.error(request, 'Cannot accept booking: The customer has paused this recurring series.')
+            return redirect('worker_dashboard')
+
         # Check 30-minute response timer expiry
         if booking.created_at and timezone.now() > booking.created_at + timedelta(minutes=30):
             booking.status = 'EXPIRED'
@@ -4267,33 +4473,43 @@ def worker_accept_booking(request, booking_id):
         booking.generate_arrival_otp()
         booking.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
 
-    Notification.objects.create(
-        recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
-        message=f'Good news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.'
-    )
-
-    # Booking accepted (Resend-aware; failures are logged, never raised)
-    send_email_safely(
-        subject=f'Good News! Your Booking #{booking.id} is Confirmed',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'Great news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.\n\n'
-            f'Booking Details:\n'
-            f'  Date: {booking.date}\n'
-            f'  Time: {booking.time}\n\n'
-            f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='booking_accepted',
-    )
-
-    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
-    for admin in admins:
-        Notification.objects.create(
-            recipient=admin, booking=booking, notification_type='BOOKING_UPDATE',
-            message=f'Booking #{booking.id} has been accepted by {request.user.get_full_name() or request.user.username}.'
+        # Create notifications and register on_commit external dispatch
+        _create_idempotent_notification(
+            recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
+            message=f'Good news! Your {booking.service.name} booking has been accepted by {request.user.get_full_name() or request.user.username}.'
         )
+
+        customer_email = booking.customer.email
+        customer_username = booking.customer.username
+        service_name = booking.service.name
+        worker_display_name = request.user.get_full_name() or request.user.username
+        b_date = booking.date
+        b_time = booking.time
+        b_id = booking.id
+
+        if customer_email:
+            transaction.on_commit(lambda: send_email_safely(
+                subject=f'Good News! Your Booking #{b_id} is Confirmed',
+                message=(
+                    f'Hi {customer_username},\n\n'
+                    f'Great news! Your {service_name} booking has been accepted by {worker_display_name}.\n\n'
+                    f'Booking Details:\n'
+                    f'  Date: {b_date}\n'
+                    f'  Time: {b_time}\n\n'
+                    f'The worker will reach out to you shortly. If you have any questions, feel free to reach out to us.\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[customer_email],
+                purpose='booking_accepted',
+                async_send=True,
+            ))
+
+        admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+        for admin in admins:
+            _create_idempotent_notification(
+                recipient=admin, booking=booking, notification_type='BOOKING_UPDATE',
+                message=f'Booking #{b_id} has been accepted by {worker_display_name}.'
+            )
 
     messages.success(request, 'Booking accepted successfully.')
     return redirect('worker_dashboard')
@@ -4329,36 +4545,43 @@ def worker_reject_booking(request, booking_id):
         messages.info(request, 'Emergency request dismissed.')
         return redirect('worker_dashboard')
 
-    booking = get_object_or_404(Booking, id=booking_id, worker=worker)
+    with transaction.atomic():
+        locked_booking = Booking.objects.select_for_update().select_related('customer', 'service').get(id=booking_id, worker=worker)
+        if locked_booking.status != 'PENDING':
+            messages.warning(request, 'This booking has already been processed.')
+            return redirect('worker_dashboard')
 
-    if booking.status != 'PENDING':
-        messages.warning(request, 'This booking has already been processed.')
-        return redirect('worker_dashboard')
+        rejection_reason = request.POST.get('rejection_reason', '').strip() or request.GET.get('reason', '').strip() or 'Worker declined the booking request.'
+        locked_booking.status = 'REJECTED'
+        locked_booking.cancellation_reason = rejection_reason
+        locked_booking.cancelled_by = 'WORKER'
+        locked_booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
 
-    rejection_reason = request.POST.get('rejection_reason', '').strip() or request.GET.get('reason', '').strip() or 'Worker declined the booking request.'
-    booking.status = 'REJECTED'
-    booking.cancellation_reason = rejection_reason
-    booking.cancelled_by = 'WORKER'
-    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+        _create_idempotent_notification(
+            recipient=locked_booking.customer, booking=locked_booking, notification_type='BOOKING_UPDATE',
+            message=f'Your {locked_booking.service.name} booking has been declined by the worker.'
+        )
 
-    Notification.objects.create(
-        recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
-        message=f'Your {booking.service.name} booking has been declined by the worker.'
-    )
+        customer_email = locked_booking.customer.email
+        customer_username = locked_booking.customer.username
+        service_name = locked_booking.service.name
+        b_date = locked_booking.date
+        b_id = locked_booking.id
 
-    # Booking rejected (Resend-aware; failures are logged, never raised)
-    send_email_safely(
-        subject=f'Update on Booking #{booking.id}',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'Unfortunately, your {booking.service.name} booking on {booking.date} has been declined by the worker.\n\n'
-            f'Don\'t worry! You can browse and book another available worker on our platform.\n\n'
-            f'If you need any assistance, we\'re here to help.\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='booking_rejected',
-    )
+        if customer_email:
+            transaction.on_commit(lambda: send_email_safely(
+                subject=f'Update on Booking #{b_id}',
+                message=(
+                    f'Hi {customer_username},\n\n'
+                    f'Unfortunately, your {service_name} booking on {b_date} has been declined by the worker.\n\n'
+                    f'Don\'t worry! You can browse and book another available worker on our platform.\n\n'
+                    f'If you need any assistance, we\'re here to help.\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[customer_email],
+                purpose='booking_rejected',
+                async_send=True,
+            ))
 
     messages.success(request, 'Booking rejected.')
     return redirect('worker_dashboard')
@@ -4381,6 +4604,9 @@ def worker_accept_emergency(request, booking_id):
 
     try:
         with transaction.atomic():
+            # Acquire exclusive lock on WorkerProfile first to serialize any concurrent booking creation/acceptance
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
+
             # Lock the booking row to prevent race conditions
             booking = Booking.objects.select_for_update().select_related(
                 'customer', 'service'
@@ -4398,7 +4624,7 @@ def worker_accept_emergency(request, booking_id):
             # Only workers offering this trade may take the job. Without this
             # check any worker could accept any other trade's emergency
             # request (an electrician accepting a plumbing job, etc.).
-            if worker.service_id is None or worker.service_id != booking.service_id:
+            if locked_worker.service_id is None or locked_worker.service_id != booking.service_id:
                 messages.error(request, 'This emergency request is for a different service than yours.')
                 return redirect('worker_dashboard')
 
@@ -4412,7 +4638,7 @@ def worker_accept_emergency(request, booking_id):
             # Re-check worker leave status at acceptance time
             try:
                 worker_on_leave = WorkerLeave.objects.filter(
-                    worker=worker, leave_date=today
+                    worker=locked_worker, leave_date=today
                 ).exists()
                 if worker_on_leave:
                     messages.error(request, 'Cannot accept emergency booking - you are marked as on leave for this date.')
@@ -4426,7 +4652,7 @@ def worker_accept_emergency(request, booking_id):
 
             if start_t and end_t:
                 existing_booking = has_worker_schedule_conflict(
-                    worker,
+                    locked_worker,
                     booking_date=today,
                     start_time=start_t,
                     end_time=end_t,
@@ -4434,7 +4660,7 @@ def worker_accept_emergency(request, booking_id):
                 )
             else:
                 existing_booking = has_worker_schedule_conflict(
-                    worker,
+                    locked_worker,
                     booking_date=today,
                     time_value=booking.time,
                     exclude_booking_id=booking.id,
@@ -4447,13 +4673,13 @@ def worker_accept_emergency(request, booking_id):
             # Assign this worker to the booking. Stamping date=today (the
             # acceptance day) makes this job block the worker's calendar for
             # later conflict checks and lets WorkerLeave matching see it.
-            booking.worker = worker
+            booking.worker = locked_worker
             booking.date = today
             booking.status = 'ACCEPTED'
             booking.save(update_fields=['worker', 'date', 'status', 'updated_at'])
 
             # Notify the customer
-            Notification.objects.create(
+            _create_idempotent_notification(
                 recipient=booking.customer,
                 booking=booking,
                 notification_type='BOOKING_UPDATE',
@@ -4470,7 +4696,7 @@ def worker_accept_emergency(request, booking_id):
 
             for other_worker in other_workers:
                 try:
-                    Notification.objects.create(
+                    _create_idempotent_notification(
                         recipient=other_worker.user,
                         booking=booking,
                         notification_type='SYSTEM',
@@ -4483,7 +4709,7 @@ def worker_accept_emergency(request, booking_id):
             admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
             for admin in admins:
                 try:
-                    Notification.objects.create(
+                    _create_idempotent_notification(
                         recipient=admin,
                         booking=booking,
                         notification_type='BOOKING_UPDATE',
@@ -4492,26 +4718,34 @@ def worker_accept_emergency(request, booking_id):
                 except Exception:
                     continue
 
+            customer_email = booking.customer.email
+            customer_username = booking.customer.username
+            service_name = booking.service.name
+            worker_display_name = request.user.get_full_name() or request.user.username
+            b_loc = booking.location
+            b_id = booking.id
+
+            if customer_email:
+                transaction.on_commit(lambda: send_email_safely(
+                    subject=f'Worker Assigned - Emergency Request #{b_id}',
+                    message=(
+                        f'Hi {customer_username},\n\n'
+                        f'Great news! We\'ve found a worker for your emergency {service_name} request.\n\n'
+                        f'Worker Details:\n'
+                        f'  Name: {worker_display_name}\n'
+                        f'  Location: {b_loc}\n\n'
+                        f'The worker will contact you shortly. Please keep your phone reachable.\n\n'
+                        f'Thanks for trusting LAMO in your time of need!\n\n'
+                        f'Best regards,\nTeam LAMO'
+                    ),
+                    recipient_list=[customer_email],
+                    purpose='emergency_worker_assigned',
+                    async_send=True,
+                ))
+
     except Booking.DoesNotExist:
         messages.warning(request, 'This emergency request has already been accepted by another worker.')
         return redirect('worker_dashboard')
-
-    # Send email to customer (Resend-aware; failures are logged, never raised)
-    send_email_safely(
-        subject=f'Worker Assigned - Emergency Request #{booking.id}',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'Great news! We\'ve found a worker for your emergency {booking.service.name} request.\n\n'
-            f'Worker Details:\n'
-            f'  Name: {request.user.get_full_name() or request.user.username}\n'
-            f'  Location: {booking.location}\n\n'
-            f'The worker will contact you shortly. Please keep your phone reachable.\n\n'
-            f'Thanks for trusting LAMO in your time of need!\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='emergency_worker_assigned',
-    )
 
     messages.success(request, f'Emergency request accepted! You have been assigned to this booking.')
     return redirect('worker_dashboard')
@@ -5862,6 +6096,9 @@ def login_view(request):
             if not user:
                 return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number. Please check your details or create an account.'})
 
+            if not user.is_active:
+                return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
+
             if user.otp_locked_until and timezone.now() < user.otp_locked_until:
                 rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
                 return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
@@ -5869,6 +6106,8 @@ def login_view(request):
             if user.role == 'WORKER':
                 try:
                     wp = user.worker_profile
+                    if getattr(wp, 'work_status', '') == 'SUSPENDED':
+                        return JsonResponse({'success': False, 'error': 'Your worker account has been suspended. Please contact support.'})
                     if not wp.is_verified:
                         return JsonResponse({
                             'success': False,
@@ -5878,11 +6117,66 @@ def login_view(request):
                 except WorkerProfile.DoesNotExist:
                     pass
 
-            user.generate_otp()
-            if user.email:
-                send_otp_email(user)
+            # Rate limit OTP sending (per IP & per User) to prevent mail-bombing / SMS-bombing
+            ip_key = otp_resend_ip_key(request)
+            user_key = otp_resend_user_key(user.id)
+            max_key = user_key + ':window'
 
-            target_str = user.email or identifier
+            if is_rate_limited(max_key, OTP_RESEND_MAX):
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Maximum OTP requests reached for this account. Please try again in {minutes_remaining(max_key)} minute(s).'
+                })
+
+            if check_cooldown(ip_key, OTP_RESEND_COOLDOWN_SECONDS) or check_cooldown(user_key, OTP_RESEND_COOLDOWN_SECONDS):
+                return JsonResponse({
+                    'success': False,
+                    'error': f'An OTP was sent very recently. Please wait {max(1, int(OTP_RESEND_COOLDOWN_SECONDS // 60))} minute(s) before requesting another one.'
+                })
+
+            register_attempt_within_window(max_key, OTP_RESEND_MAX, OTP_RESEND_WINDOW_SECONDS)
+            otp = user.generate_otp()
+
+            # Find phone number if available
+            user_phone = None
+            try:
+                if hasattr(user, 'user_profile') and user.user_profile and user.user_profile.phone:
+                    user_phone = user.user_profile.phone
+                elif hasattr(user, 'worker_profile') and user.worker_profile and user.worker_profile.phone:
+                    user_phone = user.worker_profile.phone
+            except Exception:
+                pass
+
+            if '@' not in identifier:
+                raw_digits = re.sub(r'\D', '', identifier)
+                if len(raw_digits) in (10, 11, 12):
+                    user_phone = user_phone or raw_digits
+
+            # Send SMS via Twilio if enabled and phone number available
+            if user_phone:
+                send_otp_sms(user_phone, otp)
+
+            # Send Email if user has an email address
+            if user.email:
+                subject = 'LAMO - Your Verification OTP'
+                message = (
+                    f'Hi {user.username},\n\n'
+                    f'Your OTP for login verification is: {otp}\n\n'
+                    f'This OTP is valid for 10 minutes.\n'
+                    f'Do not share this OTP with anyone.\n\n'
+                    f'Thanks,\nLAMO Team'
+                )
+                send_email_safely(
+                    subject=subject,
+                    message=message,
+                    recipient_list=[user.email],
+                    purpose='otp_verification',
+                )
+
+            start_cooldown(ip_key, OTP_RESEND_COOLDOWN_SECONDS)
+            start_cooldown(user_key, OTP_RESEND_COOLDOWN_SECONDS)
+
+            target_str = user.email or user_phone or identifier
             if '@' in target_str:
                 p = target_str.split('@')
                 masked = (p[0][:2] + '***@' + p[1]) if len(p[0]) > 2 else ('*@' + p[1])
@@ -5903,6 +6197,9 @@ def login_view(request):
             if not user:
                 return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number.'})
 
+            if not user.is_active:
+                return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
+
             if user.otp_locked_until and timezone.now() < user.otp_locked_until:
                 rem = int((user.otp_locked_until - timezone.now()).total_seconds() / 60)
                 return JsonResponse({'success': False, 'error': f'Too many failed attempts. Please try again in {max(1, rem)} minute(s).'})
@@ -5910,6 +6207,8 @@ def login_view(request):
             if user.role == 'WORKER':
                 try:
                     wp = user.worker_profile
+                    if getattr(wp, 'work_status', '') == 'SUSPENDED':
+                        return JsonResponse({'success': False, 'error': 'Your worker account has been suspended. Please contact support.'})
                     if not wp.is_verified:
                         return JsonResponse({
                             'success': False,
@@ -5935,9 +6234,16 @@ def login_view(request):
             user.email_verification_otp = None
             user.save(update_fields=['otp_failed_attempts', 'otp_locked_until', 'is_email_verified', 'email_verification_otp'])
 
+            # Clear OTP resend rate limit keys on successful verification
+            clear(otp_resend_user_key(user.id) + ':window')
+            clear(otp_resend_user_key(user.id))
+            clear(otp_resend_ip_key(request))
+
             if user.role == 'WORKER':
                 try:
                     wp = user.worker_profile
+                    if getattr(wp, 'work_status', '') == 'SUSPENDED':
+                        return JsonResponse({'success': False, 'error': 'Your worker account has been suspended. Please contact support.'})
                     if not wp.is_verified:
                         return JsonResponse({
                             'success': False,
@@ -5997,6 +6303,9 @@ def login_view(request):
                 register_failure(rl_key, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS)
                 return JsonResponse({'success': False, 'error': 'Invalid username, email, or password.'})
 
+            if not user.is_active:
+                return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
+
             clear(rl_key)
             is_admin_account = (
                 user.role == 'ADMIN'
@@ -6022,6 +6331,8 @@ def login_view(request):
             if user.role == 'WORKER':
                 try:
                     wp = user.worker_profile
+                    if getattr(wp, 'work_status', '') == 'SUSPENDED':
+                        return JsonResponse({'success': False, 'error': 'Your worker account has been suspended. Please contact support.'})
                     if not wp.is_verified:
                         return JsonResponse({
                             'success': False,
@@ -6144,6 +6455,10 @@ def login_view(request):
                 request.session['otp_user_id'] = user.id
                 return redirect('verify_otp')
 
+            if not user.is_active:
+                messages.error(request, 'This account has been deactivated. Please contact support.')
+                return redirect('login')
+
             # ==================================================
             # WORKER VERIFICATION CHECK
             # ==================================================
@@ -6162,6 +6477,13 @@ def login_view(request):
 
                     return redirect('login')
 
+                # Worker is SUSPENDED
+                if getattr(worker_profile, 'work_status', '') == 'SUSPENDED':
+                    messages.error(
+                        request,
+                        'Your worker account has been suspended. Please contact support.'
+                    )
+                    return redirect('login')
 
                 # Worker is NOT verified
                 if not worker_profile.is_verified:
@@ -6296,16 +6618,32 @@ def admin_login_view(request):
             messages.error(request, 'Please provide both administrator username and password.')
             return render(request, 'accounts/admin_login.html', {'entered_username': username})
 
+        rl_key = login_key(request, 'admin_' + username.lower())
+        if is_rate_limited(rl_key, LOGIN_MAX_ATTEMPTS):
+            mins = minutes_remaining(rl_key)
+            messages.error(
+                request,
+                f'Too many failed login attempts on administrator portal. Please try again in {mins} minute(s).'
+            )
+            return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
         user = authenticate(request, username=username, password=password)
         if user is not None:
+            if not user.is_active:
+                messages.error(request, 'This administrator account has been disabled.')
+                return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
             is_admin = (
                 user.role == 'ADMIN'
                 or getattr(user, 'is_superuser', False)
                 or getattr(user, 'is_staff', False)
             )
             if not is_admin:
+                register_failure(rl_key, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS)
                 messages.error(request, 'Access denied. This portal is restricted to system administrators.')
                 return render(request, 'accounts/admin_login.html', {'entered_username': username})
+
+            clear(rl_key)
 
             if user.role != 'ADMIN' or not user.is_email_verified:
                 user.role = 'ADMIN'
@@ -6317,7 +6655,14 @@ def admin_login_view(request):
             messages.success(request, f'Welcome back, Administrator {user.username}!')
             return redirect('admin_dashboard')
         else:
-            messages.error(request, 'Invalid administrator credentials. Please check your username and password.')
+            is_locked, mins = register_failure(rl_key, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS)
+            if is_locked:
+                messages.error(
+                    request,
+                    f'Too many failed login attempts. Your administrator access has been temporarily locked for {mins} minute(s).'
+                )
+            else:
+                messages.error(request, 'Invalid administrator credentials. Please check your username and password.')
             return render(request, 'accounts/admin_login.html', {'entered_username': username})
 
     return render(request, 'accounts/admin_login.html')
@@ -6638,7 +6983,8 @@ def admin_dashboard(request):
         request.user.is_email_verified = True
         request.user.save(update_fields=['role', 'is_email_verified'])
 
-    from django.db.models import Count, Avg
+    from django.db.models import Count, Avg, Sum, Q, Case, When, Value, IntegerField
+    from django.db.models.functions import Coalesce
 
     services = Service.objects.all()
     users = CustomUser.objects.filter(role='USER')
@@ -6652,12 +6998,13 @@ def admin_dashboard(request):
         in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
         completed=Count('id', filter=Q(status='COMPLETED')),
         cancelled=Count('id', filter=Q(status='CANCELLED')),
-        revenue=Sum('estimated_cost', filter=Q(is_paid=True)),
+        completion_requested=Count('id', filter=Q(status='COMPLETION_REQUESTED')),
+        revenue=Sum(Coalesce('final_amount', 'estimated_cost'), filter=Q(is_paid=True, status__in=['COMPLETED', 'IN_PROGRESS', 'ACCEPTED', 'COMPLETION_REQUESTED'])),
     )
     total_bookings = booking_stats['total'] or 0
     pending_bookings = (booking_stats['pending'] or 0) + (booking_stats['emergency'] or 0)
     completed_bookings = booking_stats['completed'] or 0
-    active_bookings = (booking_stats['accepted'] or 0) + (booking_stats['in_progress'] or 0)
+    active_bookings = (booking_stats['accepted'] or 0) + (booking_stats['in_progress'] or 0) + (booking_stats['completion_requested'] or 0)
     total_revenue = booking_stats['revenue'] or 0
 
     booking_status_data = {
@@ -6714,19 +7061,19 @@ def admin_dashboard(request):
         m = target_date.month
         label = target_date.strftime('%b')
 
-        b_rev = Booking.objects.filter(
+        # Direct cash bookings revenue + online payments without double counting
+        cash_rev = Booking.objects.filter(
             is_paid=True,
+            payment_method='CASH',
             created_at__year=y,
             created_at__month=m
-        ).aggregate(total=Sum('estimated_cost'))['total'] or 0
-
-        p_rev = Payment.objects.filter(
+        ).aggregate(total=Sum(Coalesce('final_amount', 'estimated_cost')))['total'] or 0
+        online_rev = Payment.objects.filter(
             status='PAID',
             booking__created_at__year=y,
             booking__created_at__month=m
         ).aggregate(total=Sum('amount'))['total'] or 0
-
-        m_rev = float(max(b_rev, p_rev))
+        m_rev = float(cash_rev + online_rev)
         m_comm = round(m_rev * 0.10, 2)
 
         monthly_revenue.append({
@@ -6897,6 +7244,11 @@ def worker_dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
+    if not request.user.is_active:
+        logout(request)
+        messages.error(request, 'Your account has been deactivated. Please contact support.')
+        return redirect('login')
+
     if request.user.role != 'WORKER':
         return redirect('dashboard')
 
@@ -6905,6 +7257,11 @@ def worker_dashboard(request):
     except WorkerProfile.DoesNotExist:
         messages.error(request, 'Worker profile not found.')
         return redirect('dashboard')
+
+    if getattr(worker_profile, 'work_status', '') == 'SUSPENDED':
+        logout(request)
+        messages.error(request, 'Your worker account has been suspended. Please contact support.')
+        return redirect('login')
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -6960,6 +7317,8 @@ def worker_dashboard(request):
     pending_bookings = Booking.objects.filter(
         worker=worker_profile,
         status='PENDING'
+    ).filter(
+        Q(series__isnull=True) | Q(series__is_active=True)
     ).select_related('customer', 'service').order_by('-created_at')[:5]
 
     active_bookings = Booking.objects.filter(
@@ -7084,46 +7443,47 @@ def worker_recharge_wallet(request):
         messages.error(request, 'Please provide a valid payment amount.')
         return redirect('worker_dashboard')
 
-    reference_id = request.POST.get('reference_id', '').strip()[:100]
+    reference_id = request.POST.get('reference_id', '').strip().upper()[:100]
     if not reference_id or len(reference_id) < 6:
         messages.error(request, 'Please provide a valid 12-digit UPI UTR or Transaction Reference number.')
         return redirect('worker_dashboard')
 
-    if WalletTransaction.objects.filter(reference_id=reference_id).exists():
+    try:
+        with transaction.atomic():
+            if WalletTransaction.objects.filter(reference_id=reference_id).exists():
+                messages.error(request, 'This transaction reference ID has already been registered.')
+                return redirect('worker_dashboard')
+
+            wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker_profile)
+            current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+
+            # Security fix: Do NOT credit wallet balance or unpause dues immediately upon worker self-submission!
+            # Create a pending approval transaction record with amount=0 and store requested amount in notes/reference.
+            # Wallet balance will ONLY be credited when an administrator verifies the UTR against actual bank records.
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='RECHARGE_PENDING',
+                amount=Decimal('0.00'),
+                balance_after=current_balance,
+                reference_id=reference_id,
+                notes=f"Recharge of ₹{amount:.2f} submitted with UTR {reference_id} (Status: PENDING_APPROVAL)"
+            )
+    except IntegrityError:
         messages.error(request, 'This transaction reference ID has already been registered.')
         return redirect('worker_dashboard')
-
-    with transaction.atomic():
-        wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker_profile)
-        current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
-        wallet.balance = current_balance + amount
-        wallet.save()
-
-        # If dues were cleared above the -₹500 threshold, unpause the worker
-        if wallet.balance >= Decimal('-500.00') and worker_profile.is_paused_for_dues:
-            worker_profile.is_paused_for_dues = False
-            worker_profile.save(update_fields=['is_paused_for_dues'])
-
-        WalletTransaction.objects.create(
-            wallet=wallet,
-            transaction_type='RECHARGE',
-            amount=amount,
-            balance_after=wallet.balance,
-            reference_id=reference_id,
-            notes=f"UPI Payment / Wallet Recharge of ₹{amount:.2f}"
-        )
 
     # Alert admins to reconcile UPI recharge transaction
     for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
         Notification.objects.create(
             recipient=admin,
             notification_type='PAYMENT',
-            message=f"💳 Worker Wallet Recharge: {worker_profile.user.username} submitted ₹{amount:.2f} (UTR: {reference_id})."
+            message=f"💳 Worker Wallet Recharge Request: {worker_profile.user.username} submitted ₹{amount:.2f} (UTR: {reference_id}) awaiting bank verification."
         )
 
-    messages.success(
+    messages.info(
         request,
-        f'Payment of ₹{amount:.2f} recorded successfully! Current wallet balance: ₹{wallet.balance:.2f}.'
+        f'Recharge request of ₹{amount:.2f} with UTR {reference_id} submitted successfully! '
+        f'Our administration team is verifying the payment against bank records. Your wallet will be credited upon approval.'
     )
     return redirect('worker_dashboard')
 
@@ -7157,7 +7517,7 @@ def user_dashboard(request):
     completed_bookings = Booking.objects.filter(customer=request.user, status='COMPLETED').count()
     pending_bookings = Booking.objects.filter(
         customer=request.user,
-        status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'EMERGENCY_PENDING']
+        status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'EMERGENCY_PENDING']
     ).count()
 
     notifications = Notification.objects.filter(
@@ -7282,7 +7642,15 @@ def edit_worker_profile_view(request):
     if request.method == 'POST':
         form = WorkerProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            original_service = profile.service
+            original_district = profile.district
+
             profile = form.save(commit=False)
+
+            # Defensive server-side guard: if worker is verified, ignore any forged tampering of service/district
+            if profile.is_verified:
+                profile.service = original_service
+                profile.district = original_district
 
             if profile.latitude is not None and profile.longitude is not None:
                 profile.current_place = _get_place_name_from_coords(
@@ -7355,6 +7723,198 @@ def my_complaints_view(request):
     return render(request, 'user/my_complaints.html', {'complaints': complaints})
 
 
+def _cancel_single_booking_internal(booking, reason, actor='CUSTOMER'):
+    """
+    Cancels a single booking executing canonical cancellation side effects:
+    1. Booking status update -> 'CANCELLED' with cancellation_reason and cancelled_by.
+    2. Full financial refund execution via _handle_booking_cancellation_refund().
+    3. Idempotent notification to assigned worker (if present).
+    4. Safe cancellation email notification to assigned worker (if present).
+    5. In-app notification to all active system administrators.
+    """
+    booking.status = 'CANCELLED'
+    booking.cancellation_reason = reason
+    booking.cancelled_by = actor
+    booking.save(update_fields=[
+        'status', 'cancellation_reason', 'cancelled_by', 'updated_at'
+    ])
+
+    # 1. Process customer refund
+    _handle_booking_cancellation_refund(booking)
+
+    # 2 & 3. Worker notification and email (if worker was assigned)
+    if booking.worker:
+        worker_user = booking.worker.user
+        service_name = booking.service.name if booking.service else "Service"
+        _create_idempotent_notification(
+            recipient=worker_user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Booking #{booking.id} ({service_name}) scheduled for {booking.date or 'requested time'} was cancelled ({reason})."
+        )
+        if worker_user.email:
+            send_email_safely(
+                subject=f"Booking #{booking.id} Cancelled",
+                message=(
+                    f"Hi {worker_user.username},\n\n"
+                    f"Booking #{booking.id} for {service_name} on {booking.date or 'requested date'} "
+                    f"has been cancelled.\n"
+                    f"Reason: {reason}\n\n"
+                    f"Best regards,\nTeam LAMO"
+                ),
+                recipient_list=[worker_user.email],
+                purpose='booking_cancelled',
+                async_send=True
+            )
+
+    # 4. Notify active administrators
+    for admin in CustomUser.objects.filter(role='ADMIN', is_active=True):
+        _create_idempotent_notification(
+            recipient=admin,
+            booking=booking,
+            notification_type='SYSTEM',
+            message=f"Booking #{booking.id} cancelled due to customer account deletion ({actor})."
+        )
+
+
+def _safe_delete_avatar_file(avatar_field):
+    """Safely deletes avatar file from disk or Cloudinary post-commit."""
+    try:
+        if avatar_field and hasattr(avatar_field, 'delete'):
+            avatar_field.delete(save=False)
+    except Exception as exc:
+        logger.warning("Error deleting avatar file during user anonymization: %s", exc)
+
+
+def _anonymize_and_soft_delete_customer(user, actor='CUSTOMER'):
+    """
+    Anonymizes and soft-deletes a customer account (role='USER') while strictly
+    preserving historical records (completed bookings, payments, reviews, wallet transactions).
+
+    Returns:
+        (success: bool, error_message: str or None)
+    """
+    if user.role != 'USER':
+        return False, "Only customer accounts can be anonymized with this procedure."
+
+    today = timezone.now().date()
+
+    with transaction.atomic():
+        # Lock user row first to prevent concurrent modifications
+        user = CustomUser.objects.select_for_update().get(pk=user.pk)
+
+        # 1. Check blocking active/disputed/in-progress bookings
+        blocking_active_bookings = Booking.objects.select_for_update().filter(
+            customer=user,
+            status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED', 'DISPUTED']
+        ).exists()
+        if blocking_active_bookings:
+            return False, "Cannot delete account while you have in-progress, completion-requested, or disputed bookings."
+
+        # 2. Check standalone accepted bookings (which must not be cancelled without explicit customer intervention)
+        blocking_standalone_accepted = Booking.objects.select_for_update().filter(
+            customer=user,
+            series__isnull=True,
+            status='ACCEPTED'
+        ).exists()
+        if blocking_standalone_accepted:
+            return False, "Cannot delete account while you have confirmed upcoming bookings. Please cancel your bookings first."
+
+        # 3. Lock and cancel eligible standalone bookings (PENDING, EMERGENCY_PENDING)
+        standalone_cancelable = list(
+            Booking.objects.select_for_update().filter(
+                customer=user,
+                series__isnull=True,
+                status__in=['PENDING', 'EMERGENCY_PENDING']
+            ).select_related('worker', 'worker__user', 'service')
+        )
+        for booking in standalone_cancelable:
+            _cancel_single_booking_internal(
+                booking,
+                reason="Customer account closed",
+                actor=actor
+            )
+
+        # 4. Deactivate recurring series and cancel eligible future child bookings
+        customer_series = list(BookingSeries.objects.select_for_update().filter(customer=user))
+        for series in customer_series:
+            series.is_active = False
+            series.save(update_fields=['is_active', 'updated_at'])
+
+            future_child_bookings = list(
+                Booking.objects.select_for_update().filter(
+                    series=series,
+                    date__gte=today,
+                    status__in=['PENDING', 'ACCEPTED', 'EMERGENCY_PENDING']
+                ).select_related('worker', 'worker__user', 'service')
+            )
+            for booking in future_child_bookings:
+                _cancel_single_booking_internal(
+                    booking,
+                    reason="Customer recurring series terminated due to account closure",
+                    actor=actor
+                )
+
+        # 5. Purge Web Push Subscriptions
+        PushSubscription.objects.filter(user=user).delete()
+
+        # 6. Scrub UserProfile PII
+        avatar_to_delete = None
+        try:
+            profile = UserProfile.objects.select_for_update().get(user=user)
+            if profile.profile_image:
+                avatar_to_delete = profile.profile_image
+                profile.profile_image = None
+            profile.phone = ''
+            profile.address = ''
+            profile.latitude = None
+            profile.longitude = None
+            profile.save(update_fields=['profile_image', 'phone', 'address', 'latitude', 'longitude'])
+        except UserProfile.DoesNotExist:
+            profile = None
+
+        # Schedule avatar file cleanup strictly on transaction commit
+        if avatar_to_delete:
+            transaction.on_commit(lambda: _safe_delete_avatar_file(avatar_to_delete))
+
+        # 7. Anonymize CustomUser
+        user_id = user.id
+        token = secrets.token_hex(4)
+        user.is_active = False
+        user.set_unusable_password()
+        user.username = f"deleted_user_{user_id}_{token}"
+        user.email = f"deleted_{user_id}_{token}@anonymized.local"
+        user.first_name = "Deleted"
+        user.last_name = "User"
+        user.email_verification_otp = None
+        user.password_reset_token = None
+        user.password_reset_token_hash = None
+        user.password_reset_expires = None
+        user.otp_failed_attempts = 0
+        user.otp_locked_until = None
+        user.save(update_fields=[
+            'is_active', 'password', 'username', 'email', 'first_name', 'last_name',
+            'email_verification_otp', 'password_reset_token', 'password_reset_token_hash',
+            'password_reset_expires', 'otp_failed_attempts', 'otp_locked_until'
+        ])
+
+    # 8. Invalidate active sessions across all devices
+    from django.contrib.sessions.models import Session
+    try:
+        user_id_str = str(user_id)
+        for s in Session.objects.filter(expire_date__gte=timezone.now()):
+            try:
+                data = s.get_decoded()
+                if str(data.get('_auth_user_id')) == user_id_str:
+                    s.delete()
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.warning("Session cleanup failed during customer deletion: %s", exc)
+
+    return True, None
+
+
 @login_required
 def delete_account_view(request):
 
@@ -7372,23 +7932,23 @@ def delete_account_view(request):
         messages.error(request, 'Incorrect password. Account deletion cancelled.')
         return redirect('edit_profile')
 
-    active_bookings = Booking.objects.filter(
-        customer=user,
-        status__in=['ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'DISPUTED']
-    ).exists()
-    if active_bookings:
-        messages.error(request, 'Cannot delete account while you have active, in-progress, or disputed bookings.')
+    if user.role != 'USER':
+        messages.error(request, 'Only customer accounts can be deleted via this option.')
+        return redirect('edit_profile')
+
+    success, err_msg = _anonymize_and_soft_delete_customer(user, actor='CUSTOMER')
+    if not success:
+        messages.error(request, err_msg)
         return redirect('edit_profile')
 
     logout(request)
-    user.delete()
-    messages.success(request, 'Your account has been permanently deleted.')
+    messages.success(request, 'Your account has been permanently closed and personal data removed.')
     return redirect('home')
 
 
 @login_required
 def admin_delete_user(request, user_id):
-    """Admin can delete a user"""
+    """Admin can delete a customer account (anonymization & soft-delete)"""
     if request.user.role != 'ADMIN':
         messages.error(request, 'You are not authorized.')
         return redirect('dashboard')
@@ -7404,8 +7964,12 @@ def admin_delete_user(request, user_id):
         return redirect('users_list')
 
     username = user_to_delete.username
-    user_to_delete.delete()
-    messages.success(request, f'User "{username}" has been deleted successfully.')
+    success, err_msg = _anonymize_and_soft_delete_customer(user_to_delete, actor='ADMIN')
+    if not success:
+        messages.error(request, f'Cannot delete user "{username}": {err_msg}')
+        return redirect('users_list')
+
+    messages.success(request, f'User "{username}" has been closed and anonymized successfully.')
     return redirect('users_list')
 
 
@@ -8503,6 +9067,11 @@ def admin_payments(request):
         total=Sum('amount')
     )['total'] or 0
 
+    # Retrieve pending and recent worker wallet recharges for admin reconciliation
+    wallet_recharges = WalletTransaction.objects.filter(
+        transaction_type__in=['RECHARGE_PENDING', 'RECHARGE', 'RECHARGE_REJECTED']
+    ).select_related('wallet__worker__user').order_by('-created_at')[:50]
+
     return render(
         request,
         'admin/payments.html',
@@ -8516,8 +9085,104 @@ def admin_payments(request):
             'method_choices': MANUAL_PAYMENT_METHODS,
             'total_count': paginator.count,
             'paid_total': paid_total,
+            'wallet_recharges': wallet_recharges,
         }
     )
+
+
+@login_required
+def admin_approve_wallet_recharge(request, tx_id):
+    """Admin action to approve a pending worker wallet recharge after verifying external bank UTR evidence."""
+    if request.user.role != 'ADMIN':
+        messages.error(request, 'You are not authorized to approve wallet recharges.')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('admin_payments')
+
+    with transaction.atomic():
+        tx = get_object_or_404(
+            WalletTransaction.objects.select_for_update().select_related('wallet__worker'),
+            id=tx_id,
+            transaction_type='RECHARGE_PENDING'
+        )
+        wallet = WorkerWallet.objects.select_for_update().get(id=tx.wallet_id)
+        worker_profile = wallet.worker
+
+        # Extract amount from notes e.g., "Recharge of ₹100.00 submitted with UTR..."
+        amount = Decimal('0.00')
+        raw_amt_match = re.search(r'₹([\d\.]+)', tx.notes or '')
+        if raw_amt_match:
+            try:
+                amount = Decimal(raw_amt_match.group(1))
+            except Exception:
+                amount = Decimal('0.00')
+
+        if amount <= Decimal('0.00'):
+            # Fallback to amount field if greater than 0
+            amount = tx.amount if tx.amount > Decimal('0.00') else Decimal('100.00')
+
+        current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+        wallet.balance = current_balance + amount
+        wallet.save()
+
+        # If dues were cleared above the -₹500 threshold, unpause the worker
+        if wallet.balance >= Decimal('-500.00') and worker_profile.is_paused_for_dues:
+            worker_profile.is_paused_for_dues = False
+            worker_profile.save(update_fields=['is_paused_for_dues'])
+
+        # Update transaction to approved
+        tx.transaction_type = 'RECHARGE'
+        tx.amount = amount
+        tx.balance_after = wallet.balance
+        tx.notes = f"Approved by Admin #{request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}. UTR {tx.reference_id} verified against bank records."
+        tx.save(update_fields=['transaction_type', 'amount', 'balance_after', 'notes'])
+
+        Notification.objects.create(
+            recipient=worker_profile.user,
+            notification_type='PAYMENT',
+            message=f"✅ Wallet Recharge Approved: Your payment of ₹{amount:.2f} (UTR: {tx.reference_id}) has been verified and added to your balance. Current balance: ₹{wallet.balance:.2f}."
+        )
+
+    messages.success(
+        request,
+        f"Recharge #{tx.id} for {worker_profile.user.username} (₹{amount:.2f}) verified and credited successfully! New balance: ₹{wallet.balance:.2f}."
+    )
+    return redirect('admin_payments')
+
+
+@login_required
+def admin_reject_wallet_recharge(request, tx_id):
+    """Admin action to reject an invalid or unverified worker wallet recharge."""
+    if request.user.role != 'ADMIN':
+        messages.error(request, 'You are not authorized to reject wallet recharges.')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('admin_payments')
+
+    rejection_reason = request.POST.get('rejection_reason', '').strip() or 'Bank transaction could not be verified'
+
+    with transaction.atomic():
+        tx = get_object_or_404(
+            WalletTransaction.objects.select_for_update().select_related('wallet__worker'),
+            id=tx_id,
+            transaction_type='RECHARGE_PENDING'
+        )
+        worker_user = tx.wallet.worker.user
+
+        tx.transaction_type = 'RECHARGE_REJECTED'
+        tx.notes = f"Rejected by Admin #{request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}. Reason: {rejection_reason}"
+        tx.save(update_fields=['transaction_type', 'notes'])
+
+        Notification.objects.create(
+            recipient=worker_user,
+            notification_type='PAYMENT',
+            message=f"❌ Wallet Recharge Rejected: Your UTR {tx.reference_id} could not be verified by the admin team. Reason: {rejection_reason}."
+        )
+
+    messages.info(request, f"Recharge #{tx.id} rejected. Worker has been notified.")
+    return redirect('admin_payments')
 
 
 @login_required
@@ -8679,7 +9344,8 @@ def worker_verify(request, pk):
             subject='🎉 Congratulations! Your LAMO Partner Account is Approved',
             message=email_body,
             recipient_list=[worker.user.email],
-            purpose='worker_approved_activation'
+            purpose='worker_approved_activation',
+            async_send=True,
         )
     except Exception as exc:
         logging.getLogger(__name__).warning("Could not dispatch approval email to worker %s: %s", worker.id, exc)
@@ -9102,11 +9768,15 @@ def notifications_view(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
         return JsonResponse({'unread_count': unread_count})
 
+    paginator = Paginator(notifications, 20)
+    page_number = request.GET.get('page', 1)
+    notifications_page = paginator.get_page(page_number)
+
     return render(
         request,
         'notifications.html',
         {
-            'notifications': notifications,
+            'notifications': notifications_page,
             'unread_count': unread_count,
         }
     )
@@ -9644,6 +10314,10 @@ def worker_jobs(request):
 
     bookings = Booking.objects.filter(
         worker=worker
+    ).exclude(
+        status='PENDING',
+        series__isnull=False,
+        series__is_active=False
     ).select_related(
         'customer',
         'service'
@@ -9787,6 +10461,9 @@ def worker_notifications(request):
         is_read=False
     ).count()
 
+    paginator = Paginator(notifications, 20)
+    page_number = request.GET.get('page', 1)
+    notifications_page = paginator.get_page(page_number)
 
     # ==========================================
     # RENDER
@@ -9797,7 +10474,7 @@ def worker_notifications(request):
         'workers/worker_notifications.html',
         {
             'worker_profile': worker,
-            'notifications': notifications,
+            'notifications': notifications_page,
             'unread_count': unread_count,
         }
     )
@@ -10033,10 +10710,6 @@ def get_booking_upi_payment_data(booking):
 
     payee_name = worker.user.get_full_name() or worker.user.username
     worker_upi = (getattr(worker, 'upi_id', '') or '').strip()
-    if not worker_upi and getattr(worker, 'phone', ''):
-        clean_phone = re.sub(r'\D', '', str(worker.phone))[-10:]
-        if len(clean_phone) == 10:
-            worker_upi = f"{clean_phone}@upi"
 
     amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
     amount_str = f"{amount:.2f}"
@@ -10044,7 +10717,10 @@ def get_booking_upi_payment_data(booking):
     qr_b64 = None
     upi_intent_url = ""
 
-    if worker_upi and amount > 0:
+    if not worker_upi:
+        return None
+
+    if amount > 0:
         from urllib.parse import quote
         import io, base64
         encoded_name = quote(payee_name)
@@ -10159,8 +10835,7 @@ def confirm_completion(request, booking_id):
     # ==========================================
 
     if booking.worker:
-
-        Notification.objects.create(
+        _create_idempotent_notification(
             recipient=booking.worker.user,
             booking=booking,
             notification_type='BOOKING_UPDATE',
@@ -10170,18 +10845,24 @@ def confirm_completion(request, booking_id):
             )
         )
 
-        # Job completed, worker notified (Resend-aware; failures logged, never raised)
-        send_email_safely(
-            subject=f'Job Completed - Booking #{booking.id}',
-            message=(
-                f'Hi {booking.worker.user.username},\n\n'
-                f'Congratulations! The customer has confirmed that your {booking.service.name} work for Booking #{booking.id} is complete.\n\n'
-                f'Payment will be processed shortly. Thank you for your excellent service!\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            recipient_list=[booking.worker.user.email],
-            purpose='job_completed_worker_notified',
-        )
+        worker_email = booking.worker.user.email
+        worker_username = booking.worker.user.username
+        service_name = booking.service.name
+        b_id = booking.id
+
+        if worker_email:
+            send_email_safely(
+                subject=f'Job Completed - Booking #{b_id}',
+                message=(
+                    f'Hi {worker_username},\n\n'
+                    f'Congratulations! The customer has confirmed that your {service_name} work for Booking #{b_id} is complete.\n\n'
+                    f'Payment will be processed shortly. Thank you for your excellent service!\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[worker_email],
+                purpose='job_completed_worker_notified',
+                async_send=True,
+            )
 
 
     # ==========================================
@@ -10449,7 +11130,7 @@ def worker_request_completion(request, booking_id):
     # NOTIFY CUSTOMER + SEND EMAIL
     # ==========================================
 
-    Notification.objects.create(
+    _create_idempotent_notification(
         recipient=booking.customer,
         booking=booking,
         notification_type='BOOKING_UPDATE',
@@ -10460,19 +11141,25 @@ def worker_request_completion(request, booking_id):
         )
     )
 
-    # Worker requested completion, customer notified (Resend-aware; failures logged, never raised)
-    send_email_safely(
-        subject=f'Job Completed - Please Verify Booking #{booking.id}',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'The worker has completed your {booking.service.name} job with final amount ₹{final_amount:.2f}.\n\n'
-            f'Please take a moment to verify the work and confirm in your LAMO dashboard, or submit a dispute if there are any issues.\n\n'
-            f'Thank you for choosing LAMO!\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='job_completion_requested',
-    )
+    customer_email = booking.customer.email
+    customer_username = booking.customer.username
+    service_name = booking.service.name
+    b_id = booking.id
+
+    if customer_email:
+        send_email_safely(
+            subject=f'Job Completed - Please Verify Booking #{b_id}',
+            message=(
+                f'Hi {customer_username},\n\n'
+                f'The worker has completed your {service_name} job with final amount ₹{final_amount:.2f}.\n\n'
+                f'Please take a moment to verify the work and confirm in your LAMO dashboard, or submit a dispute if there are any issues.\n\n'
+                f'Thank you for choosing LAMO!\n\n'
+                f'Best regards,\nTeam LAMO'
+            ),
+            recipient_list=[customer_email],
+            purpose='job_completion_requested',
+            async_send=True,
+        )
 
 
     # ==========================================
@@ -11238,39 +11925,46 @@ def cancel_booking(request, booking_id):
         booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
         _handle_booking_cancellation_refund(booking)
 
-    # Notify worker
-    if booking.worker and booking.worker.user:
-        Notification.objects.create(
-            recipient=booking.worker.user,
-            booking=booking,
-            notification_type='BOOKING_UPDATE',
-            message=f"Booking #{booking.id} for {booking.service.name} was cancelled by the customer. Reason: {cancellation_reason}"
-        )
+        # Notify worker inside transaction
+        if booking.worker and booking.worker.user:
+            _create_idempotent_notification(
+                recipient=booking.worker.user,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f"Booking #{booking.id} for {booking.service.name} was cancelled by the customer. Reason: {cancellation_reason}"
+            )
 
-    # Notify admins
-    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
-    for admin_user in admins:
-        Notification.objects.create(
-            recipient=admin_user,
-            booking=booking,
-            notification_type='BOOKING_UPDATE',
-            message=f"Booking #{booking.id} ({booking.service.name}) was cancelled by customer {request.user.username} (Reason: {cancellation_reason})."
-        )
+        # Notify admins
+        admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+        for admin_user in admins:
+            _create_idempotent_notification(
+                recipient=admin_user,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f"Booking #{booking.id} ({booking.service.name}) was cancelled by customer {request.user.username} (Reason: {cancellation_reason})."
+            )
 
-    # Send email to worker (Resend-aware; failures logged, never raised)
-    if booking.worker and booking.worker.user:
-        send_email_safely(
-            subject=f'Booking #{booking.id} Cancelled',
-            message=(
-                f'Hi {booking.worker.user.username},\n\n'
-                f'Unfortunately, the customer has cancelled Booking #{booking.id} for {booking.service.name} on {booking.date}.\n'
-                f'Reason: {cancellation_reason}\n\n'
-                f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
-                f'Best regards,\nTeam LAMO'
-            ),
-            recipient_list=[booking.worker.user.email],
-            purpose='booking_cancelled',
-        )
+        # Send email to worker on transaction commit
+        if booking.worker and booking.worker.user and booking.worker.user.email:
+            w_email = booking.worker.user.email
+            w_username = booking.worker.user.username
+            s_name = booking.service.name
+            b_date = booking.date
+            b_id = booking.id
+            reason = cancellation_reason
+            transaction.on_commit(lambda: send_email_safely(
+                subject=f'Booking #{b_id} Cancelled',
+                message=(
+                    f'Hi {w_username},\n\n'
+                    f'Unfortunately, the customer has cancelled Booking #{b_id} for {s_name} on {b_date}.\n'
+                    f'Reason: {reason}\n\n'
+                    f'No worries! You\'re available for new bookings. Feel free to check your dashboard for new opportunities.\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[w_email],
+                purpose='booking_cancelled',
+                async_send=True,
+            ))
 
     messages.success(request, f"Booking #{booking.id} has been cancelled successfully.")
     return redirect('my_bookings')
@@ -11306,47 +12000,55 @@ def worker_cancel_booking(request, booking_id):
         booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
         _handle_booking_cancellation_refund(booking)
 
-    # Record worker cancellation for admin review
-    StrikeRecord.objects.create(
-        user=request.user,
-        worker=worker,
-        booking=booking,
-        strike_type='WORKER_LATE_CANCELLATION',
-        reason=cancellation_reason,
-        status='PENDING_REVIEW',
-        evidence=f"Worker cancelled confirmed booking #{booking.id} on date {booking.date}."
-    )
-
-    # Notify customer
-    Notification.objects.create(
-        recipient=booking.customer,
-        booking=booking,
-        notification_type='BOOKING_UPDATE',
-        message=f"The assigned worker had to cancel Booking #{booking.id} ({booking.service.name}). Reason: {cancellation_reason}. You can easily select another worker."
-    )
-
-    # Notify admin
-    admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
-    for admin_user in admins:
-        Notification.objects.create(
-            recipient=admin_user,
+        # Record worker cancellation for admin review
+        StrikeRecord.objects.create(
+            user=request.user,
+            worker=worker,
             booking=booking,
-            notification_type='BOOKING_UPDATE',
-            message=f"Worker {request.user.username} cancelled confirmed Booking #{booking.id} ({cancellation_reason}). Logged for review."
+            strike_type='WORKER_LATE_CANCELLATION',
+            reason=cancellation_reason,
+            status='PENDING_REVIEW',
+            evidence=f"Worker cancelled confirmed booking #{booking.id} on date {booking.date}."
         )
 
-    send_email_safely(
-        subject=f'Booking #{booking.id} Cancelled by Worker',
-        message=(
-            f'Hi {booking.customer.username},\n\n'
-            f'We regret to inform you that your worker had to cancel Booking #{booking.id} for {booking.service.name}.\n'
-            f'Reason: {cancellation_reason}\n\n'
-            f'You can choose another available worker right now from your bookings page.\n\n'
-            f'Best regards,\nTeam LAMO'
-        ),
-        recipient_list=[booking.customer.email],
-        purpose='worker_booking_cancelled',
-    )
+        # Notify customer
+        _create_idempotent_notification(
+            recipient=booking.customer,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"The assigned worker had to cancel Booking #{booking.id} ({booking.service.name}). Reason: {cancellation_reason}. You can easily select another worker."
+        )
+
+        # Notify admin
+        admins = CustomUser.objects.filter(role='ADMIN', is_active=True)
+        for admin_user in admins:
+            _create_idempotent_notification(
+                recipient=admin_user,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f"Worker {request.user.username} cancelled confirmed Booking #{booking.id} ({cancellation_reason}). Logged for review."
+            )
+
+        customer_email = booking.customer.email
+        customer_username = booking.customer.username
+        service_name = booking.service.name
+        b_id = booking.id
+        reason = cancellation_reason
+
+        if customer_email:
+            transaction.on_commit(lambda: send_email_safely(
+                subject=f'Booking #{b_id} Cancelled by Worker',
+                message=(
+                    f'Hi {customer_username},\n\n'
+                    f'We regret to inform you that your worker had to cancel Booking #{b_id} for {service_name}.\n'
+                    f'Reason: {reason}\n\n'
+                    f'You can choose another available worker right now from your bookings page.\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[customer_email],
+                purpose='worker_booking_cancelled',
+                async_send=True,
+            ))
 
     messages.info(request, f"Booking #{booking.id} has been cancelled. The customer was notified.")
     return redirect('worker_jobs')
@@ -11608,6 +12310,9 @@ def update_complaint_status(request, complaint_id):
         admin_remark = request.POST.get('admin_remark', '').strip()
 
         valid_statuses = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED']
+        if status in ['RESOLVED', 'REJECTED'] and not admin_remark:
+            messages.error(request, 'Please provide an admin remark/reason before resolving or rejecting a complaint.')
+            return redirect('admin_reviews_complaints')
         if status in valid_statuses:
             complaint.status = status
             complaint.admin_remark = admin_remark
@@ -11637,7 +12342,7 @@ def update_complaint_status(request, complaint_id):
             )
 
             if complaint.booking.worker:
-                Notification.objects.create(
+                _create_idempotent_notification(
                     recipient=complaint.booking.worker.user,
                     booking=complaint.booking,
                     notification_type='SYSTEM',
@@ -11657,6 +12362,7 @@ def update_complaint_status(request, complaint_id):
                 ),
                 recipient_list=[complaint.customer.email],
                 purpose='complaint_status_update',
+                async_send=True,
             )
         else:
             messages.error(request, 'Invalid complaint status.')
@@ -12228,35 +12934,17 @@ def api_booking_tracking(request, booking_id):
         base_coords = DISTRICT_COORDINATES.get(booking.district, (8.8932, 76.6141))
         c_lat, c_lng = base_coords[0], base_coords[1]
 
-    # 2. Worker Coordinates Resolution
+    # 2. Worker Coordinates Resolution (Restricted to Active Ongoing Bookings)
     worker_data = None
     w_lat = None
     w_lng = None
     distance_km = None
     eta_minutes = None
 
+    is_active_tracking = booking.status in ('ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED')
+
     if booking.worker:
         w = booking.worker
-        w_lat = w.latitude
-        w_lng = w.longitude
-
-        # Fallback to worker district if worker hasn't shared exact coordinates
-        if w_lat is None or w_lng is None:
-            w_base = DISTRICT_COORDINATES.get(w.district, (c_lat, c_lng))
-            # Slight realistic offset (approx ~1.5 - 2 km) if placed in same district center
-            w_lat = round(w_base[0] + 0.0125, 5)
-            w_lng = round(w_base[1] + 0.0140, 5)
-
-        # Distance & ETA calculations
-        distance_val = haversine_km(w_lat, w_lng, c_lat, c_lng)
-        distance_km = round(distance_val, 1)
-
-        if distance_km < 0.15:
-            eta_minutes = 1
-        else:
-            # Average urban speed in Kerala: ~22 km/h
-            travel_mins = int(round((distance_km / 22.0) * 60.0))
-            eta_minutes = max(3, travel_mins)
 
         # Worker avatar
         avatar_url = None
@@ -12266,15 +12954,48 @@ def api_booking_tracking(request, booking_id):
             except Exception:
                 avatar_url = None
 
-        worker_data = {
-            'id': w.id,
-            'name': w.user.get_full_name() or w.user.username,
-            'avatar': avatar_url,
-            'rating': float(w.average_rating) if getattr(w, 'average_rating', None) else 4.9,
-            'current_place': w.current_place or w.district or "Nearby Service Zone",
-            'latitude': round(float(w_lat), 6),
-            'longitude': round(float(w_lng), 6),
-        }
+        if is_active_tracking:
+            w_lat = w.latitude
+            w_lng = w.longitude
+
+            # Fallback to worker district if worker hasn't shared exact coordinates
+            if w_lat is None or w_lng is None:
+                w_base = DISTRICT_COORDINATES.get(w.district, (c_lat, c_lng))
+                # Slight realistic offset (approx ~1.5 - 2 km) if placed in same district center
+                w_lat = round(w_base[0] + 0.0125, 5)
+                w_lng = round(w_base[1] + 0.0140, 5)
+
+            # Distance & ETA calculations
+            distance_val = haversine_km(w_lat, w_lng, c_lat, c_lng)
+            distance_km = round(distance_val, 1)
+
+            if distance_km < 0.15:
+                eta_minutes = 1
+            else:
+                # Average urban speed in Kerala: ~22 km/h
+                travel_mins = int(round((distance_km / 22.0) * 60.0))
+                eta_minutes = max(3, travel_mins)
+
+            worker_data = {
+                'id': w.id,
+                'name': w.user.get_full_name() or w.user.username,
+                'avatar': avatar_url,
+                'rating': float(w.average_rating) if getattr(w, 'average_rating', None) else 4.9,
+                'current_place': w.current_place or w.district or "Nearby Service Zone",
+                'latitude': round(float(w_lat), 6),
+                'longitude': round(float(w_lng), 6),
+            }
+        else:
+            # Privacy protection: Zero live location exposure for terminal / inactive bookings
+            worker_data = {
+                'id': w.id,
+                'name': w.user.get_full_name() or w.user.username,
+                'avatar': avatar_url,
+                'rating': float(w.average_rating) if getattr(w, 'average_rating', None) else 4.9,
+                'current_place': None,
+                'latitude': None,
+                'longitude': None,
+            }
 
     # 3. Status Description & Journey Stage
     status_text = "Booking is confirmed"
@@ -12350,6 +13071,16 @@ def api_worker_update_coordinates(request):
     # Basic Kerala boundary validation: Lat 8.0-13.0, Lng 74.5-77.8
     if not (8.0 <= lat <= 13.0 and 74.5 <= lng <= 77.8):
         return JsonResponse({'success': False, 'error': 'Coordinates outside Kerala service range.'}, status=400)
+
+    # If updating location in context of a specific booking, prevent updates for terminal bookings
+    booking_id = data.get('booking_id')
+    if booking_id:
+        try:
+            b = Booking.objects.get(id=booking_id, worker=request.user.worker_profile)
+            if b.status in ('COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'):
+                return JsonResponse({'success': False, 'error': f'Cannot update location for a {b.status.lower()} booking.'}, status=400)
+        except Booking.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Associated booking not found.'}, status=404)
 
     worker = request.user.worker_profile
     worker.latitude = lat
@@ -12507,6 +13238,10 @@ def worker_propose_reschedule(request, booking_id):
     if booking.status != 'PENDING':
         messages.error(request, 'Reschedule proposals can only be made on pending job requests.')
         return redirect('worker_jobs')
+
+    if booking.series and not booking.series.is_active:
+        messages.error(request, 'Cannot propose reschedule: The customer has paused this recurring series.')
+        return redirect('worker_jobs')
         
     proposed_date_str = request.POST.get('proposed_date', '').strip()
     proposed_time_str = request.POST.get('proposed_time', '').strip()
@@ -12564,30 +13299,48 @@ def customer_accept_reschedule(request, booking_id):
     """Customer accepts worker's proposed counter-offer; booking is confirmed and scheduled."""
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
-        
-    booking = get_object_or_404(Booking.objects.select_related('customer', 'worker__user', 'service'), id=booking_id)
-    if booking.customer != request.user:
-        messages.error(request, 'Unauthorized action.')
-        return redirect('my_bookings')
-        
-    if not booking.has_pending_reschedule:
-        messages.error(request, 'No pending reschedule proposal found for this booking.')
-        return redirect('my_bookings')
-        
-    new_date = booking.proposed_date
-    new_time = booking.proposed_time
-    start_t, end_t = parse_time_range(new_time)
-    
-    booking.date = new_date
-    booking.time = new_time
-    booking.start_time = start_t
-    booking.end_time = end_t
-    booking.status = 'ACCEPTED'
-    booking.proposed_date = None
-    booking.proposed_time = None
-    booking.reschedule_note = None
-    booking.generate_arrival_otp()
-    booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'status', 'proposed_date', 'proposed_time', 'reschedule_note', 'arrival_otp', 'worker_badge_code', 'updated_at'])
+
+    with transaction.atomic():
+        booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('customer', 'worker__user', 'service'),
+            id=booking_id
+        )
+        if booking.customer != request.user:
+            messages.error(request, 'Unauthorized action.')
+            return redirect('my_bookings')
+            
+        if not booking.has_pending_reschedule:
+            messages.error(request, 'No pending reschedule proposal found for this booking.')
+            return redirect('my_bookings')
+            
+        new_date = booking.proposed_date
+        new_time = booking.proposed_time
+        start_t, end_t = parse_time_range(new_time)
+
+        # Re-validate worker availability under exclusive WorkerProfile row lock
+        if booking.worker:
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=booking.worker.id)
+            try:
+                if WorkerLeave.objects.filter(worker=locked_worker, leave_date=new_date).exists():
+                    messages.error(request, 'Worker is currently marked on leave on the proposed date. Please decline and request an alternative time.')
+                    return redirect('my_bookings')
+            except Exception:
+                pass
+
+            if has_worker_schedule_conflict(locked_worker, booking_date=new_date, start_time=start_t, end_time=end_t, time_value=new_time, exclude_booking_id=booking.id):
+                messages.error(request, 'Worker is no longer available at this proposed time due to another booking. Please decline to keep the original request or cancel.')
+                return redirect('my_bookings')
+
+        booking.date = new_date
+        booking.time = new_time
+        booking.start_time = start_t
+        booking.end_time = end_t
+        booking.status = 'ACCEPTED'
+        booking.proposed_date = None
+        booking.proposed_time = None
+        booking.reschedule_note = None
+        booking.generate_arrival_otp()
+        booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'status', 'proposed_date', 'proposed_time', 'reschedule_note', 'arrival_otp', 'worker_badge_code', 'updated_at'])
     
     cust_name = request.user.get_full_name() or request.user.username
     if booking.worker and booking.worker.user:

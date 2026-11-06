@@ -624,8 +624,8 @@
                         <p style="color: #64748b; font-size: 14px; max-width: 480px; margin: 0 auto 20px;">
                             We couldn't find any verified {{ service.name|lower }} workers in {{ district }} right now. Try selecting another district in the filter to find available professionals.
                         </p>
-                        <a href="{% url 'service_detail' service.id %}" class="pill-back-btn" style="margin: 0;">
-                            <i class="bi bi-geo-alt-fill"></i> Try Another Service
+                        <a href="{% url 'service_page' %}" class="pill-back-btn" style="margin: 0;">
+                            <i class="bi bi-grid-fill"></i> Browse Other Services
                         </a>
                     </div>
                 {% endif %}

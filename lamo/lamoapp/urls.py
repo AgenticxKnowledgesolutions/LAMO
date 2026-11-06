@@ -135,6 +135,16 @@ urlpatterns = [
         views.admin_confirm_payment,
         name='admin_confirm_payment',
     ),
+    path(
+        'admin-dashboard/wallet-recharge/<int:tx_id>/approve/',
+        views.admin_approve_wallet_recharge,
+        name='admin_approve_wallet_recharge',
+    ),
+    path(
+        'admin-dashboard/wallet-recharge/<int:tx_id>/reject/',
+        views.admin_reject_wallet_recharge,
+        name='admin_reject_wallet_recharge',
+    ),
     path('admin-dashboard/bookings/<int:booking_id>/', views.admin_booking_view, name='admin_booking_view'),
     path('admin-dashboard/reviews-complaints/', views.admin_reviews_complaints, name='admin_reviews_complaints'),
     path('admin-dashboard/contact-enquiries/', views.admin_contact_enquiries, name='admin_contact_enquiries'),

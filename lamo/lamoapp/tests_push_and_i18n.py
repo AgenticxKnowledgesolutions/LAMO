@@ -119,15 +119,35 @@ class WebPushNotificationTests(TestCase):
 
     @patch('lamoapp.push_utils.send_web_push_async')
     def test_notification_creation_triggers_automated_push(self, mock_send_push):
-        """Notification.objects.create automatically triggers send_web_push_async."""
-        notif = Notification.objects.create(
-            recipient=self.user,
-            notification_type='BOOKING',
-            message='Your electrician has accepted booking #16.'
-        )
+        """Notification.objects.create automatically triggers send_web_push_async via on_commit."""
+        with self.captureOnCommitCallbacks(execute=True):
+            notif = Notification.objects.create(
+                recipient=self.user,
+                notification_type='BOOKING',
+                message='Your electrician has accepted booking #16.'
+            )
         self.assertIsNotNone(notif.pk)
         mock_send_push.assert_called_once()
         args = mock_send_push.call_args[0]
         self.assertEqual(args[0], self.user)
         self.assertIn('Booking', args[1])
         self.assertEqual(args[2], 'Your electrician has accepted booking #16.')
+
+    @patch('lamoapp.push_utils.send_web_push_async')
+    def test_notification_in_rolled_back_transaction_does_not_dispatch_push(self, mock_send_push):
+        """Notification created inside a transaction that rolls back never triggers Web Push."""
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                Notification.objects.create(
+                    recipient=self.user,
+                    notification_type='BOOKING',
+                    message='This transaction will fail.'
+                )
+                raise RuntimeError("Simulated DB failure causing rollback")
+        except RuntimeError:
+            pass
+
+        # Since transaction rolled back, on_commit callbacks must NOT execute
+        mock_send_push.assert_not_called()
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 0)

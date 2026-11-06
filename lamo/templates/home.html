@@ -956,22 +956,4 @@
 }
 </script>
 
-{% if not user.is_authenticated %}
-<div id="lamoLoginOverlay" class="d-none" aria-hidden="true" style="display:none;">
-  <form id="lamoAutoLoginForm"></form>
-  <button type="button" id="lamoLoginClose" aria-label="Close"></button>
-</div>
-<script>
-  (function () {
-    try {
-      localStorage.removeItem("lamo_login_popup_shown");
-      var fromSplash = sessionStorage.getItem("lamo_from_splash");
-      var shown = sessionStorage.getItem("lamo_login_popup_shown");
-      function dismissPopup() {
-        sessionStorage.setItem("lamo_login_popup_dismissed", "true");
-      }
-    } catch (e) {}
-  })();
-</script>
-{% endif %}
 {% endblock %}

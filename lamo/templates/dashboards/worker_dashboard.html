@@ -305,7 +305,7 @@ Worker Dashboard | LAMO
                                 {% csrf_token %}
                                 <button type="submit" class="btn-accept">Accept</button>
                             </form>
-                            <a href="{% url 'worker_jobs' %}" class="btn-view" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-weight:700;" title="Propose different time">Counter-Offer</a>
+                            <a href="{% url 'worker_jobs' %}?reschedule={{ booking.id }}" class="btn-view" style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-weight:700;" title="Propose different time">Counter-Offer</a>
                             <form method="POST" action="{% url 'worker_reject_booking' booking.id %}">
                                 {% csrf_token %}
                                 <button type="submit" class="btn-reject">Reject</button>
@@ -510,16 +510,29 @@ Worker Dashboard | LAMO
                     {% if recent_wallet_transactions %}
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         {% for tx in recent_wallet_transactions|slice:":4" %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 6px 0; border-bottom: 1px solid #f3f4f6;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
                             <div>
-                                <div style="font-weight: 600; color: #1f2937;">{{ tx.get_transaction_type_display }}</div>
+                                <div style="font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 6px;">
+                                    {{ tx.get_transaction_type_display }}
+                                    {% if tx.transaction_type == 'RECHARGE_PENDING' %}
+                                        <span style="background: #fef3c7; color: #92400e; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">Pending Verification</span>
+                                    {% elif tx.transaction_type == 'RECHARGE' %}
+                                        <span style="background: #d1fae5; color: #065f46; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">Approved</span>
+                                    {% elif tx.transaction_type == 'RECHARGE_REJECTED' %}
+                                        <span style="background: #fee2e2; color: #991b1b; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid #fecaca;">Rejected</span>
+                                    {% endif %}
+                                </div>
                                 <small style="color: #6b7280; font-size: 0.72rem;">{{ tx.created_at|date:"M d, h:i A" }} {% if tx.reference_id %}&bull; {{ tx.reference_id }}{% endif %}</small>
                             </div>
                             <div style="text-align: right;">
-                                <div style="font-weight: 700; color: {% if tx.amount < 0 %}#dc2626{% else %}#059669{% endif %};">
-                                    {% if tx.amount > 0 %}+{% endif %}₹{{ tx.amount|floatformat:2 }}
+                                <div style="font-weight: 700; color: {% if tx.transaction_type == 'RECHARGE_PENDING' %}#d97706{% elif tx.transaction_type == 'RECHARGE_REJECTED' %}#9ca3af{% elif tx.amount < 0 %}#dc2626{% else %}#059669{% endif %};">
+                                    {% if tx.transaction_type == 'RECHARGE_PENDING' %}
+                                        &#8377;{{ tx.notes|slice:"24:35"|default:"-" }}
+                                    {% else %}
+                                        {% if tx.amount > 0 %}+{% endif %}&#8377;{{ tx.amount|floatformat:2 }}
+                                    {% endif %}
                                 </div>
-                                <small style="color: #9ca3af; font-size: 0.72rem;">Bal: ₹{{ tx.balance_after|floatformat:2 }}</small>
+                                <small style="color: #9ca3af; font-size: 0.72rem;">Bal: &#8377;{{ tx.balance_after|floatformat:2 }}</small>
                             </div>
                         </div>
                         {% endfor %}
@@ -777,16 +790,16 @@ Worker Dashboard | LAMO
 
           <div class="wallet-form-group" style="margin-bottom: 0;">
             <label for="id_recharge_reference" class="wallet-form-label">
-              UPI Reference / UTR Number <small style="color: #64748b; font-weight: normal;">(Optional)</small>
+              UPI 12-Digit Reference / UTR Number <span style="color: #dc2626;">*</span>
             </label>
-            <input type="text" name="reference_id" id="id_recharge_reference" class="wallet-text-input" placeholder="e.g. 331298475620 or UPI transaction ID">
-            <small class="wallet-help-text">Helps match your payment instantly.</small>
+            <input type="text" name="reference_id" id="id_recharge_reference" class="wallet-text-input" placeholder="e.g. 331298475620 or UPI transaction ID" required minlength="6" maxlength="100">
+            <small class="wallet-help-text">Mandatory bank transaction ID to verify payment reconciliation.</small>
           </div>
         </div>
         <div class="wallet-modal-footer">
           <button type="button" class="wallet-btn-cancel" data-bs-dismiss="modal" id="cancelRechargeModalBtn">Cancel</button>
           <button type="submit" class="wallet-btn-submit" id="submitRechargeBtn">
-            <i class="bi bi-shield-check"></i> Confirm & Apply Payment
+            <i class="bi bi-shield-check"></i> Submit Recharge Request
           </button>
         </div>
       </form>

@@ -85,16 +85,8 @@ class UserProfileForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'District',
             }),
-            'latitude': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Latitude',
-                'step': 'any',
-            }),
-            'longitude': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Longitude',
-                'step': 'any',
-            }),
+            'latitude': forms.HiddenInput(),
+            'longitude': forms.HiddenInput(),
             'profile_image': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': '.jpg,.jpeg,.png,.webp',
@@ -109,6 +101,28 @@ class UserProfileForm(forms.ModelForm):
                 'type': 'date',
             }),
         }
+    def clean_latitude(self):
+        lat = self.cleaned_data.get('latitude')
+        if lat is not None:
+            try:
+                lat_val = float(lat)
+                if lat_val < -90.0 or lat_val > 90.0:
+                    raise forms.ValidationError('Latitude must be between -90 and 90 degrees.')
+            except (ValueError, TypeError):
+                raise forms.ValidationError('Invalid latitude coordinate.')
+        return lat
+
+    def clean_longitude(self):
+        lng = self.cleaned_data.get('longitude')
+        if lng is not None:
+            try:
+                lng_val = float(lng)
+                if lng_val < -180.0 or lng_val > 180.0:
+                    raise forms.ValidationError('Longitude must be between -180 and 180 degrees.')
+            except (ValueError, TypeError):
+                raise forms.ValidationError('Invalid longitude coordinate.')
+        return lng
+
 class WorkerProfileForm(forms.ModelForm):
 
     class Meta:
@@ -180,17 +194,8 @@ class WorkerProfileForm(forms.ModelForm):
                 'rows': 3,
             }),
 
-            'latitude': forms.NumberInput(attrs={
-                'class': 'worker-input',
-                'placeholder': 'Latitude',
-                'step': 'any',
-            }),
-
-            'longitude': forms.NumberInput(attrs={
-                'class': 'worker-input',
-                'placeholder': 'Longitude',
-                'step': 'any',
-            }),
+            'latitude': forms.HiddenInput(),
+            'longitude': forms.HiddenInput(),
 
             'proof_document': forms.FileInput(attrs={
                 'class': 'worker-file',

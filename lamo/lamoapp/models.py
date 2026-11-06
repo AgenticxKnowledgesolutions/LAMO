@@ -1108,7 +1108,7 @@ class Booking(models.Model):
 
         null=True,
 
-        help_text="6-digit OTP for worker arrival verification"
+        help_text="4-digit secure doorstep arrival PIN"
 
     )
 
@@ -1974,9 +1974,15 @@ class WalletTransaction(models.Model):
 
         max_length=100,
 
+        unique=True,
+
+        null=True,
+
         blank=True,
 
-        default=''
+        default=None,
+
+        help_text="Bank transaction reference / UTR number for manual recharges (unique when present)"
 
     )
 
@@ -2476,6 +2482,8 @@ class Notification(models.Model):
 
             try:
 
+                from django.db import transaction
+
                 from .push_utils import send_web_push_async
 
                 type_titles = {
@@ -2496,7 +2504,11 @@ class Notification(models.Model):
 
                 target_url = self.get_target_url()
 
-                send_web_push_async(self.recipient, title, self.message, target_url)
+                recipient = self.recipient
+
+                msg = self.message
+
+                transaction.on_commit(lambda: send_web_push_async(recipient, title, msg, target_url))
 
             except Exception as e:
 

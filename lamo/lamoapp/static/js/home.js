@@ -857,11 +857,12 @@
     // Handle Browser Back / Forward buttons (popstate)
     window.addEventListener("popstate", function () {
       const urlParams = new URLSearchParams(window.location.search);
-      const district = urlParams.get("district") || "Kollam";
+      const currentSelected = districtSelect ? districtSelect.value : "";
+      const district = urlParams.get("district") || currentSelected || "Kollam";
       const query = urlParams.get("search") || "";
       const category = urlParams.get("category") || "all";
 
-      if (districtSelect) districtSelect.value = district;
+      if (districtSelect && district) districtSelect.value = district;
       if (searchInput) searchInput.value = query;
       setActiveCategoryPill(category);
 

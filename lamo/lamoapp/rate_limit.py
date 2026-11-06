@@ -72,7 +72,11 @@ def client_ip(request):
 
 def is_rate_limited(key, threshold):
     """True when the counter for ``key`` has reached ``threshold``."""
-    return int(cache.get(key, 0) or 0) >= threshold
+    try:
+        return int(cache.get(key, 0) or 0) >= threshold
+    except Exception as exc:
+        logger.warning('Cache read failed for key=%s: %s', key[:12], exc)
+        return False
 
 
 def _expiry_key(key):
