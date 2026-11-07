@@ -605,8 +605,8 @@
       const servicesSection = document.getElementById("services");
       if (!servicesSection) return;
 
-      // Scroll smoothly with offset for header navbar
-      const navbarHeight = 85;
+      // Instant, direct smooth scroll with offset for header navbar
+      const navbarHeight = 80;
       const targetPos = servicesSection.getBoundingClientRect().top + window.pageYOffset - navbarHeight;
       window.scrollTo({
         top: Math.max(0, targetPos),
@@ -627,7 +627,7 @@
               }, 2600);
             }
           });
-        }, 500);
+        }, 300);
       }
     }
 

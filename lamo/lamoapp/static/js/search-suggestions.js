@@ -288,9 +288,10 @@
                 // Trigger form submission or change event
                 const form = input.closest('form');
                 if (form) {
+                    closeDropdown();
                     // If on homepage with AJAX handler
                     if (typeof window.fetchFilteredServices === 'function') {
-                        window.fetchFilteredServices({ query: q });
+                        window.fetchFilteredServices({ query: q, scrollToResults: true, showDropdown: false });
                     } else {
                         form.submit();
                     }
