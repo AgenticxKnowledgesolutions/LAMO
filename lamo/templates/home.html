@@ -7,11 +7,11 @@
 {% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/home.js' %}?v=backend_data_1.2" defer></script>
+<script src="{% static 'js/home.js' %}?v=backend_data_1.3" defer></script>
 {% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.4">
+<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.5">
 {% endblock %}
 
 {% block hero %}
@@ -98,6 +98,9 @@
                       style="{% if not query %}display:none;{% endif %}">
                 <i class="bi bi-x-circle-fill"></i>
               </button>
+
+              <!-- Live Autocomplete Suggestion Dropdown (Option 3) -->
+              <div class="search-autocomplete-dropdown" id="searchAutocompleteDropdown" style="display: none;" role="listbox" aria-label="Service Suggestions"></div>
             </div>
 
             <!-- Submit Button -->
@@ -140,10 +143,10 @@
       <!-- RIGHT: Space for Hero Art (Technician + Customer fixing lamp) -->
       <div class="col-lg-5 col-xl-5 position-relative hero-art-col d-none d-lg-block">
         <!-- Script Calligraphy Tagline on Top Right -->
-        <div class="hero-script-tagline" data-aos="fade-down" data-aos-delay="200">
+        <!-- <div class="hero-script-tagline" data-aos="fade-down" data-aos-delay="200">
           <span>Skilled People,</span>
           <span>Happier Homes</span>
-        </div>
+        </div> -->
 
         <!-- Floating Badge on Bottom Right -->
         <div class="hero-floating-card" data-aos-delay="300">
