@@ -76,9 +76,6 @@
     const districtSelect = document.getElementById("heroDistrictSelect");
     const searchInput = document.getElementById("liveServiceSearch") || document.getElementById("heroServiceSearch");
     const clearSearchBtn = document.getElementById("clearSearchBtn") || document.getElementById("clearHeroSearchBtn");
-    const autocompleteDropdown = document.getElementById("searchAutocompleteDropdown");
-    let activeDropdownIndex = -1;
-    let latestFetchedServices = [];
     const btnUseLocation = document.getElementById("btnHeroUseLocation");
 
     const servicesGrid = document.getElementById("servicesGrid");
@@ -485,128 +482,14 @@
     }
 
     // -------------------------------------------------------------
-    // 2B. AUTOCOMPLETE DROPDOWN & SMOOTH SCROLL (Option 3 UX)
+    // 2B. INSTANT AUTO-SCROLL CONTROLLER
     // -------------------------------------------------------------
-    function hideAutocompleteDropdown() {
-      if (autocompleteDropdown) {
-        autocompleteDropdown.style.display = "none";
-        autocompleteDropdown.innerHTML = "";
-        activeDropdownIndex = -1;
-      }
-    }
-
-    function renderAutocompleteDropdown(services, query, selectedDistrict) {
-      if (!autocompleteDropdown) return;
-      if (!query || query.trim().length === 0) {
-        hideAutocompleteDropdown();
-        return;
-      }
-
-      const q = query.trim().toLowerCase();
-      // Filter services matching query
-      const matches = services.filter(function (s) {
-        return (s.name || "").toLowerCase().includes(q) ||
-               (s.description || "").toLowerCase().includes(q) ||
-               (s.category || "").toLowerCase().includes(q);
-      }).slice(0, 5); // top 5 most relevant instant suggestions
-
-      if (matches.length === 0) {
-        autocompleteDropdown.innerHTML = `
-          <div class="search-autocomplete-empty">
-            <i class="bi bi-search text-muted mb-2 d-block" style="font-size: 1.4rem;"></i>
-            <span>No services matching "<strong>${escapeHtml(query)}</strong>" in ${escapeHtml(selectedDistrict || "Kerala")}</span>
-          </div>
-        `;
-        autocompleteDropdown.style.display = "block";
-        return;
-      }
-
-      let dropdownHtml = "";
-      matches.forEach(function (s, index) {
-        const name = s.name || "";
-        // Highlight matching substring
-        const matchIdx = name.toLowerCase().indexOf(q);
-        let highlightedName = escapeHtml(name);
-        if (matchIdx !== -1) {
-          const before = name.substring(0, matchIdx);
-          const matched = name.substring(matchIdx, matchIdx + q.length);
-          const after = name.substring(matchIdx + q.length);
-          highlightedName = `${escapeHtml(before)}<mark>${escapeHtml(matched)}</mark>${escapeHtml(after)}`;
-        }
-
-        let thumb = s.image_url;
-        if (!thumb) {
-          const nLower = name.toLowerCase();
-          if (nLower.includes("plumb")) thumb = "/static/img/plumber.webp";
-          else if (nLower.includes("electr")) thumb = "/static/img/electrician.webp";
-          else if (nLower.includes("clean")) thumb = "/static/img/cleaning.png";
-          else if (nLower.includes("paint")) thumb = "/static/img/painter.webp";
-          else if (nLower.includes("ac")) thumb = "/static/img/ac-repair.webp";
-          else if (nLower.includes("carpent")) thumb = "/static/img/carpenter.webp";
-          else if (nLower.includes("appliance")) thumb = "/static/img/appliance.webp";
-          else thumb = "/static/img/general.png";
-        }
-
-        let metaText = "";
-        if (s.worker_count > 0) {
-          metaText = `${s.worker_count} verified expert${s.worker_count > 1 ? "s" : ""}`;
-        } else {
-          metaText = "Available in district";
-        }
-
-        let priceHtml = "";
-        if (s.starting_price) {
-          priceHtml = `<span class="search-autocomplete-price">&#8377;${parseFloat(s.starting_price).toFixed(0)}</span>`;
-        }
-
-        dropdownHtml += `
-          <a href="${s.url}" class="search-autocomplete-item" data-index="${index}" role="option">
-            <div class="search-autocomplete-left">
-              <img src="${thumb}" alt="${escapeHtml(name)}" class="search-autocomplete-thumb" onerror="this.onerror=null;this.src='/static/img/general.png';">
-              <div>
-                <div class="search-autocomplete-name">${highlightedName}</div>
-                <div class="search-autocomplete-meta">
-                  <span>${metaText}</span>
-                  ${s.rating ? `<span>&bull;</span> <i class="bi bi-star-fill text-warning" style="font-size: 11px;"></i> <span>${s.rating.toFixed(1)}</span>` : ""}
-                </div>
-              </div>
-            </div>
-            <div class="search-autocomplete-right">
-              ${priceHtml}
-              <i class="bi bi-chevron-right search-autocomplete-arrow"></i>
-            </div>
-          </a>
-        `;
-      });
-
-      dropdownHtml += `
-        <div class="search-autocomplete-footer">
-          <span>Press <strong>Enter</strong> to view all results below</span>
-          <a href="#services" id="btnDropdownViewAll">View in Grid &darr;</a>
-        </div>
-      `;
-
-      autocompleteDropdown.innerHTML = dropdownHtml;
-      autocompleteDropdown.style.display = "block";
-      activeDropdownIndex = -1;
-
-      // Click handler for View in Grid link
-      const viewAllLink = document.getElementById("btnDropdownViewAll");
-      if (viewAllLink) {
-        viewAllLink.addEventListener("click", function (e) {
-          e.preventDefault();
-          hideAutocompleteDropdown();
-          scrollToServicesSection(query);
-        });
-      }
-    }
-
     function scrollToServicesSection(query) {
       const servicesSection = document.getElementById("services");
       if (!servicesSection) return;
 
       // Instant, direct smooth scroll with offset for header navbar
-      const navbarHeight = 80;
+      const navbarHeight = 70;
       const targetPos = servicesSection.getBoundingClientRect().top + window.pageYOffset - navbarHeight;
       window.scrollTo({
         top: Math.max(0, targetPos),
@@ -627,9 +510,32 @@
               }, 2600);
             }
           });
-        }, 300);
+        }, 320);
       }
     }
+    window.scrollToServicesSection = scrollToServicesSection;
+
+    function triggerHeroSearch(query) {
+      const q = (query !== undefined ? query : (searchInput ? searchInput.value : "")).trim();
+      if (searchInput) searchInput.value = q;
+      if (clearSearchBtn) clearSearchBtn.style.display = q.length > 0 ? "inline-flex" : "none";
+
+      // Close search suggestions dropdown if open
+      const drop = document.querySelector(".search-suggestions-dropdown");
+      if (drop) drop.classList.remove("is-open");
+
+      // 1. INSTANT SMOOTH SCROLL (0ms delay, starts scrolling immediately!)
+      scrollToServicesSection(q);
+
+      // 2. Concurrently fetch and render matching cards
+      fetchFilteredServices({
+        district: districtSelect ? districtSelect.value : "",
+        query: q,
+        scrollToResults: false,
+        showDropdown: false
+      });
+    }
+    window.triggerHeroSearch = triggerHeroSearch;
 
     // -------------------------------------------------------------
     // 3. LIVE BACKEND AJAX FETCHING
@@ -746,14 +652,7 @@
               renderServiceCards(data.services, selectedDistrict);
             }
 
-            // Update Instant Dropdown if search is actively focused and query is present
-            if (shouldShowDropdown && query && query.length > 0) {
-              renderAutocompleteDropdown(data.services || [], query, selectedDistrict);
-            } else if (!query || query.length === 0) {
-              hideAutocompleteDropdown();
-            }
-
-            // Smooth Auto-scroll to results if requested (e.g. on Enter, Submit, or Category Click)
+            // Smooth Auto-scroll to results if requested
             if (shouldScrollToResults) {
               scrollToServicesSection(query);
             }
@@ -794,100 +693,27 @@
         if (clearSearchBtn) {
           clearSearchBtn.style.display = val.length > 0 ? "inline-flex" : "none";
         }
-        if (val.length === 0) {
-          hideAutocompleteDropdown();
-        }
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(function () {
-          fetchFilteredServices({ query: val, showDropdown: true, scrollToResults: false });
+          fetchFilteredServices({ query: val, showDropdown: false, scrollToResults: false });
         }, 220);
       });
 
-      searchInput.addEventListener("focus", function () {
-        const val = searchInput.value.trim();
-        if (val.length > 0) {
-          if (latestFetchedServices && latestFetchedServices.length > 0) {
-            renderAutocompleteDropdown(latestFetchedServices, val, districtSelect ? districtSelect.value : "");
-          } else {
-            fetchFilteredServices({ query: val, showDropdown: true, scrollToResults: false });
-          }
-        }
-      });
-
       searchInput.addEventListener("keydown", function (e) {
-        if (!autocompleteDropdown || autocompleteDropdown.style.display === "none") {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            clearTimeout(searchDebounceTimer);
-            fetchFilteredServices({
-              query: searchInput.value.trim(),
-              scrollToResults: true,
-              showDropdown: false
-            });
-          }
-          return;
-        }
-
-        const items = autocompleteDropdown.querySelectorAll(".search-autocomplete-item");
-        if (e.key === "ArrowDown") {
+        if (e.key === "Enter") {
           e.preventDefault();
-          if (items.length === 0) return;
-          activeDropdownIndex = (activeDropdownIndex + 1) % items.length;
-          items.forEach(function (item, idx) {
-            item.classList.toggle("active", idx === activeDropdownIndex);
-          });
-          if (items[activeDropdownIndex]) {
-            items[activeDropdownIndex].scrollIntoView({ block: "nearest" });
-          }
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          if (items.length === 0) return;
-          activeDropdownIndex = (activeDropdownIndex - 1 + items.length) % items.length;
-          items.forEach(function (item, idx) {
-            item.classList.toggle("active", idx === activeDropdownIndex);
-          });
-          if (items[activeDropdownIndex]) {
-            items[activeDropdownIndex].scrollIntoView({ block: "nearest" });
-          }
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          if (activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
-            // User selected an item with keyboard
-            items[activeDropdownIndex].click();
-          } else {
-            // General enter: hide dropdown and scroll down to results
-            hideAutocompleteDropdown();
-            clearTimeout(searchDebounceTimer);
-            fetchFilteredServices({
-              query: searchInput.value.trim(),
-              scrollToResults: true,
-              showDropdown: false
-            });
-          }
-        } else if (e.key === "Escape") {
-          hideAutocompleteDropdown();
+          clearTimeout(searchDebounceTimer);
+          triggerHeroSearch(searchInput.value.trim());
         }
       });
     }
 
-    // Close autocomplete on click outside
-    document.addEventListener("click", function (e) {
-      if (!e.target.closest(".search-query-wrap") && !e.target.closest(".search-autocomplete-dropdown")) {
-        hideAutocompleteDropdown();
-      }
-    });
-
     if (heroForm) {
       heroForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        hideAutocompleteDropdown();
         clearTimeout(searchDebounceTimer);
-        fetchFilteredServices({
-          district: districtSelect ? districtSelect.value : "",
-          query: searchInput ? searchInput.value.trim() : "",
-          scrollToResults: true,
-          showDropdown: false
-        });
+        const q = searchInput ? searchInput.value.trim() : "";
+        triggerHeroSearch(q);
       });
     }
 
@@ -898,8 +724,7 @@
           searchInput.focus();
         }
         clearSearchBtn.style.display = "none";
-        hideAutocompleteDropdown();
-        fetchFilteredServices({ query: "", showDropdown: false });
+        triggerHeroSearch("");
       });
     }
 

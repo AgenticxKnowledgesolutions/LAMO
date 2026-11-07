@@ -29,17 +29,18 @@
     }
 
     function setupInputSuggestions(input) {
-        const queryWrap = input.closest('.search-query-wrap') || input.parentElement;
-        if (!queryWrap) return;
+        const capsuleBar = input.closest('.search-capsule-bar');
+        const container = capsuleBar || input.closest('.search-query-wrap') || input.parentElement;
+        if (!container) return;
 
         // Create or find dropdown element
-        let dropdown = queryWrap.querySelector('.search-suggestions-dropdown');
+        let dropdown = container.querySelector('.search-suggestions-dropdown');
         if (!dropdown) {
             dropdown = document.createElement('div');
             dropdown.className = 'search-suggestions-dropdown';
             dropdown.setAttribute('role', 'listbox');
             dropdown.setAttribute('aria-label', 'Search Suggestions');
-            queryWrap.appendChild(dropdown);
+            container.appendChild(dropdown);
         }
 
         let debounceTimer = null;
@@ -63,13 +64,49 @@
             dropdown.classList.add('is-open');
         }
 
+        function selectAndSubmit(query) {
+            const trimmed = (query !== undefined ? query : input.value).trim();
+            input.value = trimmed;
+            closeDropdown();
+
+            // Toggle clear button
+            const clearBtn = document.getElementById('clearSearchBtn') || document.getElementById('clearHeroSearchBtn');
+            if (clearBtn) {
+                clearBtn.style.display = trimmed ? 'inline-flex' : 'none';
+            }
+
+            // 1. If on homepage with triggerHeroSearch
+            if (typeof window.triggerHeroSearch === 'function') {
+                window.triggerHeroSearch(trimmed);
+                return;
+            }
+
+            // 2. If on homepage with fetchFilteredServices and scrollToServicesSection
+            if (typeof window.fetchFilteredServices === 'function') {
+                if (typeof window.scrollToServicesSection === 'function') {
+                    window.scrollToServicesSection(trimmed);
+                }
+                window.fetchFilteredServices({ query: trimmed, scrollToResults: true, showDropdown: false });
+                return;
+            }
+
+            // 3. Fallback form submission or redirect
+            const form = input.closest('form');
+            if (form) {
+                form.submit();
+            } else {
+                const district = getActiveDistrict();
+                window.location.href = `/?search=${encodeURIComponent(trimmed)}&district=${encodeURIComponent(district)}#services`;
+            }
+        }
+
         function renderPopular(popularList) {
             const items = popularList && popularList.length ? popularList : POPULAR_SERVICES_FALLBACK;
             let html = `
                 <div class="suggestions-scroll-body">
                     <div class="suggestions-header">
                         <span><i class="bi bi-fire text-danger"></i> Popular Services</span>
-                        <span style="font-weight: 500; font-size: 10px; color: #94a3b8;">1-Tap Search</span>
+                        <span class="suggestions-header-badge">1-Tap Quick Search</span>
                     </div>
                     <div class="popular-chips-wrap">
             `;
@@ -87,11 +124,15 @@
 
             html += `
                     </div>
+                    <div class="suggestions-footer">
+                        <span class="suggestions-footer-hint"><i class="bi bi-keyboard"></i> Type to filter or press <strong>Enter</strong></span>
+                        <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">Browse all in grid &darr;</button>
+                    </div>
                 </div>
             `;
 
             dropdown.innerHTML = html;
-            attachChipEvents(dropdown, input);
+            attachEvents(dropdown);
             openDropdown();
         }
 
@@ -101,12 +142,19 @@
 
             if (!currentSuggestions.length && (!data.popular || !data.popular.length)) {
                 dropdown.innerHTML = `
-                    <div class="suggestions-empty-state">
-                        <i class="bi bi-search"></i>
-                        <div>No exact match for "<strong>${escapeHtml(query)}</strong>"</div>
-                        <div style="font-size: 11.5px; margin-top: 4px; color: #94a3b8;">Try searching for Electrician, Plumbing, AC Repair...</div>
+                    <div class="suggestions-scroll-body">
+                        <div class="suggestions-empty-state">
+                            <i class="bi bi-search"></i>
+                            <div class="empty-title">No exact match for "<strong>${escapeHtml(query)}</strong>"</div>
+                            <div class="empty-sub">Try searching for Electrician, Plumbing, AC Repair...</div>
+                        </div>
+                        <div class="suggestions-footer">
+                            <span class="suggestions-footer-hint">Search anyway:</span>
+                            <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">Search "${escapeHtml(query)}" &darr;</button>
+                        </div>
                     </div>
                 `;
+                attachEvents(dropdown);
                 openDropdown();
                 return;
             }
@@ -120,7 +168,7 @@
                         <i class="bi bi-magic"></i>
                         <div>
                             Showing matches for <strong class="corrected-query-btn">${escapeHtml(data.corrected_query)}</strong>
-                            <div style="font-size: 11px; opacity: 0.85;">Did you mean this service?</div>
+                            <div style="font-size: 11px; opacity: 0.85;">Did you mean this? Click to search</div>
                         </div>
                     </div>
                 `;
@@ -130,37 +178,42 @@
                 html += `
                     <div class="suggestions-header">
                         <span><i class="bi bi-lightning-charge text-success"></i> Matching Services</span>
-                        <span style="font-size: 10.5px; color: #059669; font-weight: 600;">${currentSuggestions.length} found</span>
+                        <span class="suggestions-header-badge count-badge">${currentSuggestions.length} found</span>
                     </div>
+                    <div class="suggestions-list-group">
                 `;
 
                 currentSuggestions.forEach((item, index) => {
                     const iconBg = item.badge_bg || '#f1f5f9';
                     const iconColor = item.badge_color || '#087f5b';
-                    const targetUrl = item.service_page_url || item.url || `/?search=${encodeURIComponent(item.name)}`;
+                    const iconClass = item.icon_class || 'bi bi-tools';
 
                     html += `
-                        <a href="${escapeHtml(targetUrl)}" class="suggestion-item" data-index="${index}" data-name="${escapeHtml(item.name)}" role="option">
-                            <div class="suggestion-icon-wrap" style="background: ${escapeHtml(iconBg)}; color: ${escapeHtml(iconColor)};">
-                                <i class="${escapeHtml(item.icon_class || 'bi bi-tools')}"></i>
-                            </div>
-                            <div class="suggestion-info">
-                                <div class="suggestion-title">${highlightMatch(item.name, query)}</div>
-                                <div class="suggestion-meta-row">
-                                    <span class="suggestion-category-tag">${escapeHtml(item.category_label || '')}</span>
-                                    ${item.pro_count_display ? `<span class="suggestion-workers-pill"><i class="bi bi-patch-check-fill"></i> ${escapeHtml(item.pro_count_display)}</span>` : ''}
+                        <div class="suggestion-item" data-index="${index}" data-name="${escapeHtml(item.name)}" role="option">
+                            <div class="suggestion-item-main">
+                                <div class="suggestion-icon-wrap" style="background: ${escapeHtml(iconBg)}; color: ${escapeHtml(iconColor)};">
+                                    <i class="${escapeHtml(iconClass)}"></i>
+                                </div>
+                                <div class="suggestion-info">
+                                    <div class="suggestion-title">${highlightMatch(item.name, query)}</div>
+                                    <div class="suggestion-meta-row">
+                                        <span class="suggestion-category-tag">${escapeHtml(item.category_label || '')}</span>
+                                        ${item.pro_count_display ? `<span class="suggestion-workers-pill"><i class="bi bi-patch-check-fill"></i> ${escapeHtml(item.pro_count_display)}</span>` : ''}
+                                    </div>
                                 </div>
                             </div>
-                            <i class="bi bi-chevron-right suggestion-arrow-icon"></i>
-                        </a>
+                            <div class="suggestion-action">
+                                <span class="suggestion-select-pill">Select &rarr;</span>
+                            </div>
+                        </div>
                     `;
                 });
+                html += '</div>';
             }
 
-            // Also show popular chips below if few results
             if (data.popular && data.popular.length) {
                 html += `
-                    <div class="suggestions-header" style="margin-top: 8px;">
+                    <div class="suggestions-header" style="margin-top: 10px;">
                         <span><i class="bi bi-fire text-danger"></i> Also Explore</span>
                     </div>
                     <div class="popular-chips-wrap">
@@ -178,9 +231,16 @@
                 html += '</div>';
             }
 
+            html += `
+                <div class="suggestions-footer">
+                    <span class="suggestions-footer-hint"><i class="bi bi-keyboard"></i> Press <strong>Enter</strong> to explore results</span>
+                    <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">View in Grid &darr;</button>
+                </div>
+            `;
+
             html += '</div>';
             dropdown.innerHTML = html;
-            attachChipEvents(dropdown, input);
+            attachEvents(dropdown);
             openDropdown();
         }
 
@@ -211,6 +271,51 @@
                 });
         }
 
+        function attachEvents(container) {
+            // Popular Chips
+            const chips = container.querySelectorAll('.popular-chip-btn');
+            chips.forEach(chip => {
+                chip.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = this.getAttribute('data-search-query') || this.textContent.trim();
+                    selectAndSubmit(q);
+                });
+            });
+
+            // Suggestion Items
+            const items = container.querySelectorAll('.suggestion-item');
+            items.forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const name = this.getAttribute('data-name') || '';
+                    selectAndSubmit(name);
+                });
+            });
+
+            // Typo Banner
+            const typoBanners = container.querySelectorAll('.suggestion-typo-banner');
+            typoBanners.forEach(banner => {
+                banner.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = this.getAttribute('data-search-query') || '';
+                    selectAndSubmit(q);
+                });
+            });
+
+            // View in Grid Button
+            const browseBtn = container.querySelector('#btnSuggestionsBrowseAll');
+            if (browseBtn) {
+                browseBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectAndSubmit(input.value.trim());
+                });
+            }
+        }
+
         // Input Event Listeners
         input.addEventListener('focus', function () {
             if (!this.value.trim()) {
@@ -228,37 +333,52 @@
             } else {
                 debounceTimer = setTimeout(() => {
                     fetchSuggestions(val);
-                }, 200);
+                }, 180);
             }
         });
 
         input.addEventListener('keydown', function (e) {
-            if (!dropdown.classList.contains('is-open')) return;
+            if (e.key === 'Escape') {
+                closeDropdown();
+                return;
+            }
 
+            const isOpen = dropdown.classList.contains('is-open');
             const items = dropdown.querySelectorAll('.suggestion-item');
-            if (!items.length) return;
 
             if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                selectedIndex = (selectedIndex + 1) % items.length;
-                updateSelection(items, selectedIndex);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-                updateSelection(items, selectedIndex);
-            } else if (e.key === 'Enter') {
-                if (selectedIndex >= 0 && selectedIndex < items.length) {
-                    e.preventDefault();
-                    items[selectedIndex].click();
+                if (!isOpen) {
+                    renderPopular();
+                    return;
                 }
-            } else if (e.key === 'Escape') {
-                closeDropdown();
+                if (items.length > 0) {
+                    e.preventDefault();
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                    updateSelection(items, selectedIndex);
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (isOpen && items.length > 0) {
+                    e.preventDefault();
+                    selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                    updateSelection(items, selectedIndex);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                clearTimeout(debounceTimer);
+                if (isOpen && selectedIndex >= 0 && items.length > 0 && items[selectedIndex]) {
+                    const chosen = items[selectedIndex].getAttribute('data-name') || input.value.trim();
+                    selectAndSubmit(chosen);
+                } else {
+                    const q = input.value.trim();
+                    selectAndSubmit(q);
+                }
             }
         });
 
         // Close when clicking outside
         document.addEventListener('click', function (e) {
-            if (!queryWrap.contains(e.target)) {
+            if (!container.contains(e.target) && !input.contains(e.target)) {
                 closeDropdown();
             }
         });
@@ -272,34 +392,6 @@
             } else {
                 it.classList.remove('is-selected');
             }
-        });
-    }
-
-    function attachChipEvents(container, input) {
-        const chips = container.querySelectorAll('.popular-chip-btn, .suggestion-typo-banner, .corrected-query-btn');
-        chips.forEach(chip => {
-            chip.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const q = this.getAttribute('data-search-query') || this.textContent.trim();
-                input.value = q;
-                input.focus();
-
-                // Trigger form submission or change event
-                const form = input.closest('form');
-                if (form) {
-                    closeDropdown();
-                    // If on homepage with AJAX handler
-                    if (typeof window.fetchFilteredServices === 'function') {
-                        window.fetchFilteredServices({ query: q, scrollToResults: true, showDropdown: false });
-                    } else {
-                        form.submit();
-                    }
-                } else {
-                    const district = (document.getElementById('heroDistrictSelect') || {}).value || 'Kollam';
-                    window.location.href = `/service_page/?q=${encodeURIComponent(q)}&district=${encodeURIComponent(district)}`;
-                }
-            });
         });
     }
 
@@ -332,4 +424,3 @@
 
     window.initLamoSearchSuggestions = initSearchSuggestions;
 })();
-

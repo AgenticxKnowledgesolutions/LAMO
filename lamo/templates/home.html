@@ -7,11 +7,11 @@
 {% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/home.js' %}?v=backend_data_1.3" defer></script>
+<script src="{% static 'js/home.js' %}?v=2.6" defer></script>
 {% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.5">
+<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.6">
 {% endblock %}
 
 {% block hero %}
@@ -98,9 +98,6 @@
                       style="{% if not query %}display:none;{% endif %}">
                 <i class="bi bi-x-circle-fill"></i>
               </button>
-
-              <!-- Live Autocomplete Suggestion Dropdown (Option 3) -->
-              <div class="search-autocomplete-dropdown" id="searchAutocompleteDropdown" style="display: none;" role="listbox" aria-label="Service Suggestions"></div>
             </div>
 
             <!-- Submit Button -->
