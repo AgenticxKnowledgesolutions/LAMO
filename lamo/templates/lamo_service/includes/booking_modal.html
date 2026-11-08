@@ -539,7 +539,28 @@
                         </div>
 
                         <!-- Hidden email field filled by auth popup for unauthenticated guests -->
-                        <input type="hidden" name="customer_email" id="modalCustomerEmailHidden" value="">
+                        {% if not user.is_authenticated %}
+                        <div class="modal-form-group">
+                            <label class="modal-label" for="modalCustomerEmail">
+                                Email Address <span class="required-star">*</span>
+                            </label>
+                            <input type="email"
+                                   name="customer_email"
+                                   id="modalCustomerEmail"
+                                   class="modal-input"
+                                   placeholder="name@example.com"
+                                   maxlength="100"
+                                   autocomplete="email"
+                                   required>
+                            <small class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">
+                                <i class="bi bi-shield-check text-success"></i> A 6-digit verification code will be sent to your email to confirm your booking.
+                            </small>
+                        </div>
+                        <input type="hidden" name="customer_email_hidden" id="modalCustomerEmailHidden" value="">
+                        {% else %}
+                        <input type="hidden" name="customer_email" id="modalCustomerEmail" value="{{ user.email }}">
+                        <input type="hidden" name="customer_email_hidden" id="modalCustomerEmailHidden" value="{{ user.email }}">
+                        {% endif %}
 
                     </div>
                     <!-- END STEP 2 -->
@@ -575,7 +596,7 @@
                                     id="btnWizardConfirm"
                                     style="display:none;">
                                 <i class="bi bi-shield-check"></i>
-                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Book now{% endif %}</span>
+                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Verify Email &amp; Book{% endif %}</span>
                                 <i class="bi bi-arrow-right"></i>
                             </button>
 
@@ -1054,7 +1075,7 @@ function goToStep(step, skipValidation) {
             btnConfirm.style.display = "inline-flex";
             const cText = document.getElementById("btnConfirmText");
             if (cText) {
-                cText.textContent = LAMO_AUTH ? "Confirm Booking" : "Book now";
+                cText.textContent = LAMO_AUTH ? "Confirm Booking" : "Verify Email & Book";
             }
         }
     }
@@ -1180,6 +1201,21 @@ function validateStep(step) {
 
         if (!validateModalPhone()) {
             return false;
+        }
+
+        if (!LAMO_AUTH) {
+            const emailInput = document.getElementById("modalCustomerEmail");
+            const emailVal = emailInput ? emailInput.value.trim() : "";
+            if (!emailVal) {
+                showBookingError(errorBox, "Please enter your email address.");
+                if (emailInput) emailInput.focus();
+                return false;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+                showBookingError(errorBox, "Please enter a valid email address (e.g. name@example.com).");
+                if (emailInput) emailInput.focus();
+                return false;
+            }
         }
 
         return true;
@@ -1635,11 +1671,7 @@ document.addEventListener("DOMContentLoaded", function() {
             finalTime.value = customTime.value;
         }
 
-        if (LAMO_AUTH) {
-            submitDirectBooking();
-        } else {
-            openAuthPopup();
-        }
+        submitDirectBooking();
     });
 });
 
@@ -1679,6 +1711,13 @@ function submitDirectBooking() {
         formData.set("custom_time", customTime.value.trim());
     }
 
+    // Ensure customer email is passed in formData
+    const emailInput = document.getElementById("modalCustomerEmail");
+    if (emailInput && emailInput.value.trim()) {
+        formData.set("customer_email", emailInput.value.trim());
+        formData.set("auth_identifier", emailInput.value.trim());
+    }
+
     fetch(form.action, {
         method: "POST",
         body: formData,
@@ -1697,12 +1736,13 @@ function submitDirectBooking() {
             submitBtn.innerHTML = origHtml;
         }
 
-        if (result.ok && result.data && result.data.success) {
-            window.location.href = result.data.redirect_url || "{% url 'my_bookings' %}";
+        if (result.ok && result.data && (result.data.success || result.data.requires_otp)) {
+            // Direct redirect to OTP verification page for guests, or my_bookings for authenticated users
+            window.location.href = result.data.redirect_url || "{% url 'verify_otp' %}";
         } else {
             const errMsg = (result.data && result.data.error_message)
                 ? result.data.error_message
-                : "This worker is already booked for the selected time. Please choose another time or date.";
+                : "Could not complete booking. Please check details and try again.";
             showBookingError(modalErrorBox, errMsg);
         }
     })
