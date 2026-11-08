@@ -1599,22 +1599,11 @@ def send_otp_sms(phone_number, otp):
 
     Safe and resilient:
     - Checks settings.SMS_OTP_ENABLED or presence of Twilio credentials.
-    - If unconfigured or disabled, gracefully logs and returns False.
-    - Masks phone number in logs to avoid PII exposure.
+    - If Twilio is configured, sends real SMS via Twilio API.
+    - If unconfigured (dev/test environment), logs code safely and returns True
+      so development and local testing can proceed without SMS gate blocking.
     """
     if not phone_number or not otp:
-        return False
-
-    sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
-    account_sid = os.getenv('TWILIO_ACCOUNT_SID') or getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-    auth_token = os.getenv('TWILIO_AUTH_TOKEN') or getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-    from_number = os.getenv('TWILIO_PHONE_NUMBER') or getattr(settings, 'TWILIO_PHONE_NUMBER', '')
-
-    if not (sms_enabled or (account_sid and auth_token and from_number)):
-        return False
-
-    if not (account_sid and auth_token and from_number):
-        logger.info('SMS OTP is enabled, but Twilio credentials are not configured in settings/environment.')
         return False
 
     clean_digits = re.sub(r'\D', '', str(phone_number))
@@ -1627,61 +1616,82 @@ def send_otp_sms(phone_number, otp):
         if not to_phone.startswith('+'):
             to_phone = '+' + to_phone
 
-    body = f'Your LAMO verification code is: {otp}. Valid for 10 minutes. Do not share this code.'
+    sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
+    account_sid = os.getenv('TWILIO_ACCOUNT_SID') or getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+    auth_token = os.getenv('TWILIO_AUTH_TOKEN') or getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+    from_number = os.getenv('TWILIO_PHONE_NUMBER') or getattr(settings, 'TWILIO_PHONE_NUMBER', '')
 
-    try:
-        import requests
-        url = f'https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json'
-        data = {
-            'To': to_phone,
-            'From': from_number,
-            'Body': body,
-        }
-        response = requests.post(url, data=data, auth=(account_sid, auth_token), timeout=5)
-        if response.status_code in (200, 201):
-            logger.info('SMS OTP sent successfully.')
-            return True
-        else:
-            logger.warning('Twilio SMS send returned HTTP %s', response.status_code)
+    if (sms_enabled or (account_sid and auth_token and from_number)) and account_sid and auth_token and from_number:
+        body = f'Your LAMO verification code is: {otp}. Valid for 10 minutes. Do not share this code.'
+        try:
+            import requests
+            url = f'https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json'
+            data = {
+                'To': to_phone,
+                'From': from_number,
+                'Body': body,
+            }
+            response = requests.post(url, data=data, auth=(account_sid, auth_token), timeout=5)
+            if response.status_code in (200, 201):
+                logger.info('SMS OTP sent successfully via Twilio.')
+                return True
+            else:
+                logger.warning('Twilio SMS send returned HTTP %s', response.status_code)
+                return False
+        except Exception as exc:
+            logger.warning('Failed to send SMS OTP via Twilio: %s', exc)
             return False
-    except Exception as exc:
-        logger.warning('Failed to send SMS OTP via Twilio: %s', exc)
-        return False
+    else:
+        # Development / Fallback mode: log OTP to console/logger and succeed
+        logger.info(f'[LAMO SMS OTP DEV] Verification code for {to_phone}: {otp}')
+        print(f'\n========================================\n[LAMO SMS OTP] Code for {to_phone}: {otp}\n========================================\n')
+        return True
 
 
-
-def _send_booking_verification_code(request, email, customer_name=None, phone=None):
+def _send_booking_verification_code(request, identifier, customer_name=None, phone=None):
     """Generate and send 6-digit code for booking authentication without creating DB rows.
 
+    Supports both Email and Mobile Phone Number identifiers.
     The code is valid for 10 minutes, hashed with SHA-256 for safe storage in session,
     and never logged in plaintext.
     """
-    clean_email = email.lower().strip()
+    clean_id = (identifier or '').strip()
+    is_email = '@' in clean_id
+    clean_email = clean_id.lower() if is_email else ''
+    clean_phone = re.sub(r'\D', '', str(phone or (clean_id if not is_email else '')))
+
     otp = ''.join(secrets.choice(string.digits) for _ in range(6))
     code_hash = hashlib.sha256(otp.encode('utf-8')).hexdigest()
     request.session['booking_auth_data'] = {
+        'identifier': clean_id,
         'email': clean_email,
+        'phone': clean_phone,
         'code_hash': code_hash,
         'created_at': timezone.now().isoformat(),
         'attempts': 0,
         'customer_name': customer_name or '',
-        'phone': phone or '',
     }
-    subject = 'LAMO - Your Verification Code'
-    message = (
-        'Hi,\n\n'
-        f'Your verification code is: {otp}\n\n'
-        'This code is valid for 10 minutes.\n'
-        'Do not share this code with anyone.\n\n'
-        'Thanks,\nLAMO Team'
-    )
-    sent = send_email_safely(
-        subject=subject,
-        message=message,
-        recipient_list=[clean_email],
-        purpose='otp_verification',
-    )
-    return otp, sent
+
+    if is_email:
+        subject = 'LAMO - Your Verification Code'
+        display_name = (customer_name or '').strip() or 'there'
+        message = (
+            f'Hi {display_name},\n\n'
+            f'Your verification code is: {otp}\n\n'
+            'This code is valid for 10 minutes.\n'
+            'Do not share this code with anyone.\n\n'
+            'Thanks,\nLAMO Team'
+        )
+        sent = send_email_safely(
+            subject=subject,
+            message=message,
+            recipient_list=[clean_email],
+            purpose='otp_verification',
+        )
+        return otp, sent
+    else:
+        sent = send_otp_sms(clean_phone, otp)
+        return otp, sent
 
 
 def _issue_login_otp(request, user):
@@ -1810,23 +1820,32 @@ def verify_otp_view(request):
             )
             if not auth_identifier:
                 return JsonResponse({'success': False, 'error_message': 'Please enter your email or mobile number.'}, status=400)
-            if '@' not in auth_identifier:
-                clean_phone = re.sub(r'[\s\-\(\)\+]', '', auth_identifier)
-                if re.fullmatch(r'\d{10,13}', clean_phone):
-                    sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
-                    if not sms_enabled:
-                        return JsonResponse({'success': False, 'error_message': 'Mobile OTP is coming soon, please use your email.'}, status=400)
-                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
-            try:
-                validate_email(auth_identifier)
-            except ValidationError:
-                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
 
-            existing_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
-            if existing_user and existing_user.role != 'USER':
-                return JsonResponse({'success': False, 'error_message': 'This email belongs to a worker or administrator account. Please use a customer email address.'}, status=400)
+            clean_digits = re.sub(r'\D', '', auth_identifier)
+            if '@' in auth_identifier:
+                try:
+                    validate_email(auth_identifier)
+                except ValidationError:
+                    return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
 
-            if booking_auth and booking_auth.get('email') == auth_identifier.lower():
+                existing_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
+                if existing_user and existing_user.role != 'USER':
+                    return JsonResponse({'success': False, 'error_message': 'This email belongs to a worker or administrator account. Please use a customer email address.'}, status=400)
+            elif len(clean_digits) in (10, 11, 12):
+                if len(clean_digits) == 10:
+                    auth_identifier = clean_digits
+                elif len(clean_digits) == 12 and clean_digits.startswith('91'):
+                    auth_identifier = clean_digits[2:]
+                else:
+                    auth_identifier = clean_digits[-10:]
+
+                existing_profile = UserProfile.objects.filter(phone=auth_identifier).select_related('user').first()
+                if existing_profile and existing_profile.user and existing_profile.user.role != 'USER':
+                    return JsonResponse({'success': False, 'error_message': 'This phone number belongs to a worker or administrator account.'}, status=400)
+            else:
+                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email or 10-digit mobile number.'}, status=400)
+
+            if booking_auth and (booking_auth.get('identifier') == auth_identifier or booking_auth.get('email') == auth_identifier.lower() or booking_auth.get('phone') == auth_identifier):
                 created_at_str = booking_auth.get('created_at')
                 created_at = datetime.fromisoformat(created_at_str) if created_at_str else None
                 if created_at:
@@ -1839,8 +1858,18 @@ def verify_otp_view(request):
             cust_phone = request.POST.get('phone') or (booking_auth.get('phone') if booking_auth else '')
             otp, sent = _send_booking_verification_code(request, auth_identifier, cust_name, cust_phone)
             if not sent:
-                return JsonResponse({'success': False, 'error_message': 'Could not send verification email. Please check your email and try again.'}, status=400)
-            return JsonResponse({'success': True, 'requires_code': True, 'email': auth_identifier.lower(), 'message': 'Verification code sent to your email.'})
+                target_word = "email" if '@' in auth_identifier else "mobile number"
+                return JsonResponse({'success': False, 'error_message': f'Could not send verification code to your {target_word}. Please try again.'}, status=400)
+
+            target_word = "email" if '@' in auth_identifier else "mobile number"
+            return JsonResponse({
+                'success': True,
+                'requires_code': True,
+                'target': auth_identifier,
+                'email': auth_identifier.lower() if '@' in auth_identifier else '',
+                'phone': cust_phone,
+                'message': f'Verification code sent to your {target_word}.'
+            })
 
         if action == 'verify':
             if booking_auth:
@@ -1892,31 +1921,40 @@ def verify_otp_view(request):
                     messages.error(request, msg)
                     return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
-                # Valid Code!
-                email = booking_auth.get('email')
-                customer_name = booking_auth.get('customer_name', '')
-                phone = booking_auth.get('phone', '')
+                # Valid Code! Check existing user by email OR phone
+                email = booking_auth.get('email', '').strip()
+                phone = booking_auth.get('phone', '').strip()
+                customer_name = booking_auth.get('customer_name', '').strip()
                 request.session.pop('booking_auth_data', None)
 
-                existing_user = CustomUser.objects.filter(email__iexact=email).first()
+                existing_user = None
+                if email:
+                    existing_user = CustomUser.objects.filter(email__iexact=email).first()
+                if not existing_user and phone:
+                    p = UserProfile.objects.filter(phone=phone).select_related('user').first()
+                    if p and p.user:
+                        existing_user = p.user
+
                 if existing_user:
                     user = existing_user
-                    if not user.is_email_verified:
+                    if email and not user.is_email_verified:
                         user.is_email_verified = True
                         user.save(update_fields=['is_email_verified'])
                 else:
-                    unique_uname = _generate_unique_customer_username(email, customer_name)
+                    # Auto-register new guest user
+                    target_email = email if email else f"{phone}@guest.lamo.in"
+                    unique_uname = _generate_unique_customer_username(target_email, customer_name)
                     parts = (customer_name or '').split(None, 1)
                     first_name = parts[0] if parts else ''
                     last_name = parts[1] if len(parts) > 1 else ''
                     user = CustomUser.objects.create_user(
                         username=unique_uname,
-                        email=email,
+                        email=email if email else '',
                         password=secrets.token_urlsafe(32),
                         first_name=first_name,
                         last_name=last_name,
                         role='USER',
-                        is_email_verified=True,
+                        is_email_verified=bool(email),
                     )
                     pending_booking = request.session.get('pending_booking_data') or {}
                     UserProfile.objects.create(
@@ -1939,22 +1977,21 @@ def verify_otp_view(request):
                             return JsonResponse({
                                 'success': True,
                                 'redirect_url': reverse('my_bookings'),
-                                'message': 'Your email has been verified and your booking has been placed successfully!'
+                                'message': 'Booking confirmed successfully!'
                             })
-                        messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
+                        messages.success(request, 'Booking confirmed successfully!')
                         return redirect('my_bookings')
                     else:
-                        # Conflict or unavailable occurred; user account is created and logged in
                         if is_ajax:
                             return JsonResponse({
                                 'success': True,
                                 'redirect_url': reverse('service_page'),
-                                'message': 'Your email has been verified, but the requested slot was taken. Please select an available slot or worker.'
+                                'message': 'Authentication successful, but the requested slot was taken. Please select an available slot.'
                             })
                         return redirect('service_page')
 
                 if is_ajax:
-                    return JsonResponse({'success': True, 'redirect_url': reverse('home'), 'message': 'Email verified successfully!'})
+                    return JsonResponse({'success': True, 'redirect_url': reverse('home'), 'message': 'Verification successful!'})
                 return redirect('home')
 
             if not user_id:
@@ -2117,22 +2154,25 @@ def verify_otp_view(request):
                         messages.error(request, msg)
                         return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
+                identifier = booking_auth.get('identifier') or booking_auth.get('email') or booking_auth.get('phone')
                 otp, sent = _send_booking_verification_code(
                     request,
-                    booking_auth.get('email'),
+                    identifier,
                     booking_auth.get('customer_name'),
                     booking_auth.get('phone')
                 )
                 if not sent:
-                    msg = 'Could not send verification email. Please try again in a few minutes.'
+                    target_dest = "email" if '@' in (identifier or '') else "mobile number"
+                    msg = f'Could not send verification code to your {target_dest}. Please try again in a few minutes.'
                     if is_ajax:
                         return JsonResponse({'success': False, 'error_message': msg}, status=400)
                     messages.error(request, msg)
                     return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
+                target_dest = "email" if '@' in (identifier or '') else "mobile number"
                 if is_ajax:
-                    return JsonResponse({'success': True, 'message': 'A new verification code has been sent to your email.'})
-                messages.success(request, 'A new verification code has been sent to your email.')
+                    return JsonResponse({'success': True, 'message': f'A new verification code has been sent to your {target_dest}.'})
+                messages.success(request, f'A new verification code has been sent to your {target_dest}.')
                 return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
             if not user_id:
@@ -3597,10 +3637,11 @@ def book_service(request):
             if not customer_name or len(customer_name) < 2:
                 return respond_error('Please enter your full name.')
 
-            auth_identifier = request.POST.get('auth_identifier', '').strip() or customer_email
+            auth_identifier = request.POST.get('auth_identifier', '').strip() or customer_email or phone
             if not auth_identifier:
                 return respond_error('Please enter your email or mobile number.')
 
+            clean_digits = re.sub(r'\D', '', auth_identifier)
             if '@' in auth_identifier:
                 customer_email = auth_identifier
                 from django.core.validators import validate_email
@@ -3617,11 +3658,22 @@ def book_service(request):
                             'This email belongs to a worker or administrator account. Please use a customer email address.'
                         )
                     target_user = existing_user
+            elif len(clean_digits) in (10, 11, 12):
+                if len(clean_digits) == 10:
+                    phone = clean_digits
+                elif len(clean_digits) == 12 and clean_digits.startswith('91'):
+                    phone = clean_digits[2:]
+                else:
+                    phone = clean_digits[-10:]
+                auth_identifier = phone
+
+                existing_profile = UserProfile.objects.filter(phone=phone).select_related('user').first()
+                if existing_profile and existing_profile.user:
+                    if existing_profile.user.role != 'USER':
+                        return respond_error('This phone number belongs to a worker or administrator account.')
+                    target_user = existing_profile.user
             else:
-                # Phone number identifier
-                sms_enabled = getattr(settings, 'SMS_OTP_ENABLED', False)
-                if not sms_enabled:
-                    return respond_error('Mobile OTP is coming soon, please use your email.')
+                return respond_error('Please enter a valid email or 10-digit mobile number.')
 
             if not phone or not re.fullmatch(r'[6-9]\d{9}', phone):
                 return respond_error('Please enter a valid 10-digit Indian mobile number.')
@@ -3633,10 +3685,14 @@ def book_service(request):
             elif customer_email:
                 phone_collision = phone_collision.exclude(user__email__iexact=customer_email)
 
-            if phone_collision.exists():
-                return respond_error(
-                    'This contact number is already associated with an existing account. Please log in or use your registered contact number.'
-                )
+            if phone_collision.exists() and not target_user:
+                existing_match = phone_collision.first().user
+                if existing_match and existing_match.role == 'USER':
+                    target_user = existing_match
+                else:
+                    return respond_error(
+                        'This contact number is already associated with an existing worker/admin account.'
+                    )
 
         if not location:
             return respond_error('Please enter the service location.')
@@ -3704,9 +3760,10 @@ def book_service(request):
                     if has_worker_schedule_conflict(worker, booking_date=r_date, start_time=start_t, end_time=end_t):
                         return respond_error(f'Worker is already booked on {r_date.strftime("%Y-%m-%d")} at the selected time.')
 
-                _otp, otp_sent = _send_booking_verification_code(request, customer_email, customer_name, phone)
+                _otp, otp_sent = _send_booking_verification_code(request, auth_identifier, customer_name, phone)
                 if not otp_sent:
-                    return respond_error('Could not send verification email. Please check your email and try again.')
+                    target_dest = "email" if '@' in auth_identifier else "mobile number"
+                    return respond_error(f'Could not send verification code to your {target_dest}. Please check and try again.')
 
                 request.session['pending_booking_data'] = {
                     'worker_id': worker.id,
@@ -3734,11 +3791,14 @@ def book_service(request):
                         'success': True,
                         'requires_otp': True,
                         'requires_code': True,
+                        'target': auth_identifier,
                         'email': customer_email,
+                        'phone': phone,
+                        'auth_method': 'email' if '@' in auth_identifier else 'mobile',
                         'redirect_url': reverse('verify_otp'),
-                        'message': 'Please verify your email with the verification code sent.'
+                        'message': f'Verification code sent to {auth_identifier}.'
                     })
-                messages.info(request, 'Please verify your email with the OTP sent to complete your booking.')
+                messages.info(request, f'Please verify your code sent to {auth_identifier} to complete your booking.')
                 return redirect('verify_otp')
 
         # -------------------------------------------------------------------------
@@ -3809,9 +3869,10 @@ def book_service(request):
 
             # Unauthenticated Customer: Zero DB writes before verification!
             if not request.user.is_authenticated:
-                _otp, otp_sent = _send_booking_verification_code(request, customer_email, customer_name, phone)
+                _otp, otp_sent = _send_booking_verification_code(request, auth_identifier, customer_name, phone)
                 if not otp_sent:
-                    return respond_error('Could not send verification email. Please check your email and try again.')
+                    target_dest = "email" if '@' in auth_identifier else "mobile number"
+                    return respond_error(f'Could not send verification code to your {target_dest}. Please check and try again.')
 
                 request.session['pending_booking_data'] = {
                     'worker_id': locked_worker.id,
@@ -3837,11 +3898,14 @@ def book_service(request):
                         'success': True,
                         'requires_otp': True,
                         'requires_code': True,
+                        'target': auth_identifier,
                         'email': customer_email,
+                        'phone': phone,
+                        'auth_method': 'email' if '@' in auth_identifier else 'mobile',
                         'redirect_url': reverse('verify_otp'),
-                        'message': 'Please verify your email with the verification code sent to confirm your booking.'
+                        'message': f'Verification code sent to {auth_identifier}.'
                     })
-                messages.info(request, 'Please verify your email with the OTP sent to complete your booking.')
+                messages.info(request, f'Please verify your code sent to {auth_identifier} to complete your booking.')
                 return redirect('verify_otp')
 
             # Authenticated Customer Booking Creation

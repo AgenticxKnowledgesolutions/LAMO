@@ -502,7 +502,8 @@
                             </div>
                         </div>
 
-                        <!-- Customer Contact Details (Full Name & Contact Number) for all users -->
+                        {% if user.is_authenticated %}
+                        <!-- Authenticated Customer Contact Details -->
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalCustomerName">
                                 Full Name <span class="required-star">*</span>
@@ -513,7 +514,7 @@
                                    class="modal-input"
                                    placeholder="Enter your full name"
                                    maxlength="100"
-                                   value="{{ customer_prefill.name|default:'' }}"
+                                   value="{{ customer_prefill.name|default:user.get_full_name|default:user.username }}"
                                    required>
                         </div>
 
@@ -538,28 +539,31 @@
                             </small>
                         </div>
 
-                        <!-- Hidden email field filled by auth popup for unauthenticated guests -->
-                        {% if not user.is_authenticated %}
+                        <input type="hidden" name="customer_email" id="modalCustomerEmail" value="{{ user.email }}">
+                        <input type="hidden" name="auth_identifier" id="modalAuthIdentifier" value="{{ user.email }}">
+                        {% else %}
+                        <!-- Guest Customer: Clean & focused. Only asks Full Name. Mobile/Email OTP is handled inside the focused Auth Popup! -->
                         <div class="modal-form-group">
-                            <label class="modal-label" for="modalCustomerEmail">
-                                Email Address <span class="required-star">*</span>
+                            <label class="modal-label" for="modalCustomerName">
+                                Full Name <span class="required-star">*</span>
                             </label>
-                            <input type="email"
-                                   name="customer_email"
-                                   id="modalCustomerEmail"
+                            <input type="text"
+                                   name="customer_name"
+                                   id="modalCustomerName"
                                    class="modal-input"
-                                   placeholder="name@example.com"
+                                   placeholder="Enter your full name"
                                    maxlength="100"
-                                   autocomplete="email"
+                                   value=""
                                    required>
-                            <small class="text-muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">
-                                <i class="bi bi-shield-check text-success"></i> A 6-digit verification code will be sent to your email to confirm your booking.
+                            <small class="field-hint" style="color:#64748b; font-size:12px; margin-top:4px; display:block;">
+                                You can verify your booking with Mobile or Email in the next step.
                             </small>
                         </div>
-                        <input type="hidden" name="customer_email_hidden" id="modalCustomerEmailHidden" value="">
-                        {% else %}
-                        <input type="hidden" name="customer_email" id="modalCustomerEmail" value="{{ user.email }}">
-                        <input type="hidden" name="customer_email_hidden" id="modalCustomerEmailHidden" value="{{ user.email }}">
+
+                        <!-- Hidden fields populated when user enters number/email in the Auth Popup -->
+                        <input type="hidden" name="phone" id="modalPhone" value="">
+                        <input type="hidden" name="customer_email" id="modalCustomerEmail" value="">
+                        <input type="hidden" name="auth_identifier" id="modalAuthIdentifier" value="">
                         {% endif %}
 
                     </div>
@@ -595,8 +599,8 @@
                                     class="btn-wizard-confirm"
                                     id="btnWizardConfirm"
                                     style="display:none;">
-                                <i class="bi bi-shield-check"></i>
-                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Verify Email &amp; Book{% endif %}</span>
+                                <i class="bi bi-calendar-check"></i>
+                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Book Now{% endif %}</span>
                                 <i class="bi bi-arrow-right"></i>
                             </button>
 
@@ -637,34 +641,80 @@
             <i class="bi bi-x-lg"></i>
         </button>
 
-        <!-- SCREEN 1: IDENTIFIER INPUT (Email or mobile) -->
+        <!-- SCREEN 1: IDENTIFIER INPUT (Mobile or Email) -->
         <div id="authScreen1" class="auth-popup-screen active">
             <div class="auth-popup-header">
                 <div class="auth-popup-icon">
-                    <i class="bi bi-person-badge-fill"></i>
+                    <i class="bi bi-shield-lock-fill"></i>
                 </div>
-                <h3 id="authPopupTitle">Login or Register</h3>
-                <p>Enter your email or mobile to continue booking</p>
+                <h3 id="authPopupTitle">Verify to Book</h3>
+                <p>Choose how you would like to receive your 6-digit verification code</p>
+            </div>
+
+            <!-- Choice Tabs: [ Mobile OTP ] [ Email OTP ] -->
+            <div class="auth-method-toggle" role="tablist">
+                <button type="button" class="auth-toggle-btn active" id="tabMobileAuth" onclick="switchAuthMethod('mobile')" role="tab" aria-selected="true">
+                    <i class="bi bi-phone"></i> Mobile OTP
+                </button>
+                <button type="button" class="auth-toggle-btn" id="tabEmailAuth" onclick="switchAuthMethod('email')" role="tab" aria-selected="false">
+                    <i class="bi bi-envelope"></i> Email OTP
+                </button>
             </div>
 
             <div id="authAlert1" class="auth-popup-alert" style="display:none;" role="alert" aria-live="polite"></div>
 
             <form id="authIdentifierForm" onsubmit="handleAuthSendCode(event)">
-                <div class="auth-input-group">
-                    <label for="authIdentifierInput" class="auth-label">Email or Mobile</label>
-                    <div class="auth-input-wrapper">
-                        <i class="bi bi-envelope auth-input-icon" id="authInputIcon"></i>
-                        <input type="text"
-                               id="authIdentifierInput"
-                               class="auth-input"
-                               placeholder="Enter email or 10-digit mobile"
-                               autocomplete="email username tel"
-                               required>
+                <!-- Mobile OTP Panel (Default) -->
+                <div id="authMobileContainer">
+                    <div class="auth-input-group">
+                        <label for="authMobileInput" class="auth-label">10-Digit Mobile Number <span class="text-danger">*</span></label>
+                        <div class="auth-input-wrapper">
+                            <span class="auth-phone-prefix">🇮🇳 +91</span>
+                            <input type="tel"
+                                   id="authMobileInput"
+                                   class="auth-input has-prefix"
+                                   placeholder="Enter mobile number"
+                                   inputmode="numeric"
+                                   maxlength="10"
+                                   pattern="[6-9][0-9]{9}"
+                                   autocomplete="tel">
+                        </div>
+                        <small class="auth-field-hint">We'll send a 6-digit verification code to this mobile number via SMS.</small>
+                    </div>
+                </div>
+
+                <!-- Email OTP Panel -->
+                <div id="authEmailContainer" style="display:none;">
+                    <div class="auth-input-group">
+                        <label for="authEmailInput" class="auth-label">Email Address <span class="text-danger">*</span></label>
+                        <div class="auth-input-wrapper">
+                            <i class="bi bi-envelope auth-input-icon"></i>
+                            <input type="email"
+                                   id="authEmailInput"
+                                   class="auth-input"
+                                   placeholder="name@example.com"
+                                   autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="auth-input-group">
+                        <label for="authEmailPhoneInput" class="auth-label">Contact Number <span class="text-danger">*</span></label>
+                        <div class="auth-input-wrapper">
+                            <span class="auth-phone-prefix">🇮🇳 +91</span>
+                            <input type="tel"
+                                   id="authEmailPhoneInput"
+                                   class="auth-input has-prefix"
+                                   placeholder="Mobile number for worker to call"
+                                   inputmode="numeric"
+                                   maxlength="10"
+                                   pattern="[6-9][0-9]{9}"
+                                   autocomplete="tel">
+                        </div>
+                        <small class="auth-field-hint">Verification code will be sent to your email; worker will call this contact number.</small>
                     </div>
                 </div>
 
                 <button type="submit" id="btnAuthSendCode" class="btn-auth-primary">
-                    <span>Send code</span>
+                    <span>Send Verification Code</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
 
@@ -681,10 +731,10 @@
         <div id="authScreen2" class="auth-popup-screen" style="display:none;">
             <div class="auth-popup-header">
                 <div class="auth-popup-icon success-icon">
-                    <i class="bi bi-shield-check"></i>
+                    <i class="bi bi-key-fill"></i>
                 </div>
                 <h3 id="authScreen2Title">Verification Code</h3>
-                <p>Enter the 6-digit code sent to <strong id="authTargetEmail">your email</strong></p>
+                <p>Enter the 6-digit code sent to <strong id="authTargetDisplay">your mobile/email</strong></p>
             </div>
 
             <div id="authAlert2" class="auth-popup-alert" style="display:none;" role="alert" aria-live="polite"></div>
@@ -714,12 +764,12 @@
 
                 <button type="submit" id="btnAuthVerify" class="btn-auth-primary">
                     <i class="bi bi-shield-check"></i>
-                    <span id="btnAuthConfirmText">Confirm Booking</span>
+                    <span id="btnAuthConfirmText">Confirm &amp; Book</span>
                 </button>
 
                 <div class="auth-change-email-row">
                     <button type="button" class="btn-auth-back-link" onclick="backToAuthScreen1()">
-                        <i class="bi bi-pencil-square"></i> Change email
+                        <i class="bi bi-arrow-left"></i> Change mobile number / email
                     </button>
                 </div>
             </form>
@@ -1193,27 +1243,14 @@ function validateStep(step) {
 
     if (step === 2) {
         const nameInput = document.getElementById("modalCustomerName");
-        if (!nameInput || !nameInput.value.trim()) {
+        if (!nameInput || !nameInput.value.trim() || nameInput.value.trim().length < 2) {
             showBookingError(errorBox, "Please enter your full name.");
             if (nameInput) nameInput.focus();
             return false;
         }
 
-        if (!validateModalPhone()) {
-            return false;
-        }
-
-        if (!LAMO_AUTH) {
-            const emailInput = document.getElementById("modalCustomerEmail");
-            const emailVal = emailInput ? emailInput.value.trim() : "";
-            if (!emailVal) {
-                showBookingError(errorBox, "Please enter your email address.");
-                if (emailInput) emailInput.focus();
-                return false;
-            }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
-                showBookingError(errorBox, "Please enter a valid email address (e.g. name@example.com).");
-                if (emailInput) emailInput.focus();
+        if (LAMO_AUTH) {
+            if (!validateModalPhone()) {
                 return false;
             }
         }
@@ -1671,6 +1708,12 @@ document.addEventListener("DOMContentLoaded", function() {
             finalTime.value = customTime.value;
         }
 
+        // If guest user, open the Auth Popup Card (Option 2 - Zero Clutter)
+        if (!LAMO_AUTH) {
+            openAuthPopup();
+            return;
+        }
+
         submitDirectBooking();
     });
 });
@@ -1711,13 +1754,6 @@ function submitDirectBooking() {
         formData.set("custom_time", customTime.value.trim());
     }
 
-    // Ensure customer email is passed in formData
-    const emailInput = document.getElementById("modalCustomerEmail");
-    if (emailInput && emailInput.value.trim()) {
-        formData.set("customer_email", emailInput.value.trim());
-        formData.set("auth_identifier", emailInput.value.trim());
-    }
-
     fetch(form.action, {
         method: "POST",
         body: formData,
@@ -1737,8 +1773,7 @@ function submitDirectBooking() {
         }
 
         if (result.ok && result.data && (result.data.success || result.data.requires_otp)) {
-            // Direct redirect to OTP verification page for guests, or my_bookings for authenticated users
-            window.location.href = result.data.redirect_url || "{% url 'verify_otp' %}";
+            window.location.href = result.data.redirect_url || "{% url 'my_bookings' %}";
         } else {
             const errMsg = (result.data && result.data.error_message)
                 ? result.data.error_message
@@ -1756,11 +1791,42 @@ function submitDirectBooking() {
 }
 
 /* =========================================================
-   UNIFIED AUTH POPUP CONTROLLER
+   UNIFIED AUTH POPUP CONTROLLER (OPTION 2: FOCUSED POPUP CARD)
 ======================================================== */
+var _currentAuthMethod = 'mobile';
 var _authCooldownTimer = null;
 var _authCooldownRemaining = 0;
 var _authAttemptsRemaining = 5;
+
+function switchAuthMethod(method) {
+    _currentAuthMethod = method;
+    clearAuthAlerts();
+
+    var tabMobile = document.getElementById('tabMobileAuth');
+    var tabEmail = document.getElementById('tabEmailAuth');
+    var mobileContainer = document.getElementById('authMobileContainer');
+    var emailContainer = document.getElementById('authEmailContainer');
+
+    if (method === 'mobile') {
+        if (tabMobile) { tabMobile.classList.add('active'); tabMobile.setAttribute('aria-selected', 'true'); }
+        if (tabEmail) { tabEmail.classList.remove('active'); tabEmail.setAttribute('aria-selected', 'false'); }
+        if (mobileContainer) mobileContainer.style.display = 'block';
+        if (emailContainer) emailContainer.style.display = 'none';
+        setTimeout(function() {
+            var inp = document.getElementById('authMobileInput');
+            if (inp) inp.focus();
+        }, 50);
+    } else {
+        if (tabMobile) { tabMobile.classList.remove('active'); tabMobile.setAttribute('aria-selected', 'false'); }
+        if (tabEmail) { tabEmail.classList.add('active'); tabEmail.setAttribute('aria-selected', 'true'); }
+        if (mobileContainer) mobileContainer.style.display = 'none';
+        if (emailContainer) emailContainer.style.display = 'block';
+        setTimeout(function() {
+            var inp = document.getElementById('authEmailInput');
+            if (inp) inp.focus();
+        }, 50);
+    }
+}
 
 function openAuthPopup() {
     var popup = document.getElementById("bookingAuthPopup");
@@ -1773,10 +1839,15 @@ function openAuthPopup() {
     popup.style.display = "flex";
     popup.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
+
+    // Focus active method input
     setTimeout(function() {
-        var input = document.getElementById("authIdentifierInput");
-        if (input) {
-            input.focus();
+        if (_currentAuthMethod === 'mobile') {
+            var input = document.getElementById("authMobileInput");
+            if (input) input.focus();
+        } else {
+            var input = document.getElementById("authEmailInput");
+            if (input) input.focus();
         }
     }, 100);
 }
@@ -1794,7 +1865,7 @@ function closeAuthPopup() {
 }
 
 function clearAuthAlerts() {
-    ["authAlert1", "authScreen1Alert", "authAlert2", "authScreen2Alert"].forEach(function(id) {
+    ["authAlert1", "authAlert2"].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
             el.style.display = "none";
@@ -1805,15 +1876,12 @@ function clearAuthAlerts() {
 }
 
 function showAuthAlert(screenNum, msg, type) {
-    var targetIds = screenNum === 1 ? ["authAlert1", "authScreen1Alert"] : ["authAlert2", "authScreen2Alert"];
-    targetIds.forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) {
-            el.className = "auth-popup-alert alert-" + (type || "danger");
-            el.textContent = msg;
-            el.style.display = "block";
-        }
-    });
+    var el = document.getElementById("authAlert" + screenNum);
+    if (el) {
+        el.className = "auth-popup-alert alert-" + (type || "danger");
+        el.textContent = msg;
+        el.style.display = "block";
+    }
 }
 
 function handleAuthSendCode(event) {
@@ -1821,60 +1889,79 @@ function handleAuthSendCode(event) {
         event.preventDefault();
     }
     clearAuthAlerts();
-    var input = document.getElementById("authIdentifierInput");
-    var val = (input ? input.value : "").trim();
-    if (!val) {
-        showAuthAlert(1, "Please enter your email or mobile number.");
-        if (input) input.focus();
-        return;
-    }
 
-    var isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-    var isPhone = /^(\+?\d{1,4}[-.\s]?)?(\d{10}|\d{9,12})$/.test(val.replace(/[\s\-\(\)]/g, ''));
+    var targetDisplay = "";
+    var identifier = "";
+    var phoneVal = "";
+    var emailVal = "";
 
-    var smsOtpEnabled = false;
-    {% if SMS_OTP_ENABLED %}
-    smsOtpEnabled = true;
-    {% endif %}
-
-    if (!isEmail && (isPhone || /^\+?\d+$/.test(val))) {
-        if (!smsOtpEnabled) {
-            showAuthAlert(1, "Mobile OTP is coming soon, please use your email.");
-            if (input) input.focus();
+    if (_currentAuthMethod === 'mobile') {
+        var mobileInp = document.getElementById("authMobileInput");
+        var mVal = (mobileInp ? mobileInp.value : "").replace(/\D/g, "");
+        if (!mVal || !/^[6-9]\d{9}$/.test(mVal)) {
+            showAuthAlert(1, "Please enter a valid 10-digit Indian mobile number.");
+            if (mobileInp) mobileInp.focus();
             return;
         }
-    } else if (!isEmail) {
-        showAuthAlert(1, "Please enter a valid email address.");
-        if (input) input.focus();
-        return;
+        identifier = mVal;
+        phoneVal = mVal;
+        targetDisplay = "+91 " + mVal;
+    } else {
+        var emailInp = document.getElementById("authEmailInput");
+        var eVal = (emailInp ? emailInp.value : "").trim();
+        if (!eVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eVal)) {
+            showAuthAlert(1, "Please enter a valid email address.");
+            if (emailInp) emailInp.focus();
+            return;
+        }
+
+        var epInp = document.getElementById("authEmailPhoneInput");
+        var epVal = (epInp ? epInp.value : "").replace(/\D/g, "");
+        if (!epVal || !/^[6-9]\d{9}$/.test(epVal)) {
+            showAuthAlert(1, "Please enter a valid 10-digit contact number for the worker to call.");
+            if (epInp) epInp.focus();
+            return;
+        }
+
+        identifier = eVal;
+        emailVal = eVal;
+        phoneVal = epVal;
+        targetDisplay = eVal;
     }
+
+    // Set hidden inputs in bookingModalForm
+    var hiddenPhone = document.getElementById("modalPhone");
+    if (hiddenPhone) hiddenPhone.value = phoneVal;
+
+    var hiddenEmail = document.getElementById("modalCustomerEmail");
+    if (hiddenEmail) hiddenEmail.value = emailVal;
+
+    var hiddenIdent = document.getElementById("modalAuthIdentifier");
+    if (hiddenIdent) hiddenIdent.value = identifier;
 
     var btn = document.getElementById("btnAuthSendCode");
     var origHtml = "";
     if (btn) {
         origHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Sending...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Sending Code...';
     }
-
-    // Set hidden email input in the booking form
-    var emailHidden = document.getElementById("modalCustomerEmailHidden");
-    if (emailHidden) emailHidden.value = val;
 
     var bookingForm = document.getElementById("bookingModalForm");
     var formData = new FormData(bookingForm);
-    formData.set("customer_email", val);
-    formData.set("auth_identifier", val);
+    formData.set("auth_identifier", identifier);
+    formData.set("phone", phoneVal);
+    if (emailVal) formData.set("customer_email", emailVal);
 
-    // Ensure final time is set in formData
+    // Finalize time value in formData
     var finalTime = document.getElementById('modalFinalTime');
     var timeSlot = document.getElementById('modalTimeSlot');
     var customTime = document.getElementById('modalCustomTime');
     var slotBtn = document.getElementById('timeSlotBtn');
     if (slotBtn && slotBtn.classList.contains('active') && timeSlot) {
         formData.set("time", timeSlot.value);
-    } else if (customTime) {
-        formData.set("time", customTime.value);
+    } else if (customTime && customTime.value.trim()) {
+        formData.set("time", customTime.value.trim());
     }
 
     fetch(bookingForm.action, {
@@ -1894,8 +1981,8 @@ function handleAuthSendCode(event) {
         }
         var data = result.data || {};
         if (result.ok && (data.success || data.requires_otp)) {
-            var targetDisplay = document.getElementById("authTargetEmail") || document.getElementById("authTargetDisplay");
-            if (targetDisplay) targetDisplay.textContent = val;
+            var targetDisplayEl = document.getElementById("authTargetDisplay");
+            if (targetDisplayEl) targetDisplayEl.textContent = targetDisplay;
 
             var s1 = document.getElementById("authScreen1");
             var s2 = document.getElementById("authScreen2");
@@ -1903,7 +1990,7 @@ function handleAuthSendCode(event) {
             if (s2) s2.style.display = "block";
 
             _authAttemptsRemaining = data.remaining_attempts || 5;
-            var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+            var attEl = document.getElementById("authRemainingCount");
             if (attEl) attEl.textContent = _authAttemptsRemaining;
 
             initAuthCodeBoxes();
@@ -1973,7 +2060,7 @@ function startAuthCooldown(duration) {
     if (_authCooldownTimer) clearInterval(_authCooldownTimer);
     _authCooldownRemaining = duration;
     var btn = document.getElementById("btnAuthResend");
-    var timerDisplay = document.getElementById("authCooldownTimer") || document.getElementById("authResendCountdown");
+    var timerDisplay = document.getElementById("authCooldownTimer");
 
     if (btn) btn.disabled = true;
     if (timerDisplay) {
@@ -2027,7 +2114,7 @@ function handleAuthResendCode() {
         if (result.ok && data.success) {
             startAuthCooldown(30);
             _authAttemptsRemaining = 5;
-            var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+            var attEl = document.getElementById("authRemainingCount");
             if (attEl) attEl.textContent = "5";
             initAuthCodeBoxes();
             showAuthAlert(2, "A new 6-digit code has been sent.", "success");
@@ -2096,7 +2183,7 @@ function handleAuthVerifySubmit(event) {
 
             if (data.remaining_attempts !== undefined) {
                 _authAttemptsRemaining = data.remaining_attempts;
-                var attEl = document.getElementById("authRemainingCount") || document.getElementById("authAttemptsCount");
+                var attEl = document.getElementById("authRemainingCount");
                 if (attEl) attEl.textContent = _authAttemptsRemaining;
             }
 
@@ -2133,11 +2220,16 @@ function backToAuthScreen1() {
     var s2 = document.getElementById("authScreen2");
     if (s2) s2.style.display = "none";
     if (s1) s1.style.display = "block";
-    var input = document.getElementById("authIdentifierInput");
-    if (input) {
-        input.focus();
-        input.select();
-    }
+
+    setTimeout(function() {
+        if (_currentAuthMethod === 'mobile') {
+            var inp = document.getElementById("authMobileInput");
+            if (inp) { inp.focus(); inp.select(); }
+        } else {
+            var inp = document.getElementById("authEmailInput");
+            if (inp) { inp.focus(); inp.select(); }
+        }
+    }, 50);
 }
 
 // Close popup on Escape or backdrop click
