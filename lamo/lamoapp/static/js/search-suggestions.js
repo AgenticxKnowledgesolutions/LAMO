@@ -64,10 +64,12 @@
             dropdown.classList.add('is-open');
         }
 
-        function selectAndSubmit(query) {
+        function navigateToService(query, workersUrl, serviceId) {
+            const district = getActiveDistrict();
+            closeDropdown();
+
             const trimmed = (query !== undefined ? query : input.value).trim();
             input.value = trimmed;
-            closeDropdown();
 
             // Toggle clear button
             const clearBtn = document.getElementById('clearSearchBtn') || document.getElementById('clearHeroSearchBtn');
@@ -75,38 +77,60 @@
                 clearBtn.style.display = trimmed ? 'inline-flex' : 'none';
             }
 
-            // 1. If on homepage with triggerHeroSearch
-            if (typeof window.triggerHeroSearch === 'function') {
-                window.triggerHeroSearch(trimmed);
-                return;
-            }
-
-            // 2. If on homepage with fetchFilteredServices and scrollToServicesSection
-            if (typeof window.fetchFilteredServices === 'function') {
-                if (typeof window.scrollToServicesSection === 'function') {
-                    window.scrollToServicesSection(trimmed);
+            // 1. Direct workers URL provided (e.g. clicked on suggestion or popular chip)
+            if (workersUrl && typeof workersUrl === 'string' && workersUrl.startsWith('/services/')) {
+                let targetUrl = workersUrl;
+                if (!targetUrl.includes('district=')) {
+                    const sep = targetUrl.includes('?') ? '&' : '?';
+                    targetUrl = `${targetUrl}${sep}district=${encodeURIComponent(district)}`;
                 }
-                window.fetchFilteredServices({ query: trimmed, scrollToResults: true, showDropdown: false });
+                window.location.href = targetUrl;
                 return;
             }
 
-            // 3. Fallback form submission or redirect
-            const form = input.closest('form');
-            if (form) {
-                form.submit();
-            } else {
-                const district = getActiveDistrict();
-                window.location.href = `/?search=${encodeURIComponent(trimmed)}&district=${encodeURIComponent(district)}#services`;
+            // 2. Service ID provided
+            if (serviceId) {
+                window.location.href = `/services/${serviceId}/workers/?district=${encodeURIComponent(district)}`;
+                return;
             }
+
+            // 3. Check current suggestions list for top or exact match (Idea 2 Direct Navigation)
+            if (trimmed && currentSuggestions && currentSuggestions.length > 0) {
+                const norm = trimmed.toLowerCase();
+                const matched = currentSuggestions.find(s => s.name && s.name.toLowerCase() === norm)
+                    || currentSuggestions.find(s => s.name && (s.name.toLowerCase().includes(norm) || norm.includes(s.name.toLowerCase())))
+                    || currentSuggestions[0];
+
+                if (matched) {
+                    const target = matched.workers_url || matched.url || (matched.id ? `/services/${matched.id}/workers/?district=${encodeURIComponent(district)}` : null);
+                    if (target) {
+                        window.location.href = target;
+                        return;
+                    }
+                }
+            }
+
+            // 4. Generic query without exact service match: go to dedicated service_page
+            if (trimmed) {
+                window.location.href = `/service_page/?q=${encodeURIComponent(trimmed)}&district=${encodeURIComponent(district)}`;
+                return;
+            }
+
+            // 5. Default fallback to service_page
+            window.location.href = `/service_page/?district=${encodeURIComponent(district)}`;
         }
+
+        // Expose globally for form submit & home.js integration
+        window.lamoNavigateToService = navigateToService;
 
         function renderPopular(popularList) {
             const items = popularList && popularList.length ? popularList : POPULAR_SERVICES_FALLBACK;
+            const district = getActiveDistrict();
             let html = `
                 <div class="suggestions-scroll-body">
                     <div class="suggestions-header">
                         <span><i class="bi bi-fire text-danger"></i> Popular Services</span>
-                        <span class="suggestions-header-badge">1-Tap Quick Search</span>
+                        <span class="suggestions-header-badge">Direct to Workers</span>
                     </div>
                     <div class="popular-chips-wrap">
             `;
@@ -114,10 +138,14 @@
             items.forEach(item => {
                 const q = item.query || item.name;
                 const icon = item.icon_class || item.icon || 'bi bi-tools';
+                const workersUrl = item.workers_url || item.url || '';
+                const serviceId = item.id || item.service_id || '';
+                const proCount = item.pro_count_display || '';
                 html += `
-                    <button type="button" class="popular-chip-btn" data-search-query="${escapeHtml(q)}">
+                    <button type="button" class="popular-chip-btn" data-search-query="${escapeHtml(q)}" data-workers-url="${escapeHtml(workersUrl)}" data-service-id="${escapeHtml(serviceId)}">
                         <i class="${escapeHtml(icon)}"></i>
                         <span>${escapeHtml(item.name)}</span>
+                        ${proCount ? `<span class="chip-pro-badge">${escapeHtml(proCount)}</span>` : ''}
                     </button>
                 `;
             });
@@ -125,8 +153,8 @@
             html += `
                     </div>
                     <div class="suggestions-footer">
-                        <span class="suggestions-footer-hint"><i class="bi bi-keyboard"></i> Type to filter or press <strong>Enter</strong></span>
-                        <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">Browse all in grid &darr;</button>
+                        <span class="suggestions-footer-hint"><i class="bi bi-info-circle-fill text-success"></i> Click any service to view verified professionals</span>
+                        <a href="/service_page/?district=${encodeURIComponent(district)}" class="btn-suggestions-browse">Browse all services &rarr;</a>
                     </div>
                 </div>
             `;
@@ -139,6 +167,7 @@
         function renderSuggestions(data, query) {
             currentSuggestions = data.suggestions || [];
             selectedIndex = -1;
+            const district = getActiveDistrict();
 
             if (!currentSuggestions.length && (!data.popular || !data.popular.length)) {
                 dropdown.innerHTML = `
@@ -149,8 +178,8 @@
                             <div class="empty-sub">Try searching for Electrician, Plumbing, AC Repair...</div>
                         </div>
                         <div class="suggestions-footer">
-                            <span class="suggestions-footer-hint">Search anyway:</span>
-                            <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">Search "${escapeHtml(query)}" &darr;</button>
+                            <span class="suggestions-footer-hint">Search all:</span>
+                            <a href="/service_page/?q=${encodeURIComponent(query)}&district=${encodeURIComponent(district)}" class="btn-suggestions-browse">Search "${escapeHtml(query)}" in All Services &rarr;</a>
                         </div>
                     </div>
                 `;
@@ -168,7 +197,7 @@
                         <i class="bi bi-magic"></i>
                         <div>
                             Showing matches for <strong class="corrected-query-btn">${escapeHtml(data.corrected_query)}</strong>
-                            <div style="font-size: 11px; opacity: 0.85;">Did you mean this? Click to search</div>
+                            <div style="font-size: 11px; opacity: 0.85;">Did you mean this? Click to view professionals</div>
                         </div>
                     </div>
                 `;
@@ -187,9 +216,11 @@
                     const iconBg = item.badge_bg || '#f1f5f9';
                     const iconColor = item.badge_color || '#087f5b';
                     const iconClass = item.icon_class || 'bi bi-tools';
+                    const workersUrl = item.workers_url || item.url || (item.id ? `/services/${item.id}/workers/?district=${encodeURIComponent(district)}` : '');
+                    const serviceId = item.id || '';
 
                     html += `
-                        <div class="suggestion-item" data-index="${index}" data-name="${escapeHtml(item.name)}" role="option">
+                        <div class="suggestion-item" data-index="${index}" data-name="${escapeHtml(item.name)}" data-service-id="${escapeHtml(serviceId)}" data-workers-url="${escapeHtml(workersUrl)}" role="option">
                             <div class="suggestion-item-main">
                                 <div class="suggestion-icon-wrap" style="background: ${escapeHtml(iconBg)}; color: ${escapeHtml(iconColor)};">
                                     <i class="${escapeHtml(iconClass)}"></i>
@@ -203,7 +234,7 @@
                                 </div>
                             </div>
                             <div class="suggestion-action">
-                                <span class="suggestion-select-pill">Select &rarr;</span>
+                                <span class="suggestion-select-pill"><i class="bi bi-arrow-up-right-circle-fill"></i> View Workers</span>
                             </div>
                         </div>
                     `;
@@ -221,10 +252,14 @@
                 data.popular.forEach(item => {
                     const q = item.query || item.name;
                     const icon = item.icon_class || item.icon || 'bi bi-tools';
+                    const workersUrl = item.workers_url || item.url || '';
+                    const serviceId = item.id || item.service_id || '';
+                    const proCount = item.pro_count_display || '';
                     html += `
-                        <button type="button" class="popular-chip-btn" data-search-query="${escapeHtml(q)}">
+                        <button type="button" class="popular-chip-btn" data-search-query="${escapeHtml(q)}" data-workers-url="${escapeHtml(workersUrl)}" data-service-id="${escapeHtml(serviceId)}">
                             <i class="${escapeHtml(icon)}"></i>
                             <span>${escapeHtml(item.name)}</span>
+                            ${proCount ? `<span class="chip-pro-badge">${escapeHtml(proCount)}</span>` : ''}
                         </button>
                     `;
                 });
@@ -233,8 +268,8 @@
 
             html += `
                 <div class="suggestions-footer">
-                    <span class="suggestions-footer-hint"><i class="bi bi-keyboard"></i> Press <strong>Enter</strong> to explore results</span>
-                    <button type="button" class="btn-suggestions-browse" id="btnSuggestionsBrowseAll">View in Grid &darr;</button>
+                    <span class="suggestions-footer-hint"><i class="bi bi-keyboard"></i> Press <strong>Enter</strong> to view top matching workers</span>
+                    <a href="/service_page/?q=${encodeURIComponent(query)}&district=${encodeURIComponent(district)}" class="btn-suggestions-browse">All Results in Grid &rarr;</a>
                 </div>
             `;
 
@@ -272,25 +307,29 @@
         }
 
         function attachEvents(container) {
-            // Popular Chips
+            // Popular Chips (Idea 2 Direct Navigation)
             const chips = container.querySelectorAll('.popular-chip-btn');
             chips.forEach(chip => {
                 chip.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     const q = this.getAttribute('data-search-query') || this.textContent.trim();
-                    selectAndSubmit(q);
+                    const workersUrl = this.getAttribute('data-workers-url');
+                    const serviceId = this.getAttribute('data-service-id');
+                    navigateToService(q, workersUrl, serviceId);
                 });
             });
 
-            // Suggestion Items
+            // Suggestion Items (Idea 2 Direct Navigation to Service Workers)
             const items = container.querySelectorAll('.suggestion-item');
             items.forEach(item => {
                 item.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     const name = this.getAttribute('data-name') || '';
-                    selectAndSubmit(name);
+                    const workersUrl = this.getAttribute('data-workers-url');
+                    const serviceId = this.getAttribute('data-service-id');
+                    navigateToService(name, workersUrl, serviceId);
                 });
             });
 
@@ -301,7 +340,8 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const q = this.getAttribute('data-search-query') || '';
-                    selectAndSubmit(q);
+                    input.value = q;
+                    fetchSuggestions(q);
                 });
             });
 
@@ -311,9 +351,27 @@
                 browseBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    selectAndSubmit(input.value.trim());
+                    const district = getActiveDistrict();
+                    const q = input.value.trim();
+                    if (q) {
+                        window.location.href = `/service_page/?q=${encodeURIComponent(q)}&district=${encodeURIComponent(district)}`;
+                    } else {
+                        window.location.href = `/service_page/?district=${encodeURIComponent(district)}`;
+                    }
                 });
             }
+        }
+
+        // Intercept form submit to ensure Idea 2 Direct Navigation
+        const parentForm = input.closest('form');
+        if (parentForm) {
+            parentForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                navigateToService(q);
+            });
         }
 
         // Input Event Listeners
@@ -367,11 +425,17 @@
                 e.stopPropagation();
                 clearTimeout(debounceTimer);
                 if (isOpen && selectedIndex >= 0 && items.length > 0 && items[selectedIndex]) {
-                    const chosen = items[selectedIndex].getAttribute('data-name') || input.value.trim();
-                    selectAndSubmit(chosen);
+                    const chosen = items[selectedIndex];
+                    const chosenName = chosen.getAttribute('data-name') || input.value.trim();
+                    const chosenUrl = chosen.getAttribute('data-workers-url');
+                    const chosenId = chosen.getAttribute('data-service-id');
+                    navigateToService(chosenName, chosenUrl, chosenId);
+                } else if (currentSuggestions && currentSuggestions.length > 0) {
+                    const topMatch = currentSuggestions[0];
+                    navigateToService(topMatch.name, topMatch.workers_url || topMatch.url, topMatch.id);
                 } else {
                     const q = input.value.trim();
-                    selectAndSubmit(q);
+                    navigateToService(q);
                 }
             }
         });

@@ -524,6 +524,12 @@
       const drop = document.querySelector(".search-suggestions-dropdown");
       if (drop) drop.classList.remove("is-open");
 
+      // Idea 2: Direct Navigation to Service Workers / All Services if non-empty query
+      if (q && typeof window.lamoNavigateToService === "function") {
+        window.lamoNavigateToService(q);
+        return;
+      }
+
       // 1. INSTANT SMOOTH SCROLL (0ms delay, starts scrolling immediately!)
       scrollToServicesSection(q);
 

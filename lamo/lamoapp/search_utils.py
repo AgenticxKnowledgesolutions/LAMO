@@ -362,11 +362,48 @@ def search_and_rank_services(services_list, raw_query, min_score=0.48):
     return ranked_services, corrected_query, had_typo
 
 
+def enrich_popular_services(services_list, district='Kollam'):
+    """
+    Enriches popular services with active service IDs and direct worker URLs
+    so users can navigate directly to the workers list for that service in their district.
+    """
+    enriched = []
+    for pop in POPULAR_SERVICES_LIST:
+        pop_item = dict(pop)
+        p_name = normalize_search_text(pop.get('name', ''))
+        p_cat = normalize_search_text(pop.get('category', ''))
+        matched_s = None
+        for s in services_list:
+            s_name = normalize_search_text(s.name)
+            s_cat = normalize_search_text(getattr(s, 'category_key', ''))
+            if p_cat and s_cat == p_cat:
+                matched_s = s
+                break
+            if p_name and (p_name in s_name or s_name in p_name):
+                matched_s = s
+                break
+        if matched_s:
+            pop_item['id'] = matched_s.id
+            pop_item['service_id'] = matched_s.id
+            pop_item['workers_url'] = f"/services/{matched_s.id}/workers/?district={district}" if district else f"/services/{matched_s.id}/workers/"
+            pop_item['url'] = pop_item['workers_url']
+            pop_item['worker_count'] = getattr(matched_s, 'real_worker_count', 0)
+            pop_item['pro_count_display'] = getattr(matched_s, 'pro_count_display', '')
+        else:
+            q_str = pop.get('query', pop.get('name', ''))
+            pop_item['url'] = f"/service_page/?q={q_str}&district={district}" if district else f"/service_page/?q={q_str}"
+            pop_item['workers_url'] = pop_item['url']
+        enriched.append(pop_item)
+    return enriched
+
+
 def get_search_suggestions_payload(services_list, raw_query, district='Kollam', limit=8):
     """
     Generates a structured dictionary for the live autocomplete dropdown.
+    Includes direct workers URLs for one-tap navigation (Idea 2).
     """
     query_norm = normalize_search_text(raw_query)
+    popular_enriched = enrich_popular_services(services_list, district=district)
 
     if not query_norm:
         return {
@@ -375,13 +412,14 @@ def get_search_suggestions_payload(services_list, raw_query, district='Kollam', 
             'corrected_query': None,
             'has_typo': False,
             'suggestions': [],
-            'popular': POPULAR_SERVICES_LIST
+            'popular': popular_enriched
         }
 
     ranked, corrected_query, had_typo = search_and_rank_services(services_list, raw_query, min_score=0.45)
 
     suggestions = []
     for s in ranked[:limit]:
+        workers_url = f"/services/{s.id}/workers/?district={district}" if district else f"/services/{s.id}/workers/"
         suggestions.append({
             'id': s.id,
             'name': s.name,
@@ -392,7 +430,8 @@ def get_search_suggestions_payload(services_list, raw_query, district='Kollam', 
             'badge_color': getattr(s, 'badge_color', '#087f5b'),
             'worker_count': getattr(s, 'real_worker_count', 0),
             'pro_count_display': getattr(s, 'pro_count_display', ''),
-            'url': f"/services/{s.id}/workers/?district={district}" if district else f"/services/{s.id}/workers/",
+            'url': workers_url,
+            'workers_url': workers_url,
             'service_page_url': f"/service_page/?q={s.name}&district={district}" if district else f"/service_page/?q={s.name}"
         })
 
@@ -402,5 +441,5 @@ def get_search_suggestions_payload(services_list, raw_query, district='Kollam', 
         'corrected_query': corrected_query,
         'has_typo': had_typo,
         'suggestions': suggestions,
-        'popular': POPULAR_SERVICES_LIST if len(suggestions) < 3 else []
+        'popular': popular_enriched if len(suggestions) < 3 else []
     }
