@@ -633,6 +633,428 @@
 </div>
 
 <!-- =========================================================
+     SCOPED STYLING FOR PREMIUM AUTH POPUP CARD
+========================================================= -->
+<style id="bookingAuthPopupStyles">
+.booking-auth-popup-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(15, 23, 42, 0.72) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 100050 !important;
+    padding: 16px !important;
+    animation: authOverlayFade 0.22s ease !important;
+}
+
+@keyframes authOverlayFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.booking-auth-card {
+    background: #ffffff !important;
+    border-radius: 24px !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    padding: 32px 28px 26px !important;
+    position: relative !important;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+    animation: authModalSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+@keyframes authModalSlide {
+    from { transform: translateY(18px) scale(0.96); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.auth-popup-close {
+    position: absolute !important;
+    top: 18px !important;
+    right: 18px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    border: none !important;
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    font-size: 16px !important;
+    transition: all 0.2s ease !important;
+}
+
+.auth-popup-close:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    transform: rotate(90deg) !important;
+}
+
+.auth-popup-header {
+    text-align: center !important;
+    margin-bottom: 22px !important;
+}
+
+.auth-popup-icon-badge {
+    width: 58px !important;
+    height: 58px !important;
+    margin: 0 auto 14px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important;
+    border: 2px solid #a7f3d0 !important;
+    color: #059669 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 26px !important;
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.18) !important;
+}
+
+.auth-popup-icon-badge.success-badge {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    border-color: #bfdbfe !important;
+    color: #2563eb !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18) !important;
+}
+
+.auth-popup-header h3 {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 0 0 6px !important;
+    letter-spacing: -0.02em !important;
+}
+
+.auth-popup-header p {
+    font-size: 13.5px !important;
+    color: #64748b !important;
+    margin: 0 !important;
+    line-height: 1.5 !important;
+}
+
+/* SEGMENTED TAB SWITCHER */
+.auth-segmented-switch {
+    display: flex !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    padding: 5px !important;
+    gap: 6px !important;
+    margin-bottom: 22px !important;
+}
+
+.auth-switch-tab {
+    flex: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #64748b !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    outline: none !important;
+}
+
+.auth-switch-tab:hover:not(.active) {
+    color: #1e293b !important;
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+.auth-switch-tab.active {
+    background: #ffffff !important;
+    color: #087f5b !important;
+    font-weight: 700 !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08) !important;
+}
+
+.auth-switch-tab i {
+    font-size: 15px !important;
+}
+
+/* INPUT FIELD GROUPS */
+.auth-input-group {
+    margin-bottom: 18px !important;
+    text-align: left !important;
+}
+
+.auth-label {
+    display: block !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    margin-bottom: 7px !important;
+}
+
+.auth-phone-field-wrapper {
+    display: flex !important;
+    align-items: stretch !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+    transition: all 0.2s ease !important;
+}
+
+.auth-phone-field-wrapper:focus-within {
+    border-color: #087f5b !important;
+    box-shadow: 0 0 0 4px rgba(8, 127, 91, 0.12) !important;
+}
+
+.auth-country-tag {
+    background: #f8fafc !important;
+    border-right: 1.5px solid #e2e8f0 !important;
+    padding: 0 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    color: #334155 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+}
+
+.auth-country-flag {
+    width: 20px !important;
+    height: 14px !important;
+    border-radius: 2px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+
+.auth-flat-input {
+    flex: 1 !important;
+    height: 48px !important;
+    padding: 0 16px !important;
+    border: none !important;
+    outline: none !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    background: transparent !important;
+}
+
+.auth-flat-input::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+}
+
+/* Single input wrapper (Email) */
+.auth-single-field-wrapper {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.auth-single-field-wrapper i {
+    position: absolute !important;
+    left: 16px !important;
+    color: #94a3b8 !important;
+    font-size: 16px !important;
+    pointer-events: none !important;
+}
+
+.auth-single-input {
+    width: 100% !important;
+    height: 48px !important;
+    padding: 0 16px 0 44px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.auth-single-input:focus {
+    outline: none !important;
+    border-color: #087f5b !important;
+    box-shadow: 0 0 0 4px rgba(8, 127, 91, 0.12) !important;
+}
+
+.auth-field-hint {
+    display: block !important;
+    font-size: 12px !important;
+    color: #64748b !important;
+    margin-top: 6px !important;
+    line-height: 1.4 !important;
+}
+
+/* PRIMARY CTA BUTTON */
+.btn-auth-submit-action {
+    width: 100% !important;
+    height: 48px !important;
+    border: none !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #087f5b 0%, #065f46 100%) !important;
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 6px 18px rgba(8, 127, 91, 0.28) !important;
+    margin-top: 8px !important;
+}
+
+.btn-auth-submit-action:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 8px 24px rgba(8, 127, 91, 0.35) !important;
+    background: linear-gradient(135deg, #065f46 0%, #044e39 100%) !important;
+}
+
+.btn-auth-submit-action:active {
+    transform: translateY(0) !important;
+}
+
+.btn-auth-submit-action:disabled {
+    opacity: 0.65 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+.btn-auth-submit-action.btn-success {
+    background: #16a34a !important;
+}
+
+/* ALERTS */
+.auth-popup-alert {
+    padding: 11px 16px !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    margin-bottom: 18px !important;
+    display: none;
+    font-weight: 500 !important;
+}
+
+.auth-popup-alert.alert-danger {
+    background: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    color: #991b1b !important;
+}
+
+.auth-popup-alert.alert-success {
+    background: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    color: #166534 !important;
+}
+
+/* SCREEN 2 CODE BOXES */
+.auth-code-group {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    margin: 22px 0 18px !important;
+}
+
+.auth-code-box {
+    width: 48px !important;
+    height: 54px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 14px !important;
+    text-align: center !important;
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    transition: all 0.2s ease !important;
+}
+
+.auth-code-box:focus {
+    outline: none !important;
+    background: #ffffff !important;
+    border-color: #087f5b !important;
+    box-shadow: 0 0 0 4px rgba(8, 127, 91, 0.15) !important;
+    transform: translateY(-2px) !important;
+}
+
+.auth-meta-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 12.5px !important;
+    color: #64748b !important;
+    margin-bottom: 20px !important;
+    padding: 0 4px !important;
+}
+
+.btn-auth-resend {
+    border: none !important;
+    background: transparent !important;
+    color: #087f5b !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+}
+
+.btn-auth-resend:hover:not(:disabled) {
+    text-decoration: underline !important;
+    color: #065f46 !important;
+}
+
+.btn-auth-resend:disabled {
+    color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    text-decoration: none !important;
+}
+
+.btn-auth-back-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    text-align: center !important;
+    margin-top: 16px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #64748b !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: color 0.2s !important;
+}
+
+.btn-auth-back-link:hover {
+    color: #0f172a !important;
+}
+
+.auth-legal-line {
+    text-align: center !important;
+    font-size: 11.5px !important;
+    color: #64748b !important;
+    margin: 16px 0 0 !important;
+    line-height: 1.5 !important;
+}
+
+.auth-legal-line a {
+    color: #087f5b !important;
+    text-decoration: underline !important;
+    font-weight: 500 !important;
+}
+</style>
+
+<!-- =========================================================
      UNIFIED LOGIN OR REGISTER POPUP FOR UNAUTHENTICATED USERS
 ========================================================= -->
 <div id="bookingAuthPopup" class="booking-auth-popup-overlay" aria-hidden="true" style="display:none; z-index:100050;" role="dialog" aria-modal="true" aria-labelledby="authPopupTitle">
@@ -644,19 +1066,19 @@
         <!-- SCREEN 1: IDENTIFIER INPUT (Mobile or Email) -->
         <div id="authScreen1" class="auth-popup-screen active">
             <div class="auth-popup-header">
-                <div class="auth-popup-icon">
+                <div class="auth-popup-icon-badge">
                     <i class="bi bi-shield-lock-fill"></i>
                 </div>
                 <h3 id="authPopupTitle">Verify to Book</h3>
                 <p>Choose how you would like to receive your 6-digit verification code</p>
             </div>
 
-            <!-- Choice Tabs: [ Mobile OTP ] [ Email OTP ] -->
-            <div class="auth-method-toggle" role="tablist">
-                <button type="button" class="auth-toggle-btn active" id="tabMobileAuth" onclick="switchAuthMethod('mobile')" role="tab" aria-selected="true">
+            <!-- Choice Segmented Tabs: [ Mobile OTP ] [ Email OTP ] -->
+            <div class="auth-segmented-switch" role="tablist">
+                <button type="button" class="auth-switch-tab active" id="tabMobileAuth" onclick="switchAuthMethod('mobile')" role="tab" aria-selected="true">
                     <i class="bi bi-phone"></i> Mobile OTP
                 </button>
-                <button type="button" class="auth-toggle-btn" id="tabEmailAuth" onclick="switchAuthMethod('email')" role="tab" aria-selected="false">
+                <button type="button" class="auth-switch-tab" id="tabEmailAuth" onclick="switchAuthMethod('email')" role="tab" aria-selected="false">
                     <i class="bi bi-envelope"></i> Email OTP
                 </button>
             </div>
@@ -668,18 +1090,26 @@
                 <div id="authMobileContainer">
                     <div class="auth-input-group">
                         <label for="authMobileInput" class="auth-label">10-Digit Mobile Number <span class="text-danger">*</span></label>
-                        <div class="auth-input-wrapper">
-                            <span class="auth-phone-prefix">🇮🇳 +91</span>
+                        <div class="auth-phone-field-wrapper">
+                            <div class="auth-country-tag">
+                                <svg class="auth-country-flag" viewBox="0 0 640 480" width="20" height="14">
+                                    <path fill="#f93" d="M0 0h640v160H0z"/>
+                                    <path fill="#fff" d="M0 160h640v160H0z"/>
+                                    <path fill="#128807" d="M0 320h640v160H0z"/>
+                                    <circle cx="320" cy="240" r="38" fill="#008"/>
+                                </svg>
+                                <span>+91</span>
+                            </div>
                             <input type="tel"
                                    id="authMobileInput"
-                                   class="auth-input has-prefix"
-                                   placeholder="Enter mobile number"
+                                   class="auth-flat-input"
+                                   placeholder="Enter 10-digit mobile number"
                                    inputmode="numeric"
                                    maxlength="10"
                                    pattern="[6-9][0-9]{9}"
                                    autocomplete="tel">
                         </div>
-                        <small class="auth-field-hint">We'll send a 6-digit verification code to this mobile number via SMS.</small>
+                        <small class="auth-field-hint">We'll send an instant 6-digit OTP to this mobile number via SMS.</small>
                     </div>
                 </div>
 
@@ -687,22 +1117,30 @@
                 <div id="authEmailContainer" style="display:none;">
                     <div class="auth-input-group">
                         <label for="authEmailInput" class="auth-label">Email Address <span class="text-danger">*</span></label>
-                        <div class="auth-input-wrapper">
-                            <i class="bi bi-envelope auth-input-icon"></i>
+                        <div class="auth-single-field-wrapper">
+                            <i class="bi bi-envelope"></i>
                             <input type="email"
                                    id="authEmailInput"
-                                   class="auth-input"
+                                   class="auth-single-input"
                                    placeholder="name@example.com"
                                    autocomplete="email">
                         </div>
                     </div>
                     <div class="auth-input-group">
                         <label for="authEmailPhoneInput" class="auth-label">Contact Number <span class="text-danger">*</span></label>
-                        <div class="auth-input-wrapper">
-                            <span class="auth-phone-prefix">🇮🇳 +91</span>
+                        <div class="auth-phone-field-wrapper">
+                            <div class="auth-country-tag">
+                                <svg class="auth-country-flag" viewBox="0 0 640 480" width="20" height="14">
+                                    <path fill="#f93" d="M0 0h640v160H0z"/>
+                                    <path fill="#fff" d="M0 160h640v160H0z"/>
+                                    <path fill="#128807" d="M0 320h640v160H0z"/>
+                                    <circle cx="320" cy="240" r="38" fill="#008"/>
+                                </svg>
+                                <span>+91</span>
+                            </div>
                             <input type="tel"
                                    id="authEmailPhoneInput"
-                                   class="auth-input has-prefix"
+                                   class="auth-flat-input"
                                    placeholder="Mobile number for worker to call"
                                    inputmode="numeric"
                                    maxlength="10"
@@ -713,7 +1151,7 @@
                     </div>
                 </div>
 
-                <button type="submit" id="btnAuthSendCode" class="btn-auth-primary">
+                <button type="submit" id="btnAuthSendCode" class="btn-auth-submit-action">
                     <span>Send Verification Code</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
@@ -730,7 +1168,7 @@
         <!-- SCREEN 2: 6-DIGIT VERIFICATION CODE -->
         <div id="authScreen2" class="auth-popup-screen" style="display:none;">
             <div class="auth-popup-header">
-                <div class="auth-popup-icon success-icon">
+                <div class="auth-popup-icon-badge success-badge">
                     <i class="bi bi-key-fill"></i>
                 </div>
                 <h3 id="authScreen2Title">Verification Code</h3>
@@ -762,12 +1200,12 @@
                     </div>
                 </div>
 
-                <button type="submit" id="btnAuthVerify" class="btn-auth-primary">
+                <button type="submit" id="btnAuthVerify" class="btn-auth-submit-action">
                     <i class="bi bi-shield-check"></i>
                     <span id="btnAuthConfirmText">Confirm &amp; Book</span>
                 </button>
 
-                <div class="auth-change-email-row">
+                <div style="text-align:center;">
                     <button type="button" class="btn-auth-back-link" onclick="backToAuthScreen1()">
                         <i class="bi bi-arrow-left"></i> Change mobile number / email
                     </button>
