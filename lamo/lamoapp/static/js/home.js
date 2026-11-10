@@ -692,24 +692,25 @@
       });
     }
 
-    let searchDebounceTimer = null;
     if (searchInput) {
       searchInput.addEventListener("input", function () {
         const val = searchInput.value.trim();
         if (clearSearchBtn) {
           clearSearchBtn.style.display = val.length > 0 ? "inline-flex" : "none";
         }
-        clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(function () {
-          fetchFilteredServices({ query: val, showDropdown: false, scrollToResults: false });
-        }, 220);
+        // Option 1: Typing strictly does NOT auto-filter the background page.
+        // Live suggestions are managed smoothly by search-suggestions.js.
       });
 
       searchInput.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
-          clearTimeout(searchDebounceTimer);
-          triggerHeroSearch(searchInput.value.trim());
+          const q = searchInput.value.trim();
+          if (typeof window.lamoNavigateToService === "function") {
+            window.lamoNavigateToService(q);
+            return;
+          }
+          triggerHeroSearch(q);
         }
       });
     }
@@ -717,8 +718,11 @@
     if (heroForm) {
       heroForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        clearTimeout(searchDebounceTimer);
         const q = searchInput ? searchInput.value.trim() : "";
+        if (typeof window.lamoNavigateToService === "function") {
+          window.lamoNavigateToService(q);
+          return;
+        }
         triggerHeroSearch(q);
       });
     }
@@ -730,7 +734,7 @@
           searchInput.focus();
         }
         clearSearchBtn.style.display = "none";
-        triggerHeroSearch("");
+        fetchFilteredServices({ query: "", category: currentCategory || "all" });
       });
     }
 

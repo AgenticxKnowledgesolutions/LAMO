@@ -1688,9 +1688,13 @@ def _send_booking_verification_code(request, identifier, customer_name=None, pho
             recipient_list=[clean_email],
             purpose='otp_verification',
         )
+        if settings.DEBUG:
+            logger.info('[DEV_DEBUG] Booking OTP for %s: %s (sent=%s)', clean_email, otp, sent)
         return otp, sent
     else:
         sent = send_otp_sms(clean_phone, otp)
+        if settings.DEBUG:
+            logger.info('[DEV_DEBUG] Booking Mobile OTP for %s: %s (sent=%s)', clean_phone, otp, sent)
         return otp, sent
 
 
@@ -12829,32 +12833,19 @@ def ai_service_assistant(request):
                 'distance_label': distance_label,
             })
 
-        # --------------------------------------------------
-        # RESPONSE
-        # --------------------------------------------------
         return JsonResponse({
-
-            'success': True,
-
-            'type': 'service_match',
-
+            'status': 'success',
             'service': {
-
                 'id': matched_service.id,
-
                 'name': matched_service.name,
-
                 'description': matched_service.description,
-
                 'price': (
                     str(matched_service.price)
                     if matched_service.price
                     else None
                 ),
             },
-
             'workers': workers_data,
-
             'query': message
         })
 

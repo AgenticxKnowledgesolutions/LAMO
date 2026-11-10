@@ -7,11 +7,11 @@
 {% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/home.js' %}?v=2.6" defer></script>
+<script src="{% static 'js/home.js' %}?v=2.7_sleek_search" defer></script>
 {% endblock %}
 
 {% block page_css %}
-<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.6">
+<link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.7_sleek_search">
 {% endblock %}
 
 {% block hero %}
@@ -83,7 +83,6 @@
 
             <!-- Live Service Query Input -->
             <div class="search-query-wrap">
-              <i class="bi bi-search search-icon"></i>
               <input type="text" 
                      name="q" 
                      id="liveServiceSearch" 
@@ -100,10 +99,10 @@
               </button>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Find Services">
-              <span data-i18n="btn_find_services">Find Services</span>
-              <i class="bi bi-arrow-right"></i>
+            <!-- Sleek Search Button (Option 1 + Option 2 Combined) -->
+            <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Search Services" title="Search">
+              <i class="bi bi-search"></i>
+              <span class="btn-find-text" data-i18n="btn_find_services">Search</span>
             </button>
 
             <!-- Hidden button for Geolocation JS compatibility -->

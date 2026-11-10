@@ -227,7 +227,7 @@ def _send_email_internal(
                 'https://api.resend.com/emails',
                 json=payload,
                 headers={'Authorization': f'Bearer {api_key}'},
-                timeout=(3.0, 5.0),
+                timeout=(5.0, 10.0),
             )
             response.raise_for_status()
         except Exception as exc:  # pragma: no cover

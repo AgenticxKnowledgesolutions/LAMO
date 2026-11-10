@@ -5,7 +5,7 @@
 {% block meta_description %}Browse all verified professional home services in {{ selected_district }} on LAMO. Find trusted workers for cleaning, electrical, plumbing, AC repair, painting, carpentry, and maintenance.{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.2">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}?v=2.7_sleek_search">
 {% endblock %}
 
 {% block page_css %}
@@ -328,7 +328,6 @@
 
           <!-- Query Input -->
           <div class="search-query-wrap">
-            <i class="bi bi-search search-icon"></i>
             <input type="text" 
                    name="q" 
                    id="liveServiceSearch" 
@@ -345,10 +344,10 @@
             </button>
           </div>
 
-          <!-- Submit Button -->
-          <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Find Services">
-            <span data-i18n="btn_find_services">Find Services</span>
-            <i class="bi bi-arrow-right"></i>
+          <!-- Sleek Search Button (Option 1 + Option 2 Combined) -->
+          <button type="submit" class="btn-find-services" id="btnHeroSearchSubmit" aria-label="Search Services" title="Search">
+            <i class="bi bi-search"></i>
+            <span class="btn-find-text" data-i18n="btn_find_services">Search</span>
           </button>
         </form>
       </div>
