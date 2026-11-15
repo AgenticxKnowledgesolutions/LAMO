@@ -381,6 +381,11 @@ class Service(models.Model):
 
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
+    default_duration_min = models.PositiveIntegerField(
+        default=45,
+        help_text="Estimated duration in minutes for this service (e.g. 30, 45, 60, 90)."
+    )
+
     # icon = models.CharField( max_length=100, default='bi bi-tools')
 
     is_active = models.BooleanField( default=True)
@@ -541,6 +546,87 @@ class WorkerProfile(models.Model):
         choices=AVAILABILITY_CHOICES
 
     )
+
+    work_start_time = models.TimeField(
+        default='09:00',
+        blank=True,
+        null=True,
+        help_text="Daily working shift start time (e.g. 09:00 AM)"
+    )
+
+    work_end_time = models.TimeField(
+        default='18:00',
+        blank=True,
+        null=True,
+        help_text="Daily working shift end time (e.g. 06:00 PM)"
+    )
+
+    def get_working_hours_display(self):
+        try:
+            start = self.work_start_time.strftime('%I:%M %p') if self.work_start_time else '9:00 AM'
+            end = self.work_end_time.strftime('%I:%M %p') if self.work_end_time else '6:00 PM'
+            if start.startswith('0'): start = start[1:]
+            if end.startswith('0'): end = end[1:]
+            return f"{start} - {end}"
+        except Exception:
+            return "9:00 AM - 6:00 PM"
+
+    def generate_time_slots(self, interval_hours=0.5, interval_minutes=None):
+        from datetime import time
+        try:
+            s_time = self.work_start_time or time(9, 0)
+            e_time = self.work_end_time or time(18, 0)
+            
+            start_min = s_time.hour * 60 + s_time.minute
+            end_min = e_time.hour * 60 + e_time.minute
+            
+            if end_min <= start_min:
+                end_min = start_min + 8 * 60
+                
+            step = int(interval_minutes) if interval_minutes else int(float(interval_hours) * 60)
+            if step <= 0:
+                step = 30
+            slots = []
+            cur = start_min
+            while cur + step <= end_min:
+                t1 = time(cur // 60, cur % 60)
+                t2 = time((cur + step) // 60, (cur + step) % 60)
+                f1 = t1.strftime('%I:%M %p').lstrip('0')
+                f2 = t2.strftime('%I:%M %p').lstrip('0')
+                slots.append(f"{f1} - {f2}")
+                cur += step
+                
+            if cur < end_min and (end_min - cur) >= 20:
+                t1 = time(cur // 60, cur % 60)
+                t2 = time(end_min // 60, end_min % 60)
+                f1 = t1.strftime('%I:%M %p').lstrip('0')
+                f2 = t2.strftime('%I:%M %p').lstrip('0')
+                slots.append(f"{f1} - {f2}")
+                
+            return slots or [
+                '9:00 AM - 9:30 AM', '9:30 AM - 10:00 AM',
+                '10:00 AM - 10:30 AM', '10:30 AM - 11:00 AM',
+                '11:00 AM - 11:30 AM', '11:30 AM - 12:00 PM',
+                '12:00 PM - 12:30 PM', '12:30 PM - 1:00 PM',
+                '1:00 PM - 1:30 PM', '1:30 PM - 2:00 PM',
+                '2:00 PM - 2:30 PM', '2:30 PM - 3:00 PM',
+                '3:00 PM - 3:30 PM', '3:30 PM - 4:00 PM',
+                '4:00 PM - 4:30 PM', '4:30 PM - 5:00 PM',
+                '5:00 PM - 5:30 PM', '5:30 PM - 6:00 PM'
+            ]
+        except Exception:
+            return [
+                '9:00 AM - 9:30 AM', '9:30 AM - 10:00 AM',
+                '10:00 AM - 10:30 AM', '10:30 AM - 11:00 AM',
+                '11:00 AM - 11:30 AM', '11:30 AM - 12:00 PM',
+                '12:00 PM - 12:30 PM', '12:30 PM - 1:00 PM',
+                '1:00 PM - 1:30 PM', '1:30 PM - 2:00 PM',
+                '2:00 PM - 2:30 PM', '2:30 PM - 3:00 PM',
+                '3:00 PM - 3:30 PM', '3:30 PM - 4:00 PM',
+                '4:00 PM - 4:30 PM', '4:30 PM - 5:00 PM',
+                '5:00 PM - 5:30 PM', '5:30 PM - 6:00 PM'
+            ]
+            return ['9:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '1:00 PM - 2:00 PM', '2:00 PM - 3:00 PM', '3:00 PM - 4:00 PM', '4:00 PM - 5:00 PM', '5:00 PM - 6:00 PM']
 
 
 
@@ -988,6 +1074,16 @@ class Booking(models.Model):
 
     )
 
+    duration_min = models.PositiveIntegerField(
+        default=45,
+        help_text="Duration allocated for this job in minutes."
+    )
+
+    buffer_min = models.PositiveIntegerField(
+        default=15,
+        help_text="Travel and preparation buffer in minutes after the job."
+    )
+
 
 
     location = models.TextField()
@@ -1423,7 +1519,7 @@ class Booking(models.Model):
         tot = self.final_amount if self.final_amount is not None else (self.estimated_cost or Decimal('0.00'))
         return max(Decimal('0.00'), Decimal(str(tot)) - Decimal(str(mat)))
 
-    def check_can_start(self):
+    def check_can_start(self, arrival_otp=None):
 
         """
 
@@ -1433,17 +1529,25 @@ class Booking(models.Model):
 
         - Accepted bookings can be started on the scheduled date, up to 30 minutes
 
-          before scheduled start_time.
+          before scheduled start_time. If customer provides Arrival PIN earlier,
 
-        - Future dates or starting >30 mins early is blocked.
+          early arrival consent is verified and allowed immediately.
+
+        - Future dates or starting >30 mins early without PIN is blocked.
 
         """
 
         if self.status != 'ACCEPTED':
-
             return False, 'This job cannot be started at this stage.'
 
-
+        # Prevent starting a new booking if the worker already has an active in-progress job
+        if self.worker_id:
+            active_other = Booking.objects.filter(
+                worker_id=self.worker_id,
+                status='IN_PROGRESS'
+            ).exclude(id=self.id).exists()
+            if active_other:
+                return False, 'You already have another job currently in progress. Please complete your current job before starting this one.'
 
         if self.booking_type == 'Emergency':
 
@@ -1507,13 +1611,17 @@ class Booking(models.Model):
 
             if now_local < early_allowed_dt:
 
+                # Customer Consent Early Start: If customer shared Arrival PIN, allow early start
+                if arrival_otp and self.arrival_otp and str(arrival_otp).strip() == str(self.arrival_otp).strip():
+                    return True, ''
+
                 minutes_left = int((scheduled_dt - now_local).total_seconds() / 60)
 
                 return False, (
 
                     f'This job is scheduled for {self.time} today. '
 
-                    f'You can only start the job up to 30 minutes before the scheduled time (in {max(1, minutes_left)} minutes).'
+                    f'You can start up to 30 minutes early, or enter the customer\'s 4-digit Arrival PIN now to verify doorstep arrival.'
 
                 )
 
@@ -2264,6 +2372,16 @@ class BookingSeries(models.Model):
 
         blank=True
 
+    )
+
+    duration_min = models.PositiveIntegerField(
+        default=45,
+        help_text="Duration allocated for this job in minutes."
+    )
+
+    buffer_min = models.PositiveIntegerField(
+        default=15,
+        help_text="Travel and preparation buffer in minutes after the job."
     )
 
 

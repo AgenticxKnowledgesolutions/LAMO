@@ -167,12 +167,15 @@
                             <label class="form-label" for="id_time_slot">Preferred Time</label>
                             <select name="time_slot" id="id_time_slot" class="form-select" required>
                                 <option value="">Select time slot</option>
-                                <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
-                                <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
-                                <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
-                                <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
-                                <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
-                                <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                                <option value="9:00 AM - 10:00 AM">9:00 AM - 10:00 AM</option>
+                                <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                                <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                                <option value="12:00 PM - 1:00 PM">12:00 PM - 1:00 PM</option>
+                                <option value="1:00 PM - 2:00 PM">1:00 PM - 2:00 PM</option>
+                                <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
+                                <option value="3:00 PM - 4:00 PM">3:00 PM - 4:00 PM</option>
+                                <option value="4:00 PM - 5:00 PM">4:00 PM - 5:00 PM</option>
+                                <option value="5:00 PM - 6:00 PM">5:00 PM - 6:00 PM</option>
                             </select>
                             <input type="hidden" name="time" id="id_time" value="">
                             <div id="bookServiceWorkerNotice" style="display:none; margin-top:8px; padding:8px 12px; border-radius:8px; font-size:12.5px; font-weight:600; line-height:1.4;"></div>
@@ -390,12 +393,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (timeHidden) timeHidden.value = '';
         }
 
-        // Live Worker Availability (Pillar 1)
+        // Live Worker Availability (Option 1: Duration + Buffer)
         {% if worker %}
         const workerId = "{{ worker.id }}";
         const dateVal = dateInput ? dateInput.value : '';
+        const serviceIdVal = "{{ service.id }}";
         if (workerId && dateVal) {
-            fetch(`/api/worker/${workerId}/availability/?date=${dateVal}`)
+            fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
@@ -421,22 +425,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     opt.text = opt.value + ' (Worker on leave)';
                                 }
                             });
-                        } else if (data.slots) {
-                            const slotMap = {};
-                            data.slots.forEach(s => { slotMap[s.slot] = s; });
-                            Array.from(timeSlot.options).forEach(function(opt) {
-                                if (!opt.value) {
-                                    opt.text = isToday ? 'Select time slot (Today)' : 'Select time slot';
-                                    return;
-                                }
-                                const info = slotMap[opt.value];
-                                if (info && !info.available) {
+                        } else if (data.slots && data.slots.length > 0) {
+                            const prevVal = timeSlot.value;
+                            timeSlot.innerHTML = `<option value="">${isToday ? 'Select time slot (Today)' : 'Select time slot'}</option>`;
+                            data.slots.forEach(function(s) {
+                                const opt = document.createElement('option');
+                                opt.value = s.slot;
+                                if (!s.available) {
                                     opt.disabled = true;
-                                    opt.text = opt.value + ` (${info.reason})`;
-                                } else if (!opt.disabled) {
-                                    opt.text = opt.value + (isToday ? ' (Available Today)' : ' (Available)');
+                                    opt.textContent = s.slot + ` (${s.reason})`;
+                                } else {
+                                    opt.textContent = s.slot + (isToday ? ' (Available Today)' : ' (Available)');
                                 }
+                                timeSlot.appendChild(opt);
                             });
+                            if (prevVal && Array.from(timeSlot.options).some(o => o.value === prevVal && !o.disabled)) {
+                                timeSlot.value = prevVal;
+                            }
                         }
                         if (timeSlot.selectedOptions.length && timeSlot.selectedOptions[0].disabled) {
                             timeSlot.value = '';

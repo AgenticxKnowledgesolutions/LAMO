@@ -27,6 +27,17 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name='wallettransaction',
+            name='reference_id',
+            field=models.CharField(
+                blank=True,
+                default=None,
+                help_text='Bank transaction reference / UTR number for manual recharges (unique when present)',
+                max_length=100,
+                null=True,
+            ),
+        ),
         migrations.RunPython(
             convert_empty_reference_ids_to_null,
             reverse_code=convert_null_reference_ids_to_empty,

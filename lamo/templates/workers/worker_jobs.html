@@ -1,4 +1,4 @@
-﻿{% extends "workers/worker_sidebar.html" %}
+{% extends "workers/worker_sidebar.html" %}
 {% load static %}
 
 {% block title %}My Jobs | LAMO{% endblock %}
@@ -1712,6 +1712,86 @@
 
             <div class="jobs-list">
 
+                <!-- SMART TRANSIT & NEXT JOB COORDINATION BANNER -->
+                {% if transit_context and transit_context.next_job %}
+                    <div class="transit-coordination-banner" style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 1.5px solid #38bdf8; border-left: 5px solid #0284c7; border-radius: 14px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(2, 132, 199, 0.08);">
+                        <div style="display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                            <div style="width: 42px; height: 42px; border-radius: 12px; background: #0284c7; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
+                                <i class="bi bi-geo-alt-fill"></i>
+                            </div>
+                            <div style="flex: 1; min-width: 260px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <strong style="color: #0369a1; font-size: 15px;">Smart Transit &amp; Next Job Coordination</strong>
+                                        {% if transit_context.is_overrun %}
+                                            <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                                <i class="bi bi-exclamation-triangle-fill"></i> Current Job Running Over
+                                            </span>
+                                        {% elif transit_context.is_travel_tight %}
+                                            <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                                <i class="bi bi-clock-history"></i> Tight Transit Window
+                                            </span>
+                                        {% else %}
+                                            <span style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                                <i class="bi bi-check-circle-fill"></i> Upcoming Booking Today
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <span style="font-size: 12.5px; color: #64748b; font-weight: 600;">Booking #{{ transit_context.next_job.id }}</span>
+                                </div>
+
+                                <p style="margin: 0 0 12px; color: #334155; font-size: 13.5px; line-height: 1.5;">
+                                    {% if transit_context.recent_completed_job %}
+                                        Your previous job has been completed.
+                                    {% elif transit_context.active_job %}
+                                        You have an active job currently in progress.
+                                    {% endif %}
+                                    You have <strong>{{ transit_context.minutes_until_next_job }} minutes</strong> before your next booking with <strong>{{ transit_context.next_job.customer.get_full_name|default:transit_context.next_job.customer.username }}</strong> at <strong>{{ transit_context.next_job.time }}</strong> (~{{ transit_context.distance_km }} km away, est. ~{{ transit_context.estimated_travel_min }} mins travel).
+                                    <br>
+                                    <span style="color: #0369a1; font-weight: 600;">Is this travel time sufficient for you to reach the next customer's location?</span>
+                                </p>
+
+                                <!-- 1-TAP TRANSIT & COORDINATION ACTIONS -->
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                                    <!-- 1-Tap: On time -->
+                                    <form method="POST" action="{% url 'worker_confirm_next_job_transit' transit_context.next_job.id %}" style="display: inline-block; margin: 0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="transit_choice" value="on_time">
+                                        <button type="submit" style="padding: 9px 16px; border-radius: 10px; background: #059669; color: #ffffff; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);">
+                                            <i class="bi bi-check-circle-fill"></i> On Time (En Route)
+                                        </button>
+                                    </form>
+
+                                    <!-- 1-Tap: Need +15 Mins Late -->
+                                    <form method="POST" action="{% url 'worker_confirm_next_job_transit' transit_context.next_job.id %}" style="display: inline-block; margin: 0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="transit_choice" value="need_buffer">
+                                        <input type="hidden" name="buffer_minutes" value="15">
+                                        <button type="submit" style="padding: 9px 15px; border-radius: 10px; background: #0284c7; color: #ffffff; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);" title="Notify customer you will arrive ~15 mins later">
+                                            <i class="bi bi-hourglass-split"></i> +15 Mins Late
+                                        </button>
+                                    </form>
+
+                                    <!-- 1-Tap: Need +30 Mins Late -->
+                                    <form method="POST" action="{% url 'worker_confirm_next_job_transit' transit_context.next_job.id %}" style="display: inline-block; margin: 0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="transit_choice" value="need_buffer">
+                                        <input type="hidden" name="buffer_minutes" value="30">
+                                        <button type="submit" style="padding: 9px 15px; border-radius: 10px; background: #0ea5e9; color: #ffffff; border: none; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);" title="Notify customer you will arrive ~30 mins later">
+                                            <i class="bi bi-clock-history"></i> +30 Mins Late
+                                        </button>
+                                    </form>
+
+                                    <!-- 1-Tap: Request Different Time Slot -->
+                                    <button type="button" onclick="openProposeRescheduleModal('{{ transit_context.next_job.id }}', '{{ transit_context.next_job.service.name|escapejs }}', '{{ transit_context.next_job.customer.get_full_name|default:transit_context.next_job.customer.username|escapejs }}', '{{ transit_context.next_job.date|date:'Y-m-d' }}', '{{ transit_context.next_job.time|escapejs }}')" style="padding: 9px 16px; border-radius: 10px; background: #ffffff; color: #4338ca; border: 1.5px solid #a5b4fc; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(67, 56, 202, 0.08);">
+                                        <i class="bi bi-calendar2-range"></i> Propose New Time
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
 
                 {% for booking in bookings %}
 
@@ -2018,9 +2098,9 @@
 
                         {% if booking.status == 'PENDING' %}
 
-                            <div class="worker-pending-timer" data-created-at="{{ booking.created_at|date:'c' }}">
+                            <div class="worker-pending-timer" data-created-at="{{ booking.created_at|date:'c' }}" data-window-minutes="{% if booking.date == today %}20{% else %}60{% endif %}">
                                 <i class="bi bi-clock-history"></i>
-                                <span>30-min Response Timer: <strong class="worker-timer-countdown">calculating...</strong></span>
+                                <span>{% if booking.date == today %}20-min Urgent{% else %}60-min{% endif %} Response Timer: <strong class="worker-timer-countdown">calculating...</strong></span>
                             </div>
 
                             {% if booking.has_pending_reschedule %}
@@ -2511,12 +2591,45 @@
                     <input type="date" name="proposed_date" id="rescheduleDateInput" required style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Proposed Time / Slot</label>
-                    <input type="text" name="proposed_time" id="rescheduleTimeInput" required placeholder="e.g. 4:30 PM or 4:00 PM - 6:00 PM" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                    <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Proposed Time / 30-min Slot</label>
+                    <input type="text" name="proposed_time" id="rescheduleTimeInput" list="suggestedRescheduleSlots" required placeholder="e.g. 4:45 PM or 4:00 PM - 4:30 PM" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                    <datalist id="suggestedRescheduleSlots">
+                        <option value="9:00 AM - 9:30 AM">
+                        <option value="9:30 AM - 10:00 AM">
+                        <option value="10:00 AM - 10:30 AM">
+                        <option value="10:30 AM - 11:00 AM">
+                        <option value="11:00 AM - 11:30 AM">
+                        <option value="11:30 AM - 12:00 PM">
+                        <option value="12:00 PM - 12:30 PM">
+                        <option value="12:30 PM - 1:00 PM">
+                        <option value="1:00 PM - 1:30 PM">
+                        <option value="1:30 PM - 2:00 PM">
+                        <option value="2:00 PM - 2:30 PM">
+                        <option value="2:30 PM - 3:00 PM">
+                        <option value="3:00 PM - 3:30 PM">
+                        <option value="3:30 PM - 4:00 PM">
+                        <option value="4:00 PM - 4:30 PM">
+                        <option value="4:30 PM - 5:00 PM">
+                        <option value="4:45 PM">
+                        <option value="5:00 PM - 5:30 PM">
+                        <option value="5:30 PM - 6:00 PM">
+                    </datalist>
+                    <!-- Quick offset pills for worker: +30m, +45m, +1h -->
+                    <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center;">
+                        <span style="font-size:11px; color:#6b7280;">Quick adjustments:</span>
+                        <button type="button" onclick="applyRescheduleQuickOffset(30)" style="font-size:11px; padding:3px 9px; border-radius:12px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; cursor:pointer; font-weight:600;">+30 mins</button>
+                        <button type="button" onclick="applyRescheduleQuickOffset(45)" style="font-size:11px; padding:3px 9px; border-radius:12px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; cursor:pointer; font-weight:600;">+45 mins</button>
+                        <button type="button" onclick="applyRescheduleQuickOffset(60)" style="font-size:11px; padding:3px 9px; border-radius:12px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; cursor:pointer; font-weight:600;">+1 hour</button>
+                    </div>
                 </div>
                 <div style="margin-bottom: 8px;">
                     <label style="display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px;">Reason / Quick Note for Customer (Optional)</label>
-                    <input type="text" name="reschedule_note" id="rescheduleNoteInput" placeholder="e.g. Finishing another job nearby until 4 PM" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                    <input type="text" name="reschedule_note" id="rescheduleNoteInput" placeholder='e.g. "I have a prior job nearby finishing at 3:30 PM. I can reach your doorstep comfortably by 4:45 PM."' style="width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid #d1d5db; border-radius:8px; outline:none;">
+                    <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+                        <span style="font-size:11px; color:#6b7280; align-self:center;">Templates:</span>
+                        <button type="button" onclick="applyRescheduleTemplate('prior_job')" style="font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; color:#475569; cursor:pointer;">Prior job nearby</button>
+                        <button type="button" onclick="applyRescheduleTemplate('traffic')" style="font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #e2e8f0; background:#f8fafc; color:#475569; cursor:pointer;">Travel buffer</button>
+                    </div>
                 </div>
             </div>
             <div class="worker-modal-footer">
@@ -2608,7 +2721,8 @@ document.addEventListener("DOMContentLoaded", function () {
             const createdAtStr = el.getAttribute("data-created-at");
             if (!createdAtStr) return;
             const createdAt = new Date(createdAtStr).getTime();
-            const expiresAt = createdAt + (30 * 60 * 1000);
+            const windowMins = parseInt(el.getAttribute("data-window-minutes") || "60", 10);
+            const expiresAt = createdAt + (windowMins * 60 * 1000);
             const remaining = expiresAt - now;
 
             const textEl = el.querySelector(".worker-timer-countdown");
@@ -2652,11 +2766,13 @@ function openStartJobEarlyModal(bookingDate, bookingTime) {
 }
 
 // PROPOSE RESCHEDULE MODAL
+let _currentRescheduleOrigTime = "";
 function openProposeRescheduleModal(bookingId, serviceName, customerName, bookingDate, bookingTime) {
     const modal = document.getElementById("proposeRescheduleModal");
     const form = document.getElementById("proposeRescheduleForm");
     document.getElementById("rescheduleCustomer").innerText = customerName;
     document.getElementById("rescheduleOriginalTime").innerText = bookingDate + " at " + bookingTime;
+    _currentRescheduleOrigTime = bookingTime || "";
     const dateInput = document.getElementById("rescheduleDateInput");
     if (dateInput) {
         const today = new Date();
@@ -2677,9 +2793,58 @@ function openProposeRescheduleModal(bookingId, serviceName, customerName, bookin
     }, 100);
 }
 
+function applyRescheduleQuickOffset(mins) {
+    if (!_currentRescheduleOrigTime) return;
+    const match = _currentRescheduleOrigTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return;
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    const ampm = match[3].toUpperCase();
+    if (ampm === "PM" && h < 12) h += 12;
+    if (ampm === "AM" && h === 12) h = 0;
+    
+    let totalMins = h * 60 + m + mins;
+    let newH = Math.floor(totalMins / 60) % 24;
+    let newM = totalMins % 60;
+    const newAmpm = newH >= 12 ? "PM" : "AM";
+    newH = newH % 12;
+    if (newH === 0) newH = 12;
+    const newTimeStr = `${newH}:${String(newM).padStart(2, '0')} ${newAmpm}`;
+    const timeInput = document.getElementById("rescheduleTimeInput");
+    if (timeInput) timeInput.value = newTimeStr;
+    
+    const noteInput = document.getElementById("rescheduleNoteInput");
+    if (noteInput && !noteInput.value) {
+        noteInput.value = `I have a prior job nearby. I can reach your doorstep comfortably by ${newTimeStr}. Hope that works for you!`;
+    }
+}
+
+function applyRescheduleTemplate(type) {
+    const noteInput = document.getElementById("rescheduleNoteInput");
+    const timeInput = document.getElementById("rescheduleTimeInput");
+    const targetTime = (timeInput && timeInput.value) ? timeInput.value : "the proposed time";
+    if (noteInput) {
+        if (type === 'prior_job') {
+            noteInput.value = `I have a prior job nearby finishing just before this. I can reach your doorstep comfortably by ${targetTime}. Hope that works for you!`;
+        } else if (type === 'traffic') {
+            noteInput.value = `Allowing travel & traffic buffer from previous service location to reach on-time at ${targetTime}.`;
+        }
+    }
+}
+
 function closeProposeRescheduleModal() {
     document.getElementById("proposeRescheduleModal").style.display = "none";
 }
+
+// Auto-open reschedule modal if redirected with ?reschedule=<booking_id>
+document.addEventListener("DOMContentLoaded", function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const rescheduleId = urlParams.get('reschedule');
+    if (rescheduleId) {
+        const btn = document.querySelector(`button[onclick*="openProposeRescheduleModal('${rescheduleId}'"]`);
+        if (btn) btn.click();
+    }
+});
 
 // START JOB MODAL
 function openStartJobModal(bookingId, serviceName, customerName, badgeCode) {
@@ -2817,5 +2982,594 @@ function captureWorkerLocation() {
 </div>
 
 <script src="{% static 'js/worker-dashboard-chat.js' %}?v=20261011"></script>
+
+<!-- =========================================================================
+     INCOMING JOB RADAR POPUP OVERLAY (WITH 1-TAP ACCEPT, DECLINE & PROPOSE TIME)
+     ========================================================================= -->
+<style>
+.incoming-job-overlay {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: 390px;
+    max-width: calc(100vw - 32px);
+    z-index: 99999;
+    display: none;
+    animation: radarCardSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes radarCardSlideIn {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.incoming-job-card {
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1.5px rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+.incoming-radar-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.radar-pulse-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+.radar-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    position: relative;
+}
+.radar-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.6);
+    animation: radarPulse 1.4s infinite ease-out;
+}
+@keyframes radarPulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.8); opacity: 0; }
+}
+.incoming-timer-ring {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.incoming-job-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.incoming-service-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 3px;
+    line-height: 1.25;
+}
+.incoming-customer-name {
+    font-size: 0.84rem;
+    color: #94a3b8;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.incoming-earning-pill {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 1rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    text-align: right;
+}
+.incoming-earning-pill small {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.85;
+    text-transform: uppercase;
+}
+.incoming-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.meta-chip-time, .meta-chip-dist {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+.meta-chip-time {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+.meta-chip-dist {
+    background: rgba(59, 130, 246, 0.16);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+}
+.incoming-job-map-wrap {
+    height: 125px;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+#incomingJobMiniMap {
+    height: 100%;
+    width: 100%;
+    background: #1e293b;
+}
+.incoming-map-tag {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #cbd5e1;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+.incoming-actions-row {
+    display: flex;
+    gap: 8px;
+}
+.btn-accept-job-radar {
+    flex: 2;
+    border: none;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.94rem;
+    padding: 12px 16px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+.btn-accept-job-radar:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.55);
+}
+.btn-decline-job-radar {
+    flex: 0.9;
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+.btn-decline-job-radar:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+.btn-propose-job-radar {
+    flex: 1.1;
+    border: 1.5px solid rgba(165, 180, 252, 0.35);
+    background: rgba(99, 102, 241, 0.15);
+    color: #c7d2fe;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.15s;
+    text-decoration: none;
+    text-align: center;
+}
+.btn-propose-job-radar:hover {
+    background: rgba(99, 102, 241, 0.32);
+    border-color: #818cf8;
+    color: #ffffff;
+}
+@media (max-width: 640px) {
+    .incoming-job-overlay {
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    .incoming-job-card {
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+    }
+}
+</style>
+
+<div class="incoming-job-overlay" id="incomingJobRadarOverlay" aria-hidden="true" role="dialog" aria-modal="true" style="display:none;">
+    <div class="incoming-job-card">
+        <!-- Top bar: Live radar pulse & countdown ring -->
+        <div class="incoming-radar-bar">
+            <div class="radar-pulse-badge">
+                <span class="radar-dot"></span>
+                <span>Incoming Job Request</span>
+            </div>
+            <div class="incoming-timer-ring">
+                <i class="bi bi-stopwatch"></i>
+                <span id="incomingJobCountdown">45s</span>
+            </div>
+        </div>
+
+        <!-- Service & Customer details -->
+        <div class="incoming-job-header">
+            <div>
+                <h4 class="incoming-service-title" id="incomingJobService">Home Service</h4>
+                <p class="incoming-customer-name">
+                    <i class="bi bi-person-fill"></i>
+                    <span id="incomingJobCustomer">Customer</span>
+                </p>
+            </div>
+            <div class="incoming-earning-pill">
+                <small>Est. Earning</small>
+                <span id="incomingJobEarnings">₹0</span>
+            </div>
+        </div>
+
+        <!-- Badges: Time & Distance -->
+        <div class="incoming-meta-chips">
+            <span class="meta-chip-time">
+                <i class="bi bi-calendar-event"></i>
+                <span id="incomingJobSchedule">Today</span>
+            </span>
+            <span class="meta-chip-dist" id="incomingJobDistanceChip">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span id="incomingJobDistanceText">Calculating distance...</span>
+            </span>
+        </div>
+
+        <!-- Customer Address -->
+        <div style="font-size:0.78rem; color:#cbd5e1; margin-bottom:10px; display:flex; align-items:flex-start; gap:6px;">
+            <i class="bi bi-house-door" style="color:#94a3b8; margin-top:2px;"></i>
+            <span id="incomingJobAddress" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px;">Customer Address</span>
+        </div>
+
+        <!-- Leaflet Mini Route Map -->
+        <div class="incoming-job-map-wrap">
+            <div id="incomingJobMiniMap"></div>
+            <div class="incoming-map-tag">
+                <i class="bi bi-pin-map"></i> Customer Route Preview
+            </div>
+        </div>
+
+        <!-- Action Buttons: Decline / Propose Time / Accept -->
+        <div class="incoming-actions-row">
+            <button type="button" class="btn-decline-job-radar" id="btnDeclineIncomingJob">
+                Decline
+            </button>
+            <button type="button" class="btn-propose-job-radar" id="btnProposeIncomingJob" title="Propose different date or time to customer">
+                <i class="bi bi-calendar2-range"></i> Propose Time
+            </button>
+            <button type="button" class="btn-accept-job-radar" id="btnAcceptIncomingJob">
+                <i class="bi bi-check-lg"></i> Accept Job
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function initWorkerJobsIncomingRadar() {
+    const overlay = document.getElementById('incomingJobRadarOverlay');
+    if (!overlay) return;
+
+    const elService = document.getElementById('incomingJobService');
+    const elCustomer = document.getElementById('incomingJobCustomer');
+    const elEarnings = document.getElementById('incomingJobEarnings');
+    const elSchedule = document.getElementById('incomingJobSchedule');
+    const elDistText = document.getElementById('incomingJobDistanceText');
+    const elAddress = document.getElementById('incomingJobAddress');
+    const elCountdown = document.getElementById('incomingJobCountdown');
+    const btnAccept = document.getElementById('btnAcceptIncomingJob');
+    const btnDecline = document.getElementById('btnDeclineIncomingJob');
+    const btnPropose = document.getElementById('btnProposeIncomingJob');
+
+    let activeJobId = null;
+    let activeJobData = null;
+    let radarCountdownInterval = null;
+    let miniMapInstance = null;
+    const dismissedJobIds = new Set();
+    let isPollingRadar = false;
+
+    function playJobChime() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(659.25, now);
+            gain1.gain.setValueAtTime(0.25, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.35);
+
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880.00, now + 0.12);
+            gain2.gain.setValueAtTime(0.28, now + 0.12);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.12);
+            osc2.stop(now + 0.55);
+        } catch (e) {
+            console.debug('Chime audio error:', e);
+        }
+    }
+
+    function closeRadarCard() {
+        if (radarCountdownInterval) clearInterval(radarCountdownInterval);
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+        if (activeJobId) {
+            dismissedJobIds.add(activeJobId);
+        }
+        activeJobId = null;
+        activeJobData = null;
+    }
+
+    function renderMiniMap(booking) {
+        const mapContainer = document.getElementById('incomingJobMiniMap');
+        if (!mapContainer || !window.L) return;
+
+        if (miniMapInstance) {
+            miniMapInstance.remove();
+            miniMapInstance = null;
+        }
+
+        const wLat = booking.worker_lat;
+        const wLng = booking.worker_lng;
+        const cLat = booking.customer_lat;
+        const cLng = booking.customer_lng;
+
+        try {
+            if (wLat && wLng && cLat && cLng) {
+                miniMapInstance = L.map('incomingJobMiniMap', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    dragging: false,
+                    scrollWheelZoom: false,
+                    doubleClickZoom: false
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18
+                }).addTo(miniMapInstance);
+
+                const wIcon = L.divIcon({
+                    className: 'custom-worker-radar-pin',
+                    html: '<div style="background:#059669;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;"><i class="bi bi-person-fill" style="font-size:12px;"></i></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+                const cIcon = L.divIcon({
+                    className: 'custom-customer-radar-pin',
+                    html: '<div style="background:#dc2626;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;"><i class="bi bi-geo-alt-fill" style="font-size:12px;"></i></div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                L.marker([wLat, wLng], { icon: wIcon }).addTo(miniMapInstance);
+                L.marker([cLat, cLng], { icon: cIcon }).addTo(miniMapInstance);
+
+                const latlngs = [[wLat, wLng], [cLat, cLng]];
+                L.polyline(latlngs, { color: '#38bdf8', weight: 3, dashArray: '6, 8', opacity: 0.9 }).addTo(miniMapInstance);
+                miniMapInstance.fitBounds(L.latLngBounds(latlngs), { padding: [20, 20] });
+            } else {
+                mapContainer.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:12px;"><i class="bi bi-geo-alt me-1"></i> Customer Address: ' + (booking.address || 'Kollam') + '</div>';
+            }
+        } catch (e) {
+            console.debug('Mini map render:', e);
+        }
+    }
+
+    async function checkIncomingJobAlert() {
+        if (isPollingRadar || activeJobId) return;
+        isPollingRadar = true;
+
+        try {
+            const res = await fetch('/api/worker/incoming-job-alert/', {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            if (data.has_incoming_job && data.booking) {
+                const b = data.booking;
+                if (dismissedJobIds.has(b.id)) return;
+
+                activeJobId = b.id;
+                activeJobData = b;
+                playJobChime();
+
+                if (elService) elService.textContent = b.service_name || 'Home Service';
+                if (elCustomer) elCustomer.textContent = b.customer_name || 'Customer';
+                if (elEarnings) elEarnings.textContent = '₹' + b.estimated_earnings;
+                if (elSchedule) elSchedule.textContent = `${b.scheduled_date} • ${b.scheduled_time}`;
+                if (elDistText) elDistText.textContent = b.distance_label || 'Doorstep Service';
+                if (elAddress) elAddress.textContent = b.address || 'Address provided upon acceptance';
+
+                overlay.style.display = 'flex';
+                overlay.setAttribute('aria-hidden', 'false');
+
+                // 45s countdown
+                let countdownSecs = Math.min(45, b.seconds_remaining || 45);
+                if (elCountdown) elCountdown.textContent = countdownSecs + 's';
+                if (radarCountdownInterval) clearInterval(radarCountdownInterval);
+                radarCountdownInterval = setInterval(() => {
+                    countdownSecs -= 1;
+                    if (countdownSecs <= 0) {
+                        closeRadarCard();
+                    } else {
+                        if (elCountdown) elCountdown.textContent = countdownSecs + 's';
+                    }
+                }, 1000);
+
+                // Render mini route map
+                renderMiniMap(b);
+            }
+        } catch (err) {
+            console.debug('Incoming job alert poll:', err);
+        } finally {
+            isPollingRadar = false;
+        }
+    }
+
+    // Accept Button Handler
+    if (btnAccept) {
+        btnAccept.addEventListener('click', async function () {
+            if (!activeJobId) return;
+            const jid = activeJobId;
+            btnAccept.disabled = true;
+            btnAccept.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Accepting...';
+
+            const csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+            const postData = new URLSearchParams();
+            postData.append('ajax', '1');
+
+            try {
+                const res = await fetch(`/worker/booking/${jid}/accept/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: postData.toString()
+                });
+                if (res.ok) {
+                    closeRadarCard();
+                    window.location.reload();
+                } else {
+                    window.location.href = `/worker-jobs/`;
+                }
+            } catch (err) {
+                console.error('Accept job error:', err);
+                window.location.href = `/worker-jobs/`;
+            }
+        });
+    }
+
+    // Decline Button Handler
+    if (btnDecline) {
+        btnDecline.addEventListener('click', async function () {
+            if (!activeJobId) {
+                closeRadarCard();
+                return;
+            }
+            const jid = activeJobId;
+            const csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || '';
+            const postData = new URLSearchParams();
+            postData.append('ajax', '1');
+
+            try {
+                fetch(`/worker/booking/${jid}/reject/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: postData.toString()
+                });
+            } catch (e) {
+                console.debug('Decline job error:', e);
+            }
+            closeRadarCard();
+        });
+    }
+
+    // Propose New Time Button Handler (opens reschedule modal directly)
+    if (btnPropose) {
+        btnPropose.addEventListener('click', function () {
+            if (activeJobId && activeJobData) {
+                const b = activeJobData;
+                const jid = activeJobId;
+                closeRadarCard();
+                if (typeof openProposeRescheduleModal === 'function') {
+                    openProposeRescheduleModal(jid, b.service_name, b.customer_name, b.scheduled_date, b.scheduled_time);
+                } else {
+                    window.location.href = '/worker-jobs/?reschedule=' + jid;
+                }
+            } else {
+                closeRadarCard();
+            }
+        });
+    }
+
+    // Poll every 5 seconds for incoming jobs
+    setInterval(() => {
+        if (!document.hidden) {
+            checkIncomingJobAlert();
+        }
+    }, 5000);
+    // Initial check after 2 seconds
+    setTimeout(checkIncomingJobAlert, 2000);
+})();
+</script>
 
 {% endblock %}

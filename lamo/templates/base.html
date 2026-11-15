@@ -135,7 +135,7 @@
 
   <link rel="stylesheet" href="{% static 'css/lamo-design-system.css' %}">
 
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.2">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261110_avatar_v3">
   <link rel="stylesheet" href="{% static 'css/location-modal.css' %}?v=3.1">
   <link rel="stylesheet" href="{% static 'css/lamo-call.css' %}">
   <!-- Leaflet.js Interactive Route Map -->
@@ -401,7 +401,13 @@
                   href="{% url 'user_dashboard' %}">
                   <i class="bi bi-person-circle"></i>
                   <span data-i18n="nav_account">Account / Profile</span>
-                  <span class="user-initial-mini nav-drawer-badge">{{ user.username|first|upper }}</span>
+                  {% if user.user_profile.profile_image %}
+                    <img src="{{ user.user_profile.profile_image.url }}" alt="{{ user.username }}" class="user-initial-mini nav-drawer-badge" style="object-fit: cover; width:26px; height:26px; border-radius:50%; border: 1.5px solid #10b981;">
+                  {% elif user.worker_profile.profile_image %}
+                    <img src="{{ user.worker_profile.profile_image.url }}" alt="{{ user.username }}" class="user-initial-mini nav-drawer-badge" style="object-fit: cover; width:26px; height:26px; border-radius:50%; border: 1.5px solid #10b981;">
+                  {% else %}
+                    <span class="user-initial-mini nav-drawer-badge">{{ user.first_name|default:user.username|first|upper }}</span>
+                  {% endif %}
                 </a>
                 {% else %}
                 <a class="nav-link js-auth-trigger" href="{% url 'login' %}?next={% url 'user_dashboard' %}" data-auth-view="login" data-next-url="{% url 'user_dashboard' %}">
@@ -456,16 +462,24 @@
             <div class="user-menu" id="userMenu">
               <button type="button" class="user-menu-trigger" id="userMenuTrigger" aria-expanded="false"
                 aria-haspopup="true" title="{{ user.username }}" aria-label="Open user menu for {{ user.username }}">
-                <span class="user-initial">
-                  {{ user.username|first|upper }}
+                <span id="userNavbarAvatarWrap" style="width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; max-width: 34px !important; max-height: 34px !important; border-radius: 50% !important; overflow: hidden !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; vertical-align: middle !important;">
+                  {% if user.user_profile.profile_image %}
+                    <img id="userNavbarAvatar" src="{{ user.user_profile.profile_image.url }}" alt="{{ user.username }}" class="user-nav-avatar-img" style="width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; max-width: 34px !important; max-height: 34px !important; border-radius: 50% !important; object-fit: cover !important; display: block !important;">
+                  {% elif user.worker_profile.profile_image %}
+                    <img id="userNavbarAvatar" src="{{ user.worker_profile.profile_image.url }}" alt="{{ user.username }}" class="user-nav-avatar-img" style="width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; max-width: 34px !important; max-height: 34px !important; border-radius: 50% !important; object-fit: cover !important; display: block !important;">
+                  {% else %}
+                    <span id="userNavbarAvatar" class="user-initial" style="width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; max-width: 34px !important; max-height: 34px !important; border-radius: 50% !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;">
+                      {{ user.first_name|default:user.username|first|upper }}
+                    </span>
+                  {% endif %}
                 </span>
-                <span class="user-nav-name d-none d-xl-inline">{{ user.username|truncatechars:12 }}</span>
+                <span class="user-nav-name d-none d-xl-inline" id="userNavbarName">{{ user.first_name|default:user.username|truncatechars:12 }}</span>
                 <i class="bi bi-chevron-down"></i>
               </button>
 
               <div class="user-dropdown" id="userDropdown">
                 <div class="user-dropdown-header px-3 py-2 border-bottom">
-                  <div class="fw-bold text-dark">{{ user.username }}</div>
+                  <div class="fw-bold text-dark">{{ user.get_full_name|default:user.username }}</div>
                   <small class="text-muted">{{ user.email|default:"User Account" }}</small>
                 </div>
                 <a href="{% url 'user_dashboard' %}">

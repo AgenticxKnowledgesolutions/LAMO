@@ -1,4 +1,4 @@
-﻿{% extends 'workers/worker_sidebar.html' %}
+{% extends 'workers/worker_sidebar.html' %}
 {% load static %}
 
 {% block title %}Edit Profile - LAMO{% endblock %}
@@ -215,6 +215,77 @@
 
                     </div>
 
+                </div>
+
+                <!-- ROW 3.5: DAILY WORKING SHIFT HOURS (12-HOUR CLOCK MODEL) -->
+                <div class="ep-shift-container" style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:14px; padding:18px 20px; margin-bottom:22px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:18px;">
+                                <i class="bi bi-clock-fill"></i>
+                            </span>
+                            <div>
+                                <h4 style="margin:0; font-size:15px; font-weight:700; color:#166534;">Daily Working Shift Hours (12-Hour AM/PM)</h4>
+                                <small style="color:#4b5563; font-size:12px;">Customer booking time slots will only be created between these hours.</small>
+                            </div>
+                        </div>
+                        <div id="shiftHoursPreviewBadge" style="display:inline-flex; align-items:center; gap:6px; background:#ffffff; border:1px solid #86efac; border-radius:30px; padding:5px 12px; font-weight:700; color:#166534; font-size:12.5px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                            <i class="bi bi-stopwatch"></i>
+                            <span id="shiftHoursPreviewText">9:00 AM - 6:00 PM</span>
+                        </div>
+                    </div>
+
+                    <!-- QUICK SHIFT PRESET PILLS -->
+                    <div style="margin-bottom:14px;">
+                        <span style="font-size:11.5px; font-weight:700; color:#374151; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Quick Shift Presets:</span>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                            <button type="button" class="shift-preset-btn" data-start="09:00" data-end="17:00" style="padding:6px 12px; border-radius:20px; border:1px solid #cbd5e1; background:#ffffff; font-size:12px; font-weight:600; cursor:pointer; color:#334155; transition:all 0.15s;">
+                                9:00 AM - 5:00 PM (8 hrs)
+                            </button>
+                            <button type="button" class="shift-preset-btn" data-start="09:00" data-end="18:00" style="padding:6px 12px; border-radius:20px; border:1px solid #cbd5e1; background:#ffffff; font-size:12px; font-weight:600; cursor:pointer; color:#334155; transition:all 0.15s;">
+                                9:00 AM - 6:00 PM (9 hrs)
+                            </button>
+                            <button type="button" class="shift-preset-btn" data-start="08:00" data-end="18:00" style="padding:6px 12px; border-radius:20px; border:1px solid #cbd5e1; background:#ffffff; font-size:12px; font-weight:600; cursor:pointer; color:#334155; transition:all 0.15s;">
+                                8:00 AM - 6:00 PM (10 hrs)
+                            </button>
+                            <button type="button" class="shift-preset-btn" data-start="10:00" data-end="19:00" style="padding:6px 12px; border-radius:20px; border:1px solid #cbd5e1; background:#ffffff; font-size:12px; font-weight:600; cursor:pointer; color:#334155; transition:all 0.15s;">
+                                10:00 AM - 7:00 PM (Late Shift)
+                            </button>
+                            <button type="button" class="shift-preset-btn" data-start="08:00" data-end="20:00" style="padding:6px 12px; border-radius:20px; border:1px solid #cbd5e1; background:#ffffff; font-size:12px; font-weight:600; cursor:pointer; color:#334155; transition:all 0.15s;">
+                                8:00 AM - 8:00 PM (Full Day)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 12-HOUR SELECT DROPDOWNS -->
+                    <div class="ep-row" style="margin-bottom:0;">
+                        <div class="ep-field">
+                            <label for="{{ form.work_start_time.id_for_label }}" style="font-weight:600; color:#14532d;">
+                                <i class="bi bi-sunrise-fill" style="color:#d97706;"></i> Daily Shift Starts At (AM/PM)
+                            </label>
+                            {{ form.work_start_time }}
+                            <small class="text-muted" style="font-size:11.5px; display:block; margin-top:4px;">When your workday begins</small>
+                            {% if form.work_start_time.errors %}
+                                <small class="ep-error">{{ form.work_start_time.errors.0 }}</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="ep-field">
+                            <label for="{{ form.work_end_time.id_for_label }}" style="font-weight:600; color:#14532d;">
+                                <i class="bi bi-sunset-fill" style="color:#dc2626;"></i> Daily Shift Ends At (AM/PM)
+                            </label>
+                            {{ form.work_end_time }}
+                            <small class="text-muted" style="font-size:11.5px; display:block; margin-top:4px;">When your workday ends</small>
+                            {% if form.work_end_time.errors %}
+                                <small class="ep-error">{{ form.work_end_time.errors.0 }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- DYNAMIC TIME VALIDATION ALERT -->
+                    <div id="shiftHoursValidationAlert" style="display:none; margin-top:10px; padding:8px 12px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; font-size:12px; font-weight:600;">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Shift end time must be later than start time.
+                    </div>
                 </div>
 
 

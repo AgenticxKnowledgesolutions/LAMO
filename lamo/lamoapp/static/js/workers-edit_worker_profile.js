@@ -204,4 +204,79 @@ document.addEventListener("DOMContentLoaded", function () {
             "ep-location-status " + type;
     }
 
+    /* ==========================================
+       WORKING SHIFT HOURS (12-HOUR CLOCK CONTROLLER)
+       ========================================== */
+    const startSelect = document.getElementById("id_work_start_time");
+    const endSelect = document.getElementById("id_work_end_time");
+    const previewText = document.getElementById("shiftHoursPreviewText");
+    const alertBox = document.getElementById("shiftHoursValidationAlert");
+    const presetBtns = document.querySelectorAll(".shift-preset-btn");
+
+    function formatTimeDisplay(val) {
+        if (!val) return "";
+        const parts = val.split(":").map(Number);
+        let h = parts[0];
+        const m = parts[1] || 0;
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12;
+        if (h === 0) h = 12;
+        const mStr = m > 0 ? (":" + String(m).padStart(2, "0")) : ":00";
+        return `${h}${mStr} ${ampm}`;
+    }
+
+    function updateShiftPreview() {
+        if (!startSelect || !endSelect || !previewText) return;
+        const startVal = startSelect.value;
+        const endVal = endSelect.value;
+        if (!startVal || !endVal) return;
+
+        const sParts = startVal.split(":").map(Number);
+        const eParts = endVal.split(":").map(Number);
+        const sMins = sParts[0] * 60 + (sParts[1] || 0);
+        const eMins = eParts[0] * 60 + (eParts[1] || 0);
+
+        if (eMins <= sMins) {
+            if (alertBox) alertBox.style.display = "block";
+            previewText.textContent = `${formatTimeDisplay(startVal)} - Invalid End Time`;
+            previewText.style.color = "#dc2626";
+        } else {
+            if (alertBox) alertBox.style.display = "none";
+            const diffHours = ((eMins - sMins) / 60).toFixed(1).replace(".0", "");
+            previewText.textContent = `${formatTimeDisplay(startVal)} - ${formatTimeDisplay(endVal)} (${diffHours}h Shift)`;
+            previewText.style.color = "#166534";
+        }
+
+        // Highlight matching preset button
+        presetBtns.forEach(function(btn) {
+            if (btn.dataset.start === startVal && btn.dataset.end === endVal) {
+                btn.style.background = "#dcfce7";
+                btn.style.borderColor = "#16a34a";
+                btn.style.color = "#15803d";
+                btn.style.fontWeight = "700";
+            } else {
+                btn.style.background = "#ffffff";
+                btn.style.borderColor = "#cbd5e1";
+                btn.style.color = "#334155";
+                btn.style.fontWeight = "600";
+            }
+        });
+    }
+
+    if (startSelect && endSelect) {
+        startSelect.addEventListener("change", updateShiftPreview);
+        endSelect.addEventListener("change", updateShiftPreview);
+        updateShiftPreview();
+    }
+
+    presetBtns.forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            if (startSelect && endSelect) {
+                startSelect.value = this.dataset.start;
+                endSelect.value = this.dataset.end;
+                updateShiftPreview();
+            }
+        });
+    });
+
 });

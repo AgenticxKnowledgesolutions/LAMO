@@ -6,7 +6,7 @@ Worker Dashboard | LAMO
 {% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/dashboards-worker_dashboard.css' %}?v=20261011">
+    <link rel="stylesheet" href="{% static 'css/dashboards-worker_dashboard.css' %}?v=20261110_shift_v2">
 {% endblock %}
 
 {% block worker_content %}
@@ -323,42 +323,6 @@ Worker Dashboard | LAMO
                 {% endif %}
             </section>
 
-            <!-- RECENT CUSTOMER MESSAGES -->
-            <section class="dashboard-card">
-                <div class="card-heading">
-                    <h3>Recent Customer Messages</h3>
-                    <a class="card-heading-link" href="{% url 'worker_jobs' %}">View All <i class="bi bi-chevron-right"></i></a>
-                </div>
-
-                {% if chat_bookings %}
-                <div class="message-list">
-                    {% for booking in chat_bookings %}
-                    <button type="button" class="message-item chat-open-btn" data-booking-id="{{ booking.id }}" data-customer-name="{{ booking.customer.get_full_name|default:booking.customer.username|escape }}" data-service-name="{{ booking.service.name|escape }}" data-chat-url="{% url 'booking_messages' booking.id %}" aria-haspopup="dialog">
-                        <span class="message-avatar"><i class="bi bi-person-fill"></i></span>
-                        <span class="message-copy">
-                            <strong>{{ booking.customer.get_full_name|default:booking.customer.username }}</strong>
-                            <small>
-                                {% if booking.chat_messages %}{{ booking.chat_messages.0.message }}{% else %}No messages yet. Start the conversation.{% endif %}
-                            </small>
-                        </span>
-                        <span class="message-meta">
-                            {% if booking.chat_messages and booking.chat_messages.0.created_at %}
-                                <time>{{ booking.chat_messages.0.created_at|date:"h:i A" }}</time>
-                            {% endif %}
-                            {% if booking.unread_count %}<b class="message-badge">{{ booking.unread_count }}</b>{% endif %}
-                        </span>
-                        <i class="bi bi-chevron-right message-arrow"></i>
-                    </button>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="empty-box">
-                    <i class="bi bi-chat-dots-fill"></i>
-                    <span>Customer conversations will appear here after a booking is assigned.</span>
-                </div>
-                {% endif %}
-            </section>
-
             <!-- EARNINGS OVERVIEW -->
             <section class="dashboard-card">
                 <div class="card-heading">
@@ -572,6 +536,7 @@ Worker Dashboard | LAMO
                 <div class="profile-contact-list">
                     <div><i class="bi bi-telephone"></i><span><small>Phone</small>{{ worker_profile.phone }}</span></div>
                     <div><i class="bi bi-geo-alt"></i><span><small>Location</small>{{ worker_profile.current_place|default:worker_profile.district }}</span></div>
+                    <div><i class="bi bi-clock-history"></i><span><small>Working Shift</small><span id="workerCurrentShiftDisplay">{{ worker_profile.get_working_hours_display|default:"9:00 AM - 6:00 PM" }}</span> <button type="button" id="openShiftModalBtn" style="background:none; border:none; color:#059669; font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline; padding:0 4px;" title="Update today's shift hours">Change</button></span></div>
                     <div><i class="bi bi-calendar3"></i><span><small>Member since</small>{{ worker_profile.created_at|date:"M Y" }}</span></div>
                 </div>
 
@@ -805,6 +770,145 @@ Worker Dashboard | LAMO
       </form>
     </div>
   </div>
+</div>
+
+<!-- =========================================================================
+     SITUATION 1: DAILY START SHIFT MODAL (UBER / URBAN COMPANY STYLE)
+     ========================================================================= -->
+<div class="shift-modal-backdrop" id="workerStartShiftModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="shiftModalTitle">
+    <div class="shift-modal-card">
+        <div class="shift-modal-header">
+            <div class="shift-modal-icon-bubble">
+                <i class="bi bi-sun-fill"></i>
+            </div>
+            <h3 class="shift-modal-title" id="shiftModalTitle">Set Today's Working Hours</h3>
+            <p class="shift-modal-subtitle">What hours are you available to take customer bookings today?</p>
+            <div class="shift-modal-status-badge">
+                <span class="status-dot-sm" style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+                <span>Current Status: <strong>{{ worker_profile.get_work_status_display|default:'Available' }}</strong></span>
+            </div>
+        </div>
+
+        <form id="workerStartShiftForm" onsubmit="return false;">
+            {% csrf_token %}
+            <div class="shift-modal-presets">
+                <span class="shift-modal-presets-label">Quick 1-Tap Presets</span>
+                <div class="shift-preset-grid">
+                    <button type="button" class="shift-preset-chip active" data-start="09:00" data-end="18:00">
+                        9:00 AM - 6:00 PM <small style="display:block; font-size:10px; opacity:0.8;">Full Day (9 hrs)</small>
+                    </button>
+                    <button type="button" class="shift-preset-chip" data-start="08:00" data-end="16:00">
+                        8:00 AM - 4:00 PM <small style="display:block; font-size:10px; opacity:0.8;">Morning (8 hrs)</small>
+                    </button>
+                    <button type="button" class="shift-preset-chip" data-start="10:00" data-end="19:00">
+                        10:00 AM - 7:00 PM <small style="display:block; font-size:10px; opacity:0.8;">Mid Day (9 hrs)</small>
+                    </button>
+                    <button type="button" class="shift-preset-chip" data-start="13:00" data-end="21:00">
+                        1:00 PM - 9:00 PM <small style="display:block; font-size:10px; opacity:0.8;">Evening (8 hrs)</small>
+                    </button>
+                </div>
+            </div>
+
+            <div class="shift-time-select-row">
+                <div class="shift-select-group">
+                    <label for="shiftStartTimeInput"><i class="bi bi-clock"></i> Start Time</label>
+                    <select id="shiftStartTimeInput" name="work_start_time" class="shift-select-input">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="shift-select-group">
+                    <label for="shiftEndTimeInput"><i class="bi bi-clock-history"></i> End Time</label>
+                    <select id="shiftEndTimeInput" name="work_end_time" class="shift-select-input">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+            </div>
+
+            <div id="shiftModalAlert" style="display:none; padding:8px 12px; border-radius:10px; font-size:12px; margin-bottom:12px;"></div>
+
+            <div class="shift-modal-actions">
+                <button type="button" class="btn-start-shift-primary" id="confirmStartShiftBtn">
+                    <i class="bi bi-check2-circle"></i> Start Shift &amp; Go Available
+                </button>
+                <button type="button" class="btn-shift-dismiss" id="dismissShiftModalBtn">
+                    Keep Current ({{ worker_profile.get_working_hours_display|default:'9:00 AM - 6:00 PM' }})
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =========================================================================
+     SITUATION 2: INCOMING JOB RADAR OVERLAY (WITH LEAFLET MINI MAP & DISTANCE)
+     ========================================================================= -->
+<div class="incoming-job-overlay" id="incomingJobRadarOverlay" aria-hidden="true" role="dialog" aria-modal="true" style="display:none;">
+    <div class="incoming-job-card">
+        <!-- Top bar: Live radar pulse & countdown ring -->
+        <div class="incoming-radar-bar">
+            <div class="radar-pulse-badge">
+                <span class="radar-dot"></span>
+                <span>Incoming Job Request</span>
+            </div>
+            <div class="incoming-timer-ring">
+                <i class="bi bi-stopwatch"></i>
+                <span id="incomingJobCountdown">45s</span>
+            </div>
+        </div>
+
+        <!-- Service & Customer details -->
+        <div class="incoming-job-header">
+            <div>
+                <h4 class="incoming-service-title" id="incomingJobService">Home Service</h4>
+                <p class="incoming-customer-name">
+                    <i class="bi bi-person-fill"></i>
+                    <span id="incomingJobCustomer">Customer</span>
+                </p>
+            </div>
+            <div class="incoming-earning-pill">
+                <small>Est. Earning</small>
+                <span id="incomingJobEarnings">₹0</span>
+            </div>
+        </div>
+
+        <!-- Badges: Time & Distance -->
+        <div class="incoming-meta-chips">
+            <span class="meta-chip-time">
+                <i class="bi bi-calendar-event"></i>
+                <span id="incomingJobSchedule">Today</span>
+            </span>
+            <span class="meta-chip-dist" id="incomingJobDistanceChip">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span id="incomingJobDistanceText">Calculating distance...</span>
+            </span>
+        </div>
+
+        <!-- Customer Address -->
+        <div style="font-size:0.78rem; color:#cbd5e1; margin-bottom:10px; display:flex; align-items:flex-start; gap:6px;">
+            <i class="bi bi-house-door" style="color:#94a3b8; margin-top:2px;"></i>
+            <span id="incomingJobAddress" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px;">Customer Address</span>
+        </div>
+
+        <!-- Leaflet Mini Route Map (Feature from Idea 2) -->
+        <div class="incoming-job-map-wrap">
+            <div id="incomingJobMiniMap"></div>
+            <div class="incoming-map-tag">
+                <i class="bi bi-pin-map"></i> Customer Route Preview
+            </div>
+        </div>
+
+        <!-- Action Buttons: Decline / Propose Time / Accept -->
+        <div class="incoming-actions-row">
+            <button type="button" class="btn-decline-job-radar" id="btnDeclineIncomingJob">
+                Decline
+            </button>
+            <button type="button" class="btn-propose-job-radar" id="btnProposeIncomingJob" title="Propose different date or time to customer">
+                <i class="bi bi-calendar2-range"></i> Propose Time
+            </button>
+            <button type="button" class="btn-accept-job-radar" id="btnAcceptIncomingJob">
+                <i class="bi bi-check-lg"></i> Accept Job
+            </button>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -1206,6 +1310,417 @@ if (document.readyState === 'loading') {
             pollNewJobs();
         }
     }, 12000);
+
+    // =========================================================================
+    // SITUATION 1: DAILY START SHIFT MODAL CONTROLLER
+    // =========================================================================
+    (function initWorkerShiftModal() {
+        const modalBackdrop = document.getElementById('workerStartShiftModal');
+        if (!modalBackdrop) return;
+
+        const startSelect = document.getElementById('shiftStartTimeInput');
+        const endSelect = document.getElementById('shiftEndTimeInput');
+        const confirmBtn = document.getElementById('confirmStartShiftBtn');
+        const dismissBtn = document.getElementById('dismissShiftModalBtn');
+        const presetChips = document.querySelectorAll('.shift-preset-chip');
+        const alertBox = document.getElementById('shiftModalAlert');
+        const openShiftBtn = document.getElementById('openShiftModalBtn');
+        const currentShiftDisplay = document.getElementById('workerCurrentShiftDisplay');
+
+        // Populate 12-hour formatted time options (06:00 to 22:30 in 30m steps)
+        function format12Hour(hour, minute) {
+            const h = parseInt(hour, 10);
+            const m = parseInt(minute, 10);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 === 0 ? 12 : h % 12;
+            const mStr = m < 10 ? '0' + m : m;
+            return `${h12}:${mStr} ${period}`;
+        }
+
+        function populateSelect(selectEl, defaultVal) {
+            if (!selectEl) return;
+            selectEl.innerHTML = '';
+            for (let h = 6; h <= 23; h++) {
+                for (let m = 0; m < 60; m += 30) {
+                    const hStr = h < 10 ? '0' + h : '' + h;
+                    const mStr = m < 10 ? '0' + m : '' + m;
+                    const val = `${hStr}:${mStr}`;
+                    const label = format12Hour(h, m);
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = label;
+                    if (val === defaultVal) opt.selected = true;
+                    selectEl.appendChild(opt);
+                }
+            }
+        }
+
+        const initialStart = "{{ worker_profile.work_start_time|time:'H:i'|default:'09:00' }}";
+        const initialEnd = "{{ worker_profile.work_end_time|time:'H:i'|default:'18:00' }}";
+
+        populateSelect(startSelect, initialStart);
+        populateSelect(endSelect, initialEnd);
+
+        // Preset chip click
+        presetChips.forEach(chip => {
+            chip.addEventListener('click', function () {
+                presetChips.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const s = this.getAttribute('data-start');
+                const e = this.getAttribute('data-end');
+                if (s && startSelect) startSelect.value = s;
+                if (e && endSelect) endSelect.value = e;
+            });
+        });
+
+        // If custom selection changed, clear active chip
+        [startSelect, endSelect].forEach(sel => {
+            if (!sel) return;
+            sel.addEventListener('change', () => {
+                presetChips.forEach(c => {
+                    if (c.getAttribute('data-start') === startSelect.value && c.getAttribute('data-end') === endSelect.value) {
+                        c.classList.add('active');
+                    } else {
+                        c.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        function showShiftModal() {
+            modalBackdrop.style.visibility = 'visible';
+            modalBackdrop.classList.add('show');
+            modalBackdrop.setAttribute('aria-hidden', 'false');
+        }
+
+        function hideShiftModal() {
+            modalBackdrop.classList.remove('show');
+            modalBackdrop.setAttribute('aria-hidden', 'true');
+            setTimeout(() => {
+                if (!modalBackdrop.classList.contains('show')) {
+                    modalBackdrop.style.visibility = 'hidden';
+                }
+            }, 300);
+        }
+
+        if (openShiftBtn) {
+            openShiftBtn.addEventListener('click', showShiftModal);
+        }
+
+        // Daily Auto-Prompt (Once per day per browser)
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const shiftConfirmedKey = 'lamo_shift_confirmed_' + todayStr;
+        if (!localStorage.getItem(shiftConfirmedKey)) {
+            setTimeout(showShiftModal, 600);
+        }
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', function () {
+                localStorage.setItem(shiftConfirmedKey, 'true');
+                hideShiftModal();
+            });
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async function () {
+                const sVal = startSelect ? startSelect.value : '09:00';
+                const eVal = endSelect ? endSelect.value : '18:00';
+
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving Shift...';
+                if (alertBox) alertBox.style.display = 'none';
+
+                const csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || CSRF_TOKEN;
+                const formData = new FormData();
+                formData.append('work_start_time', sVal);
+                formData.append('work_end_time', eVal);
+
+                try {
+                    const res = await fetch('/api/worker/start-shift/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        localStorage.setItem(shiftConfirmedKey, 'true');
+                        if (currentShiftDisplay && data.working_hours) {
+                            currentShiftDisplay.textContent = data.working_hours;
+                        }
+                        const statusSelect = document.querySelector('select[name="work_status"]');
+                        if (statusSelect) statusSelect.value = 'AVAILABLE';
+                        hideShiftModal();
+                    } else {
+                        if (alertBox) {
+                            alertBox.style.display = 'block';
+                            alertBox.style.background = '#fef2f2';
+                            alertBox.style.color = '#dc2626';
+                            alertBox.textContent = data.message || 'Error updating shift timing.';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Shift update error:', err);
+                    if (alertBox) {
+                        alertBox.style.display = 'block';
+                        alertBox.style.background = '#fef2f2';
+                        alertBox.style.color = '#dc2626';
+                        alertBox.textContent = 'Network error while saving shift.';
+                    }
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i class="bi bi-check2-circle"></i> Start Shift &amp; Go Available';
+                }
+            });
+        }
+    })();
+
+    // =========================================================================
+    // SITUATION 2: INSTANT INCOMING JOB RADAR (WITH LEAFLET MINI MAP & DISTANCE)
+    // =========================================================================
+    (function initIncomingJobRadar() {
+        const overlay = document.getElementById('incomingJobRadarOverlay');
+        if (!overlay) return;
+
+        const elService = document.getElementById('incomingJobService');
+        const elCustomer = document.getElementById('incomingJobCustomer');
+        const elEarnings = document.getElementById('incomingJobEarnings');
+        const elSchedule = document.getElementById('incomingJobSchedule');
+        const elDistText = document.getElementById('incomingJobDistanceText');
+        const elAddress = document.getElementById('incomingJobAddress');
+        const elCountdown = document.getElementById('incomingJobCountdown');
+        const btnAccept = document.getElementById('btnAcceptIncomingJob');
+        const btnDecline = document.getElementById('btnDeclineIncomingJob');
+        const btnPropose = document.getElementById('btnProposeIncomingJob');
+
+        let activeJobId = null;
+        let radarCountdownInterval = null;
+        let miniMapInstance = null;
+        const dismissedJobIds = new Set();
+        let isPollingRadar = false;
+
+        function closeRadarCard() {
+            if (radarCountdownInterval) clearInterval(radarCountdownInterval);
+            overlay.style.display = 'none';
+            overlay.setAttribute('aria-hidden', 'true');
+            if (activeJobId) {
+                dismissedJobIds.add(activeJobId);
+            }
+            activeJobId = null;
+        }
+
+        function renderMiniMap(booking) {
+            const mapContainer = document.getElementById('incomingJobMiniMap');
+            if (!mapContainer || !window.L) return;
+
+            if (miniMapInstance) {
+                miniMapInstance.remove();
+                miniMapInstance = null;
+            }
+
+            const wLat = booking.worker_lat;
+            const wLng = booking.worker_lng;
+            const cLat = booking.customer_lat;
+            const cLng = booking.customer_lng;
+
+            try {
+                if (wLat && wLng && cLat && cLng) {
+                    miniMapInstance = L.map('incomingJobMiniMap', {
+                        zoomControl: false,
+                        attributionControl: false,
+                        dragging: false,
+                        scrollWheelZoom: false,
+                        doubleClickZoom: false
+                    });
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 18
+                    }).addTo(miniMapInstance);
+
+                    const wIcon = L.divIcon({
+                        className: 'custom-worker-radar-pin',
+                        html: '<div style="background:#059669;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;"><i class="bi bi-person-fill" style="font-size:12px;"></i></div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+
+                    const cIcon = L.divIcon({
+                        className: 'custom-customer-radar-pin',
+                        html: '<div style="background:#dc2626;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4);border:2px solid #fff;"><i class="bi bi-house-door-fill" style="font-size:12px;"></i></div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+
+                    L.marker([wLat, wLng], { icon: wIcon }).addTo(miniMapInstance);
+                    L.marker([cLat, cLng], { icon: cIcon }).addTo(miniMapInstance);
+
+                    L.polyline([[wLat, wLng], [cLat, cLng]], {
+                        color: '#3b82f6',
+                        weight: 3.5,
+                        dashArray: '6, 6',
+                        opacity: 0.9
+                    }).addTo(miniMapInstance);
+
+                    const bounds = L.latLngBounds([[wLat, wLng], [cLat, cLng]]);
+                    miniMapInstance.fitBounds(bounds, { padding: [22, 22] });
+                } else if (cLat && cLng) {
+                    miniMapInstance = L.map('incomingJobMiniMap', {
+                        zoomControl: false,
+                        attributionControl: false,
+                        dragging: false
+                    }).setView([cLat, cLng], 14);
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(miniMapInstance);
+                    L.marker([cLat, cLng]).addTo(miniMapInstance);
+                }
+                setTimeout(() => {
+                    if (miniMapInstance) miniMapInstance.invalidateSize();
+                }, 250);
+            } catch (err) {
+                console.debug('Mini map render:', err);
+            }
+        }
+
+        async function checkIncomingJobAlert() {
+            if (isPollingRadar || activeJobId) return;
+            isPollingRadar = true;
+
+            try {
+                const res = await fetch('/api/worker/incoming-job-alert/', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (data.has_incoming_job && data.booking) {
+                    const b = data.booking;
+                    if (dismissedJobIds.has(b.id)) return;
+
+                    activeJobId = b.id;
+                    playJobChime();
+
+                    if (elService) elService.textContent = b.service_name || 'Home Service';
+                    if (elCustomer) elCustomer.textContent = b.customer_name || 'Customer';
+                    if (elEarnings) elEarnings.textContent = '₹' + b.estimated_earnings;
+                    if (elSchedule) elSchedule.textContent = `${b.scheduled_date} • ${b.scheduled_time}`;
+                    if (elDistText) elDistText.textContent = b.distance_label || 'Doorstep Service';
+                    if (elAddress) elAddress.textContent = b.address || 'Address provided upon acceptance';
+
+                    overlay.style.display = 'flex';
+                    overlay.setAttribute('aria-hidden', 'false');
+
+                    // Start 45s countdown
+                    let countdownSecs = Math.min(45, b.seconds_remaining || 45);
+                    if (elCountdown) elCountdown.textContent = countdownSecs + 's';
+                    if (radarCountdownInterval) clearInterval(radarCountdownInterval);
+                    radarCountdownInterval = setInterval(() => {
+                        countdownSecs -= 1;
+                        if (countdownSecs <= 0) {
+                            closeRadarCard();
+                        } else {
+                            if (elCountdown) elCountdown.textContent = countdownSecs + 's';
+                        }
+                    }, 1000);
+
+                    // Render mini route map
+                    renderMiniMap(b);
+                }
+            } catch (err) {
+                console.debug('Incoming job alert poll:', err);
+            } finally {
+                isPollingRadar = false;
+            }
+        }
+
+        // Accept Button Handler
+        if (btnAccept) {
+            btnAccept.addEventListener('click', async function () {
+                if (!activeJobId) return;
+                const jid = activeJobId;
+                btnAccept.disabled = true;
+                btnAccept.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Accepting...';
+
+                const csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || CSRF_TOKEN;
+                const postData = new URLSearchParams();
+                postData.append('ajax', '1');
+
+                try {
+                    const res = await fetch(`/worker/booking/${jid}/accept/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: postData.toString()
+                    });
+                    const resData = await res.json();
+                    if (resData.success) {
+                        btnAccept.innerHTML = '<i class="bi bi-check-circle-fill"></i> Accepted!';
+                        btnAccept.style.background = '#047857';
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 700);
+                    } else {
+                        alert(resData.message || 'Could not accept booking.');
+                        closeRadarCard();
+                    }
+                } catch (e) {
+                    console.error('Accept job error:', e);
+                    window.location.href = `/worker-dashboard/`;
+                }
+            });
+        }
+
+        // Decline Button Handler
+        if (btnDecline) {
+            btnDecline.addEventListener('click', async function () {
+                if (!activeJobId) {
+                    closeRadarCard();
+                    return;
+                }
+                const jid = activeJobId;
+                const csrf = (document.querySelector('input[name="csrfmiddlewaretoken"]') || {}).value || CSRF_TOKEN;
+                const postData = new URLSearchParams();
+                postData.append('ajax', '1');
+
+                try {
+                    fetch(`/worker/booking/${jid}/reject/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: postData.toString()
+                    });
+                } catch (e) {
+                    console.debug('Decline job error:', e);
+                }
+                closeRadarCard();
+            });
+        }
+
+        if (btnPropose) {
+            btnPropose.addEventListener('click', function () {
+                if (activeJobId) {
+                    window.location.href = '/worker-jobs/?reschedule=' + activeJobId;
+                }
+            });
+        }
+
+        // Poll every 5 seconds for incoming jobs
+        setInterval(() => {
+            if (!document.hidden) {
+                checkIncomingJobAlert();
+            }
+        }, 5000);
+        // Initial check after 2 seconds
+        setTimeout(checkIncomingJobAlert, 2000);
+    })();
 })();
 </script>
 {% endblock %}

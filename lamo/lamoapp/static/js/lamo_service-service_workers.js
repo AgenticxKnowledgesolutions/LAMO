@@ -246,7 +246,7 @@ if (emergencyForm) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Finding Worker...';
         statusDiv.className = 'emergency-status finding';
-        statusDiv.innerHTML = '🚨 Finding an available worker for you...';
+        statusDiv.innerHTML = '⚡ Finding an available worker for you...';
 
         var formData = new FormData(this);
 
@@ -260,12 +260,15 @@ if (emergencyForm) {
         .then(function(res) { return res.json(); })
         .then(function(data) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '🚨 Find Available Worker';
+            submitBtn.innerHTML = '⚡ Find Available Worker';
 
             if (data.success) {
-                if (data.emergency && data.waiting) {
+                if (typeof showBookingSuccessSheet === 'function') {
+                    closeEmergencyModal();
+                    showBookingSuccessSheet(data);
+                } else if (data.emergency && data.waiting) {
                     statusDiv.className = 'emergency-status finding';
-                    statusDiv.innerHTML = '🚨 Emergency Request Submitted! Redirecting to your bookings...';
+                    statusDiv.innerHTML = '⚡ Instant Request Submitted! Redirecting to your bookings...';
                     setTimeout(function() {
                         window.location.href = data.redirect_url || '/my-bookings/';
                     }, 1500);
@@ -283,7 +286,7 @@ if (emergencyForm) {
         })
         .catch(function(err) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '🚨 Find Available Worker';
+            submitBtn.innerHTML = '⚡ Find Available Worker';
             statusDiv.className = 'emergency-status unavailable';
             statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> An error occurred. Please try again.';
         });

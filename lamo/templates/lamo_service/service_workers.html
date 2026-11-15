@@ -27,8 +27,8 @@
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     >
 
-    <link rel="stylesheet" href="{% static 'css/lamo_service-service_workers.css' %}">
-    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261108_auth_redesign_v2">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-service_workers.css' %}?v=20261110_instant_v1">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261110_bottom_sheet_v1">
 
 
 </head>
@@ -86,35 +86,32 @@
 
     <div class="workers-page-body-wrap">
 
-        <!-- BACK & DETAILS DUAL NAV -->
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+        <!-- BACK NAV -->
+        <div style="display:flex; align-items:center; margin-bottom:18px;">
             <a href="{% url 'service_page' %}{% if district %}?district={{ district|urlencode }}{% endif %}" class="pill-back-btn" style="margin-bottom:0;">
                 <i class="bi bi-arrow-left"></i>
                 Back to All Services
             </a>
-            <a href="{% url 'service_detail' service.id %}" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#087f5b; text-decoration:none; background:#ffffff; border:1px solid #e2e8f0; border-radius:9999px; padding:7px 16px; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
-                <i class="bi bi-stars text-warning"></i> AI Match &amp; Service Guide
-            </a>
         </div>
 
-        <!-- EMERGENCY SERVICE BANNER (IMAGE 2 UI) -->
+        <!-- INSTANT SERVICE BANNER -->
         <div class="emergency-banner-card">
             <div class="emergency-banner-left">
                 <div class="emergency-siren-box">
-                    🚨
+                    ⚡
                 </div>
                 <div class="emergency-banner-info">
-                    <h3>Emergency Service</h3>
-                    <p>Need urgent help? Find any available {{ service.name|lower }} instantly.</p>
+                    <h3>Instant Service</h3>
+                    <p>Need fast doorstep help? Find and book any available {{ service.name|lower }} instantly.</p>
                 </div>
             </div>
             {% if user.is_authenticated %}
             <button type="button" class="emergency-action-btn" onclick="openEmergencyModal()">
-                🚨 Find Emergency Help <i class="bi bi-arrow-right"></i>
+                ⚡ Request Instant Service <i class="bi bi-arrow-right"></i>
             </button>
             {% else %}
             <a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}" class="emergency-action-btn" style="text-decoration:none;">
-                🚨 Find Emergency Help <i class="bi bi-arrow-right"></i>
+                ⚡ Request Instant Service <i class="bi bi-arrow-right"></i>
             </a>
             {% endif %}
         </div>
@@ -199,11 +196,15 @@
                                     data-worker-name="{{ worker.user.get_full_name|default:worker.user.username }}"
                                     data-worker-district="{{ worker.district }}"
                                     data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
+                                    data-worker-start-time="{{ worker.work_start_time|time:'H:i'|default:'09:00' }}"
+                                    data-worker-end-time="{{ worker.work_end_time|time:'H:i'|default:'18:00' }}"
+                                    data-worker-working-hours="{{ worker.get_working_hours_display }}"
                                     {% if worker.profile_image %}
                                     data-worker-image="{{ worker.profile_image.url }}"
                                     {% endif %}
                                     data-service-id="{{ service.id }}"
                                     data-service-name="{{ service.name }}"
+                                    data-service-duration="{{ service.default_duration_min|default:45 }}"
                                     onclick="openBookingModal(this)"
                                 >
                                     <i class="bi bi-calendar-check"></i> Book Now
@@ -561,6 +562,9 @@
                                                 data-worker-name="{{ worker.user.get_full_name|default:worker.user.username }}"
                                                 data-worker-district="{{ worker.district }}"
                                                 data-worker-rate="{{ worker.pricing_amount|default:'250' }}"
+                                                data-worker-start-time="{{ worker.work_start_time|time:'H:i'|default:'09:00' }}"
+                                                data-worker-end-time="{{ worker.work_end_time|time:'H:i'|default:'18:00' }}"
+                                                data-worker-working-hours="{{ worker.get_working_hours_display }}"
                                                 {% if worker.profile_image %}
                                                 data-worker-image="{{ worker.profile_image.url }}"
                                                 {% elif worker.user.profile_image %}
@@ -568,6 +572,7 @@
                                                 {% endif %}
                                                 data-service-id="{{ service.id }}"
                                                 data-service-name="{{ service.name }}"
+                                                data-service-duration="{{ service.default_duration_min|default:45 }}"
                                                 onclick="openBookingModal(this)"
                                             >
                                                 Book Now <i class="bi bi-arrow-right"></i>
@@ -754,7 +759,7 @@
 <div id="emergencyModal" class="emergency-modal-overlay" aria-hidden="true">
     <div class="emergency-modal" role="dialog" aria-modal="true">
         <div class="emergency-modal-header">
-            <h3>🚨 Emergency Service</h3>
+            <h3>⚡ Instant Service</h3>
             <button type="button" class="emergency-modal-close" onclick="closeEmergencyModal()" aria-label="Close">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -772,7 +777,7 @@
 
                 <div class="emergency-form-group">
                     <label for="emergencyProblem">Problem Description *</label>
-                    <textarea name="problem" id="emergencyProblem" placeholder="Describe your emergency problem..." required></textarea>
+                    <textarea name="problem" id="emergencyProblem" placeholder="Describe your service requirement..." required></textarea>
                 </div>
 
                 <div class="emergency-form-group">
@@ -784,7 +789,7 @@
                     <label for="emergencyTime">Preferred Time *</label>
                     <select name="time" id="emergencyTime" required>
                         <option value="">Select time</option>
-                        <option value="ASAP">ASAP (As Soon As Possible)</option>
+                        <option value="ASAP" selected>ASAP (As Soon As Possible)</option>
                         <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
                         <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
                         <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
@@ -800,7 +805,7 @@
                 </div>
 
                 <button type="submit" class="emergency-submit" id="emergencySubmitBtn">
-                    🚨 Find Available Worker
+                    ⚡ Find Available Worker
                 </button>
             </form>
 
@@ -811,7 +816,7 @@
 
   {% block extra_js %}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="{% static 'js/lamo_service-service_workers.js' %}?v=2" defer></script>
+    <script src="{% static 'js/lamo_service-service_workers.js' %}?v=3" defer></script>
   {% endblock %}
 </body>
 

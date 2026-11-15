@@ -1,105 +1,266 @@
 {% extends 'base.html' %}
 {% load static %}
 
-
-{% block title %}Edit Profile - LAMO{% endblock %}
+{% block title %}Account Settings - LAMO{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/user-edit_profile.css' %}">
+    <link rel="stylesheet" href="{% static 'css/user-edit_profile.css' %}?v=20261110_avatar_v6">
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/user-edit_profile.js' %}" defer></script>
+    <script src="{% static 'js/user-edit_profile.js' %}?v=20261110_avatar_v6" defer></script>
 {% endblock %}
+
 {% block content %}
+<div class="profile-page-wrapper">
+    <div class="profile-container">
 
-<div class="ep-container">
-    <div class="ep-card">
-        <h2>Edit Profile</h2>
-        <form method="POST" enctype="multipart/form-data" class="ep-form">
-            {% csrf_token %}
-            <div style="text-align:center; margin-bottom: 20px;">
-                {% if profile.profile_image %}
-                    <img src="{{ profile.profile_image.url }}" class="ep-avatar-preview" alt="Avatar">
-                {% else %}
-                    <div class="ep-avatar-preview" style="background:#e0e7ff; display:flex; align-items:center; justify-content:center; margin: 0 auto;">
-                        <i class="bi bi-person" style="font-size:32px; color:#6366f1;"></i>
+        <!-- CLEAN MODERN BREADCRUMB & PAGE HEADER (NO DARK GREEN) -->
+        <div class="profile-page-header">
+            <nav aria-label="breadcrumb">
+                <ol class="profile-breadcrumb">
+                    <li><a href="{% url 'home' %}"><i class="bi bi-house-door"></i> Home</a></li>
+                    <li><span class="bc-sep">/</span></li>
+                    <li><a href="{% url 'user_dashboard' %}">Dashboard</a></li>
+                    <li><span class="bc-sep">/</span></li>
+                    <li class="active">Profile Settings</li>
+                </ol>
+            </nav>
+            <div class="profile-header-content">
+                <div>
+                    <span class="profile-hero-badge"><i class="bi bi-patch-check-fill text-success"></i> CUSTOMER ACCOUNT</span>
+                    <h1 class="profile-page-title">Profile &amp; Account Settings</h1>
+                    <p class="profile-page-subtitle">Update your personal details, doorstep address, and service preferences.</p>
+                </div>
+                <a href="{% url 'user_dashboard' %}" class="btn-profile-header-back">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- SUCCESS / FEEDBACK ALERTS -->
+        {% if messages %}
+            <div class="profile-alerts-container">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                {% endif %}
-                <label>Profile Image</label>
-                {{ form.profile_image }}
+                {% endfor %}
             </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <label>Phone</label>
-                    {{ form.phone }}
-                </div>
-                <div>
-                    <label>Date of Birth</label>
-                    {{ form.date_of_birth }}
-                </div>
-            </div>
-            <label>District</label>
-            {{ form.district }}
-            <label>Address</label>
-            {{ form.address }}
-            <!-- Hidden technical latitude/longitude for seamless backend persistence -->
-            <div style="display:none;">
-                {{ form.latitude }}
-                {{ form.longitude }}
-            </div>
+        {% endif %}
 
-            <!-- User-Friendly Location Quick Pin Card -->
-            <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 14px 16px; margin: 16px 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-                    <div>
-                        <div style="font-weight: 700; color: #1e293b; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
-                            <i class="bi bi-geo-alt-fill text-success"></i> Home Service Coordinates
+        <!-- 2-COLUMN PROFILE DASHBOARD LAYOUT (IDEA 1) -->
+        <div class="profile-grid-layout">
+
+            <!-- LEFT COLUMN: STICKY PROFILE OVERVIEW SIDEBAR -->
+            <aside class="profile-sidebar">
+                <div class="profile-user-card">
+                    <!-- INTERACTIVE CLICK-TO-UPLOAD AVATAR (IDEA 2) -->
+                    <div class="avatar-upload-container">
+                        <div class="avatar-circle-wrapper" onclick="triggerProfileImageUpload()" title="Click to upload new photo">
+                            {% if profile.profile_image %}
+                                <img src="{{ profile.profile_image.url }}" id="profileAvatarPreview" class="profile-avatar-img" alt="{{ user.username }}">
+                            {% else %}
+                                <div id="profileAvatarFallback" class="profile-avatar-fallback">
+                                    <span class="avatar-initial">{{ user.first_name|default:user.username|first|upper }}</span>
+                                </div>
+                            {% endif %}
+                            <div class="avatar-hover-overlay">
+                                <i class="bi bi-camera-fill"></i>
+                                <span>Change</span>
+                            </div>
+                            <button type="button" class="avatar-camera-pill" onclick="event.stopPropagation(); triggerProfileImageUpload();" aria-label="Upload photo">
+                                <i class="bi bi-camera-fill"></i>
+                            </button>
                         </div>
-                        <small style="color: #64748b; font-size: 12px;">Pin your location to help nearby professionals reach you accurately.</small>
+                        <div class="avatar-action-links">
+                            <button type="button" class="btn-upload-text" onclick="triggerProfileImageUpload()">
+                                <i class="bi bi-cloud-arrow-up"></i> Upload Photo
+                            </button>
+                            <span class="avatar-help-text">JPG, PNG or WEBP (Max 5MB)</span>
+                            <div id="avatarStatusPill" class="avatar-status-pill" style="display: none;"></div>
+                        </div>
                     </div>
-                    <button type="button" id="setUserLocationBtn" style="padding: 9px 16px; border: 1.5px solid #16a34a; border-radius: 8px; background: #ffffff; cursor: pointer; font-weight: 600; color: #16a34a; font-family: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(22, 163, 74, 0.08); transition: all 0.2s;">
-                        <i class="bi bi-crosshair"></i> Use Current Location
-                    </button>
-                </div>
-                <div id="userLocationStatus" style="font-size: 12px; font-weight: 600; margin-top: 8px; display: block; color: {% if form.latitude.value %}#16a34a{% else %}#64748b{% endif %};">
-                    {% if form.latitude.value %}
-                        ✓ Exact coordinates are pinned.
-                    {% else %}
-                        No GPS coordinates pinned yet. Click button above to pin automatically.
-                    {% endif %}
-                </div>
-            </div>
-            <label>Bio</label>
-            {{ form.bio }}
-            <button type="submit" class="ep-btn">Save Changes</button>
-            <a href="{% url 'user_dashboard' %}" class="ep-cancel">Cancel</a>
-        </form>
-    </div>
 
-    <!-- Security -->
-    <div style="margin-top: 30px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff;">
-        <h4 style="color: #0f172a; font-size: 16px; font-weight: 700; margin-bottom: 8px;">Security</h4>
-        <p style="color: #6b7280; font-size: 13px; margin-bottom: 16px;">Update the password you use to sign in to LAMO.</p>
-        <a href="{% url 'change_password' %}" style="display: inline-block; padding: 10px 24px; background: #0f172a; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">Change Password</a>
-    </div>
+                    <div class="profile-user-info">
+                        <h2 class="profile-user-name" id="sidebarDisplayName">
+                            {{ user.get_full_name|default:user.username }}
+                        </h2>
+                        <div class="profile-user-role-badge">
+                            <i class="bi bi-patch-check-fill text-success"></i> Verified Customer
+                        </div>
+                        <p class="profile-user-email">
+                            <i class="bi bi-envelope"></i> {{ user.email|default:"No email registered" }}
+                        </p>
+                    </div>
 
-    <!-- Danger Zone -->
-    <div style="margin-top: 30px; padding: 24px; border: 1px solid #fee2e2; border-radius: 16px; background: #fef2f2;">
-        <h4 style="color: #dc2626; font-size: 16px; font-weight: 700; margin-bottom: 8px;">Danger Zone</h4>
-        <p style="color: #6b7280; font-size: 13px; margin-bottom: 16px;">Once you delete your account, there is no going back.</p>
-        <form method="POST" action="{% url 'delete_account' %}" onsubmit="return confirm('Are you sure you want to permanently delete your account? This cannot be undone.');">
-            {% csrf_token %}
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">Enter your password to confirm</label>
-                <input type="password" name="password" required style="width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
-            </div>
-            <button type="submit" style="padding: 10px 24px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Delete My Account</button>
-        </form>
+                    <!-- QUICK ANCHOR NAV (NO PASSWORD SECTION) -->
+                    <div class="profile-sidebar-nav">
+                        <a href="#section-personal" class="sidebar-nav-link active">
+                            <i class="bi bi-person-lines-fill"></i>
+                            <span>Personal Details</span>
+                        </a>
+                        <a href="#section-location" class="sidebar-nav-link">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            <span>Home &amp; Service Location</span>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- RIGHT COLUMN: MAIN FORM CARDS -->
+            <main class="profile-main-content">
+                <form method="POST" enctype="multipart/form-data" class="ep-form" id="profileEditForm">
+                    {% csrf_token %}
+
+                    <!-- HIDDEN REAL FILE INPUT -->
+                    <div style="display:none;">
+                        {{ form.profile_image }}
+                    </div>
+
+                    <!-- SECTION 1: PERSONAL DETAILS -->
+                    <section class="profile-section-card" id="section-personal">
+                        <div class="section-card-header">
+                            <div class="section-card-icon">
+                                <i class="bi bi-person-badge-fill"></i>
+                            </div>
+                            <div>
+                                <h3 class="section-card-title">Personal Details</h3>
+                                <p class="section-card-desc">Your basic profile info and contact details used for bookings.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="id_first_name">First Name</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <div class="form-error">{{ form.first_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-group">
+                                <label for="id_last_name">Last Name</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <div class="form-error">{{ form.last_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <div class="input-verified-wrapper">
+                                    <input type="text" class="form-control" value="{{ user.email }}" readonly disabled>
+                                    <span class="badge-input-verified"><i class="bi bi-check-circle-fill"></i> Verified</span>
+                                </div>
+                                <small class="form-help-text">Used for receiving booking OTPs and service invoices.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="id_phone">Phone Number</label>
+                                <div class="input-phone-wrapper">
+                                    <span class="phone-prefix">+91</span>
+                                    {{ form.phone }}
+                                </div>
+                                {% if form.phone.errors %}
+                                    <div class="form-error">{{ form.phone.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-help-text">10-digit number for worker calls &amp; doorstep updates.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="id_date_of_birth">Date of Birth</label>
+                                {{ form.date_of_birth }}
+                                {% if form.date_of_birth.errors %}
+                                    <div class="form-error">{{ form.date_of_birth.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-group">
+                                <label for="id_district">Default District</label>
+                                {{ form.district }}
+                                {% if form.district.errors %}
+                                    <div class="form-error">{{ form.district.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_bio">Bio / Notes for Workers (Optional)</label>
+                            {{ form.bio }}
+                            {% if form.bio.errors %}
+                                <div class="form-error">{{ form.bio.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-help-text">Add any helpful instructions (e.g. apartment entry notes, landmarks).</small>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 2: HOME & SERVICE LOCATION -->
+                    <section class="profile-section-card" id="section-location">
+                        <div class="section-card-header">
+                            <div class="section-card-icon icon-location">
+                                <i class="bi bi-geo-alt-fill"></i>
+                            </div>
+                            <div>
+                                <h3 class="section-card-title">Home &amp; Service Location</h3>
+                                <p class="section-card-desc">Where you usually need technicians and doorstep professionals.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_address">Complete Doorstep Address</label>
+                            {{ form.address }}
+                            {% if form.address.errors %}
+                                <div class="form-error">{{ form.address.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-help-text">Include building number, street name, and nearby landmark.</small>
+                        </div>
+
+                        <!-- Technical Hidden Latitude/Longitude -->
+                        <div style="display:none;">
+                            {{ form.latitude }}
+                            {{ form.longitude }}
+                        </div>
+
+                        <!-- GPS Quick Pin Interactive Card -->
+                        <div class="gps-pin-card">
+                            <div class="gps-pin-content">
+                                <div class="gps-pin-info">
+                                    <div class="gps-pin-title">
+                                        <i class="bi bi-crosshair text-success"></i> Exact GPS Coordinates
+                                    </div>
+                                    <p class="gps-pin-desc">Pin your current location so nearby workers can navigate accurately to your doorstep.</p>
+                                    <div id="userLocationStatus" class="gps-pin-status {% if form.latitude.value %}status-pinned{% endif %}">
+                                        {% if form.latitude.value %}
+                                            <i class="bi bi-check2-circle"></i> Coordinates pinned ({{ form.latitude.value|floatformat:4 }}, {{ form.longitude.value|floatformat:4 }})
+                                        {% else %}
+                                            <i class="bi bi-info-circle"></i> No GPS coordinates pinned yet. Click button to auto-detect.
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <button type="button" id="setUserLocationBtn" class="btn-gps-detect">
+                                    <i class="bi bi-geo-fill"></i> Use Current Location
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SUBMIT ACTION BAR -->
+                        <div class="form-action-bar">
+                            <button type="submit" class="btn-save-profile">
+                                <i class="bi bi-check2-circle"></i> Save Profile Changes
+                            </button>
+                            <a href="{% url 'user_dashboard' %}" class="btn-cancel-profile">
+                                Cancel
+                            </a>
+                        </div>
+                    </section>
+                </form>
+            </main>
+        </div>
     </div>
 </div>
-
-
 {% endblock %}
 
 

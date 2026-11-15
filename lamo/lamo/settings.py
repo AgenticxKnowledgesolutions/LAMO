@@ -184,6 +184,12 @@ for _default_render_host in ('.onrender.com', 'lamo-39by.onrender.com'):
     if _default_render_host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_default_render_host)
 
+if DEBUG:
+    # Allow all local Wi-Fi devices (phones, laptops) and testserver in development
+    for _dev_host in ('*', '192.168.68.51', 'testserver'):
+        if _dev_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_dev_host)
+
 
 # Application definition
 
@@ -765,6 +771,15 @@ if IS_PRODUCTION:
     # Session Security
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
+
+# ============================================================
+# PERSISTENT SESSION CONFIGURATION
+# ============================================================
+# Users and Workers stay logged in across browser closes (30-day cookie)
+# Logging out only occurs when the user explicitly clicks "Logout".
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
+SESSION_SAVE_EVERY_REQUEST = True
 
 
 # ============================================================

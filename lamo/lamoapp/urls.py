@@ -42,6 +42,8 @@ urlpatterns = [
     # Live Route Map & GPS Tracking
     path('api/booking/<int:booking_id>/tracking/', views.api_booking_tracking, name='api_booking_tracking'),
     path('api/worker/update-coordinates/', views.api_worker_update_coordinates, name='api_worker_update_coordinates'),
+    path('api/worker/start-shift/', views.api_worker_start_shift, name='api_worker_start_shift'),
+    path('api/worker/incoming-job-alert/', views.api_worker_incoming_job_alert, name='api_worker_incoming_job_alert'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),
@@ -118,8 +120,11 @@ urlpatterns = [
     path('worker/emergency/<int:booking_id>/accept/', views.worker_accept_emergency, name='worker_accept_emergency'),
     path('worker/booking/<int:booking_id>/propose-reschedule/', views.worker_propose_reschedule, name='worker_propose_reschedule'),
     path('worker/jobs/<int:booking_id>/propose-reschedule/', views.worker_propose_reschedule, name='worker_propose_reschedule_alias'),
+    path('worker/jobs/<int:booking_id>/confirm-transit/', views.worker_confirm_next_job_transit, name='worker_confirm_next_job_transit'),
     path('booking/<int:booking_id>/accept-reschedule/', views.customer_accept_reschedule, name='customer_accept_reschedule'),
     path('booking/<int:booking_id>/decline-reschedule/', views.customer_decline_reschedule, name='customer_decline_reschedule'),
+    path('booking/<int:booking_id>/request-reschedule/', views.customer_request_reschedule, name='customer_request_reschedule'),
+    path('booking/<int:booking_id>/reassign/', views.customer_reassign_booking, name='customer_reassign_booking'),
     path('api/worker/<int:worker_id>/availability/', views.api_worker_availability, name='api_worker_availability'),
 
     # Notifications

@@ -1168,3 +1168,512 @@
     transform: translateY(0);
 }
 
+/* ==========================================================================
+   SITUATION 1: DAILY START SHIFT MODAL (UBER / URBAN COMPANY STYLE)
+   ========================================================================== */
+.shift-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+}
+
+.shift-modal-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.shift-modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 24px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
+    padding: 28px 24px 24px;
+    transform: translateY(24px) scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    border: 1px solid rgba(226, 238, 233, 0.8);
+}
+
+.shift-modal-backdrop.show .shift-modal-card {
+    transform: translateY(0) scale(1);
+}
+
+.shift-modal-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.shift-modal-icon-bubble {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    color: #059669;
+    font-size: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.15);
+}
+
+.shift-modal-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 6px;
+}
+
+.shift-modal-subtitle {
+    font-size: 0.86rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.45;
+}
+
+.shift-modal-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+    margin-top: 10px;
+}
+
+.shift-modal-presets {
+    margin-bottom: 18px;
+}
+
+.shift-modal-presets-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.shift-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.shift-preset-chip {
+    padding: 9px 12px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s ease;
+}
+
+.shift-preset-chip:hover {
+    border-color: #059669;
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.shift-preset-chip.active {
+    border-color: #059669;
+    background: #059669;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.shift-time-select-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.shift-select-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
+}
+
+.shift-select-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.shift-select-input:focus {
+    border-color: #059669;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.shift-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btn-start-shift-primary {
+    width: 100%;
+    border: none;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.96rem;
+    padding: 13px 20px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-start-shift-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(5, 150, 105, 0.45);
+}
+
+.btn-start-shift-secondary {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: color 0.15s;
+}
+
+.btn-start-shift-secondary:hover {
+    color: #1e293b;
+}
+
+/* ==========================================================================
+   SITUATION 2: INCOMING JOB RADAR CARD WITH DISTANCE & MINI ROUTE MAP
+   ========================================================================== */
+.incoming-job-overlay {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: 390px;
+    max-width: calc(100vw - 32px);
+    z-index: 99999;
+    display: none;
+    animation: radarCardSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.incoming-job-overlay.show {
+    display: block;
+}
+
+@keyframes radarCardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.incoming-job-card {
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1.5px rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Radar Pulsing Top Bar */
+.incoming-job-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.radar-pulse-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.radar-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    position: relative;
+}
+
+.radar-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.6);
+    animation: radarPulse 1.4s infinite ease-out;
+}
+
+@keyframes radarPulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.8); opacity: 0; }
+}
+
+.incoming-timer-ring {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Service & Customer Details */
+.incoming-job-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.incoming-service-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0 0 3px;
+    line-height: 1.25;
+}
+
+.incoming-customer-name {
+    font-size: 0.84rem;
+    color: #94a3b8;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.incoming-earning-pill {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 1rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    text-align: right;
+}
+
+.incoming-earning-pill small {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.85;
+    text-transform: uppercase;
+}
+
+/* Time & Distance Metadata Badges */
+.incoming-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.meta-chip-time, .meta-chip-dist {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.meta-chip-time {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+.meta-chip-dist {
+    background: rgba(59, 130, 246, 0.16);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+}
+
+/* MINI ROUTE MAP PREVIEW (FEATURE FROM IDEA 2) */
+.incoming-job-map-wrap {
+    height: 125px;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+#incomingJobMiniMap {
+    height: 100%;
+    width: 100%;
+    background: #1e293b;
+}
+
+.incoming-map-tag {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #cbd5e1;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+/* Action Buttons */
+.incoming-actions-row {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-accept-job-radar {
+    flex: 2;
+    border: none;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.94rem;
+    padding: 12px 16px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+
+.btn-accept-job-radar:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.55);
+}
+
+.btn-decline-job-radar {
+    flex: 0.9;
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.btn-decline-job-radar:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+.btn-propose-job-radar {
+    flex: 1.1;
+    border: 1.5px solid rgba(165, 180, 252, 0.35);
+    background: rgba(99, 102, 241, 0.15);
+    color: #c7d2fe;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.15s;
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn-propose-job-radar:hover {
+    background: rgba(99, 102, 241, 0.32);
+    border-color: #818cf8;
+    color: #ffffff;
+}
+
+/* Mobile responsive for bottom sheet */
+@media (max-width: 640px) {
+    .incoming-job-overlay {
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    .incoming-job-card {
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+        padding: 20px 18px calc(env(safe-area-inset-bottom, 12px) + 16px);
+    }
+}
+

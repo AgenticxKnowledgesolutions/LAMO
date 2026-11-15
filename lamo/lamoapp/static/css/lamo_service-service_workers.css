@@ -2116,7 +2116,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 22px;
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
 }
 
@@ -2176,7 +2176,7 @@
 .emergency-form-group input:focus,
 .emergency-form-group select:focus,
 .emergency-form-group textarea:focus {
-    border-color: #dc2626;
+    border-color: #059669;
     outline: none;
 }
 
@@ -2190,7 +2190,7 @@
     padding: 14px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
     color: white;
     font-size: 15px;
     font-weight: 700;
@@ -2200,7 +2200,7 @@
 
 .emergency-submit:hover {
     transform: translateY(-1px);
-    box-shadow: 0 5px 15px rgba(220, 38, 38, 0.3);
+    box-shadow: 0 5px 15px rgba(5, 150, 105, 0.3);
 }
 
 .emergency-submit:disabled {
@@ -2335,18 +2335,18 @@
     transform: translateX(-3px);
 }
 
-/* Emergency Banner matching Image 2 */
+/* Instant Service Banner */
 .emergency-banner-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 20px;
     padding: 18px 24px;
-    background: #fff8f8;
-    border: 1.5px solid #ffccd5;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #a7f3d0;
     border-radius: 18px;
     margin-bottom: 28px;
-    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.05);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.08);
 }
 
 .emergency-banner-left {
@@ -2359,12 +2359,14 @@
     width: 50px;
     height: 50px;
     border-radius: 14px;
-    background: #fee2e2;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 26px;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
     animation: pulseSiren 2s infinite;
 }
 
@@ -2377,13 +2379,13 @@
     margin: 0 0 3px 0;
     font-size: 18px;
     font-weight: 800;
-    color: #ef4444;
+    color: #065f46;
 }
 
 .emergency-banner-info p {
     margin: 0;
     font-size: 13.5px;
-    color: #64748b;
+    color: #047857;
 }
 
 .emergency-action-btn {
@@ -2391,22 +2393,22 @@
     align-items: center;
     gap: 8px;
     padding: 12px 24px;
-    background: #dc2626;
+    background: #087f5b;
     color: #ffffff;
     border: none;
     border-radius: 12px;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25);
+    box-shadow: 0 4px 14px rgba(8, 127, 91, 0.25);
     transition: all 0.2s ease;
     white-space: nowrap;
 }
 
 .emergency-action-btn:hover {
-    background: #b91c1c;
+    background: #066347;
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
+    box-shadow: 0 6px 18px rgba(8, 127, 91, 0.35);
 }
 
 /* 2-Column Layout */

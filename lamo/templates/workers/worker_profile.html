@@ -721,6 +721,22 @@
                     <div class="detail-item">
 
                         <span class="detail-label">
+                            Working Shift Hours
+                        </span>
+
+                        <span class="detail-value" style="color: #087f5b; font-weight: 700;">
+
+                            <i class="bi bi-clock-fill" style="margin-right: 4px;"></i>
+                            {{ worker_profile.get_working_hours_display|default:"9:00 AM - 6:00 PM" }}
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="detail-item">
+
+                        <span class="detail-label">
                             Qualification
                         </span>
 

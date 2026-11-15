@@ -445,8 +445,21 @@
         }
         let imageHtml = `<img src="${imageSrc}" alt="${escapeHtml(s.name)}" loading="lazy" onerror="this.onerror=null;this.src='/static/img/general.png';">`;
 
+        let cardUrl = s.url;
+        if (!cardUrl || cardUrl.endsWith(`/${s.id}/`)) {
+          const effDist = selectedDistrict || (districtSelect ? districtSelect.value : "") || "Kollam";
+          cardUrl = `/services/${s.id}/workers/?district=${encodeURIComponent(effDist)}`;
+          const navCurrent = document.getElementById("navCurrentDistrict");
+          if (navCurrent && navCurrent.textContent.includes(",")) {
+            const locPart = navCurrent.textContent.split(",")[0].trim();
+            if (locPart && locPart !== "Select Location") {
+              cardUrl += `&locality=${encodeURIComponent(locPart)}`;
+            }
+          }
+        }
+
         html += `
-          <a href="${s.url}" 
+          <a href="${cardUrl}" 
              class="service-card-modern" 
              data-id="${s.id}"
              data-name="${escapeHtml(s.name).toLowerCase()}" 
@@ -550,6 +563,7 @@
       window.fetchFilteredServices = fetchFilteredServices;
       const opts = options || {};
       const district = opts.district !== undefined ? opts.district : (districtSelect ? districtSelect.value : "");
+      const locality = opts.locality !== undefined ? opts.locality : "";
       const query = opts.query !== undefined ? opts.query : (searchInput ? searchInput.value.trim() : "");
       const category = opts.category !== undefined ? opts.category : currentCategory;
       const updateUrl = opts.updateUrl !== false;
@@ -571,6 +585,7 @@
 
       const params = new URLSearchParams();
       if (district) params.set("district", district);
+      if (locality) params.set("locality", locality);
       if (query) params.set("search", query);
       if (category && category !== "all" && category !== "more") params.set("category", category);
       params.set("ajax", "1");
@@ -667,12 +682,13 @@
             if (updateUrl) {
               const cleanParams = new URLSearchParams();
               if (district) cleanParams.set("district", district);
+              if (locality) cleanParams.set("locality", locality);
               if (query) cleanParams.set("search", query);
               if (category && category !== "all" && category !== "more") {
                 cleanParams.set("category", category);
               }
               const newUrl = window.location.pathname + (cleanParams.toString() ? "?" + cleanParams.toString() : "");
-              window.history.pushState({ district, query, category }, "", newUrl);
+              window.history.pushState({ district, locality, query, category }, "", newUrl);
             }
           }
         })

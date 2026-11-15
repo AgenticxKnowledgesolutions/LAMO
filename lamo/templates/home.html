@@ -404,12 +404,14 @@
     <div class="services-carousel-wrapper" id="servicesCarouselWrapper">
       <div class="popular-services-track stagger-children" id="servicesGrid">
       {% for service in services %}
-      <a href="{% if district %}{% url 'service_workers' service.id %}?district={{ district|urlencode }}{% if locality %}&locality={{ locality|urlencode }}{% endif %}{% else %}{% url 'service_detail' service.id %}{% endif %}" 
+      {% with eff_dist=district|default:current_district|default:selected_district eff_loc=locality|default:current_locality|default:selected_locality %}
+      <a href="{% if eff_dist %}{% url 'service_workers' service.id %}?district={{ eff_dist|urlencode }}{% if eff_loc %}&locality={{ eff_loc|urlencode }}{% endif %}{% else %}{% url 'service_workers' service.id %}?district=Kollam{% endif %}" 
          class="service-card-modern" 
          data-id="{{ service.id }}"
          data-name="{{ service.name|lower }}" 
          data-desc="{{ service.description|lower }}"
          data-category="{{ service.category_slug }}">
+      {% endwith %}
 
         <!-- Service Image & Category Overlay Badge -->
         <div class="service-card-thumb">

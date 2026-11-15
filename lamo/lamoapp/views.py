@@ -13,8 +13,8 @@ import string
 from decimal import Decimal
 from functools import lru_cache
 
-from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum, Avg, Count, Min, Case, When, Value, IntegerField, Prefetch, ProtectedError
+from django.db import IntegrityError, transaction, models
+from django.db.models import Q, Sum, Avg, Count, Min, Case, When, Value, IntegerField, Prefetch, ProtectedError, F
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -617,6 +617,65 @@ def parse_time_range(time_str):
     )
 
 
+def compute_booking_window(time_str, service=None, duration_min=None, buffer_min=None, distance_km=None):
+    """Return (start_time, end_time, duration_min, buffer_min) for a service booking.
+
+    Option 1: Duration + Travel Buffer:
+    - Start time is extracted from the requested slot or custom time.
+    - End time is computed as: start_time + (duration_min + buffer_min) minutes.
+    - Dynamic travel buffer: adapts based on distance_km (<=5km: 15m, 5-15km: 30m, >15km: 45m).
+    - If the user selected a standard slot (e.g. 4:00 PM - 5:00 PM or 4:00 PM - 6:00 PM),
+      the job only locks the actual service duration + travel buffer, leaving the remaining
+      hours/slots free for other customers to book!
+    """
+    start_t, parsed_end = parse_time_range(time_str)
+    if not start_t:
+        return None, None, 45, 15
+
+    eff_duration = duration_min or (getattr(service, 'default_duration_min', 45) if service else 45) or 45
+
+    if buffer_min is not None:
+        eff_buffer = buffer_min
+    elif distance_km is not None:
+        try:
+            d_val = float(distance_km)
+            if d_val <= 5.0:
+                eff_buffer = 15
+            elif d_val <= 15.0:
+                eff_buffer = 30
+            else:
+                eff_buffer = 45
+        except (ValueError, TypeError):
+            eff_buffer = 15
+    else:
+        eff_buffer = 15
+
+    total_minutes = eff_duration + eff_buffer
+
+    from datetime import datetime as dt_cls, date as d_cls, timedelta as td_cls, time as tm_cls
+    start_dt = dt_cls.combine(d_cls.today(), start_t)
+    end_dt = start_dt + td_cls(minutes=total_minutes)
+
+    if end_dt.date() > start_dt.date():
+        computed_end = tm_cls(23, 59)
+    else:
+        computed_end = end_dt.time()
+
+    # Option 1: The job duration + travel buffer dictates the locked window.
+    # If the user typed an explicit custom range that is longer than the default, we allow it up to 180 min,
+    # but for standard slots (e.g. 4-6 PM or 4-5 PM), it only locks the actual computed duration + buffer!
+    if parsed_end and parsed_end > start_t and not time_str.endswith('PM') and not time_str.endswith('AM'):
+        diff_mins = (parsed_end.hour * 60 + parsed_end.minute) - (start_t.hour * 60 + start_t.minute)
+        if diff_mins > total_minutes and diff_mins <= 180:
+            final_end = parsed_end
+        else:
+            final_end = computed_end
+    else:
+        final_end = computed_end
+
+    return start_t, final_end, eff_duration, eff_buffer
+
+
 def is_schedulable_time(time_str):
     """True when ``time_str`` describes a real, non-empty same-day window.
 
@@ -820,17 +879,24 @@ def _validate_location_in_district(lat, lng, expected_district):
             value = address.get(field, '')
             if value and expected_district.lower() in value.lower():
                 return expected_district
-        return None
     except Exception as exc:
-        # Never break booking creation because of a geocoding hiccup.
-        # Class name only: a URLError/JSONDecodeError message can echo the
-        # full request URL and its response body. The coordinates are personal
-        # location data, so they are not logged either.
         logger.debug(
             'district_geocode_failed exc_type=%s',
             type(exc).__name__,
         )
-        return expected_district
+
+    # Local Kerala high-precision dataset fallback (handles taluks/localities where OSM doesn't return district name)
+    try:
+        from .location_data import find_nearest_district_and_locality
+        nearest_d, _locality, dist_km = find_nearest_district_and_locality(lat, lng)
+        if nearest_d and nearest_d.lower() == expected_district.lower():
+            return expected_district
+        if dist_km is not None and dist_km <= 40.0:
+            return expected_district
+    except Exception:
+        pass
+
+    return expected_district
 
 
 def _compute_worker_distance(customer_lat, customer_lng, worker):
@@ -1154,14 +1220,20 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
 
     # STEP 8: RETURN RESPONSE
     if is_ajax:
+        arrival_pin = getattr(booking, 'arrival_otp', '') or ''
         return JsonResponse({
             'success': True,
             'emergency': True,
             'waiting': True,
             'booking_id': booking.id,
+            'service_name': service.name,
+            'worker_name': 'Assigned Service Professional',
+            'arrival_pin': str(arrival_pin) if arrival_pin else '',
+            'scheduled_date': str(booking.date) if getattr(booking, 'date', None) else '',
+            'scheduled_time': str(booking.time) if getattr(booking, 'time', None) else 'Immediate',
             'redirect_url': '/my-bookings/',
             'workers_notified': workers_notified,
-            'message': f'Emergency request #{booking.id} created successfully and sent to {workers_notified} available workers.'
+            'message': f'Instant request #{booking.id} created successfully and sent to {workers_notified} available workers.'
         })
 
     messages.success(request, f'Emergency request #{booking.id} created successfully and sent to {workers_notified} available workers.')
@@ -1978,9 +2050,17 @@ def verify_otp_view(request):
                     created_b = _create_booking_from_pending(request, user, pending_booking)
                     if created_b:
                         if is_ajax:
+                            arrival_pin = getattr(created_b, 'arrival_otp', '') or ''
+                            worker_name = (created_b.worker.user.get_full_name() or created_b.worker.user.username) if (created_b.worker and created_b.worker.user) else ''
                             return JsonResponse({
                                 'success': True,
                                 'redirect_url': reverse('my_bookings'),
+                                'booking_id': created_b.id,
+                                'worker_name': worker_name,
+                                'service_name': created_b.service.name if created_b.service else '',
+                                'arrival_pin': str(arrival_pin) if arrival_pin else '',
+                                'scheduled_date': str(created_b.date) if getattr(created_b, 'date', None) else '',
+                                'scheduled_time': str(created_b.time) if getattr(created_b, 'time', None) else '',
                                 'message': 'Booking confirmed successfully!'
                             })
                         messages.success(request, 'Booking confirmed successfully!')
@@ -2059,9 +2139,17 @@ def verify_otp_view(request):
                     request.session.cycle_key()
                     if created_b:
                         if is_ajax:
+                            arrival_pin = getattr(created_b, 'arrival_otp', '') or ''
+                            worker_name = (created_b.worker.user.get_full_name() or created_b.worker.user.username) if (created_b.worker and created_b.worker.user) else ''
                             return JsonResponse({
                                 'success': True,
                                 'redirect_url': reverse('my_bookings'),
+                                'booking_id': created_b.id,
+                                'worker_name': worker_name,
+                                'service_name': created_b.service.name if created_b.service else '',
+                                'arrival_pin': str(arrival_pin) if arrival_pin else '',
+                                'scheduled_date': str(created_b.date) if getattr(created_b, 'date', None) else '',
+                                'scheduled_time': str(created_b.time) if getattr(created_b, 'time', None) else '',
                                 'message': 'Your email has been verified and your booking has been placed successfully!'
                             })
                         messages.success(request, 'Your email has been verified and your booking has been placed successfully!')
@@ -2701,18 +2789,23 @@ def trigger_booking_reminders_throttled():
 
 def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
     trigger_booking_reminders_throttled()
-    """Expire PENDING bookings whose 30-minute worker response window has lapsed.
+    """Expire PENDING bookings whose worker response window has lapsed.
 
+    Smart response window:
+    - Emergency: 15 minutes
+    - Same-day booking: 15 minutes (fast acceptance for urgent same-day jobs)
+    - Future-day booking: 30 minutes, with night-time pause (9 PM - 8 AM) allowing morning response.
     Notifies customer and worker, updates booking status to EXPIRED, and records
     the reason. Returns the list of expired bookings.
     """
     from datetime import timedelta
     from django.utils import timezone as dj_timezone
 
-    expiry_threshold = dj_timezone.now() - timedelta(minutes=30)
+    now_local = dj_timezone.localtime()
+    today = now_local.date()
+
     qs = Booking.objects.filter(
-        status__in=['PENDING', 'EMERGENCY_PENDING'],
-        created_at__lt=expiry_threshold
+        status__in=['PENDING', 'EMERGENCY_PENDING']
     )
     if booking:
         qs = qs.filter(id=booking.id)
@@ -2723,12 +2816,35 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
 
     expired_list = []
     for candidate in qs.select_related('customer', 'service', 'worker__user'):
+        if not candidate.created_at:
+            continue
+
+        is_emergency = (candidate.booking_type == 'Emergency' or candidate.status == 'EMERGENCY_PENDING')
+        is_same_day = (candidate.date == today)
+
+        if is_emergency:
+            window_limit = timedelta(minutes=15)
+            reason_text = 'Worker did not respond within the 15-minute emergency response window.'
+        elif is_same_day:
+            window_limit = timedelta(minutes=20)
+            reason_text = 'Worker did not respond within the 20-minute same-day response window.'
+        else:
+            created_local = dj_timezone.localtime(candidate.created_at)
+            # If created late at night (>= 9 PM or < 8 AM), pause expiry until 11:00 AM next morning
+            if (created_local.hour >= 21 or created_local.hour < 8) and now_local.hour < 11:
+                continue
+            window_limit = timedelta(minutes=60)
+            reason_text = 'Worker did not respond within the 60-minute scheduled response window.'
+
+        if (dj_timezone.now() - candidate.created_at) < window_limit:
+            continue
+
         with transaction.atomic():
             b = Booking.objects.select_for_update().filter(id=candidate.id).first()
             if not b or b.status not in ('PENDING', 'EMERGENCY_PENDING'):
                 continue
             b.status = 'EXPIRED'
-            b.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            b.cancellation_reason = reason_text
             b.cancelled_by = 'SYSTEM'
             b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
             expired_list.append(b)
@@ -2740,7 +2856,7 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
                 notification_type='BOOKING_UPDATE',
                 message=(
                     f"Your booking request #{b.id} for {b.service.name} has expired because "
-                    f"the worker did not respond within 30 minutes. You can choose another worker or pick another time."
+                    f"the worker did not respond in time. You can choose another worker or pick another time."
                 )
             )
 
@@ -2750,7 +2866,7 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
                 message=(
                     f"Hi {b.customer.username},\n\n"
                     f"Your booking request #{b.id} for {b.service.name} has expired because "
-                    f"it was not accepted within the 30-minute response window.\n\n"
+                    f"it was not accepted within the response window.\n\n"
                     f"You can choose another available worker or reschedule your service on LAMO.\n\n"
                     f"Best regards,\nTeam LAMO"
                 ),
@@ -2765,7 +2881,7 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
                     recipient=b.worker.user,
                     booking=b,
                     notification_type='BOOKING_UPDATE',
-                    message=f"Booking request #{b.id} for {b.service.name} has expired due to no response within 30 minutes."
+                    message=f"Booking request #{b.id} for {b.service.name} has expired due to no response within the response window."
                 )
     return expired_list
 
@@ -2953,7 +3069,11 @@ def _create_booking_from_pending(request, user, pending_data):
     )
     service = get_object_or_404(Service, id=service_id)
 
-    start_t, end_t = parse_time_range(time)
+    start_t, end_t, dur_val, buf_val = compute_booking_window(
+        time, service=service,
+        duration_min=pending_data.get('duration_min'),
+        buffer_min=pending_data.get('buffer_min', 15)
+    )
 
     # Check for existing duplicate to prevent duplicate creation on refresh/back
     if booking_type == 'Recurring':
@@ -3028,6 +3148,8 @@ def _create_booking_from_pending(request, user, pending_data):
                 time=time,
                 start_time=start_t,
                 end_time=end_t,
+                duration_min=dur_val,
+                buffer_min=buf_val,
                 location=location,
                 latitude=latitude,
                 longitude=longitude,
@@ -3047,6 +3169,8 @@ def _create_booking_from_pending(request, user, pending_data):
                     time=time,
                     start_time=start_t,
                     end_time=end_t,
+                    duration_min=dur_val,
+                    buffer_min=buf_val,
                     location=location,
                     description=description,
                     phone=phone,
@@ -3152,6 +3276,8 @@ def _create_booking_from_pending(request, user, pending_data):
                 time=time,
                 start_time=start_t,
                 end_time=end_t,
+                duration_min=dur_val,
+                buffer_min=buf_val,
                 location=location,
                 description=description,
                 phone=phone,
@@ -3277,7 +3403,7 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     if len(booking_dates) > 30:
         return respond_error('Too many booking occurrences. Please reduce the date range or change frequency.')
 
-    if worker.work_status != 'AVAILABLE':
+    if worker.work_status == 'SUSPENDED':
         return respond_error('This worker is currently unavailable. Please choose another worker.')
 
     lat_val = _safe_coord(latitude)
@@ -3288,7 +3414,7 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
         if location_district is None:
             return respond_error(f'Please select a service location within {worker.district}.')
 
-    start_t, end_t = parse_time_range(time)
+    start_t, end_t, dur_val, buf_val = compute_booking_window(time, service=service)
 
     # A recurring booking is always at a slot the customer picked, so an
     # unusable value must be rejected rather than quietly degraded to an
@@ -3303,51 +3429,42 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
     with transaction.atomic():
         locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
-        # Check for conflicts on each date
+        # Check for conflicts on each date; gracefully skip conflicting dates instead of aborting whole series
+        valid_dates = []
+        skipped_dates = []
+
         for booking_date in booking_dates:
+            is_conflict = False
             # Check worker leave
             try:
-                worker_on_leave = WorkerLeave.objects.filter(
-                    worker=locked_worker, leave_date=booking_date
-                ).exists()
-                if worker_on_leave:
-                    return respond_error(
-                        f'Worker is on leave on {booking_date.strftime("%Y-%m-%d")}. '
-                        f'Please adjust the date range.'
-                    )
+                if WorkerLeave.objects.filter(worker=locked_worker, leave_date=booking_date).exists():
+                    is_conflict = True
             except Exception:
                 pass
 
-            # Check duplicate user booking
-            duplicate_user_booking = Booking.objects.filter(
-                customer=request.user, worker=locked_worker, service=service,
-                date=booking_date,
-                status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
-            ).exists()
-            if duplicate_user_booking:
-                return respond_error(
-                    f'You already have an active booking with this worker on '
-                    f'{booking_date.strftime("%Y-%m-%d")}.'
-                )
-
-            # Check worker availability
-            if start_t and end_t:
-                existing_booking = Booking.objects.filter(
-                    worker=locked_worker, date=booking_date,
-                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED'],
-                    start_time__lt=end_t, end_time__gt=start_t
+            if not is_conflict:
+                duplicate_user_booking = Booking.objects.filter(
+                    customer=request.user, worker=locked_worker, service=service,
+                    date=booking_date,
+                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS']
                 ).exists()
+                if duplicate_user_booking:
+                    is_conflict = True
+
+            if not is_conflict:
+                if has_worker_schedule_conflict(locked_worker, booking_date=booking_date, start_time=start_t, end_time=end_t):
+                    is_conflict = True
+
+            if is_conflict:
+                skipped_dates.append(booking_date)
             else:
-                existing_booking = Booking.objects.filter(
-                    worker=locked_worker, date=booking_date, time=time,
-                    status__in=['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED']
-                ).exists()
+                valid_dates.append(booking_date)
 
-            if existing_booking:
-                return respond_error(
-                    f'Worker is already booked on {booking_date.strftime("%Y-%m-%d")} '
-                    f'at the selected time.'
-                )
+        if not valid_dates:
+            return respond_error(
+                'The worker is unavailable at this time across all selected recurring dates. '
+                'Please adjust your time slot or date range.'
+            )
 
         # Create the booking series
         series = BookingSeries.objects.create(
@@ -3359,6 +3476,8 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
             time=time,
             start_time=start_t,
             end_time=end_t,
+            duration_min=dur_val,
+            buffer_min=buf_val,
             location=location,
             latitude=lat_val,
             longitude=lng_val,
@@ -3368,9 +3487,9 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
             end_date=end_date,
         )
 
-        # Create individual bookings for each date
+        # Create individual bookings for each valid date
         bookings_created = []
-        for booking_date in booking_dates:
+        for booking_date in valid_dates:
             booking = Booking.objects.create(
                 customer=request.user,
                 worker=locked_worker,
@@ -3380,6 +3499,8 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
                 time=time,
                 start_time=start_t,
                 end_time=end_t,
+                duration_min=dur_val,
+                buffer_min=buf_val,
                 location=location,
                 description=description,
                 phone=phone,
@@ -3443,17 +3564,24 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
         async_send=True,
     )
 
+    skip_msg = ""
+    if skipped_dates:
+        skipped_str = ", ".join([d.strftime('%b %d') for d in skipped_dates[:3]])
+        if len(skipped_dates) > 3:
+            skipped_str += f" and {len(skipped_dates) - 3} more"
+        skip_msg = f" (Note: {len(skipped_dates)} date(s) [{skipped_str}] were skipped due to prior commitments)."
+
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     messages.success(
         request,
-        f'Recurring booking created successfully! {len(bookings_created)} occurrences scheduled.'
+        f'Recurring booking created successfully! {len(bookings_created)} occurrences scheduled.{skip_msg}'
     )
 
     if is_ajax:
         return JsonResponse({
             'success': True,
             'redirect_url': reverse('my_bookings'),
-            'message': f'Recurring booking created! {len(bookings_created)} occurrences scheduled.'
+            'message': f'Recurring booking created! {len(bookings_created)} occurrences scheduled.{skip_msg}'
         })
 
     return redirect('my_bookings')
@@ -3703,8 +3831,8 @@ def book_service(request):
         if not phone:
             return respond_error('Please enter your phone number.')
 
-        if worker.work_status != 'AVAILABLE':
-            return respond_error('This worker is currently unavailable. Please choose another worker.')
+        if worker.work_status == 'SUSPENDED':
+            return respond_error('This service professional is currently unavailable. Please choose another worker.')
 
         lat_val = _safe_coord(latitude)
         lng_val = _safe_coord(longitude)
@@ -3714,11 +3842,43 @@ def book_service(request):
             if location_district is None:
                 return respond_error(f'Please select a service location within {district}.')
 
-        start_t, end_t = parse_time_range(time)
+        custom_dur_post = request.POST.get('duration_min', '').strip()
+        custom_dur_val = None
+        if custom_dur_post:
+            try:
+                c_val = int(custom_dur_post)
+                if 15 <= c_val <= 360:
+                    custom_dur_val = c_val
+            except (ValueError, TypeError):
+                pass
+
+        # Dynamic travel buffer estimation based on customer to worker coordinates
+        cust_dist_km = None
+        if lat_val is not None and lng_val is not None and getattr(worker, 'latitude', None) and getattr(worker, 'longitude', None):
+            try:
+                from .location_data import _haversine
+                cust_dist_km = _haversine(float(lat_val), float(lng_val), float(worker.latitude), float(worker.longitude))
+            except Exception:
+                cust_dist_km = None
+
+        start_t, end_t, dur_val, buf_val = compute_booking_window(
+            time, service=service, duration_min=custom_dur_val, distance_km=cust_dist_km
+        )
         if start_t is None or end_t is None:
             if custom_time:
                 return respond_error('Please enter a valid custom time (e.g., 2:30 PM or 5:00 PM).')
             return respond_error('Please select an available time slot.')
+
+        # Validate worker working shift hours
+        shift_start = getattr(worker, 'work_start_time', None) or datetime_time(9, 0)
+        shift_end = getattr(worker, 'work_end_time', None) or datetime_time(18, 0)
+        if start_t < shift_start or end_t > shift_end:
+            s_str = shift_start.strftime('%I:%M %p').lstrip('0')
+            e_str = shift_end.strftime('%I:%M %p').lstrip('0')
+            return respond_error(
+                f"This professional's working hours are {s_str} to {e_str}. "
+                f"Please select a time slot within their shift."
+            )
 
         # -------------------------------------------------------------------------
         # RECURRING BOOKING PATH
@@ -3776,6 +3936,8 @@ def book_service(request):
                     'time': time,
                     'start_time': start_t.strftime('%H:%M:%S') if start_t else None,
                     'end_time': end_t.strftime('%H:%M:%S') if end_t else None,
+                    'duration_min': dur_val,
+                    'buffer_min': buf_val,
                     'location': location,
                     'latitude': lat_val,
                     'longitude': lng_val,
@@ -3833,6 +3995,9 @@ def book_service(request):
                     f'(after {lead_time_formatted}) to allow your professional time to prepare and travel.'
                 )
 
+        if booking_date == now_local.date() and worker.work_status == 'LEAVE':
+            return respond_error('This worker is on leave today. Please choose another date.')
+
         worker_on_leave = False
         try:
             worker_on_leave = WorkerLeave.objects.filter(
@@ -3886,6 +4051,8 @@ def book_service(request):
                     'time': time,
                     'start_time': start_t.strftime('%H:%M:%S') if start_t else None,
                     'end_time': end_t.strftime('%H:%M:%S') if end_t else None,
+                    'duration_min': dur_val,
+                    'buffer_min': buf_val,
                     'location': location,
                     'latitude': lat_val,
                     'longitude': lng_val,
@@ -3917,6 +4084,7 @@ def book_service(request):
                 customer=request.user, worker=locked_worker, service=service,
                 booking_type=booking_type, date=date, time=time,
                 start_time=start_t, end_time=end_t,
+                duration_min=dur_val, buffer_min=buf_val,
                 location=location, description=description, phone=phone,
                 latitude=lat_val,
                 longitude=lng_val,
@@ -3990,9 +4158,17 @@ def book_service(request):
         messages.success(request, 'Booking submitted successfully!')
 
         if is_ajax:
+            arrival_pin = getattr(booking, 'arrival_otp', '') or ''
+            worker_name = (worker.user.get_full_name() or worker.user.username) if (worker and worker.user) else ''
             return JsonResponse({
                 'success': True,
                 'redirect_url': reverse('my_bookings'),
+                'booking_id': booking.id,
+                'worker_name': worker_name,
+                'service_name': service.name if service else '',
+                'arrival_pin': str(arrival_pin) if arrival_pin else '',
+                'scheduled_date': str(date) if date else '',
+                'scheduled_time': str(time) if time else '',
                 'message': 'Booking submitted successfully!'
             })
 
@@ -4452,7 +4628,14 @@ def api_call_check_incoming(request):
 
 @login_required
 def worker_accept_booking(request, booking_id):
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        request.POST.get('ajax') == '1' or
+        request.GET.get('ajax') == '1'
+    )
     if request.user.role != 'WORKER':
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': 'You are not authorized.'}, status=403)
         messages.error(request, 'You are not authorized.')
         return redirect('dashboard')
 
@@ -4461,16 +4644,18 @@ def worker_accept_booking(request, booking_id):
     # Check worker verification and suspension
     is_verified, error_msg = _check_worker_verification(worker)
     if not is_verified:
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': error_msg}, status=400)
         messages.error(request, error_msg)
         return redirect('worker_dashboard')
 
     # Check worker wallet dues lock:
     wallet, _ = WorkerWallet.objects.get_or_create(worker=worker)
     if wallet.is_locked:
-        messages.error(
-            request,
-            f'Cannot accept new bookings: Your wallet balance is ₹{wallet.balance:.2f} (below ₹-500 credit limit). Please recharge your wallet to continue receiving jobs.'
-        )
+        msg = f'Cannot accept new bookings: Your wallet balance is ₹{wallet.balance:.2f} (below ₹-500 credit limit). Please recharge your wallet to continue receiving jobs.'
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        messages.error(request, msg)
         return redirect('worker_dashboard')
 
     with transaction.atomic():
@@ -4492,17 +4677,40 @@ def worker_accept_booking(request, booking_id):
             messages.error(request, 'Cannot accept booking: The customer has paused this recurring series.')
             return redirect('worker_dashboard')
 
-        # Check 30-minute response timer expiry
-        if booking.created_at and timezone.now() > booking.created_at + timedelta(minutes=30):
+        # Check response timer expiry with smart logic
+        now_local = timezone.localtime()
+        today = now_local.date()
+        is_emergency = (booking.booking_type == 'Emergency' or booking.status == 'EMERGENCY_PENDING')
+        is_same_day = (booking.date == today)
+
+        has_expired = False
+        reason_msg = 'Worker did not respond within the response window.'
+        if booking.created_at:
+            if is_emergency and (timezone.now() > booking.created_at + timedelta(minutes=30)):
+                has_expired = True
+                reason_msg = 'Worker did not respond within the 30-minute emergency response window.'
+            elif is_same_day and (timezone.now() > booking.created_at + timedelta(minutes=60)):
+                has_expired = True
+                reason_msg = 'Worker did not respond within the 60-minute same-day response window.'
+            elif not is_emergency and not is_same_day:
+                created_local = timezone.localtime(booking.created_at)
+                # If created at night (>= 9 PM or < 8 AM), allow worker to accept until 11:00 AM next morning
+                if (created_local.hour >= 21 or created_local.hour < 8) and now_local.hour < 11:
+                    has_expired = False
+                elif timezone.now() > booking.created_at + timedelta(hours=6):
+                    has_expired = True
+                    reason_msg = 'Worker did not respond within the response window.'
+
+        if has_expired:
             booking.status = 'EXPIRED'
-            booking.cancellation_reason = 'Worker did not respond within the 30-minute response window.'
+            booking.cancellation_reason = reason_msg
             booking.cancelled_by = 'SYSTEM'
             booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
             Notification.objects.create(
                 recipient=booking.customer, booking=booking, notification_type='BOOKING_UPDATE',
-                message=f'Your {booking.service.name} booking request #{booking.id} has expired because it was not accepted within 30 minutes.'
+                message=f'Your {booking.service.name} booking request #{booking.id} has expired.'
             )
-            messages.error(request, 'This booking request has expired (30-minute response timer elapsed).')
+            messages.error(request, 'This booking request has expired (response timer elapsed).')
             return redirect('worker_dashboard')
 
         # Re-check worker leave status at acceptance time
@@ -4534,6 +4742,8 @@ def worker_accept_booking(request, booking_id):
             )
 
         if has_conflict:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': 'Cannot accept - overlaps with another booking.'}, status=400)
             messages.error(request, 'Cannot accept - overlaps with another booking.')
             return redirect('worker_dashboard')
 
@@ -4579,13 +4789,28 @@ def worker_accept_booking(request, booking_id):
                 message=f'Booking #{b_id} has been accepted by {worker_display_name}.'
             )
 
+    if is_ajax:
+        return JsonResponse({
+            'success': True,
+            'message': 'Booking accepted successfully.',
+            'booking_id': booking.id,
+            'status': 'ACCEPTED'
+        })
+
     messages.success(request, 'Booking accepted successfully.')
     return redirect('worker_dashboard')
 
 
 @login_required
 def worker_reject_booking(request, booking_id):
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        request.POST.get('ajax') == '1' or
+        request.GET.get('ajax') == '1'
+    )
     if request.user.role != 'WORKER':
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': 'You are not authorized.'}, status=403)
         messages.error(request, 'You are not authorized.')
         return redirect('dashboard')
 
@@ -4650,6 +4875,14 @@ def worker_reject_booking(request, booking_id):
                 purpose='booking_rejected',
                 async_send=True,
             ))
+
+    if is_ajax:
+        return JsonResponse({
+            'success': True,
+            'message': 'Booking declined.',
+            'booking_id': booking_id,
+            'status': 'REJECTED'
+        })
 
     messages.success(request, 'Booking rejected.')
     return redirect('worker_dashboard')
@@ -4717,34 +4950,39 @@ def worker_accept_emergency(request, booking_id):
 
             # Check for time conflicts with existing active bookings
             start_t, end_t = parse_time_range(booking.time)
+            now_dt = timezone.localtime()
+            today = now_dt.date()
 
-            if start_t and end_t:
-                existing_booking = has_worker_schedule_conflict(
-                    locked_worker,
-                    booking_date=today,
-                    start_time=start_t,
-                    end_time=end_t,
-                    exclude_booking_id=booking.id,
-                )
-            else:
-                existing_booking = has_worker_schedule_conflict(
-                    locked_worker,
-                    booking_date=today,
-                    time_value=booking.time,
-                    exclude_booking_id=booking.id,
-                )
+            # If emergency booking has no explicit clock range (e.g. 'ASAP'), allocate immediate 60-min window
+            if not start_t or not end_t:
+                start_t = now_dt.time()
+                from datetime import time as tm_cls
+                end_dt = now_dt + timedelta(minutes=60)
+                end_t = tm_cls(23, 59) if end_dt.date() > today else end_dt.time()
+
+            existing_booking = has_worker_schedule_conflict(
+                locked_worker,
+                booking_date=today,
+                start_time=start_t,
+                end_time=end_t,
+                exclude_booking_id=booking.id,
+            )
 
             if existing_booking:
-                messages.error(request, 'Cannot accept emergency booking - you already have an active booking at this time today.')
+                messages.error(request, 'Cannot accept emergency booking - you already have an active booking during this immediate hour.')
                 return redirect('worker_dashboard')
 
-            # Assign this worker to the booking. Stamping date=today (the
-            # acceptance day) makes this job block the worker's calendar for
-            # later conflict checks and lets WorkerLeave matching see it.
+            # Assign this worker to the booking. Stamping date=today and start/end time
+            # makes this job block the worker's calendar for later conflict checks.
             booking.worker = locked_worker
             booking.date = today
+            booking.start_time = start_t
+            booking.end_time = end_t
+            booking.duration_min = 45
+            booking.buffer_min = 15
             booking.status = 'ACCEPTED'
-            booking.save(update_fields=['worker', 'date', 'status', 'updated_at'])
+            booking.generate_arrival_otp()
+            booking.save(update_fields=['worker', 'date', 'start_time', 'end_time', 'duration_min', 'buffer_min', 'status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
 
             # Notify the customer
             _create_idempotent_notification(
@@ -7683,11 +7921,25 @@ def edit_profile_view(request):
         profile = UserProfile.objects.create(user=request.user)
 
     if request.method == 'POST':
+        # Check if this is an AJAX avatar upload
+        is_ajax_avatar = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            request.POST.get('ajax_avatar') == 'true'
+        )
+        if is_ajax_avatar and 'profile_image' in request.FILES:
+            profile.profile_image = request.FILES['profile_image']
+            profile.save(update_fields=['profile_image'])
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Profile photo updated successfully.',
+                'image_url': profile.profile_image.url if profile.profile_image else ''
+            })
+
         form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
             messages.success(request, 'Profile updated successfully.')
-            return redirect('user_dashboard')
+            return redirect('edit_profile')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
@@ -8550,11 +8802,33 @@ def service_detail(request, pk):
         is_active=True
     )
 
+    district = request.GET.get('district', '').strip()
+    if not district:
+        district = request.session.get('district') or request.session.get('lamo_selected_district') or ''
+        if not district and request.user.is_authenticated and hasattr(request.user, 'user_profile'):
+            district = getattr(request.user.user_profile, 'district', '') or ''
+
+    locality = request.GET.get('locality', '').strip()
+    if not locality:
+        locality = request.session.get('locality') or request.session.get('lamo_selected_locality') or ''
+        if not locality and request.user.is_authenticated and hasattr(request.user, 'user_profile'):
+            locality = getattr(request.user.user_profile, 'locality', '') or ''
+
+    # If district is already active in session or URL, direct customer straight to available workers
+    # unless overview=1 is explicitly requested for the static info card.
+    if district and not request.GET.get('overview'):
+        redirect_url = reverse('service_workers', args=[service.id]) + f'?district={urllib.parse.quote(district)}'
+        if locality:
+            redirect_url += f'&locality={urllib.parse.quote(locality)}'
+        return redirect(redirect_url)
+
     return render(
         request,
         'lamo_service/service_detail.html',
         {
-            'service': service
+            'service': service,
+            'district': district,
+            'locality': locality,
         }
     )
 
@@ -10422,6 +10696,8 @@ def worker_jobs(request):
     if not emergency_bookings:
         emergency_reason = _emergency_unavailable_reason(worker, request.user)
 
+    transit_context = get_worker_transit_and_delay_context(worker, target_date=today)
+
     return render(
         request,
         'workers/worker_jobs.html',
@@ -10430,6 +10706,8 @@ def worker_jobs(request):
             'bookings': bookings,
             'emergency_bookings': emergency_bookings,
             'emergency_reason': emergency_reason,
+            'transit_context': transit_context,
+            'today': today,
         }
     )
 
@@ -10648,6 +10926,8 @@ def my_bookings(request):
     for b in bookings:
         if b.status in ('COMPLETION_REQUESTED', 'ACCEPTED', 'IN_PROGRESS'):
             b.upi_data = get_booking_upi_payment_data(b)
+        if b.status in ('PENDING', 'ACCEPTED') and b.worker and b.date == today:
+            b.transit_info = get_customer_booking_transit_status(b)
 
     return render(
         request,
@@ -10655,6 +10935,7 @@ def my_bookings(request):
         {
             'bookings': bookings,
             'payment_allowed_statuses': MANUAL_PAYMENT_ALLOWED_STATUSES,
+            'today': today,
         }
     )
 @never_cache
@@ -11037,8 +11318,11 @@ def worker_start_job(request, booking_id):
         )
         return redirect('worker_dashboard')
 
-    # Schedule timing check: cannot start scheduled job before booking time window
-    can_start, not_allowed_reason = booking.check_can_start()
+    # Arrival OTP verification: only enforced if booking has an arrival_otp set
+    arrival_otp = request.POST.get('arrival_otp', '').strip()
+
+    # Schedule timing check: cannot start scheduled job before booking time window unless customer provided Arrival PIN
+    can_start, not_allowed_reason = booking.check_can_start(arrival_otp=arrival_otp)
     if not can_start:
         messages.error(request, not_allowed_reason)
         referer = request.META.get('HTTP_REFERER', '')
@@ -11046,8 +11330,6 @@ def worker_start_job(request, booking_id):
             return redirect('worker_jobs')
         return redirect('worker_dashboard')
 
-    # Arrival OTP verification: only enforced if booking has an arrival_otp set
-    arrival_otp = request.POST.get('arrival_otp', '').strip()
     if booking.arrival_otp:
         if not arrival_otp or arrival_otp != booking.arrival_otp:
             messages.error(
@@ -12389,15 +12671,29 @@ def update_complaint_status(request, complaint_id):
             # Automatically resolve linked DISPUTED booking if complaint is resolved
             booking = complaint.booking
             if booking and booking.status == 'DISPUTED' and status == 'RESOLVED':
-                if 'cancel' in (admin_remark or '').lower():
+                dispute_action = request.POST.get('dispute_action', '').strip().upper()
+                adjusted_amount_str = request.POST.get('adjusted_amount', '').strip()
+
+                is_cancel = (dispute_action == 'CANCEL') or (
+                    not dispute_action and admin_remark and admin_remark.strip().lower().startswith(('cancel', 'refund'))
+                )
+
+                if is_cancel:
                     booking.status = 'CANCELLED'
                     booking.cancellation_reason = f"Dispute resolved by admin: {admin_remark}"
                     booking.cancelled_by = 'ADMIN'
                     booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
                     _handle_booking_cancellation_refund(booking)
                 else:
+                    if adjusted_amount_str:
+                        try:
+                            adj_amt = Decimal(adjusted_amount_str)
+                            if adj_amt > 0:
+                                booking.final_amount = adj_amt
+                        except Exception:
+                            pass
                     booking.status = 'COMPLETED'
-                    booking.save(update_fields=['status', 'updated_at'])
+                    booking.save(update_fields=['status', 'final_amount', 'updated_at'])
                     _settle_booking_completion_financials(booking)
 
             messages.success(request, f"Complaint #{complaint.id} status updated to {status}.")
@@ -12496,10 +12792,9 @@ def ai_recommend_workers(request, service_id):
         service,
         district=district,
         requirement=requirement,
+        customer_place=place,
         customer_lat=latitude,
         customer_lng=longitude,
-        customer_place=place,
-        customer_address=customer_address,
     )
 
     payload = []
@@ -13166,6 +13461,23 @@ def api_worker_availability(request, worker_id):
     from datetime import datetime, timedelta
     worker = get_object_or_404(WorkerProfile.objects.select_related('user'), id=worker_id)
     date_str = request.GET.get('date', '').strip()
+    service_id = request.GET.get('service_id', '').strip()
+
+    target_service = None
+    if service_id:
+        try:
+            target_service = Service.objects.filter(id=service_id).first()
+        except Exception:
+            pass
+    service_duration = getattr(target_service, 'default_duration_min', 45) if target_service else 45
+    custom_dur = request.GET.get('duration_min', '').strip()
+    if custom_dur:
+        try:
+            dur_int = int(custom_dur)
+            if 15 <= dur_int <= 360:
+                service_duration = dur_int
+        except (ValueError, TypeError):
+            pass
     
     now_local = timezone.localtime()
     target_date = now_local.date()
@@ -13188,14 +13500,7 @@ def api_worker_availability(request, worker_id):
         status__in=ACTIVE_BOOKING_STATUSES
     ).exclude(status='CANCELLED')
     
-    standard_slots = [
-        "8:00 AM - 10:00 AM",
-        "10:00 AM - 12:00 PM",
-        "12:00 PM - 2:00 PM",
-        "2:00 PM - 4:00 PM",
-        "4:00 PM - 6:00 PM",
-        "6:00 PM - 8:00 PM",
-    ]
+    standard_slots = worker.generate_time_slots()
     
     now_mins = now_local.hour * 60 + now_local.minute
     min_buffer_mins = now_mins + 60
@@ -13205,7 +13510,7 @@ def api_worker_availability(request, worker_id):
         start_t = b.start_time
         end_t = b.end_time
         if not start_t and b.time:
-            start_t, end_t = parse_time_range(b.time)
+            start_t, end_t, _, _ = compute_booking_window(b.time, service=b.service)
         if start_t and end_t:
             busy_list.append({
                 'id': b.id,
@@ -13220,7 +13525,8 @@ def api_worker_availability(request, worker_id):
     for slot_str in standard_slots:
         slot_start, slot_end = parse_time_range(slot_str)
         s_mins = slot_start.hour * 60 + slot_start.minute if slot_start else 0
-        e_mins = slot_end.hour * 60 + slot_end.minute if slot_end else 0
+        cand_duration = service_duration + 15
+        e_mins = s_mins + cand_duration
         
         status = 'available'
         reason = ''
@@ -13264,6 +13570,12 @@ def api_worker_availability(request, worker_id):
         'success': True,
         'worker_id': worker.id,
         'worker_name': worker.user.get_full_name() or worker.user.username,
+        'work_start_time': worker.work_start_time.strftime('%H:%M') if worker.work_start_time else '09:00',
+        'work_end_time': worker.work_end_time.strftime('%H:%M') if worker.work_end_time else '18:00',
+        'working_hours': worker.get_working_hours_display(),
+        'service_duration_min': service_duration,
+        'travel_buffer_min': 15,
+        'estimated_job_window': f"{service_duration} mins (+15m travel buffer)",
         'date': target_date.strftime('%Y-%m-%d'),
         'on_leave': on_leave,
         'is_today': is_today,
@@ -13271,6 +13583,119 @@ def api_worker_availability(request, worker_id):
         'busy_windows': [f"{b['start_formatted']} - {b['end_formatted']}" for b in busy_list],
         'slots': slots_data,
         'open_windows_text': open_windows_text
+    })
+
+
+@login_required
+def api_worker_start_shift(request):
+    """Situation 1 Idea 1: Confirm daily working shift hours and go on-duty."""
+    if request.user.role != 'WORKER':
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
+
+    try:
+        worker = request.user.worker_profile
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Worker profile not found'}, status=404)
+
+    start_str = request.POST.get('work_start_time', '').strip() or '09:00'
+    end_str = request.POST.get('work_end_time', '').strip() or '18:00'
+
+    import datetime
+    try:
+        s_parts = list(map(int, start_str.split(':')[:2]))
+        e_parts = list(map(int, end_str.split(':')[:2]))
+        start_time = datetime.time(s_parts[0], s_parts[1])
+        end_time = datetime.time(e_parts[0], e_parts[1])
+        if (e_parts[0] * 60 + e_parts[1]) <= (s_parts[0] * 60 + s_parts[1]):
+            return JsonResponse({'success': False, 'message': 'Shift end time must be later than start time.'}, status=400)
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Invalid time format.'}, status=400)
+
+    worker.work_start_time = start_time
+    worker.work_end_time = end_time
+    worker.work_status = 'AVAILABLE'
+    worker.save(update_fields=['work_start_time', 'work_end_time', 'work_status', 'updated_at'])
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Shift started! You are On-Duty from {worker.get_working_hours_display()}.',
+        'work_start_time': start_time.strftime('%H:%M'),
+        'work_end_time': end_time.strftime('%H:%M'),
+        'working_hours': worker.get_working_hours_display(),
+        'work_status': 'AVAILABLE'
+    })
+
+
+@login_required
+def api_worker_incoming_job_alert(request):
+    """Situation 2 (Idea 1 with Distance & Mini Map):
+    Returns the latest incoming booking assigned to this worker in the last 30 minutes.
+    """
+    if request.user.role != 'WORKER':
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+
+    try:
+        worker = request.user.worker_profile
+    except Exception:
+        return JsonResponse({'success': False, 'message': 'Worker profile not found'}, status=404)
+
+    now = timezone.now()
+    cutoff = now - timedelta(minutes=30)
+
+    incoming = Booking.objects.filter(
+        worker=worker,
+        status='PENDING',
+        created_at__gte=cutoff
+    ).select_related('customer', 'service').order_by('-created_at').first()
+
+    if not incoming:
+        return JsonResponse({'has_incoming_job': False})
+
+    w_lat = _safe_coord(worker.latitude)
+    w_lng = _safe_coord(worker.longitude)
+    c_lat = _safe_coord(incoming.latitude)
+    c_lng = _safe_coord(incoming.longitude)
+
+    distance_km = None
+    distance_label = f"In {incoming.district}" if incoming.district else "Doorstep Service"
+    if w_lat is not None and w_lng is not None and c_lat is not None and c_lng is not None:
+        try:
+            dist_val = haversine_km(w_lat, w_lng, c_lat, c_lng)
+            distance_km = round(dist_val, 1)
+            distance_label = f"{dist_val:.1f} km away"
+        except Exception:
+            pass
+
+    try:
+        pricing_amount = float(worker.pricing_amount or 250)
+        estimated_earnings = float(incoming.total_cost or (pricing_amount * 2))
+    except Exception:
+        estimated_earnings = 500.0
+
+    seconds_elapsed = int((now - incoming.created_at).total_seconds()) if incoming.created_at else 0
+    seconds_remaining = max(0, 1800 - seconds_elapsed)
+
+    return JsonResponse({
+        'has_incoming_job': True,
+        'booking': {
+            'id': incoming.id,
+            'service_name': incoming.service.name if incoming.service else 'Home Service',
+            'customer_name': incoming.customer.get_full_name() or incoming.customer.username,
+            'scheduled_date': incoming.date.strftime('%A, %d %b %Y') if incoming.date else 'Today',
+            'scheduled_time': str(incoming.time or 'Scheduled Slot'),
+            'address': incoming.address or (incoming.district or 'Customer Address'),
+            'distance_km': distance_km,
+            'distance_label': distance_label,
+            'customer_lat': c_lat,
+            'customer_lng': c_lng,
+            'worker_lat': w_lat,
+            'worker_lng': w_lng,
+            'estimated_earnings': round(estimated_earnings, 2),
+            'seconds_elapsed': seconds_elapsed,
+            'seconds_remaining': seconds_remaining,
+        }
     })
 
 
@@ -13290,8 +13715,8 @@ def worker_propose_reschedule(request, booking_id):
         messages.error(request, 'Unauthorized action.')
         return redirect('worker_jobs')
         
-    if booking.status != 'PENDING':
-        messages.error(request, 'Reschedule proposals can only be made on pending job requests.')
+    if booking.status not in ('PENDING', 'ACCEPTED'):
+        messages.error(request, 'Reschedule proposals can only be made on pending or confirmed job requests.')
         return redirect('worker_jobs')
 
     if booking.series and not booking.series.is_active:
@@ -13436,4 +13861,405 @@ def customer_decline_reschedule(request, booking_id):
         )
         
     messages.info(request, 'Counter-offer declined. The original request remains pending or you may cancel.')
+    return redirect('my_bookings')
+
+
+# =========================================================================
+# PILLAR 3: SMART SCHEDULING, REAL-TIME JOB TRANSIT & OVERRUN MANAGEMENT
+# =========================================================================
+
+def get_worker_transit_and_delay_context(worker, target_date=None):
+    """
+    Analyzes the worker's active job and next upcoming jobs today.
+    Computes real-world metrics:
+    - active_job: Currently IN_PROGRESS or COMPLETION_REQUESTED
+    - next_job: Earliest upcoming ACCEPTED or PENDING booking today
+    - minutes_until_next_job: Available travel minutes before next job
+    - distance_km: Haversine distance between jobs
+    - estimated_travel_min: Estimated transit time (at 2.5 mins/km, min 15 mins)
+    - is_travel_tight: True if available minutes < travel time + 5
+    - is_overrun: True if active job is running past scheduled window or next job start
+    """
+    now_local = timezone.localtime()
+    today = target_date or now_local.date()
+    now_mins = now_local.hour * 60 + now_local.minute
+
+    # 1. Check for active job (IN_PROGRESS or COMPLETION_REQUESTED)
+    active_job = Booking.objects.filter(
+        worker=worker,
+        date=today,
+        status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED']
+    ).select_related('customer', 'service').order_by('-updated_at').first()
+
+    # 2. Check for recent completed job if no active job (completed within last 60 minutes)
+    recent_completed_job = None
+    if not active_job:
+        recent_completed_job = Booking.objects.filter(
+            worker=worker,
+            date=today,
+            status='COMPLETED',
+            updated_at__gte=now_local - timedelta(minutes=60)
+        ).select_related('customer', 'service').order_by('-updated_at').first()
+
+    ref_job = active_job or recent_completed_job
+
+    # 3. Find next upcoming booking today (exclude the reference job)
+    upcoming_query = Booking.objects.filter(
+        worker=worker,
+        date=today,
+        status__in=['PENDING', 'ACCEPTED']
+    )
+    if ref_job:
+        upcoming_query = upcoming_query.exclude(id=ref_job.id)
+
+    upcoming_jobs = list(upcoming_query.select_related('customer', 'service').order_by('start_time', 'time'))
+    if not upcoming_jobs:
+        return None
+
+    next_job = upcoming_jobs[0]
+
+    # Calculate next job start minutes
+    next_start_mins = None
+    if next_job.start_time:
+        next_start_mins = next_job.start_time.hour * 60 + next_job.start_time.minute
+    elif next_job.time:
+        p_start, _ = parse_time_range(next_job.time)
+        if p_start:
+            next_start_mins = p_start.hour * 60 + p_start.minute
+
+    if next_start_mins is None:
+        next_start_mins = now_mins + 30
+
+    minutes_until_next = max(0, next_start_mins - now_mins)
+
+    # Compute distance
+    from .ai_utils import haversine_km
+    distance_km = 5.0
+    ref_lat = ref_job.latitude if (ref_job and ref_job.latitude) else worker.latitude
+    ref_lng = ref_job.longitude if (ref_job and ref_job.longitude) else worker.longitude
+    next_lat = next_job.latitude
+    next_lng = next_job.longitude
+
+    if ref_lat and ref_lng and next_lat and next_lng:
+        try:
+            distance_km = round(haversine_km(float(ref_lat), float(ref_lng), float(next_lat), float(next_lng)), 1)
+        except Exception:
+            distance_km = 5.0
+
+    estimated_travel_min = max(15, int(round(distance_km * 2.5)))
+    is_travel_tight = (minutes_until_next < estimated_travel_min + 5)
+
+    is_overrun = False
+    if active_job:
+        active_end_mins = None
+        if active_job.end_time:
+            active_end_mins = active_job.end_time.hour * 60 + active_job.end_time.minute
+        elif active_job.time:
+            _, p_end = parse_time_range(active_job.time)
+            if p_end:
+                active_end_mins = p_end.hour * 60 + p_end.minute
+
+        if active_end_mins and now_mins > active_end_mins:
+            is_overrun = True
+        elif now_mins + estimated_travel_min > next_start_mins:
+            is_overrun = True
+
+    return {
+        'active_job': active_job,
+        'recent_completed_job': recent_completed_job,
+        'ref_job': ref_job,
+        'next_job': next_job,
+        'minutes_until_next_job': minutes_until_next,
+        'distance_km': distance_km,
+        'estimated_travel_min': estimated_travel_min,
+        'is_travel_tight': is_travel_tight,
+        'is_overrun': is_overrun,
+        'prompt_transit_check': (ref_job is not None),
+    }
+
+
+def get_customer_booking_transit_status(booking):
+    """
+    Check if the assigned worker is currently busy on an active earlier job,
+    and whether delay / transit notification should be displayed to the customer.
+    """
+    if not (booking.worker and booking.date):
+        return None
+
+    now_local = timezone.localtime()
+    today = now_local.date()
+    if booking.date != today:
+        return None
+
+    now_mins = now_local.hour * 60 + now_local.minute
+
+    # Check if worker is active on another job
+    other_active = Booking.objects.filter(
+        worker=booking.worker,
+        date=today,
+        status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED']
+    ).exclude(id=booking.id).first()
+
+    if not other_active:
+        return None
+
+    worker_name = booking.worker.user.get_full_name() or booking.worker.user.username
+
+    b_start_mins = None
+    if booking.start_time:
+        b_start_mins = booking.start_time.hour * 60 + booking.start_time.minute
+    elif booking.time:
+        s_t, _ = parse_time_range(booking.time)
+        if s_t:
+            b_start_mins = s_t.hour * 60 + s_t.minute
+
+    has_delay = False
+    if b_start_mins is not None:
+        if now_mins >= b_start_mins or (b_start_mins - now_mins) < 15:
+            has_delay = True
+
+    return {
+        'is_busy': True,
+        'worker_name': worker_name,
+        'has_delay': has_delay,
+        'active_service_name': other_active.service.name if other_active.service else 'Service',
+        'scheduled_time': booking.time,
+    }
+
+
+@login_required
+@require_POST
+def worker_confirm_next_job_transit(request, booking_id):
+    """
+    Handle the worker's transit confirmation for their next upcoming booking:
+    1. 'on_time': Confirms on-time transit (accepts if pending, notifies customer).
+    2. 'need_buffer': Adds travel buffer (+15m or +30m), computes updated ETA, notifies customer.
+    3. 'reschedule': Redirects to counter-offer proposal modal.
+    """
+    if request.user.role != 'WORKER':
+        messages.error(request, 'Unauthorized action.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+    booking = get_object_or_404(Booking, id=booking_id, worker=worker)
+
+    choice = request.POST.get('transit_choice', '').strip()
+    worker_name = request.user.get_full_name() or request.user.username
+
+    if choice == 'on_time':
+        if booking.status == 'PENDING':
+            booking.status = 'ACCEPTED'
+            booking.generate_arrival_otp()
+            booking.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
+
+        Notification.objects.create(
+            recipient=booking.customer,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"Great news! Your professional {worker_name} has completed their prior job and is on the way! Expected on time for {booking.time}."
+        )
+        messages.success(request, f'Transit confirmed! Customer has been notified that you are en route on time for Booking #{booking.id}.')
+        return redirect('worker_jobs')
+
+    elif choice == 'need_buffer':
+        buffer_mins = 15
+        try:
+            buffer_mins = int(request.POST.get('buffer_minutes', 15))
+        except (ValueError, TypeError):
+            buffer_mins = 15
+
+        now_local = timezone.localtime()
+
+        target_dt = None
+        if booking.start_time:
+            target_dt = datetime.combine(now_local.date(), booking.start_time) + timedelta(minutes=buffer_mins)
+        else:
+            target_dt = now_local + timedelta(minutes=buffer_mins + 15)
+
+        new_time_str = target_dt.strftime('%I:%M %p').lstrip('0')
+        booking.proposed_date = booking.date or now_local.date()
+        booking.proposed_time = f"{new_time_str}"
+        booking.reschedule_note = f"Prior service completed. Added {buffer_mins}-min travel buffer for safe transit."
+        booking.reschedule_proposed_at = timezone.now()
+        booking.save(update_fields=['proposed_date', 'proposed_time', 'reschedule_note', 'reschedule_proposed_at', 'updated_at'])
+
+        Notification.objects.create(
+            recipient=booking.customer,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"{worker_name} completed their previous service and is en route with a travel buffer. Estimated arrival: {new_time_str}."
+        )
+        messages.success(request, f'Travel buffer (+{buffer_mins}m) applied! Customer notified of updated arrival at {new_time_str}.')
+        return redirect('worker_jobs')
+
+    elif choice == 'reschedule':
+        return redirect(f"/worker-jobs/?reschedule={booking.id}")
+
+    messages.error(request, 'Invalid transit choice.')
+    return redirect('worker_jobs')
+
+
+@login_required
+@require_POST
+def customer_request_reschedule(request, booking_id):
+    """Allow customer to request a new date/time if their booking is delayed or they want to reschedule."""
+    if request.user.role == 'WORKER':
+        messages.error(request, 'Unauthorized action.')
+        return redirect('worker_jobs')
+
+    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+    if booking.status not in ('PENDING', 'ACCEPTED'):
+        messages.error(request, 'Only pending or accepted bookings can be rescheduled.')
+        return redirect('my_bookings')
+
+    new_date_str = request.POST.get('date', '').strip()
+    new_time_str = request.POST.get('time', '').strip()
+    reason = request.POST.get('reason', '').strip() or 'Customer requested alternative time due to schedule adjustment'
+
+    if not new_date_str or not new_time_str:
+        messages.error(request, 'Please provide both date and time to reschedule.')
+        return redirect('my_bookings')
+
+    try:
+        new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        messages.error(request, 'Invalid date format.')
+        return redirect('my_bookings')
+
+    now_local = timezone.localtime()
+    if new_date < now_local.date():
+        messages.error(request, 'Cannot reschedule to a past date.')
+        return redirect('my_bookings')
+
+    start_t, end_t = parse_time_range(new_time_str)
+    if not start_t or not end_t:
+        messages.error(request, 'Invalid time range.')
+        return redirect('my_bookings')
+
+    booking.date = new_date
+    booking.time = new_time_str
+    booking.start_time = start_t
+    booking.end_time = end_t
+    booking.reschedule_note = reason
+    booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'reschedule_note', 'updated_at'])
+
+    if booking.worker and booking.worker.user:
+        cust_name = request.user.get_full_name() or request.user.username
+        Notification.objects.create(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f"{cust_name} has rescheduled Booking #{booking.id} to {new_date.strftime('%b %d, %Y')} at {new_time_str}."
+        )
+
+    messages.success(request, f'Your booking has been rescheduled to {new_date.strftime("%b %d, %Y")} at {new_time_str}.')
+    return redirect('my_bookings')
+
+
+@login_required
+@require_POST
+def customer_reassign_booking(request, booking_id):
+    """
+    Allow customer to 1-tap auto-reassign an EXPIRED or REJECTED booking to the next best
+    available verified professional for the same service and district.
+    """
+    if request.user.role == 'WORKER':
+        messages.error(request, 'Unauthorized action.')
+        return redirect('worker_jobs')
+
+    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+    if booking.status not in ('EXPIRED', 'REJECTED'):
+        messages.error(request, 'Only expired or declined bookings can be automatically reassigned.')
+        return redirect('my_bookings')
+
+    service = booking.service
+    district = booking.district or (booking.worker.district if booking.worker else None)
+
+    # Base query: verified, active, service matching, work_status AVAILABLE
+    candidates = (
+        WorkerProfile.objects
+        .select_related('user', 'service')
+        .filter(
+            service=service,
+            is_verified=True,
+            work_status='AVAILABLE',
+            user__is_active=True
+        )
+        .annotate(
+            avg_rating=models.Avg('reviews_received__rating')
+        )
+    )
+    if booking.worker:
+        candidates = candidates.exclude(id=booking.worker.id)
+
+    # District filter if available
+    if district:
+        district_candidates = candidates.filter(district__iexact=district)
+        if district_candidates.exists():
+            candidates = district_candidates
+
+    # Exclude workers who have conflicting bookings or are on leave
+    available_candidate = None
+    for cand in candidates.order_by(models.F('avg_rating').desc(nulls_last=True), '-experience_years', 'id'):
+        if hasattr(cand, 'is_on_leave') and cand.is_on_leave(booking.date):
+            continue
+        if booking.start_time and booking.end_time:
+            has_conflict = Booking.objects.filter(
+                worker=cand,
+                date=booking.date,
+                status__in=['ACCEPTED', 'IN_PROGRESS']
+            ).filter(
+                start_time__lt=booking.end_time,
+                end_time__gt=booking.start_time
+            ).exists()
+            if has_conflict:
+                continue
+        available_candidate = cand
+        break
+
+    if not available_candidate:
+        messages.warning(
+            request,
+            f"No other available verified professionals found for {service.name} in your area at the requested time. "
+            "Please select another time slot or browse all professionals."
+        )
+        return redirect('my_bookings')
+
+    with transaction.atomic():
+        b = Booking.objects.select_for_update().get(id=booking.id)
+        old_worker_name = b.worker.user.get_full_name() if b.worker and b.worker.user else "Previous Worker"
+        b.worker = available_candidate
+        b.status = 'PENDING'
+        b.created_at = timezone.now()
+        b.cancellation_reason = f"Auto-reassigned by customer from {old_worker_name} to {available_candidate.user.get_full_name()}."
+        b.save(update_fields=['worker', 'status', 'created_at', 'cancellation_reason', 'updated_at'])
+
+        # Notify the new worker
+        Notification.objects.create(
+            recipient=available_candidate.user,
+            booking=b,
+            notification_type='NEW_BOOKING',
+            message=f"New booking assignment #{b.id} for {service.name} on {b.date.strftime('%b %d, %Y')} at {b.time}. Please respond within the response window."
+        )
+        # Safely notify via email
+        send_email_safely(
+            subject=f"New Booking Request #{b.id} - LAMO",
+            message=(
+                f"Hello {available_candidate.user.get_full_name() or available_candidate.user.username},\n\n"
+                f"You have received a new booking request #{b.id} for {service.name} scheduled on {b.date.strftime('%b %d, %Y')} at {b.time}.\n\n"
+                f"Please log in to your LAMO Partner portal and respond within the response window.\n\n"
+                f"Best regards,\nTeam LAMO"
+            ),
+            recipient_list=[available_candidate.user.email],
+            purpose='worker_new_booking',
+            async_send=True
+        )
+
+        new_name = available_candidate.user.get_full_name() or available_candidate.user.username
+        messages.success(
+            request,
+            f"Booking #{b.id} has been automatically reassigned to {new_name}! "
+            "They have been notified to review and confirm."
+        )
+
     return redirect('my_bookings')

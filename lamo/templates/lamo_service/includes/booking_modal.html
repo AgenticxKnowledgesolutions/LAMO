@@ -4,22 +4,1011 @@
 ========================================================= -->
 <style>
 /* Defensive wizard isolation styles - guarantees step panel hiding even with aggressive browser CSS caches */
+.booking-modal {
+    width: min(980px, 96vw) !important;
+    max-height: 92vh !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: #ffffff !important;
+    border-radius: 24px !important;
+    overflow: hidden !important;
+    box-shadow: 0 25px 70px rgba(6, 78, 59, 0.22) !important;
+}
+
+.booking-modal-body {
+    display: grid !important;
+    grid-template-columns: 280px minmax(0, 1fr) !important;
+    min-height: 0 !important;
+    overflow: hidden !important; /* Prevents double scrolling */
+    flex: 1 !important;
+}
+
+@media (max-width: 768px) {
+    .booking-modal-body {
+        grid-template-columns: 1fr !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* Left Sidebar - Lush Modern Design */
+.modal-summary {
+    position: relative !important;
+    padding: 24px 20px !important;
+    background: linear-gradient(165deg, #064e3b 0%, #047857 55%, #059669 100%) !important;
+    color: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    overflow: hidden !important;
+}
+
+.modal-summary::before {
+    content: "" !important;
+    position: absolute !important;
+    width: 220px !important;
+    height: 220px !important;
+    right: -90px !important;
+    top: -70px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%) !important;
+    pointer-events: none !important;
+}
+
+.modal-step {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 3px 10px !important;
+    border-radius: 20px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.6px !important;
+    text-transform: uppercase !important;
+    width: fit-content !important;
+    margin-bottom: 12px !important;
+}
+
+.modal-service-icon {
+    width: 48px !important;
+    height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    font-size: 22px !important;
+    backdrop-filter: blur(10px) !important;
+    margin-bottom: 10px !important;
+}
+
+.modal-summary h3 {
+    margin: 0 0 4px 0 !important;
+    color: #ffffff !important;
+    font-size: 20px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.3px !important;
+}
+
+.modal-service-text {
+    margin: 0 0 14px 0 !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+}
+
+.modal-worker {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(8px) !important;
+    margin-bottom: 14px !important;
+}
+
+.modal-worker-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    flex-shrink: 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 2px solid rgba(255, 255, 255, 0.6) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.modal-worker-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.modal-worker-info small {
+    display: block !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    font-size: 8px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.6px !important;
+    text-transform: uppercase !important;
+}
+
+.modal-worker-info strong {
+    display: block !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+}
+
+.modal-worker-info span {
+    display: block !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+    font-size: 10px !important;
+    margin-top: 1px !important;
+}
+
+.modal-verified {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin-top: 3px !important;
+    padding: 2px 7px !important;
+    border-radius: 20px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #a7f3d0 !important;
+    font-size: 8.5px !important;
+    font-weight: 700 !important;
+}
+
+.modal-benefits {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    padding-top: 12px !important;
+}
+
+.modal-benefit {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+}
+
+.modal-benefit i {
+    color: #6ee7b7 !important;
+    font-size: 13px !important;
+}
+
+.modal-sidebar-bottom-accent {
+    margin-top: 14px !important;
+    padding: 9px 11px !important;
+    border-radius: 12px !important;
+    background: rgba(0, 0, 0, 0.14) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.sidebar-accent-icon {
+    font-size: 22px !important;
+    color: #facc15 !important;
+    filter: drop-shadow(0 2px 6px rgba(250, 204, 21, 0.4)) !important;
+}
+
+.sidebar-accent-text small {
+    display: block !important;
+    color: #a7f3d0 !important;
+    font-size: 8.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+}
+
+.sidebar-accent-text span {
+    font-size: 10.5px !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Right Panel - Structure & Stepper */
+.modal-form {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    max-height: 84vh !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+}
+
+.wizard-stepper {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 14px 24px 10px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    background: #ffffff !important;
+    flex-shrink: 0 !important;
+}
+
+.wizard-step-node {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    user-select: none !important;
+}
+
+.node-circle {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    transition: all 0.2s ease !important;
+}
+
+.wizard-step-node.active .node-circle {
+    background: #059669 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px #d1fae5 !important;
+}
+
+.wizard-step-node.active .node-label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+.wizard-step-node.completed .node-circle {
+    background: #059669 !important;
+    color: #ffffff !important;
+}
+
+.wizard-step-node.completed .node-label {
+    color: #059669 !important;
+    font-weight: 700 !important;
+}
+
+.node-connector {
+    flex: 1 !important;
+    height: 2px !important;
+    background: #e2e8f0 !important;
+    margin: 0 12px !important;
+    transition: background 0.25s ease !important;
+}
+
+.node-connector.active {
+    background: #059669 !important;
+}
+
+/* Scrollable Form Content */
+#bookingModalForm {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
 .wizard-step-panel {
     display: none !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 14px 24px !important;
 }
+
 .wizard-step-panel.active {
     display: block !important;
 }
+
+.wizard-step-panel::-webkit-scrollbar {
+    width: 4px !important;
+}
+.wizard-step-panel::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 4px !important;
+}
+
+/* Selected Service Card with Lightbulb Glow */
+.modal-selected-service {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 10px !important;
+    padding: 9px 12px !important;
+    border: 1.5px solid #a7f3d0 !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%) !important;
+}
+
+.modal-selected-service-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+}
+
+.modal-selected-service-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 9px !important;
+    background: #d1fae5 !important;
+    color: #059669 !important;
+    font-size: 15px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.modal-selected-service small {
+    display: block !important;
+    color: #059669 !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+}
+
+.modal-selected-service strong {
+    display: block !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+}
+
+.service-glow-accent {
+    width: 34px !important;
+    height: 34px !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.service-glow-accent i {
+    font-size: 22px !important;
+    color: #eab308 !important;
+    filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.75)) !important;
+    z-index: 2 !important;
+}
+
+.service-glow-accent .glow-spark {
+    position: absolute !important;
+    font-size: 11px !important;
+    color: #facc15 !important;
+    top: -2px !important;
+    right: 0 !important;
+    animation: sparkPulse 1.8s infinite ease-in-out !important;
+}
+
+@keyframes sparkPulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Subtasks Checklist - Slim 38px Rows */
+.subtasks-checklist-wrap {
+    margin: 8px 0 10px 0 !important;
+}
+
+.subtasks-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
+}
+
+.subtasks-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    max-height: 155px !important;
+    overflow-y: auto !important;
+    padding-right: 3px !important;
+}
+
+.subtasks-grid::-webkit-scrollbar {
+    width: 4px !important;
+}
+.subtasks-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 4px !important;
+}
+
+.subtask-card {
+    min-height: 38px !important;
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 0 10px !important;
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    user-select: none !important;
+}
+
+.subtask-card:hover {
+    border-color: #94a3b8 !important;
+    background: #f8fafc !important;
+}
+
+.subtask-card.selected {
+    border-color: #10b981 !important;
+    background: #f0fdf4 !important;
+    box-shadow: 0 1px 5px rgba(16, 185, 129, 0.12) !important;
+}
+
+.subtask-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+}
+
+.subtask-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 5px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: transparent !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    transition: all 0.15s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.subtask-card.selected .subtask-checkbox {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+}
+
+.subtask-title {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.subtask-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 2px 7px !important;
+    border-radius: 9999px !important;
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.subtask-card.selected .subtask-badge {
+    background: #dcfce7 !important;
+    color: #047857 !important;
+    border: 1px solid #86efac !important;
+    font-weight: 700 !important;
+}
+
+.subtasks-calc-pill {
+    display: none;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: 6px !important;
+    padding: 5px 11px !important;
+    border-radius: 8px !important;
+    background: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    font-size: 11px !important;
+    color: #1e40af !important;
+}
+
+/* Service Type Cards with Green Check Badge */
+.modal-booking-types {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-top: 3px !important;
+}
+
+.modal-booking-type {
+    position: relative !important;
+    min-height: 56px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    padding: 6px 10px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.modal-booking-type:hover {
+    border-color: #94a3b8 !important;
+    background: #f8fafc !important;
+}
+
+.modal-booking-type.active {
+    border: 2px solid #10b981 !important;
+    background: #f0fdf4 !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12) !important;
+}
+
+.modal-booking-type i {
+    font-size: 16px !important;
+    color: #059669 !important;
+}
+
+.modal-booking-type span {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+}
+
+.modal-booking-type small {
+    font-size: 9px !important;
+    color: #64748b !important;
+}
+
+.modal-booking-type .type-check-badge {
+    position: absolute !important;
+    top: 4px !important;
+    right: 6px !important;
+    color: #10b981 !important;
+    font-size: 14px !important;
+    display: none !important;
+}
+
+.modal-booking-type.active .type-check-badge {
+    display: block !important;
+}
+
+/* Input Fields & Spacing */
+.modal-form-group {
+    margin-bottom: 10px !important;
+}
+
+.modal-label {
+    display: block !important;
+    margin-bottom: 4px !important;
+    color: #1e293b !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+}
+
+.modal-input, .modal-select {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 0 11px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 9px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.modal-input:focus, .modal-select:focus {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12) !important;
+}
+
+/* Time Switcher Toggle */
+.time-toggle {
+    display: inline-flex !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+    padding: 2px !important;
+    gap: 2px !important;
+}
+
+.time-toggle-btn {
+    padding: 3px 9px !important;
+    border-radius: 14px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #64748b !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.time-toggle-btn.active {
+    background: #059669 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* Step 2 Elements: Readonly District, Location & Pin */
+.district-readonly-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 38px !important;
+    padding: 0 11px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 9px !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+.btn-toggle-map-pill {
+    width: 100% !important;
+    height: 36px !important;
+    margin-top: 5px !important;
+    padding: 0 11px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 9px !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.btn-toggle-map-pill:hover {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+/* Voice Describe Button */
+.voice-describe-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 2px 8px !important;
+    border-radius: 14px !important;
+    border: 1px solid #bbf7d0 !important;
+    background: #f0fdf4 !important;
+    color: #047857 !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.voice-describe-btn:hover {
+    background: #dcfce7 !important;
+}
+
+/* Textarea & Character Counter */
+.textarea-counter-wrap {
+    position: relative !important;
+}
+
+.textarea-char-counter {
+    position: absolute !important;
+    bottom: 5px !important;
+    right: 9px !important;
+    font-size: 10px !important;
+    color: #94a3b8 !important;
+    pointer-events: none !important;
+}
+
+.modal-textarea {
+    height: 64px !important;
+    padding: 7px 11px !important;
+    resize: none !important;
+    line-height: 1.4 !important;
+}
+
+/* Dashed Problem Photo Upload Box */
+.photo-upload-card {
+    border: 1.5px dashed #cbd5e1 !important;
+    border-radius: 11px !important;
+    background: #f8fafc !important;
+    padding: 9px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.photo-upload-card:hover {
+    border-color: #10b981 !important;
+    background: #f0fdf4 !important;
+}
+
+.photo-upload-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.photo-upload-icon-circle {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    background: #059669 !important;
+    color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+    flex-shrink: 0 !important;
+}
+
+.photo-upload-text strong {
+    display: block !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+}
+
+.photo-upload-text small {
+    display: block !important;
+    font-size: 9.5px !important;
+    color: #64748b !important;
+}
+
+.photo-upload-artwork {
+    font-size: 22px !important;
+    color: #cbd5e1 !important;
+}
+
+/* Specific Tasks Expandable Accordion (Option 2) */
+.tasks-accordion-wrap {
+    margin: 8px 0 10px 0 !important;
+}
+
+.tasks-accordion-trigger {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 7px 12px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    text-align: left !important;
+}
+
+.tasks-accordion-trigger:hover {
+    border-color: #10b981 !important;
+    background: #f0fdf4 !important;
+}
+
+.tasks-accordion-trigger.expanded {
+    border-color: #10b981 !important;
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08) !important;
+}
+
+.tasks-accordion-trigger.has-selected {
+    border-color: #10b981 !important;
+    background: #f0fdf4 !important;
+}
+
+.tasks-accordion-trigger-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+}
+
+.tasks-trigger-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+    background: #e6fbf0 !important;
+    color: #059669 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+    flex-shrink: 0 !important;
+}
+
+.tasks-trigger-info {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+}
+
+.tasks-trigger-title-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.tasks-trigger-title-row strong {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+}
+
+.tasks-trigger-title-row .optional-tag {
+    font-size: 10px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+}
+
+.tasks-trigger-subtitle {
+    font-size: 10px !important;
+    color: #64748b !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin-top: 1px !important;
+}
+
+.tasks-accordion-trigger-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+}
+
+.tasks-count-pill {
+    font-size: 10.5px !important;
+    padding: 2px 8px !important;
+    border-radius: 12px !important;
+    background: #dcfce7 !important;
+    color: #047857 !important;
+    font-weight: 700 !important;
+    border: 1px solid #86efac !important;
+}
+
+.tasks-chevron {
+    font-size: 12px !important;
+    color: #64748b !important;
+    transition: transform 0.25s ease !important;
+}
+
+.tasks-accordion-body {
+    margin-top: 6px !important;
+    animation: accordionSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes accordionSlideDown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tasks-accordion-inner {
+    padding: 4px 2px !important;
+}
+
+/* Sticky Wizard Footer & Trust Bar */
 .modal-wizard-footer {
-    position: sticky;
-    bottom: 0;
-    background: #ffffff;
-    padding: 14px 20px;
-    border-top: 1px solid var(--lamo-border, #dfeae5);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 100;
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #ffffff !important;
+    padding: 9px 24px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 10 !important;
+    flex-shrink: 0 !important;
+}
+
+.btn-wizard-back {
+    height: 38px !important;
+    padding: 0 16px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 9px !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    align-items: center !important;
+    gap: 5px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.btn-wizard-back:hover {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+.btn-wizard-next, .btn-wizard-confirm {
+    height: 38px !important;
+    padding: 0 20px !important;
+    border: none !important;
+    border-radius: 9px !important;
+    background: #047857 !important;
+    color: #ffffff !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    box-shadow: 0 2px 6px rgba(4, 120, 87, 0.22) !important;
+}
+
+.btn-wizard-next:hover, .btn-wizard-confirm:hover {
+    background: #065f46 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Explicit Button Visibility Rules (Guarantees isolation between Step 1 and Step 2) */
+.wizard-btn-hidden,
+.btn-wizard-back[style*="display: none"],
+.btn-wizard-back[style*="display:none"],
+.btn-wizard-confirm[style*="display: none"],
+.btn-wizard-confirm[style*="display:none"],
+.btn-wizard-next[style*="display: none"],
+.btn-wizard-next[style*="display:none"] {
+    display: none !important;
+}
+
+.wizard-btn-visible {
+    display: inline-flex !important;
+}
+
+.modal-trust {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    padding: 5px 24px 8px !important;
+    background: #ffffff !important;
+    border-top: none !important;
+    font-size: 10.5px !important;
+    color: #64748b !important;
+    flex-shrink: 0 !important;
+}
+
+.modal-trust-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.modal-trust-item i {
+    color: #059669 !important;
 }
 </style>
 <div id="bookingModal" class="booking-modal-overlay" aria-hidden="true">
@@ -152,6 +1141,15 @@
                             </div>
 
                         </div>
+
+                        <!-- Safety & Satisfaction Assurance Card -->
+                        <div class="modal-sidebar-bottom-accent">
+                            <i class="bi bi-shield-fill-check sidebar-accent-icon"></i>
+                            <div class="sidebar-accent-text">
+                                <small>LAMO Guarantee</small>
+                                <span>Verified &amp; Insured Service</span>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -166,12 +1164,12 @@
                 <nav class="wizard-stepper" aria-label="Booking steps">
                     <div class="wizard-step-node active" id="wizardNode1" data-step="1">
                         <div class="node-circle">1</div>
-                        <span class="node-label">When &amp; Where</span>
+                        <span class="node-label">Tasks &amp; Schedule</span>
                     </div>
                     <div class="node-connector" id="connector1_2"></div>
                     <div class="wizard-step-node" id="wizardNode2" data-step="2">
                         <div class="node-circle">2</div>
-                        <span class="node-label">Job Details</span>
+                        <span class="node-label">Location &amp; Details</span>
                     </div>
                 </nav>
 
@@ -215,6 +1213,16 @@
                            value="500.00">
 
                     <input type="hidden"
+                           name="duration_min"
+                           id="modalDurationMinInput"
+                           value="{{ service.default_duration_min|default:'45' }}">
+
+                    <input type="hidden"
+                           name="selected_tasks_json"
+                           id="modalSelectedTasksJson"
+                           value="[]">
+
+                    <input type="hidden"
                            name="latitude"
                            id="modalLatitudeInput"
                            value="{{ customer_prefill.latitude|default:'' }}">
@@ -225,22 +1233,28 @@
                            value="{{ customer_prefill.longitude|default:'' }}">
 
                     <!-- =================================================
-                         STEP 1: WHEN & WHERE
+                         STEP 1: TASKS & SCHEDULE
                     ================================================== -->
                     <div class="wizard-step-panel active" id="bookingStep1">
 
-                        <!-- Selected Service Header Card -->
+                        <!-- Selected Service Header Card with Glowing Lightbulb -->
                         <div class="modal-selected-service">
-                            <div class="modal-selected-service-icon">
-                                <i id="modalSelectedServiceIcon" class="bi bi-tools"></i>
+                            <div class="modal-selected-service-left">
+                                <div class="modal-selected-service-icon">
+                                    <i id="modalSelectedServiceIcon" class="bi bi-tools"></i>
+                                </div>
+                                <div>
+                                    <small>Selected Service</small>
+                                    <strong id="modalSelectedServiceText">{{ service.name }}</strong>
+                                </div>
                             </div>
-                            <div>
-                                <small>Selected Service</small>
-                                <strong id="modalSelectedServiceText">{{ service.name }}</strong>
+                            <div class="service-glow-accent">
+                                <i class="bi bi-lightbulb-fill"></i>
+                                <span class="glow-spark">&#10022;</span>
                             </div>
                         </div>
 
-                        <!-- Service Type Toggle -->
+                        <!-- Service Type Toggle with Tactile Cards & Green Check Badge -->
                         <div class="modal-form-group">
                             <label class="modal-label">Service Type</label>
                             <div class="modal-booking-types">
@@ -248,6 +1262,7 @@
                                         class="modal-booking-type active"
                                         data-booking-type="One Time"
                                         onclick="selectModalBookingType(this)">
+                                    <span class="type-check-badge"><i class="bi bi-check-circle-fill"></i></span>
                                     <i class="bi bi-calendar-check"></i>
                                     <span>One-time</span>
                                     <small>Single visit</small>
@@ -257,6 +1272,7 @@
                                         class="modal-booking-type"
                                         data-booking-type="Recurring"
                                         onclick="selectModalBookingType(this)">
+                                    <span class="type-check-badge"><i class="bi bi-check-circle-fill"></i></span>
                                     <i class="bi bi-arrow-repeat"></i>
                                     <span>Recurring</span>
                                     <small>Regular service</small>
@@ -326,7 +1342,7 @@
 
                         <!-- PREFERRED TIME (Shared by One-Time and Recurring) -->
                         <div class="modal-form-group">
-                            <div class="label-with-toggle">
+                            <div class="label-with-toggle" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                                 <label class="modal-label" style="margin-bottom:0;">
                                     Preferred Time <span class="required-star">*</span>
                                 </label>
@@ -347,32 +1363,51 @@
                                 </div>
                             </div>
 
-                            <div id="timeSlotGroup" style="margin-top:8px;">
+                            <!-- DYNAMIC PRO WORKING SHIFT & DURATION BADGES -->
+                            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; margin-bottom:6px;">
+                                <div id="modalWorkerWorkingHoursBadge" style="display:none; align-items:center; gap:5px; padding:3px 9px; border-radius:9999px; background:#ecfdf5; border:1px solid #a7f3d0; color:#059669; font-size:11px; font-weight:700;">
+                                    <i class="bi bi-brightness-high"></i>
+                                    <span id="modalWorkerHoursText">Pro's Shift: 9:00 AM - 6:00 PM</span>
+                                </div>
+                                <div id="modalEstimatedDurationBadge" style="display:none; align-items:center; gap:5px; padding:3px 9px; border-radius:9999px; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; font-size:11px; font-weight:700;">
+                                    <i class="bi bi-clock-history"></i>
+                                    <span id="modalEstimatedDurationText">Est. 45 mins (+15m travel buffer)</span>
+                                </div>
+                            </div>
+
+                            <div id="timeSlotGroup" style="margin-top:4px;">
                                 <select name="time_slot"
                                         id="modalTimeSlot"
                                         class="modal-select">
                                     <option value="">Select time slot</option>
-                                    <option value="8:00 AM - 10:00 AM">8:00 AM - 10:00 AM</option>
-                                    <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
-                                    <option value="12:00 PM - 2:00 PM">12:00 PM - 2:00 PM</option>
-                                    <option value="2:00 PM - 4:00 PM">2:00 PM - 4:00 PM</option>
-                                    <option value="4:00 PM - 6:00 PM">4:00 PM - 6:00 PM</option>
-                                    <option value="6:00 PM - 8:00 PM">6:00 PM - 8:00 PM</option>
+                                    <option value="9:00 AM - 10:00 AM">9:00 AM - 10:00 AM</option>
+                                    <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                                    <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                                    <option value="12:00 PM - 1:00 PM">12:00 PM - 1:00 PM</option>
+                                    <option value="1:00 PM - 2:00 PM">1:00 PM - 2:00 PM</option>
+                                    <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
+                                    <option value="3:00 PM - 4:00 PM">3:00 PM - 4:00 PM</option>
+                                    <option value="4:00 PM - 5:00 PM">4:00 PM - 5:00 PM</option>
+                                    <option value="5:00 PM - 6:00 PM">5:00 PM - 6:00 PM</option>
                                 </select>
                             </div>
 
-                            <div id="customTimeGroup" style="display:none; margin-top:8px;">
+                            <div id="customTimeGroup" style="display:none; margin-top:4px;">
                                 <input type="text"
                                        name="custom_time"
                                        id="modalCustomTime"
                                        class="modal-input"
                                        placeholder="e.g., 2:30 PM or 5:00 PM">
-                                <div id="customTimeTravelNotice" style="margin-top:6px; font-size:11.5px; color:#047857; display:flex; align-items:center; gap:5px; font-weight:500;">
+                                <div id="customTimeTravelNotice" style="margin-top:4px; font-size:11px; color:#047857; display:flex; align-items:center; gap:5px; font-weight:500;">
                                     <i class="bi bi-clock-history"></i>
                                     <span>Same-day bookings require at least 60 minutes advance notice for pro travel.</span>
                                 </div>
+                                <div id="customTimeHoursAlert" style="display:none; margin-top:4px; font-size:11.5px; color:#dc2626; align-items:center; gap:5px; font-weight:600;">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <span id="customTimeHoursAlertText"></span>
+                                </div>
                             </div>
-                            <div id="modalWorkerAvailabilityNotice" style="display:none; margin-top:8px; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600; line-height:1.4;"></div>
+                            <div id="modalWorkerAvailabilityNotice" style="display:none; margin-top:6px; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:600; line-height:1.4;"></div>
                         </div>
 
                         <!-- RECURRING BOTTOM OPTIONS (End Date) -->
@@ -388,24 +1423,40 @@
                             </div>
                         </div>
 
-                        <!-- District (read-only from selected worker) -->
+                    </div>
+                    <!-- END STEP 1 -->
+
+
+                    <!-- =================================================
+                         STEP 2: LOCATION & DETAILS
+                    ================================================== -->
+                    <div class="wizard-step-panel" id="bookingStep2">
+
+                        <!-- Service District (Clean Readonly Card) -->
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalServiceDistrict">
-                                Service District
+                                <i class="bi bi-geo-alt-fill text-success me-1"></i> Service District
                             </label>
-                            <input type="text"
+                            <div class="district-readonly-card">
+                                <div style="display:flex; align-items:center; gap:7px;">
+                                    <i class="bi bi-geo-alt-fill text-success"></i>
+                                    <span id="modalServiceDistrictDisplay">{{ district|default:"Kollam" }}</span>
+                                </div>
+                                <i class="bi bi-chevron-down text-muted" style="font-size:12px;"></i>
+                            </div>
+                            <input type="hidden"
                                    name="district"
                                    id="modalServiceDistrict"
-                                   class="modal-input readonly-input"
-                                   value="{{ district }}"
-                                   readonly>
-                            <small class="field-hint">District is automatically set based on the selected worker.</small>
+                                   value="{{ district }}">
+                            <small class="field-hint" style="color:#64748b; font-size:10.5px; margin-top:3px; display:block;">
+                                District is automatically set based on the selected worker.
+                            </small>
                         </div>
 
                         <!-- Service Location -->
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalLocationInput">
-                                Service Location <span class="required-star">*</span>
+                                <i class="bi bi-geo-alt-fill text-success me-1"></i> Service Location <span class="required-star">*</span>
                             </label>
 
                             <input type="text"
@@ -415,20 +1466,20 @@
                                    placeholder="Enter street, building, flat number, or landmark"
                                    value="{{ customer_prefill.location|default:'' }}"
                                    required>
-                        </div>
 
-                        <!-- Collapsible Map Toggle & Panel -->
-                        <div class="modal-form-group">
+                            <!-- Pin on map (Optional) pill button -->
                             <button type="button"
-                                    class="btn-toggle-map"
+                                    class="btn-toggle-map-pill"
                                     id="btnToggleBookingMap"
                                     onclick="toggleBookingMap()">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                <span id="btnToggleMapText">Pin on map (Optional)</span>
-                                <i class="bi bi-chevron-down toggle-chevron" id="mapChevronIcon"></i>
+                                <div style="display:flex; align-items:center; gap:7px;">
+                                    <i class="bi bi-geo-alt-fill text-success"></i>
+                                    <span id="btnToggleMapText">Pin on map (Optional)</span>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted" id="mapChevronIcon" style="font-size:12px;"></i>
                             </button>
 
-                            <div id="bookingMapCollapse" class="booking-map-collapse" style="display:none;">
+                            <div id="bookingMapCollapse" class="booking-map-collapse" style="display:none; margin-top:6px;">
                                 <div id="modalBookingMap"
                                      data-district="{{ district }}"
                                      data-default-lat="{% if customer_prefill.latitude %}{{ customer_prefill.latitude }}{% else %}{{ district_lat|default:9.9312 }}{% endif %}"
@@ -436,34 +1487,25 @@
                                      data-tile-url="{{ map_tile_url }}"
                                      data-tile-attribution="{{ map_tile_attribution }}"
                                      data-tile-subdomains="{{ map_tile_subdomains }}"
-                                     data-tile-max-zoom="{{ map_tile_max_zoom|default:20 }}"></div>
+                                     data-tile-max-zoom="{{ map_tile_max_zoom|default:20 }}"
+                                     style="height:170px; border-radius:10px; overflow:hidden;"></div>
 
-                                <div id="modalDistrictValidation" class="district-validation-alert" style="display:none;">
+                                <div id="modalDistrictValidation" class="district-validation-alert" style="display:none; margin-top:5px;">
                                     <i class="bi bi-exclamation-triangle-fill"></i>
                                     Please select a service location within {{ district }}.
                                 </div>
 
-                                <button type="button" id="modalGetCurrentLocationBtn" class="btn-current-location">
+                                <button type="button" id="modalGetCurrentLocationBtn" class="btn-current-location" style="margin-top:5px;">
                                     <i class="bi bi-crosshair"></i> Use My Current Location
                                 </button>
                             </div>
                         </div>
 
-                    </div>
-                    <!-- END STEP 1 -->
-
-
-                    <!-- =================================================
-                         STEP 2: JOB DETAILS
-                    ================================================== -->
-                    <div class="wizard-step-panel" id="bookingStep2">
-
-
-                        <!-- Requirement & Voice-to-Text Speech -->
+                        <!-- Describe Your Requirement & Voice-to-Text Speech -->
                         <div class="modal-form-group">
-                            <div class="label-with-toggle">
+                            <div class="label-with-toggle" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                                 <label class="modal-label" for="modalDescriptionTextarea" style="margin-bottom:0;">
-                                    Describe Your Requirement
+                                    <i class="bi bi-card-text text-success me-1"></i> Describe Your Requirement
                                 </label>
                                 <button type="button" id="voiceDescribeBtn" class="voice-describe-btn" onclick="toggleVoiceDescription()" title="Speak in your language to describe the problem">
                                     <i class="bi bi-mic-fill"></i>
@@ -471,34 +1513,48 @@
                                 </button>
                             </div>
 
-                            <textarea name="description"
-                                      id="modalDescriptionTextarea"
-                                      class="modal-input modal-textarea"
-                                      rows="3"
-                                      placeholder="Example: Kitchen tap is leaking, need replacement washer or pipe inspection..."></textarea>
+                            <div class="textarea-counter-wrap">
+                                <textarea name="description"
+                                          id="modalDescriptionTextarea"
+                                          class="modal-input modal-textarea"
+                                          rows="3"
+                                          maxlength="300"
+                                          placeholder="Example: Kitchen tap is leaking, need replacement washer or pipe inspection..."></textarea>
+                                <div class="textarea-char-counter">
+                                    <span id="descCharCount">0</span>/300
+                                </div>
+                            </div>
 
-                            <div id="voiceRecordingStatus" class="voice-status-bar" style="display:none;">
+                            <div id="voiceRecordingStatus" class="voice-status-bar" style="display:none; margin-top:4px;">
                                 <span class="voice-pulse-dot"></span>
                                 <span id="voiceStatusText">Listening... Speak clearly into your mic</span>
                             </div>
                         </div>
 
-                        <!-- Problem Photo Scope (Optional) -->
+                        <!-- Problem Photo Scope (Dashed upload box matching reference image) -->
                         <div class="modal-form-group">
                             <label class="modal-label">
-                                <i class="bi bi-camera me-1"></i> Attach Problem Photo <small class="text-muted">(Optional)</small>
+                                <i class="bi bi-image text-success me-1"></i> Attach Problem Photo <small class="text-muted">(Optional)</small>
                             </label>
-                            <div class="problem-photo-uploader">
-                                <input type="file" id="modalProblemPhotoInput" accept="image/*" style="display:none;" onchange="previewProblemPhoto(this)">
-                                <button type="button" class="photo-upload-trigger-btn" onclick="document.getElementById('modalProblemPhotoInput').click()">
-                                    <i class="bi bi-cloud-arrow-up"></i>
-                                    <span>Add Photo of Work Area</span>
-                                </button>
-                                <div id="photoPreviewContainer" class="photo-preview-container" style="display:none;">
-                                    <img id="photoPreviewElement" src="" alt="Work area preview">
-                                    <button type="button" class="photo-delete-btn" onclick="clearProblemPhoto()" title="Remove photo">&times;</button>
-                                    <span class="photo-status-badge"><i class="bi bi-check2-circle"></i> Attached</span>
+                            <input type="file" id="modalProblemPhotoInput" accept="image/*" style="display:none;" onchange="previewProblemPhoto(this)">
+                            <div class="photo-upload-card" onclick="document.getElementById('modalProblemPhotoInput').click()">
+                                <div class="photo-upload-left">
+                                    <div class="photo-upload-icon-circle">
+                                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                                    </div>
+                                    <div class="photo-upload-text">
+                                        <strong>Add Photo of Work Area</strong>
+                                        <small>JPG, PNG up to 5 MB</small>
+                                    </div>
                                 </div>
+                                <div class="photo-upload-artwork">
+                                    <i class="bi bi-images"></i>
+                                </div>
+                            </div>
+                            <div id="photoPreviewContainer" class="photo-preview-container" style="display:none; margin-top:6px;">
+                                <img id="photoPreviewElement" src="" alt="Work area preview">
+                                <button type="button" class="photo-delete-btn" onclick="clearProblemPhoto()" title="Remove photo">&times;</button>
+                                <span class="photo-status-badge"><i class="bi bi-check2-circle"></i> Attached</span>
                             </div>
                         </div>
 
@@ -506,7 +1562,7 @@
                         <!-- Authenticated Customer Contact Details -->
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalCustomerName">
-                                Full Name <span class="required-star">*</span>
+                                <i class="bi bi-person text-success me-1"></i> Full Name <span class="required-star">*</span>
                             </label>
                             <input type="text"
                                    name="customer_name"
@@ -520,7 +1576,7 @@
 
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalPhone">
-                                Contact Number <span class="required-star">*</span>
+                                <i class="bi bi-telephone text-success me-1"></i> Contact Number <span class="required-star">*</span>
                             </label>
                             <input type="tel"
                                    name="phone"
@@ -545,7 +1601,7 @@
                         <!-- Guest Customer: Clean & focused. Only asks Full Name. Mobile/Email OTP is handled inside the focused Auth Popup! -->
                         <div class="modal-form-group">
                             <label class="modal-label" for="modalCustomerName">
-                                Full Name <span class="required-star">*</span>
+                                <i class="bi bi-person text-success me-1"></i> Full Name <span class="required-star">*</span>
                             </label>
                             <input type="text"
                                    name="customer_name"
@@ -555,7 +1611,7 @@
                                    maxlength="100"
                                    value=""
                                    required>
-                            <small class="field-hint" style="color:#64748b; font-size:12px; margin-top:4px; display:block;">
+                            <small class="field-hint" style="color:#64748b; font-size:11px; margin-top:3px; display:block;">
                                 You can verify your booking with Mobile or Email in the next step.
                             </small>
                         </div>
@@ -575,32 +1631,33 @@
                     <div class="modal-wizard-footer">
 
                         <button type="button"
-                                class="btn-wizard-back"
+                                class="btn-wizard-back wizard-btn-hidden"
                                 id="btnWizardBack"
                                 onclick="handleWizardBack()"
-                                style="display:none;">
+                                style="display:none !important;">
                             <i class="bi bi-arrow-left"></i>
                             <span>Back</span>
                         </button>
 
-                        <div class="wizard-footer-right">
+                        <div class="wizard-footer-right" style="margin-left:auto;">
 
-                            <!-- Next button (for Step 1) -->
+                            <!-- Next button (for Step 1 ONLY) -->
                             <button type="button"
-                                    class="btn-wizard-next"
+                                    class="btn-wizard-next wizard-btn-visible"
                                     id="btnWizardNext"
-                                    onclick="handleWizardNext()">
-                                <span>Next: Job Details</span>
+                                    onclick="handleWizardNext()"
+                                    style="display:inline-flex !important;">
+                                <span>Next: Location &amp; Details</span>
                                 <i class="bi bi-arrow-right"></i>
                             </button>
 
-                            <!-- Confirm button (Step 2) -->
+                            <!-- Confirm button (Step 2 ONLY) -->
                             <button type="submit"
-                                    class="btn-wizard-confirm"
+                                    class="btn-wizard-confirm wizard-btn-hidden"
                                     id="btnWizardConfirm"
-                                    style="display:none;">
+                                    style="display:none !important;">
                                 <i class="bi bi-calendar-check"></i>
-                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Book Now{% endif %}</span>
+                                <span id="btnConfirmText">{% if user.is_authenticated %}Confirm Booking{% else %}Verify Email &amp; Book{% endif %}</span>
                                 <i class="bi bi-arrow-right"></i>
                             </button>
 
@@ -614,10 +1671,12 @@
                             <i class="bi bi-shield-check"></i>
                             Verified Workers
                         </div>
+                        <span style="color:#cbd5e1;">|</span>
                         <div class="modal-trust-item">
                             <i class="bi bi-clock"></i>
                             Flexible Time
                         </div>
+                        <span style="color:#cbd5e1;">|</span>
                         <div class="modal-trust-item">
                             <i class="bi bi-headset"></i>
                             LAMO Support
@@ -1215,6 +2274,118 @@
     </div>
 </div>
 
+<!-- =========================================================
+     BOOKING CONFIRMATION SLIDE-UP BOTTOM SHEET (IDEA 1)
+========================================================= -->
+<div id="bookingSuccessSheetOverlay" class="booking-sheet-overlay" aria-hidden="true" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="successSheetTitle">
+    <div class="booking-sheet-backdrop" onclick="closeBookingSuccessSheet()"></div>
+    <div class="booking-sheet-container">
+        <!-- DRAG/SWIPE HANDLE -->
+        <div class="booking-sheet-handle-bar" onclick="closeBookingSuccessSheet()" title="Close sheet">
+            <span class="booking-sheet-handle"></span>
+        </div>
+
+        <div class="booking-sheet-content">
+            <!-- CELEBRATION HERO -->
+            <div class="booking-sheet-hero">
+                <div class="booking-sheet-check-ring">
+                    <div class="booking-sheet-check-icon">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                </div>
+                <div class="booking-sheet-hero-text">
+                    <span class="booking-badge-confirmed">
+                        <i class="bi bi-shield-fill-check"></i> REQUEST DISPATCHED
+                    </span>
+                    <h3 id="successSheetTitle">Booking Request Confirmed!</h3>
+                    <p id="successSheetSubtitle">Your request has been placed and forwarded to your service professional.</p>
+                </div>
+            </div>
+
+            <!-- SERVICE & WORKER DETAILS SUMMARY CARD -->
+            <div class="booking-sheet-summary-card">
+                <div class="summary-card-left">
+                    <div class="summary-service-avatar">
+                        <i class="bi bi-tools" id="sheetServiceIcon"></i>
+                    </div>
+                    <div class="summary-service-text">
+                        <h4 id="sheetServiceName">Home Service</h4>
+                        <p id="sheetWorkerName">Professional: Manu</p>
+                    </div>
+                </div>
+                <div class="summary-card-right">
+                    <span class="sheet-slot-pill" id="sheetSlotPill">
+                        <i class="bi bi-clock-history"></i> <span id="sheetSlotText">Scheduled Slot</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- WHAT HAPPENS NEXT (STEP-BY-STEP TIMELINE) -->
+            <div class="booking-timeline-section">
+                <h5 class="timeline-heading">
+                    <i class="bi bi-arrow-repeat text-success"></i> What Happens Next?
+                </h5>
+
+                <div class="booking-timeline">
+                    <!-- Step 1 -->
+                    <div class="timeline-step completed">
+                        <div class="timeline-dot"><i class="bi bi-check-lg"></i></div>
+                        <div class="timeline-step-body">
+                            <div class="timeline-title-row">
+                                <h6>Request Sent to Professional</h6>
+                                <span class="timeline-tag tag-done"><i class="bi bi-check2"></i> Sent</span>
+                            </div>
+                            <p>We've shared your service requirements and address with the professional.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 (30-Minute Worker Acceptance & Confirmation Call) -->
+                    <div class="timeline-step active-step">
+                        <div class="timeline-dot dot-pulsing"><i class="bi bi-telephone-inbound-fill"></i></div>
+                        <div class="timeline-step-body">
+                            <div class="timeline-title-row">
+                                <h6>Worker Reviews &amp; Calls You</h6>
+                                <span class="timeline-tag tag-highlight"><i class="bi bi-lightning-charge-fill"></i> Within 30 mins</span>
+                            </div>
+                            <p id="sheetWorkerCallText">The worker will accept your booking within <strong>30 minutes</strong> and call your registered number to reconfirm timing &amp; arrival.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="timeline-step">
+                        <div class="timeline-dot dot-secure"><i class="bi bi-shield-lock-fill"></i></div>
+                        <div class="timeline-step-body">
+                            <div class="timeline-title-row">
+                                <h6>Doorstep Security PIN Verification</h6>
+                                <span class="timeline-tag tag-secure">At Doorstep</span>
+                            </div>
+                            <p>For your safety, only share your secret 4-digit arrival PIN after the worker arrives at your door.</p>
+                            <div class="sheet-arrival-pin-box" id="sheetArrivalPinBox" style="display:none;">
+                                <div class="pin-box-icon"><i class="bi bi-key-fill"></i></div>
+                                <div>
+                                    <span class="pin-box-label">Your Doorstep Arrival PIN:</span>
+                                    <strong class="pin-box-code" id="sheetArrivalPinCode">----</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="booking-sheet-actions">
+                <a href="{% url 'my_bookings' %}" id="sheetTrackBtn" class="btn-sheet-primary">
+                    <i class="bi bi-card-checklist"></i> Track in My Bookings
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                <button type="button" class="btn-sheet-secondary" onclick="closeBookingSuccessSheet()">
+                    <i class="bi bi-check2-circle"></i> Done &amp; Keep Browsing
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 /* =========================================================
    LAMO AUTH FLAGS & STATE
@@ -1229,6 +2400,36 @@ const totalSteps = 2;
 let _otpTimerInterval = null;
 let _otpSecondsRemaining = 60;
 let _otpAttemptsRemaining = 5;
+
+/* Dynamic 30-minute interval slot generator within worker's shift hours */
+function generateClientTimeSlots(startStr, endStr) {
+    if (!startStr) startStr = "09:00";
+    if (!endStr) endStr = "18:00";
+    const pStart = startStr.split(":").map(Number);
+    const pEnd = endStr.split(":").map(Number);
+    const startMins = pStart[0] * 60 + (pStart[1] || 0);
+    const endMins = pEnd[0] * 60 + (pEnd[1] || 0);
+    const formatTime12 = function(m) {
+        let h = Math.floor(m / 60);
+        const mins = m % 60;
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12;
+        if (h === 0) h = 12;
+        const minStr = mins > 0 ? (":" + String(mins).padStart(2, "0")) : ":00";
+        return `${h}${minStr} ${ampm}`;
+    };
+    const slots = [];
+    let cur = startMins;
+    const intervalMins = 30;
+    while (cur + intervalMins <= endMins) {
+        slots.push(`${formatTime12(cur)} - ${formatTime12(cur + intervalMins)}`);
+        cur += intervalMins;
+    }
+    if (slots.length === 0 && endMins > startMins) {
+        slots.push(`${formatTime12(startMins)} - ${formatTime12(endMins)}`);
+    }
+    return slots;
+}
 
 /* =========================================================
    OPEN & CLOSE MODAL
@@ -1277,6 +2478,10 @@ function openBookingModal(button) {
     if (serviceDistrict) {
         serviceDistrict.value = workerDistrict;
     }
+    const serviceDistrictDisplay = document.getElementById("modalServiceDistrictDisplay");
+    if (serviceDistrictDisplay) {
+        serviceDistrictDisplay.textContent = workerDistrict || "Kollam";
+    }
 
     const workerIdInput = document.getElementById("modalWorkerId");
     if (workerIdInput) workerIdInput.value = workerId;
@@ -1309,6 +2514,36 @@ function openBookingModal(button) {
         const el = document.getElementById(id);
         if (el) el.textContent = "₹" + workerRate + "/hr";
     });
+
+    // Worker Working Shift Hours (Idea 1)
+    const workerStartTime = button.dataset.workerStartTime || "09:00";
+    const workerEndTime = button.dataset.workerEndTime || "18:00";
+    const workerWorkingHours = button.dataset.workerWorkingHours || "9:00 AM - 6:00 PM";
+    window._currentWorkerStartTime = workerStartTime;
+    window._currentWorkerEndTime = workerEndTime;
+    window._currentWorkerWorkingHours = workerWorkingHours;
+
+    const shiftBadge = document.getElementById("modalWorkerWorkingHoursBadge");
+    const shiftHoursText = document.getElementById("modalWorkerHoursText");
+    if (shiftBadge && shiftHoursText) {
+        shiftHoursText.textContent = "Pro's Working Hours: " + workerWorkingHours;
+        shiftBadge.style.display = "inline-flex";
+    }
+
+    // Pre-populate time slots matching worker's shift window
+    const initialSlotSelect = document.getElementById("modalTimeSlot");
+    if (initialSlotSelect && typeof generateClientTimeSlots === "function") {
+        const initialSlots = generateClientTimeSlots(workerStartTime, workerEndTime);
+        if (initialSlots && initialSlots.length > 0) {
+            initialSlotSelect.innerHTML = '<option value="">Select time slot</option>';
+            initialSlots.forEach(function(slotStr) {
+                const opt = document.createElement("option");
+                opt.value = slotStr;
+                opt.textContent = slotStr;
+                initialSlotSelect.appendChild(opt);
+            });
+        }
+    }
 
     // Default to Standard (2 hours)
     const standardChip = document.querySelector('.estimate-chip[data-hours="2"]');
@@ -1402,6 +2637,17 @@ function openBookingModal(button) {
 
     const districtValidation = document.getElementById("modalDistrictValidation");
     if (districtValidation) districtValidation.style.display = "none";
+
+    // Initialize Dynamic Sub-Tasks Checklist
+    const defaultDur = button.dataset.serviceDuration || "{{ service.default_duration_min|default:'45' }}";
+    if (typeof initModalSubTasks === "function") {
+        initModalSubTasks(serviceName, defaultDur, workerRate);
+    }
+
+    // Reset tasks accordion to collapsed by default (Option 2: Low-Congestion)
+    if (typeof toggleTasksAccordion === "function") {
+        toggleTasksAccordion(false);
+    }
 
     // Reset stepper to Step 1
     goToStep(1, true);
@@ -1537,30 +2783,77 @@ function goToStep(step, skipValidation) {
     if (conn1) conn1.classList.remove("active");
 
     if (step === 1) {
-        if (node1) node1.classList.add("active");
+        if (node1) {
+            node1.classList.add("active");
+            const c1 = node1.querySelector(".node-circle");
+            if (c1) c1.innerHTML = "1";
+        }
+        if (node2) {
+            const c2 = node2.querySelector(".node-circle");
+            if (c2) c2.innerHTML = "2";
+        }
     } else if (step === 2) {
-        if (node1) node1.classList.add("completed");
+        if (node1) {
+            node1.classList.add("completed");
+            const c1 = node1.querySelector(".node-circle");
+            if (c1) c1.innerHTML = '<i class="bi bi-check-lg"></i>';
+        }
         if (conn1) conn1.classList.add("active");
-        if (node2) node2.classList.add("active");
+        if (node2) {
+            node2.classList.add("active");
+            const c2 = node2.querySelector(".node-circle");
+            if (c2) c2.innerHTML = "2";
+        }
+
+        if (typeof finalizeModalSubTasksDescription === "function") {
+            finalizeModalSubTasksDescription();
+        }
+
+        const desc = document.getElementById("modalDescriptionTextarea");
+        const countEl = document.getElementById("descCharCount");
+        if (desc && countEl) {
+            countEl.textContent = desc.value.length;
+        }
     }
 
-    // Footer buttons state
+    // Footer buttons state - strictly enforces Step 1 (Next only) vs Step 2 (Back + Book)
     const btnBack = document.getElementById("btnWizardBack");
     const btnNext = document.getElementById("btnWizardNext");
     const btnConfirm = document.getElementById("btnWizardConfirm");
 
     if (step === 1) {
-        if (btnBack) btnBack.style.display = "none";
-        if (btnNext) {
-            btnNext.style.display = "inline-flex";
-            btnNext.querySelector("span").textContent = "Next: Job Details";
+        if (btnBack) {
+            btnBack.style.setProperty("display", "none", "important");
+            btnBack.classList.remove("wizard-btn-visible");
+            btnBack.classList.add("wizard-btn-hidden");
         }
-        if (btnConfirm) btnConfirm.style.display = "none";
-    } else if (step === 2) {
-        if (btnBack) btnBack.style.display = "inline-flex";
-        if (btnNext) btnNext.style.display = "none";
+        if (btnNext) {
+            btnNext.style.setProperty("display", "inline-flex", "important");
+            btnNext.classList.remove("wizard-btn-hidden");
+            btnNext.classList.add("wizard-btn-visible");
+            const nSpan = btnNext.querySelector("span");
+            if (nSpan) nSpan.textContent = "Next: Location & Details";
+        }
         if (btnConfirm) {
-            btnConfirm.style.display = "inline-flex";
+            btnConfirm.style.setProperty("display", "none", "important");
+            btnConfirm.classList.remove("wizard-btn-visible");
+            btnConfirm.classList.add("wizard-btn-hidden");
+        }
+    } else if (step === 2) {
+        if (btnBack) {
+            btnBack.style.setProperty("display", "inline-flex", "important");
+            btnBack.classList.remove("wizard-btn-hidden");
+            btnBack.classList.add("wizard-btn-visible");
+        }
+        if (btnNext) {
+            btnNext.style.setProperty("display", "none", "important");
+            btnNext.classList.remove("wizard-btn-visible");
+            btnNext.classList.add("wizard-btn-hidden");
+        }
+        if (btnConfirm) {
+            btnConfirm.style.setProperty("display", "inline-flex", "important");
+            btnConfirm.classList.remove("wizard-btn-hidden");
+            btnConfirm.classList.add("wizard-btn-visible");
             const cText = document.getElementById("btnConfirmText");
             if (cText) {
                 cText.textContent = LAMO_AUTH ? "Confirm Booking" : "Verify Email & Book";
@@ -1668,6 +2961,10 @@ function validateStep(step) {
             if (finalTime) finalTime.value = customTime.value.trim();
         }
 
+        return true;
+    }
+
+    if (step === 2) {
         // Location Validation
         const locInput = document.getElementById("modalLocationInput");
         if (!locInput || !locInput.value.trim()) {
@@ -1676,10 +2973,6 @@ function validateStep(step) {
             return false;
         }
 
-        return true;
-    }
-
-    if (step === 2) {
         const nameInput = document.getElementById("modalCustomerName");
         if (!nameInput || !nameInput.value.trim() || nameInput.value.trim().length < 2) {
             showBookingError(errorBox, "Please enter your full name.");
@@ -1826,9 +3119,41 @@ document.addEventListener('DOMContentLoaded', function() {
             if (customBtn && customBtn.classList.contains('active')) {
                 finalTime.value = this.value;
             }
+            validateCustomTimeAgainstShift();
         });
     }
 });
+
+function validateCustomTimeAgainstShift() {
+    const customTime = document.getElementById('modalCustomTime');
+    const alertBox = document.getElementById('customTimeHoursAlert');
+    if (!customTime || !alertBox) return true;
+    const val = customTime.value.trim();
+    if (!val) {
+        alertBox.style.display = 'none';
+        return true;
+    }
+    const mins = parseTimeToMinutes(val);
+    if (mins === null) {
+        alertBox.style.display = 'none';
+        return true;
+    }
+    const startStr = window._currentWorkerStartTime || "09:00";
+    const endStr = window._currentWorkerEndTime || "18:00";
+    const pStart = startStr.split(":").map(Number);
+    const pEnd = endStr.split(":").map(Number);
+    const startMins = pStart[0] * 60 + (pStart[1] || 0);
+    const endMins = pEnd[0] * 60 + (pEnd[1] || 0);
+
+    if (mins < startMins || mins > endMins) {
+        alertBox.textContent = `Selected time is outside the pro's working shift (${window._currentWorkerWorkingHours || '9:00 AM - 6:00 PM'}).`;
+        alertBox.style.display = 'block';
+        return false;
+    } else {
+        alertBox.style.display = 'none';
+        return true;
+    }
+}
 
 function parseTimeToMinutes(timeStr) {
     if (!timeStr) return null;
@@ -1882,10 +3207,12 @@ function updateModalTimeSlotAvailability() {
         }
     });
 
-    // Fetch Live Worker Availability (Pillar 1)
+    // Fetch Live Worker Availability (Option 1: Duration + Buffer)
     const workerId = workerIdInput ? workerIdInput.value : '';
+    const serviceIdVal = (document.getElementById('modalServiceId') || {}).value || '';
+    const durVal = (document.getElementById('modalDurationMinInput') || {}).value || '';
     if (workerId && dateVal) {
-        fetch(`/api/worker/${workerId}/availability/?date=${dateVal}`)
+        fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}&duration_min=${durVal}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -1902,6 +3229,24 @@ function updateModalTimeSlotAvailability() {
                         }
                     }
 
+                    if (data.working_hours) {
+                        const shiftBadge = document.getElementById("modalWorkerWorkingHoursBadge");
+                        const shiftHoursText = document.getElementById("modalWorkerHoursText");
+                        if (shiftBadge && shiftHoursText) {
+                            shiftHoursText.textContent = "Pro's Shift: " + data.working_hours;
+                            shiftBadge.style.display = "inline-flex";
+                        }
+                    }
+
+                    if (data.estimated_job_window) {
+                        const durBadge = document.getElementById("modalEstimatedDurationBadge");
+                        const durText = document.getElementById("modalEstimatedDurationText");
+                        if (durBadge && durText) {
+                            durText.textContent = "Est. " + data.estimated_job_window;
+                            durBadge.style.display = "inline-flex";
+                        }
+                    }
+
                     if (data.on_leave) {
                         Array.from(timeSlotSelect.options).forEach(function(opt) {
                             if (!opt.value) {
@@ -1911,23 +3256,23 @@ function updateModalTimeSlotAvailability() {
                                 opt.text = opt.value + ' (Worker on leave)';
                             }
                         });
-                    } else if (data.slots) {
-                        const slotMap = {};
-                        data.slots.forEach(s => { slotMap[s.slot] = s; });
-
-                        Array.from(timeSlotSelect.options).forEach(function(opt) {
-                            if (!opt.value) {
-                                opt.text = isToday ? 'Select time slot (Today)' : 'Select time slot';
-                                return;
-                            }
-                            const info = slotMap[opt.value];
-                            if (info && !info.available) {
+                    } else if (data.slots && data.slots.length > 0) {
+                        const prevVal = timeSlotSelect.value;
+                        timeSlotSelect.innerHTML = `<option value="">${isToday ? 'Select time slot (Today)' : 'Select time slot'}</option>`;
+                        data.slots.forEach(function(s) {
+                            const opt = document.createElement('option');
+                            opt.value = s.slot;
+                            if (!s.available) {
                                 opt.disabled = true;
-                                opt.text = opt.value + ` (${info.reason})`;
-                            } else if (!opt.disabled) {
-                                opt.text = opt.value + (isToday ? ' (Available Today)' : ' (Available)');
+                                opt.textContent = s.slot + ` (${s.reason})`;
+                            } else {
+                                opt.textContent = s.slot + (isToday ? ' (Available Today)' : ' (Available)');
                             }
+                            timeSlotSelect.appendChild(opt);
                         });
+                        if (prevVal && Array.from(timeSlotSelect.options).some(o => o.value === prevVal && !o.disabled)) {
+                            timeSlotSelect.value = prevVal;
+                        }
                     }
 
                     if (timeSlotSelect.selectedOptions.length && timeSlotSelect.selectedOptions[0].disabled) {
@@ -2004,7 +3349,26 @@ document.addEventListener("DOMContentLoaded", function() {
         phone.addEventListener("input", validateModalPhone);
         phone.addEventListener("blur", validateModalPhone);
     }
+    const desc = document.getElementById("modalDescriptionTextarea");
+    const countEl = document.getElementById("descCharCount");
+    if (desc && countEl) {
+        desc.addEventListener("input", function() {
+            countEl.textContent = this.value.length;
+        });
+        countEl.textContent = desc.value.length;
+    }
 });
+
+/* =========================================================
+   SUB-TASKS COMPATIBILITY STUBS (Tasks removed for clean UI)
+======================================================== */
+let _selectedModalTasks = [];
+function initModalSubTasks() {}
+function toggleModalSubTask() {}
+function updateModalSubTasksCalculation() {}
+function toggleTasksAccordion() {}
+function getSelectedModalTasks() { return []; }
+function finalizeModalSubTasksDescription() {}
 
 /* =========================================================
    ESTIMATOR, VOICE DESCRIPTION & PHOTO PREVIEW
@@ -2129,6 +3493,10 @@ document.addEventListener("DOMContentLoaded", function() {
     form.addEventListener("submit", function(event) {
         event.preventDefault();
 
+        if (typeof finalizeModalSubTasksDescription === "function") {
+            finalizeModalSubTasksDescription();
+        }
+
         // Validate Step 1 and Step 2
         if (!validateStep(1) || !validateStep(2)) {
             return;
@@ -2211,7 +3579,11 @@ function submitDirectBooking() {
         }
 
         if (result.ok && result.data && (result.data.success || result.data.requires_otp)) {
-            window.location.href = result.data.redirect_url || "{% url 'my_bookings' %}";
+            closeBookingModal();
+            if (typeof closeAuthPopup === 'function') {
+                closeAuthPopup();
+            }
+            showBookingSuccessSheet(result.data);
         } else {
             const errMsg = (result.data && result.data.error_message)
                 ? result.data.error_message
@@ -2614,7 +3986,9 @@ function handleAuthVerifySubmit(event) {
                 btn.className = "btn-auth-primary btn-success";
                 btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmed!';
             }
-            window.location.href = data.redirect_url || "{% url 'my_bookings' %}";
+            closeAuthPopup();
+            closeBookingModal();
+            showBookingSuccessSheet(data);
         } else {
             var msg = data.error_message || "Invalid verification code. Please check and try again.";
             showAuthAlert(2, msg, "danger");
@@ -2673,10 +4047,108 @@ function backToAuthScreen1() {
 // Close popup on Escape or backdrop click
 document.addEventListener("keydown", function(e) {
     if (e.key === "Escape") {
+        var sheet = document.getElementById("bookingSuccessSheetOverlay");
+        if (sheet && sheet.classList.contains("open")) {
+            closeBookingSuccessSheet();
+            return;
+        }
         var popup = document.getElementById("bookingAuthPopup");
         if (popup && popup.style.display !== "none") {
             closeAuthPopup();
         }
     }
 });
+
+/* =========================================================
+   BOOKING CONFIRMATION SLIDE-UP BOTTOM SHEET CONTROLLER (IDEA 1)
+========================================================= */
+function showBookingSuccessSheet(data) {
+    data = data || {};
+    var sheetOverlay = document.getElementById("bookingSuccessSheetOverlay");
+    if (!sheetOverlay) {
+        window.location.href = data.redirect_url || "{% url 'my_bookings' %}";
+        return;
+    }
+
+    var serviceNameEl = document.getElementById("sheetServiceName");
+    var workerNameEl = document.getElementById("sheetWorkerName");
+    var slotTextEl = document.getElementById("sheetSlotText");
+    var trackBtn = document.getElementById("sheetTrackBtn");
+    var pinBox = document.getElementById("sheetArrivalPinBox");
+    var pinCodeEl = document.getElementById("sheetArrivalPinCode");
+    var workerCallText = document.getElementById("sheetWorkerCallText");
+
+    // Service name
+    var serviceName = data.service_name;
+    if (!serviceName) {
+        var modalSelectedService = document.getElementById("modalSelectedService");
+        serviceName = modalSelectedService ? modalSelectedService.value : "Home Service";
+    }
+    if (serviceNameEl) serviceNameEl.textContent = serviceName;
+
+    // Worker name
+    var workerName = data.worker_name;
+    if (!workerName) {
+        var modalTitle = document.getElementById("bookingModalTitle");
+        if (modalTitle && modalTitle.textContent) {
+            var parts = modalTitle.textContent.split("-");
+            if (parts.length > 1) {
+                workerName = parts[1].trim();
+            }
+        }
+    }
+    if (!workerName) workerName = "Assigned Professional";
+    if (workerNameEl) workerNameEl.textContent = "Professional: " + workerName;
+
+    // Scheduled slot
+    var slotText = "";
+    if (data.scheduled_date || data.scheduled_time) {
+        slotText = (data.scheduled_date || "") + (data.scheduled_time ? " • " + data.scheduled_time : "");
+    } else {
+        var dateVal = document.getElementById("modalDate") ? document.getElementById("modalDate").value : "";
+        var finalTimeVal = document.getElementById("modalFinalTime") ? document.getElementById("modalFinalTime").value : "";
+        slotText = (dateVal || "Scheduled") + (finalTimeVal ? " • " + finalTimeVal : "");
+    }
+    if (slotTextEl) slotTextEl.textContent = slotText || "Scheduled Slot";
+
+    // Worker call guarantee description (Idea 1)
+    if (workerCallText) {
+        workerCallText.innerHTML = "<strong>" + workerName + "</strong> will accept your booking within <strong>30 minutes</strong> and call your registered number to reconfirm timing &amp; arrival.";
+    }
+
+    // Doorstep Arrival PIN
+    var pin = data.arrival_pin;
+    if (pin && pinBox && pinCodeEl) {
+        pinCodeEl.textContent = pin;
+        pinBox.style.display = "inline-flex";
+    } else if (pinBox) {
+        pinBox.style.display = "none";
+    }
+
+    // Track button redirect URL
+    if (trackBtn) {
+        trackBtn.href = data.redirect_url || "{% url 'my_bookings' %}";
+    }
+
+    // Slide up the bottom sheet
+    sheetOverlay.style.display = "flex";
+    sheetOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+
+    // Next frame for smooth CSS transition
+    setTimeout(function() {
+        sheetOverlay.classList.add("open");
+    }, 15);
+}
+
+function closeBookingSuccessSheet() {
+    var sheetOverlay = document.getElementById("bookingSuccessSheetOverlay");
+    if (!sheetOverlay) return;
+    sheetOverlay.classList.remove("open");
+    sheetOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+    setTimeout(function() {
+        sheetOverlay.style.display = "none";
+    }, 420);
+}
 </script>

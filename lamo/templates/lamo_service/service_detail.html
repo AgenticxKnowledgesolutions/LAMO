@@ -50,7 +50,7 @@
     <link rel="stylesheet" href="{% static 'css/lamo_service-service_detail_redesigned.css' %}">
     <link rel="stylesheet" href="{% static 'css/lamo_service-service_detail_ai_mode.css' %}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261108_auth_redesign_v2">
+    <link rel="stylesheet" href="{% static 'css/lamo_service-booking_modal.css' %}?v=20261110_bottom_sheet_v1">
 {% endblock %}
 
 {% block content %}
@@ -397,20 +397,20 @@
                             required
                         >
                             <option value="">Select District</option>
-                            <option value="Alappuzha">Alappuzha</option>
-                            <option value="Ernakulam">Ernakulam</option>
-                            <option value="Idukki">Idukki</option>
-                            <option value="Kannur">Kannur</option>
-                            <option value="Kasaragod">Kasaragod</option>
-                            <option value="Kollam">Kollam</option>
-                            <option value="Kottayam">Kottayam</option>
-                            <option value="Kozhikode">Kozhikode</option>
-                            <option value="Malappuram">Malappuram</option>
-                            <option value="Palakkad">Palakkad</option>
-                            <option value="Pathanamthitta">Pathanamthitta</option>
-                            <option value="Thiruvananthapuram">Thiruvananthapuram</option>
-                            <option value="Thrissur">Thrissur</option>
-                            <option value="Wayanad">Wayanad</option>
+                            <option value="Alappuzha" {% if district == 'Alappuzha' or current_district == 'Alappuzha' %}selected{% endif %}>Alappuzha</option>
+                            <option value="Ernakulam" {% if district == 'Ernakulam' or current_district == 'Ernakulam' %}selected{% endif %}>Ernakulam</option>
+                            <option value="Idukki" {% if district == 'Idukki' or current_district == 'Idukki' %}selected{% endif %}>Idukki</option>
+                            <option value="Kannur" {% if district == 'Kannur' or current_district == 'Kannur' %}selected{% endif %}>Kannur</option>
+                            <option value="Kasaragod" {% if district == 'Kasaragod' or current_district == 'Kasaragod' %}selected{% endif %}>Kasaragod</option>
+                            <option value="Kollam" {% if district == 'Kollam' or current_district == 'Kollam' %}selected{% endif %}>Kollam</option>
+                            <option value="Kottayam" {% if district == 'Kottayam' or current_district == 'Kottayam' %}selected{% endif %}>Kottayam</option>
+                            <option value="Kozhikode" {% if district == 'Kozhikode' or current_district == 'Kozhikode' %}selected{% endif %}>Kozhikode</option>
+                            <option value="Malappuram" {% if district == 'Malappuram' or current_district == 'Malappuram' %}selected{% endif %}>Malappuram</option>
+                            <option value="Palakkad" {% if district == 'Palakkad' or current_district == 'Palakkad' %}selected{% endif %}>Palakkad</option>
+                            <option value="Pathanamthitta" {% if district == 'Pathanamthitta' or current_district == 'Pathanamthitta' %}selected{% endif %}>Pathanamthitta</option>
+                            <option value="Thiruvananthapuram" {% if district == 'Thiruvananthapuram' or current_district == 'Thiruvananthapuram' %}selected{% endif %}>Thiruvananthapuram</option>
+                            <option value="Thrissur" {% if district == 'Thrissur' or current_district == 'Thrissur' %}selected{% endif %}>Thrissur</option>
+                            <option value="Wayanad" {% if district == 'Wayanad' or current_district == 'Wayanad' %}selected{% endif %}>Wayanad</option>
                         </select>
 
                         <button type="submit" class="sd-find-btn">
@@ -677,6 +677,9 @@
                                                 data-worker-name="${escapeHtml(worker.worker_name || 'Worker')}"
                                                 data-worker-district="${escapeHtml(worker.district || district)}"
                                                 data-worker-image="${escapeHtml(worker.worker_image || '')}"
+                                                data-worker-start-time="${escapeHtml(worker.work_start_time || '09:00')}"
+                                                data-worker-end-time="${escapeHtml(worker.work_end_time || '18:00')}"
+                                                data-worker-working-hours="${escapeHtml(worker.working_hours || '9:00 AM - 6:00 PM')}"
                                                 data-service-id="{{ service.id }}"
                                                 data-service-name="${escapeHtml(currentServiceName)}"
                                                 onclick="openBookingModal(this)">
