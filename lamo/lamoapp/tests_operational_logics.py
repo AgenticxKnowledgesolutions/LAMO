@@ -2,7 +2,7 @@ from datetime import time, timedelta
 from decimal import Decimal
 from django.test import TestCase, Client
 from django.utils import timezone
-from lamoapp.models import CustomUser, Service, WorkerProfile, Booking, WorkerLeave, Complaint
+from lamoapp.models import CustomUser, Service, WorkerProfile, Booking, WorkerLeave, Complaint, WorkerWallet
 from lamoapp.views import compute_booking_window, _validate_location_in_district
 
 
@@ -274,6 +274,9 @@ class OperationalLogicsTests(TestCase):
             work_status='AVAILABLE',
             experience_years=5,
         )
+        # A reassigned booking must go to a worker who could accept it normally,
+        # which includes having enough prepaid wallet balance for the commission.
+        WorkerWallet.objects.create(worker=worker2, balance=Decimal('1000.00'))
 
         expired_booking = Booking.objects.create(
             customer=self.user,

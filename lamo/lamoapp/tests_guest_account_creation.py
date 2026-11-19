@@ -44,6 +44,9 @@ class GuestAccountCreationFlowTests(TestCase):
             is_verified=True,
             address="Wood Street, Kollam",
         )
+        # Prepaid commission model: bookable workers have a funded wallet.
+        from .models import WorkerWallet
+        WorkerWallet.objects.create(worker=self.worker, balance=Decimal('1000.00'))
 
         # Existing verified customer
         self.existing_customer = _make_user("sneha_customer", role="USER")
@@ -462,10 +465,11 @@ class GuestAccountCreationFlowTests(TestCase):
         self.assertEqual(resp_reg_get.status_code, 200)
 
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from .test_upload_fixtures import VALID_PDF
         proof_doc = SimpleUploadedFile(
-            "id_proof.jpg",
-            b"\xFF\xD8\xFF\xE0\x00\x10JFIF" + b"\x00" * 30,
-            content_type="image/jpeg",
+            "id_proof.pdf",
+            VALID_PDF,
+            content_type="application/pdf",
         )
 
         # Worker registration POST with all required fields
@@ -501,11 +505,9 @@ class GuestAccountCreationFlowTests(TestCase):
         self.assertEqual(wprofile.service, self.service)
         self.assertEqual(wprofile.district, "Kollam")
 
-        # Worker login redirects to worker dashboard
+        # Worker login redirects to worker dashboard (Policy B3: OTP sign-in)
         self.worker_user.is_email_verified = True
         self.worker_user.save()
-        resp_login = self.client.post(reverse("login"), {
-            "username": self.worker_user.username,
-            "password": "Password123!",
-        })
-        self.assertRedirects(resp_login, reverse("worker_dashboard"))
+        self.client.force_login(self.worker_user)
+        resp_dash = self.client.get(reverse("worker_dashboard"))
+        self.assertEqual(resp_dash.status_code, 200)

@@ -44,6 +44,11 @@ class HandshakeAndLeadTimeTest(TestCase):
             is_verified=True,
             work_status='AVAILABLE'
         )
+        # Prepaid commission model: a bookable worker must be able to pay the
+        # acceptance commission (verified workers get a launch period or a
+        # funded wallet in real use).
+        from lamoapp.models import WorkerWallet
+        WorkerWallet.objects.create(worker=self.worker_profile, balance=Decimal('500.00'))
 
     def test_booking_generates_badge_code_and_arrival_otp(self):
         booking = Booking.objects.create(

@@ -70,18 +70,25 @@ class SmartSchedulingEngineTest(TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['busy_count'], 1)
 
-        # 10:00 AM - 12:00 PM must be marked busy
-        slot_10_12 = next((s for s in data['slots'] if s['slot'] == '10:00 AM - 12:00 PM'), None)
-        self.assertIsNotNone(slot_10_12)
-        self.assertFalse(slot_10_12['available'])
-        self.assertEqual(slot_10_12['status'], 'busy')
+        # 10:00 AM slot within booked 10:00 AM - 12:00 PM range must be marked busy
+        slot_10 = next((s for s in data['slots'] if s['slot'].startswith('10:00 AM')), None)
+        self.assertIsNotNone(slot_10)
+        self.assertFalse(slot_10['available'])
+        self.assertEqual(slot_10['status'], 'busy')
 
-        # 2:00 PM - 4:00 PM must be available
-        slot_2_4 = next((s for s in data['slots'] if s['slot'] == '2:00 PM - 4:00 PM'), None)
-        self.assertIsNotNone(slot_2_4)
-        self.assertTrue(slot_2_4['available'])
+        # 2:00 PM slot must be available
+        slot_2 = next((s for s in data['slots'] if s['slot'].startswith('2:00 PM')), None)
+        self.assertIsNotNone(slot_2)
+        self.assertTrue(slot_2['available'])
 
     def test_pillar2_worker_propose_reschedule_flow(self):
+        # Accepting a counter-offer on a PENDING request confirms the job, so
+        # (prepaid commission model) the worker's wallet must cover the fee.
+        from lamoapp.models import WorkerWallet
+        WorkerWallet.objects.update_or_create(
+            worker=self.worker_profile, defaults={'balance': Decimal('500.00')}
+        )
+
         # Customer books for tomorrow 10 AM
         tomorrow = date.today() + timedelta(days=1)
         booking = Booking.objects.create(

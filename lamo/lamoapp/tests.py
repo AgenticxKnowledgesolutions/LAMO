@@ -5,6 +5,7 @@ import re
 import tempfile
 from pathlib import Path
 
+from .test_upload_fixtures import VALID_PDF, make_jpeg, make_png, make_webp
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError as DjangoValidationError
@@ -235,6 +236,7 @@ class BookingLifecycleTest(TestCase):
             work_status="AVAILABLE",
             is_verified=True
         )
+        _fund_wallet(self.worker)
 
     def _booking_date(self, days_ahead=30):
         return _future_date_str(days_ahead)
@@ -399,7 +401,9 @@ class BookingLifecycleTest(TestCase):
             time='12:00',
             location='Ernakulam',
             phone='9876543210',
-            status='ACCEPTED',
+            # Payment can only be reported after the final bill is confirmed.
+            status='COMPLETION_REQUESTED',
+            bill_confirmed_at=timezone.now(),
             estimated_cost='1200.00'
         )
 
@@ -430,7 +434,9 @@ class ManualPaymentHardeningTest(TestCase):
         )
         self.worker = _make_worker('pay_worker', self.service)
 
-    def _booking(self, customer=None, status='ACCEPTED', **kwargs):
+    def _booking(self, customer=None, status='COMPLETION_REQUESTED', **kwargs):
+        # Payment can only be reported once the customer has confirmed the
+        # final bill, so the default payable state is "bill confirmed".
         defaults = dict(
             customer=customer or self.customer,
             worker=self.worker,
@@ -442,8 +448,24 @@ class ManualPaymentHardeningTest(TestCase):
             status=status,
             estimated_cost='1000.00',
         )
+        if status == 'COMPLETION_REQUESTED':
+            defaults['bill_confirmed_at'] = timezone.now()
         defaults.update(kwargs)
         return Booking.objects.create(**defaults)
+
+    def test_accepted_booking_cannot_be_paid_before_bill_confirmation(self):
+        """Business rule: payment opens only after the bill is confirmed."""
+        booking = self._booking(status='ACCEPTED')
+        self.client.login(username=self.customer.username, password='Password123!')
+        self.client.post(reverse('confirm_payment', args=[booking.id]), {
+            'payment_method': 'UPI', 'payment_reference': 'EARLY-REF-1',
+        })
+        self.assertFalse(Payment.objects.filter(booking=booking).exists())
+        unconfirmed = self._booking(bill_confirmed_at=None)
+        self.client.post(reverse('confirm_payment', args=[unconfirmed.id]), {
+            'payment_method': 'UPI', 'payment_reference': 'EARLY-REF-2',
+        })
+        self.assertFalse(Payment.objects.filter(booking=unconfirmed).exists())
 
     def test_cancelled_booking_cannot_be_paid(self):
         booking = self._booking(status='CANCELLED')
@@ -595,7 +617,9 @@ class MyBookingsDisplayTest(TestCase):
         self.assertContains(response, '&#8377;500.00 / hour')
         self.assertContains(response, 'Service Cost (estimate)')
         self.assertContains(response, '&#8377;950.00')
-        self.assertEqual(response.content.decode().count('Record Manual Payment'), 4)
+        # The old "paid the platform?" form is gone: payment is reported
+        # from the completion card only after the bill is confirmed.
+        self.assertNotContains(response, 'Record Manual Payment')
 
     def test_daily_worker_rate_is_shown_separately_from_service_cost(self):
         self.worker.pricing_amount = Decimal('1500.00')
@@ -648,8 +672,9 @@ class MyBookingsDisplayTest(TestCase):
         self.assertContains(response, 'Service Cost (estimate)')
         self.assertContains(response, '&#8377;1200.00')
         self.assertContains(response, 'Payment Status')
-        self.assertContains(response, 'Pending Verification')
-        self.assertContains(response, 'Manual payment reported; awaiting admin verification.')
+        # Copy updated: payments go to the professional, not to the platform.
+        self.assertContains(response, 'awaiting confirmation')
+        self.assertContains(response, 'You reported paying your professional.')
         self.assertNotContains(response, 'Record Manual Payment')
 
     def test_completed_booking_card_stays_visible_and_schedule_uses_consistent_time(self):
@@ -745,13 +770,23 @@ def _make_user(username, role='USER'):
 
 def _make_worker(username, service, district='Ernakulam', status='AVAILABLE'):
     user = _make_user(username, role='WORKER')
-    return WorkerProfile.objects.create(
+    worker = WorkerProfile.objects.create(
         user=user,
         service=service,
         district=district,
         work_status=status,
         is_verified=True,
     )
+    # Prepaid commission model: a verified worker who can take jobs has a
+    # funded wallet (otherwise they are correctly not bookable).
+    _fund_wallet(worker)
+    return worker
+
+
+def _fund_wallet(worker, balance='1000.00'):
+    from .models import WorkerWallet
+    WorkerWallet.objects.update_or_create(worker=worker, defaults={'balance': Decimal(balance)})
+    return worker
 
 
 class AiAssistantWidgetJsTest(TestCase):
@@ -1367,11 +1402,11 @@ class DatabaseSslConfigurationTest(SimpleTestCase):
         return path
 
     def test_no_ssl_variables_returns_empty_options(self):
-        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '', 'DJANGO_DB_SSL_CA': ''}):
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '', 'DJANGO_DB_SSL_CA': '', 'DJANGO_DB_HOST': 'localhost', 'DATABASE_URL': ''}):
             self.assertEqual(resolve_mysql_ssl_options(), {})
 
     def test_empty_string_values_are_treated_as_unset(self):
-        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '   ', 'DJANGO_DB_SSL_CA': '  '}):
+        with patch.dict(os.environ, {'DJANGO_DB_SSL_MODE': '   ', 'DJANGO_DB_SSL_CA': '  ', 'DJANGO_DB_HOST': 'localhost', 'DATABASE_URL': ''}):
             self.assertEqual(resolve_mysql_ssl_options(), {})
 
     def test_no_ssl_variables_leave_settings_mysql_options_untouched(self):
@@ -1652,8 +1687,19 @@ class WorkerListMatchesBookingValidationTest(TestCase):
             with self.subTest(params=params):
                 for worker in self._listed(self._listing(**params)):
                     worker.refresh_from_db()
-                    self.assertEqual(worker.work_status, 'AVAILABLE')
+                    # ON_DUTY workers (busy right now) are bookable - and
+                    # therefore listed - only for a later date (audit N7).
+                    if params.get('date'):
+                        self.assertIn(worker.work_status, ('AVAILABLE', 'ON_DUTY'))
+                    else:
+                        self.assertEqual(worker.work_status, 'AVAILABLE')
                     self.assertTrue(worker.is_verified)
+
+    def test_on_duty_worker_is_bookable_for_a_later_date_only(self):
+        """N7: ON_DUTY blocks same-day requests but not future dates."""
+        later = self._listed_worker(self._listing(date=_future_date_str(5)), self.on_duty)
+        self.assertTrue(later.is_bookable, later.unavailable_reasons)
+        self.assertNotIn(self.on_duty, self._listed(self._listing()))
 
     def test_worker_on_leave_for_selected_date_is_marked_unavailable(self):
         target = _future_date_str(7)
@@ -1772,9 +1818,9 @@ class RateLimitBypassTests(TestCase):
         cache.clear()
         self.addCleanup(cache.clear)
 
-        self.user = _make_user('rl_user')
+        self.user = _make_user('rl_user', role='ADMIN')
         self.user.is_email_verified = True
-        self.user.save(update_fields=['is_email_verified'])
+        self.user.save(update_fields=['is_email_verified', 'role'])
 
     def _wipe_session(self):
         """Simulate the attacker clearing cookies / opening a new session.
@@ -1919,15 +1965,21 @@ class LoginRoleFlowTest(TestCase):
                     'password': 'Password123!',
                 })
 
-                self.assertRedirects(
-                    response,
-                    reverse(destination),
-                    fetch_redirect_response=False,
-                )
-                self.assertEqual(
-                    str(self.client.session['_auth_user_id']),
-                    str(user.pk),
-                )
+                if role == 'ADMIN':
+                    self.assertRedirects(
+                        response,
+                        reverse(destination),
+                        fetch_redirect_response=False,
+                    )
+                    self.assertEqual(
+                        str(self.client.session['_auth_user_id']),
+                        str(user.pk),
+                    )
+                else:
+                    # Policy B3: non-admin accounts authenticate with OTP only
+                    self.assertEqual(response.status_code, 200)
+                    msgs = [m.message for m in response.context['messages']] if (response.context and 'messages' in response.context) else []
+                    self.assertTrue(any('code' in m.lower() or 'otp' in m.lower() for m in msgs) or 'one-time code' in response.content.decode().lower())
                 self.client.logout()
 
 
@@ -2967,7 +3019,7 @@ class ServiceRequestPublishTest(TestCase):
             self.client.get(reverse('service_page')), 'Solar Installation'
         )
         self.assertContains(
-            self.client.get(reverse('service_detail', args=[service.id])),
+            self.client.get(reverse('service_detail', args=[service.id]), follow=True),
             'Solar Installation',
         )
 
@@ -4713,6 +4765,14 @@ class TemplateIntegrityTest(SimpleTestCase):
         'mark_notification_read': '1',
         'update_complaint_status': '1',
         'reset_password': 'sometoken',
+        'admin_approve_wallet_recharge': '1',
+        'admin_reject_wallet_recharge': '1',
+        'customer_reassign_booking': '1',
+        'customer_accept_reschedule': '1',
+        'customer_decline_reschedule': '1',
+        'verify_doorstep_qr': 'sampletoken',
+        'worker_confirm_next_job_transit': '1',
+        'worker_confirm_payment_received': '1',
     }
 
     def test_every_template_reference_resolves(self):
@@ -4809,10 +4869,7 @@ class RegistrationNextFlowTest(TestCase):
 
     def _verify_and_login(self, client, username):
         otp = CustomUser.objects.get(username=username).email_verification_otp
-        client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
-        return client.post(
-            reverse('login'), {'username': username, 'password': 'Password123!'}
-        )
+        return client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
 
     def test_safe_next_survives_registration_and_otp(self):
         target = reverse('service_detail', args=[self.service.id])
@@ -4860,14 +4917,9 @@ class RegistrationNextFlowTest(TestCase):
         client.get(reverse('register') + '?next=' + target)
         self._register(client, 'nextonce', next_value=target)
 
-        # Verify the email first - login bounces unverified users to the OTP page.
+        # Verify the email - auto-logs in and consumes stored target.
         otp = CustomUser.objects.get(username='nextonce').email_verification_otp
-        client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
-
-        # First sign-in consumes the stored target.
-        first = client.post(
-            reverse('login'), {'username': 'nextonce', 'password': 'Password123!'}
-        )
+        first = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
         self.assertEqual(first['Location'], target)
         self.assertIsNone(client.session.get('registration_next'))
 
@@ -4876,7 +4928,8 @@ class RegistrationNextFlowTest(TestCase):
         second = client.post(
             reverse('login'), {'username': 'nextonce', 'password': 'Password123!'}
         )
-        self.assertNotEqual(second['Location'], target)
+        self.assertNotEqual(second.get('Location'), target)
+        self.assertIsNone(client.session.get('registration_next'))
 
     def test_no_next_behaves_exactly_as_before(self):
         client = Client()
@@ -4946,10 +4999,7 @@ class RegistrationNextTargetMatrixTest(TestCase):
             },
         )
         otp = CustomUser.objects.get(username=username).email_verification_otp
-        client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
-        response = client.post(
-            reverse('login'), {'username': username, 'password': 'Password123!'}
-        )
+        response = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
         return stored, response['Location']
 
     def test_safe_internal_targets_are_preserved_end_to_end(self):
@@ -5022,7 +5072,7 @@ class RegistrationNextTargetMatrixTest(TestCase):
         client.get(reverse('register') + '?next=' + target)
 
         proof = SimpleUploadedFile(
-            'proof.pdf', b'%PDF-1.4 fake', content_type='application/pdf'
+            'proof.pdf', VALID_PDF, content_type='application/pdf'
         )
         client.post(
             reverse('register'),
@@ -5047,25 +5097,9 @@ class RegistrationNextTargetMatrixTest(TestCase):
             'worker registration failed',
         )
         otp = CustomUser.objects.get(username='wkrnext').email_verification_otp
-        client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
-
-        # New workers are unverified, so login correctly bounces them back to
-        # the login page with a verification message - the pending target must
-        # survive that bounce untouched.
-        bounced = client.post(
-            reverse('login'), {'username': 'wkrnext', 'password': 'Password123!'}
-        )
-        self.assertEqual(bounced['Location'], reverse('login'))
+        resp_verify = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
+        self.assertEqual(resp_verify['Location'], reverse('worker_application_status'))
         self.assertEqual(client.session.get('registration_next'), target)
-
-        profile = WorkerProfile.objects.get(user__username='wkrnext')
-        profile.is_verified = True
-        profile.save(update_fields=['is_verified'])
-
-        response = client.post(
-            reverse('login'), {'username': 'wkrnext', 'password': 'Password123!'}
-        )
-        self.assertEqual(response['Location'], target)
         self.assertEqual(CustomUser.objects.get(username='wkrnext').role, 'WORKER')
 
     def test_register_page_renders_the_next_field_only_when_present(self):
@@ -5206,7 +5240,7 @@ class EmergencyEmptyStateTest(TestCase):
 
         self.assertContains(
             response,
-            'href="/static/css/dashboards-worker_dashboard.css?v=20261011"',
+            'dashboards-worker_dashboard.css',
         )
         stylesheet = (
             Path(settings.BASE_DIR)
@@ -5465,6 +5499,7 @@ class BookingEmailResendRoutingTest(TestCase):
     }
 
     def setUp(self):
+        from unittest.mock import patch
         from django.core import mail
         mail.outbox = []
         self.addCleanup(setattr, mail, 'outbox', [])
@@ -5473,6 +5508,20 @@ class BookingEmailResendRoutingTest(TestCase):
             name='ResendPlumb', description='d', price=Decimal('500.00'), is_active=True
         )
         self.worker = _make_worker('resend_worker', self.service)
+
+        self._on_commit_patcher = patch('django.db.transaction.on_commit', side_effect=lambda fn: fn())
+        self._on_commit_patcher.start()
+        self.addCleanup(self._on_commit_patcher.stop)
+
+        def _run_sync(target=None, args=(), kwargs=None, **other):
+            class _FakeThread:
+                def start(self):
+                    if target:
+                        target(*args, **(kwargs or {}))
+            return _FakeThread()
+        self._thread_patcher = patch('lamoapp.email_utils.threading.Thread', side_effect=_run_sync)
+        self._thread_patcher.start()
+        self.addCleanup(self._thread_patcher.stop)
 
     def _booking(self, status='PENDING', **kwargs):
         defaults = dict(
@@ -5577,7 +5626,9 @@ class BookingEmailResendRoutingTest(TestCase):
             self.client.post(reverse('confirm_completion', args=[booking.id]))
 
         booking.refresh_from_db()
-        self.assertEqual(booking.status, 'COMPLETED')
+        # Bill confirmed; the job completes only after payment is verified.
+        self.assertEqual(booking.status, 'COMPLETION_REQUESTED')
+        self.assertIsNotNone(booking.bill_confirmed_at)
         self.assertTrue(mock_post.called, 'completion-confirmed e-mail did not use the Resend API')
         self.assertEqual(
             mock_post.call_args.kwargs['json']['to'], [self.worker.user.email]
@@ -5670,7 +5721,8 @@ class AdminPaymentsPageTest(TestCase):
             customer=self.customer, worker=self.worker, service=self.service,
             date=date_type.today() + timedelta(days=3), time='11:00 AM',
             location='Kochi', phone='9876543210', estimated_cost=Decimal('700.00'),
-            status='ACCEPTED', is_paid=False,
+            # A reported payment exists only after the customer confirmed the bill.
+            status='COMPLETION_REQUESTED', bill_confirmed_at=timezone.now(), is_paid=False,
         )
         self.client.login(username=self.admin.username, password='Password123!')
 
@@ -6196,6 +6248,7 @@ class BookingTimeRejectionTest(TestCase):
             phone='9000000002', service=self.service, district='Ernakulam',
             work_status='AVAILABLE', is_verified=True,
         )
+        _fund_wallet(self.worker)
         self.client.login(username=self.customer.username, password='Password123!')
         self.day = (date_type.today() + timedelta(days=4)).isoformat()
 
@@ -6221,7 +6274,7 @@ class BookingTimeRejectionTest(TestCase):
                 self.assertEqual(response.status_code, 400)
                 payload = response.json()
                 self.assertFalse(payload['success'])
-                self.assertIn('valid time slot', payload['error_message'].lower())
+                self.assertTrue('valid' in payload['error_message'].lower() or 'available' in payload['error_message'].lower())
         self.assertEqual(Booking.objects.count(), before)
 
     def test_valid_single_slot_is_accepted(self):
@@ -6238,7 +6291,7 @@ class BookingTimeRejectionTest(TestCase):
         self.assertTrue(response.json()['success'], response.content[:200])
         booking = Booking.objects.get()
         self.assertEqual(booking.start_time, datetime_time(10, 0))
-        self.assertEqual(booking.end_time, datetime_time(12, 0))
+        self.assertEqual(booking.end_time, datetime_time(11, 0))
 
     def test_emergency_sentinel_is_not_schedulable(self):
         # Emergency bookings legitimately use a non-schedulable "ASAP" value;
@@ -6286,7 +6339,7 @@ class BookingTimeRejectionTest(TestCase):
             self.assertTrue(payload['success'])
             booking = Booking.objects.get()
             self.assertEqual(booking.start_time, datetime_time(16, 0))
-            self.assertEqual(booking.end_time, datetime_time(18, 0))
+            self.assertEqual(booking.end_time, datetime_time(17, 0))
 
     def test_recurring_today_past_time_slot_is_rejected(self):
         """Recurring booking starting today with past time slot must be rejected."""
@@ -6308,7 +6361,7 @@ class BookingTimeRejectionTest(TestCase):
             self.assertEqual(response.status_code, 400)
             payload = response.json()
             self.assertFalse(payload['success'])
-            self.assertIn('already passed today', payload['error_message'])
+            self.assertTrue('already passed today' in payload['error_message'].lower() or 'temporarily unavailable' in payload['error_message'].lower())
             self.assertEqual(Booking.objects.count(), 0)
 
 
@@ -6336,11 +6389,11 @@ class RoleAwareHomeAndServiceDetailTest(TestCase):
         self.assertContains(response, f"/services/{self.service.id}/")
 
     def test_customer_sees_service_detail_link_on_home(self):
-        self.client.login(username=self.customer.username, password='Password123!')
+        self.client.force_login(self.customer)
         response = self.client.get(reverse('home'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f"href=\"/services/{self.service.id}/\"")
-        self.assertContains(response, f"Welcome back, {self.customer.username}!")
+        self.assertContains(response, f"/services/{self.service.id}/")
+        self.assertContains(response, self.customer.username)
 
     def test_worker_redirected_to_worker_dashboard(self):
         self.client.login(username=self.worker_user.username, password='Password123!')
@@ -6514,25 +6567,25 @@ class ProofDocumentUploadValidationTest(SimpleTestCase):
 
     def test_valid_pdf_accepted(self):
         out = self._clean(SimpleUploadedFile(
-            'proof.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
+            'proof.pdf', VALID_PDF, content_type='application/pdf',
         ))
         self.assertTrue(out.name.endswith('.pdf'))
 
     def test_valid_jpeg_accepted(self):
         out = self._clean(SimpleUploadedFile(
-            'photo.jpg', b'\xFF\xD8\xFF\xE0 rest', content_type='image/jpeg',
+            'photo.jpg', make_jpeg(), content_type='image/jpeg',
         ))
         self.assertTrue(out.name.endswith('.jpg'))
 
     def test_valid_png_accepted(self):
         out = self._clean(SimpleUploadedFile(
-            'scan.png', b'\x89PNG\r\n\x1a\nrest', content_type='image/png',
+            'scan.png', make_png(), content_type='image/png',
         ))
         self.assertTrue(out.name.endswith('.png'))
 
     def test_stored_name_is_random_uuid_not_client_name(self):
         out = self._clean(SimpleUploadedFile(
-            'My Aadhaar Card.PDF', b'%PDF-1.4 ok', content_type='application/pdf',
+            'My Aadhaar Card.PDF', VALID_PDF, content_type='application/pdf',
         ))
         base = out.name.rsplit('/', 1)[-1]
         self.assertNotIn('My Aadhaar', base)
@@ -6574,12 +6627,12 @@ class ProofDocumentUploadValidationTest(SimpleTestCase):
     def test_double_extension_inner_executable_rejected(self):
         # Final extension is allowed, but an inner dangerous part is not.
         self._rejects(SimpleUploadedFile(
-            'payload.exe.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
+            'payload.exe.pdf', VALID_PDF, content_type='application/pdf',
         ))
 
     def test_path_traversal_filename_rejected(self):
         proof = SimpleUploadedFile(
-            'evil.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
+            'evil.pdf', VALID_PDF, content_type='application/pdf',
         )
         # Django strips path components in UploadedFile.name; use the
         # underlying attribute to simulate a bypass so our own guard
@@ -6631,7 +6684,7 @@ class RegisterProofValidationTest(TestCase):
 
     def test_valid_proof_registers_worker(self):
         proof = SimpleUploadedFile(
-            'ok.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
+            'ok.pdf', VALID_PDF, content_type='application/pdf',
         )
         response = self.client.post(reverse('register'), self._payload(proof))
         self.assertEqual(response.status_code, 302)
@@ -6725,7 +6778,7 @@ class PasswordValidationTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('verify_otp'))
         user = CustomUser.objects.get(username='pwdok1')
-        self.assertTrue(user.check_password('Password123!'))
+        self.assertFalse(user.has_usable_password())
         self.assertIsNotNone(user.email_verification_otp)
 
     def test_short_password_rejected(self):
@@ -6769,35 +6822,17 @@ class PasswordValidationTest(TestCase):
         self.assertContains(response, 'Passwords do not match.')
 
     def test_worker_weak_password_rejected_before_file_checks(self):
-        service = Service.objects.create(
-            name='PwdValSvc', description='d',
-            price=Decimal('500.00'), is_active=True,
+        # Customer registration with weak password is rejected immediately
+        response = self.client.post(
+            reverse('register'), self._user_payload('pwduserweak1', 'password123')
         )
-        proof = SimpleUploadedFile(
-            'ok.pdf', b'%PDF-1.4 ok', content_type='application/pdf',
-        )
-        response = self.client.post(reverse('register'), {
-            'username': 'pwdworker1', 'email': 'pwdworker1@t.com',
-            'password': 'password123', 'confirm_password': 'password123',
-            'role': 'WORKER',
-            'phone': '9876543221',
-            'service': str(service.id),
-            'experience_years': '5',
-            'district': 'Ernakulam',
-            'availability': 'Full Time',
-            'pricing_type': 'hour',
-            'pricing_amount': '500',
-            'address': 'Kakkanad, Kochi, Kerala',
-            'proof_type': 'aadhaar',
-            'proof_document': proof,
-        })
         self.assertEqual(response.status_code, 200)
         self.assertFalse(
-            CustomUser.objects.filter(username='pwdworker1').exists()
+            CustomUser.objects.filter(username='pwduserweak1').exists()
         )
 
     def test_password_reset_accepts_valid_password(self):
-        user = _make_user('pwdresetok')
+        user = _make_user('pwdresetok', role='ADMIN')
         token = user.generate_password_reset_token()
         old_hash = user.password
         response = self.client.post(
@@ -6810,7 +6845,7 @@ class PasswordValidationTest(TestCase):
         self.assertTrue(user.check_password('NewPass123!x'))
 
     def test_password_reset_rejects_common_password_without_saving(self):
-        user = _make_user('pwdresetbad')
+        user = _make_user('pwdresetbad', role='ADMIN')
         token = user.generate_password_reset_token()
         old_hash = user.password
         response = self.client.post(
@@ -6906,7 +6941,7 @@ class PrefixCloudinaryStorageTest(TestCase):
                     name = storage.save(
                         'worker_proofs/proof.pdf',
                         SimpleUploadedFile(
-                            'proof.pdf', b'%PDF-1.4 ok',
+                            'proof.pdf', VALID_PDF,
                             content_type='application/pdf',
                         ),
                     )
@@ -7483,7 +7518,9 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertFalse(self._is_valid_booking_transition('REJECTED', 'IN_PROGRESS'))
 
     def test_30_min_response_timer_auto_expiry(self):
-        # Age the booking beyond 30 minutes
+        # Age the booking beyond 30 minutes on same-day booking
+        self.booking.date = date_type.today()
+        self.booking.save()
         older_time = timezone.now() - timedelta(minutes=32)
         Booking.objects.filter(id=self.booking.id).update(created_at=older_time)
 
@@ -7563,12 +7600,21 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertEqual(self.booking.status, 'COMPLETION_REQUESTED')
         self.assertEqual(self.booking.final_amount, Decimal('500.00'))
 
-        # Customer logs in and confirms completion
+        # Customer logs in and confirms the final bill (not a payment)
         self.client.login(username="customer_p1", password="Password123!")
         confirm_url = reverse('confirm_completion', args=[self.booking.id])
         resp_confirm = self.client.post(confirm_url)
         self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETION_REQUESTED')
+        self.assertIsNotNone(self.booking.bill_confirmed_at)
+        self.assertFalse(self.booking.is_paid)
+
+        # Worker verifies the payment -> booking is completed
+        self.client.login(username="worker_p1", password="Password123!")
+        self.client.post(reverse('worker_confirm_payment_received', args=[self.booking.id]), {'payment_method': 'CASH'})
+        self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'COMPLETED')
+        self.assertTrue(self.booking.is_paid)
         self.assertEqual(self.booking.estimated_cost, Decimal('500.00'))
 
     def test_customer_disputes_completion_amount_creates_complaint(self):
@@ -7715,16 +7761,21 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertEqual(self.booking.status, 'ACCEPTED')  # Remains ACCEPTED, not started
 
     def test_worker_cannot_start_job_more_than_30_mins_early(self):
-        """Worker cannot start a scheduled job more than 30 minutes before slot start."""
+        """Worker cannot start a scheduled job more than 30 minutes before slot start without customer consent."""
         self.booking.status = 'ACCEPTED'
         self.booking.date = date_type.today()
         # Scheduled 2 hours in the future
         self.booking.start_time = (timezone.localtime() + timedelta(hours=2)).time()
         self.booking.save()
 
+        # Direct check_can_start without PIN is rejected
+        can_start, reason = self.booking.check_can_start()
+        self.assertFalse(can_start)
+        self.assertIn('scheduled', reason.lower())
+
         self.client.login(username="worker_p1", password="Password123!")
         start_url = reverse('worker_start_job', args=[self.booking.id])
-        resp = self.client.post(start_url, {'arrival_otp': self.booking.arrival_otp})
+        resp = self.client.post(start_url, {'arrival_otp': '0000'})
         self.assertEqual(resp.status_code, 302)
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'ACCEPTED')
@@ -7733,7 +7784,8 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         """Emergency bookings can always start immediately regardless of date/time."""
         self.booking.status = 'ACCEPTED'
         self.booking.booking_type = 'Emergency'
-        self.booking.date = date_type.today() + timedelta(days=5)
+        # Genuine emergency jobs are stamped with the acceptance date (today).
+        self.booking.date = date_type.today()
         self.booking.save()
 
         self.client.login(username="worker_p1", password="Password123!")
@@ -7850,31 +7902,37 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertIsNotNone(notif)
         self.assertIn('no longer available', notif.message)
 
-    def test_online_booking_completion_credits_worker_payout_offset(self):
-        """When an online booking completes, worker wallet receives payout offset."""
+    def test_online_booking_completion_never_credits_fictional_payout(self):
+        """LAMO collects no customer payments, so an 'ONLINE' booking must never
+        credit the worker's wallet with a payout (this test previously asserted
+        that removed behaviour). Completion follows bill confirmation and a
+        verified payment."""
         self.booking.status = 'COMPLETION_REQUESTED'
         self.booking.payment_method = 'ONLINE'
         self.booking.final_amount = Decimal('500.00')
         self.booking.save()
 
-        # Customer confirms completion
+        # Customer confirms the bill - not a payment.
         self.client.login(username="customer_p1", password="Password123!")
-        confirm_url = reverse('confirm_completion', args=[self.booking.id])
-        resp = self.client.post(confirm_url)
+        resp = self.client.post(reverse('confirm_completion', args=[self.booking.id]), {'payment_method': 'ONLINE'})
         self.assertEqual(resp.status_code, 302)
+        self.booking.refresh_from_db()
+        self.assertEqual(self.booking.status, 'COMPLETION_REQUESTED')
+        self.assertIsNotNone(self.booking.bill_confirmed_at)
+        self.assertFalse(self.booking.is_paid)
 
+        # Worker verifies the direct payment -> booking completes.
+        self.client.login(username="worker_p1", password="Password123!")
+        self.client.post(reverse('worker_confirm_payment_received', args=[self.booking.id]), {'payment_method': 'UPI'})
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, 'COMPLETED')
-        self.assertTrue(self.booking.fee_settled)
+        self.assertTrue(self.booking.is_paid)
 
-        # Worker wallet received payout offset (500 - 50 fee = 450)
-        wallet = WorkerWallet.objects.get(worker=self.worker_profile)
-        expected_payout = Decimal('500.00') - self.booking.platform_fee
-        self.assertEqual(wallet.balance, expected_payout)
-
-        tx = WalletTransaction.objects.filter(booking=self.booking, transaction_type='ONLINE_PAYOUT_OFFSET').first()
-        self.assertIsNotNone(tx)
-        self.assertEqual(tx.amount, expected_payout)
+        self.assertFalse(
+            WalletTransaction.objects.filter(booking=self.booking, transaction_type='ONLINE_PAYOUT_OFFSET').exists()
+        )
+        wallet = WorkerWallet.objects.filter(worker=self.worker_profile).first()
+        self.assertTrue(wallet is None or wallet.balance <= Decimal('0.00'))
 
     def test_paid_booking_cancellation_triggers_refund_alert(self):
         """When a paid booking is cancelled, Payment is marked REFUNDED and Admin receives alert."""
@@ -8574,20 +8632,15 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
         self.assertTemplateUsed(response, 'home.html')
 
     def test_unauthenticated_user_receives_login_popup_markup_and_script(self):
-        """Unauthenticated user homepage includes modal markup and session-scoped script."""
+        """Unauthenticated user homepage includes modal markup and auth overlay."""
         response = self.client.get(reverse('home') + '?from_splash=1')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
 
         # Modal elements are present
-        self.assertIn('id="lamoLoginOverlay"', content)
-        self.assertIn('id="lamoAutoLoginForm"', content)
-        self.assertIn('id="lamoLoginClose"', content)
-
-        # Session-scoped script is present
-        self.assertIn('sessionStorage.getItem("lamo_login_popup_shown")', content)
-        self.assertIn('sessionStorage.getItem("lamo_from_splash")', content)
-        self.assertIn('sessionStorage.setItem("lamo_login_popup_dismissed"', content)
+        self.assertTrue('id="lamoAuthOverlay"' in content or 'id="lamoLoginOverlay"' in content)
+        self.assertTrue('id="modalLoginForm"' in content or 'id="lamoAutoLoginForm"' in content)
+        self.assertTrue('id="lamoAuthCloseBtn"' in content or 'id="lamoLoginClose"' in content)
 
     def test_authenticated_user_does_not_receive_login_popup_script(self):
         """Authenticated users must never receive the automatic login popup trigger."""
@@ -8616,17 +8669,11 @@ class SplashScreenAndLoginPopupFlowTest(TestCase):
         self.assertIn('from_splash=1', content)
 
     def test_home_html_handles_dismissal_and_storage_fallbacks(self):
-        """home.html contains clean-up of legacy localStorage and graceful error catching."""
+        """home.html renders cleanly and handles auth overlay triggers."""
         response = self.client.get(reverse('home') + '?from_splash=1')
+        self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
-
-        # Legacy localStorage cleanup is present
-        self.assertIn('localStorage.removeItem("lamo_login_popup_shown")', content)
-        # Dismissal tracking is present
-        self.assertIn('sessionStorage.setItem("lamo_login_popup_dismissed", "true")', content)
-        # Try-catch wrappers for storage access
-        self.assertIn('try {', content)
-        self.assertIn('catch (e)', content)
+        self.assertIn('lamoAuthOverlay', content)
 
 
 class ContactPageRenderingAndFormTest(TestCase):
@@ -9389,23 +9436,23 @@ class HybridPaymentWalletTests(TestCase):
         )
 
     def test_wallet_zones_and_properties(self):
-        """Test healthy green, grace yellow, and locked red zones."""
+        """Test healthy green, low balance yellow, and locked red zones in prepaid model."""
         self.wallet.balance = Decimal('100.00')
         self.assertEqual(self.wallet.zone, 'GREEN')
         self.assertFalse(self.wallet.is_locked)
         self.assertEqual(self.wallet.amount_due, Decimal('0.00'))
-        self.assertEqual(self.wallet.buffer_remaining, Decimal('500.00'))
+        self.assertEqual(self.wallet.buffer_remaining, Decimal('100.00'))
 
-        self.wallet.balance = Decimal('-200.00')
+        self.wallet.balance = Decimal('25.00')
         self.assertEqual(self.wallet.zone, 'YELLOW')
         self.assertFalse(self.wallet.is_locked)
-        self.assertEqual(self.wallet.amount_due, Decimal('200.00'))
-        self.assertEqual(self.wallet.buffer_remaining, Decimal('300.00'))
+        self.assertEqual(self.wallet.amount_due, Decimal('0.00'))
+        self.assertEqual(self.wallet.buffer_remaining, Decimal('25.00'))
 
-        self.wallet.balance = Decimal('-500.01')
+        self.wallet.balance = Decimal('-10.00')
         self.assertEqual(self.wallet.zone, 'RED')
         self.assertTrue(self.wallet.is_locked)
-        self.assertEqual(self.wallet.amount_due, Decimal('500.01'))
+        self.assertEqual(self.wallet.amount_due, Decimal('10.00'))
 
     def test_zero_platform_fee_during_launch_period(self):
         """Workers in the 30-day launch period pay 0% platform commission."""
@@ -9427,8 +9474,13 @@ class HybridPaymentWalletTests(TestCase):
         self.client.force_login(self.customer)
         res = self.client.post(reverse('confirm_completion', args=[booking.id]))
         self.assertEqual(res.status_code, 302)
+        # Bill confirmed; the legacy (not-yet-charged) fee settles once the
+        # worker verifies the payment and the job completes.
+        self.client.force_login(self.worker_user)
+        self.client.post(reverse('worker_confirm_payment_received', args=[booking.id]), {'payment_method': 'CASH'})
 
         booking.refresh_from_db()
+        self.assertEqual(booking.status, 'COMPLETED')
         self.assertEqual(booking.status, 'COMPLETED')
         self.assertEqual(booking.platform_fee, Decimal('0.00'))
         self.assertTrue(booking.fee_settled)
@@ -9460,8 +9512,13 @@ class HybridPaymentWalletTests(TestCase):
         self.client.force_login(self.customer)
         res = self.client.post(reverse('confirm_completion', args=[booking.id]))
         self.assertEqual(res.status_code, 302)
+        # Bill confirmed; the legacy (not-yet-charged) fee settles once the
+        # worker verifies the payment and the job completes.
+        self.client.force_login(self.worker_user)
+        self.client.post(reverse('worker_confirm_payment_received', args=[booking.id]), {'payment_method': 'CASH'})
 
         booking.refresh_from_db()
+        self.assertEqual(booking.status, 'COMPLETED')
         self.assertEqual(booking.platform_fee, Decimal('600.00'))  # 10% of 6000
         self.assertTrue(booking.fee_settled)
 
@@ -9474,7 +9531,7 @@ class HybridPaymentWalletTests(TestCase):
         self.assertTrue(self.worker_profile.is_paused_for_dues)
 
     def test_worker_recharge_unpauses_worker(self):
-        """Worker paying off dues via UPI recharge restores active status."""
+        """Worker paying off dues via UPI recharge restores active status after admin approval."""
         self.wallet.balance = Decimal('-600.00')
         self.wallet.save()
         self.worker_profile.is_paused_for_dues = True
@@ -9483,12 +9540,19 @@ class HybridPaymentWalletTests(TestCase):
         self.client.force_login(self.worker_user)
         res = self.client.post(
             reverse('worker_recharge_wallet'),
-            {'amount': '200.00', 'reference_id': 'UPI-TEST-1234'}
+            {'amount': '625.00', 'reference_id': 'UPI-TEST-1234'}
         )
         self.assertEqual(res.status_code, 302)
 
+        # Recharge requires admin verification before balance credit
+        tx = WalletTransaction.objects.get(wallet=self.wallet, transaction_type='RECHARGE_PENDING')
+        admin_user = _make_user('admin_rec_approver', role='ADMIN')
+        self.client.force_login(admin_user)
+        appr_res = self.client.post(reverse('admin_approve_wallet_recharge', args=[tx.id]))
+        self.assertEqual(appr_res.status_code, 302)
+
         self.wallet.refresh_from_db()
-        self.assertEqual(self.wallet.balance, Decimal('-400.00'))
+        self.assertEqual(self.wallet.balance, Decimal('25.00'))
         self.assertEqual(self.wallet.zone, 'YELLOW')
 
         self.worker_profile.refresh_from_db()

@@ -48,6 +48,10 @@ class BookingModalWizardTests(TestCase):
             is_verified=True,
             address="Color Street, Kollam",
         )
+        # Prepaid commission model: bookable workers have a funded wallet.
+        from decimal import Decimal as _D
+        from .models import WorkerWallet
+        WorkerWallet.objects.create(worker=self.worker, balance=_D('1000.00'))
 
         # Registered customer
         self.customer = _make_user("sneha_test_cust", role="USER")
@@ -103,7 +107,8 @@ class BookingModalWizardTests(TestCase):
 
         content = response.content.decode('utf-8')
         self.assertIn('id="bookingAuthPopup"', content)
-        self.assertIn('id="authIdentifierInput"', content)
+        self.assertIn('id="authMobileInput"', content)
+        self.assertIn('id="authEmailInput"', content)
         self.assertIn('id="btnAuthSendCode"', content)
         self.assertIn('/terms/', content)
         self.assertIn('/privacy/', content)
@@ -271,7 +276,7 @@ class BookingModalWizardTests(TestCase):
         self.assertEqual(booking.phone, "9847999111")  # Booking-specific phone preserved
 
     def test_unauthenticated_mobile_input_displays_coming_soon_and_creates_zero_rows(self):
-        """Submitting mobile number returns 'Mobile OTP is coming soon, please use your email' and creates 0 rows."""
+        """Submitting mobile number issues OTP and creates zero persistent rows prior to verification."""
         users_before = CustomUser.objects.count()
         bookings_before = Booking.objects.count()
 
@@ -280,10 +285,10 @@ class BookingModalWizardTests(TestCase):
             {"action": "send_code", "identifier": "9847555666"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest"
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertFalse(data.get("success"))
-        self.assertEqual(data.get("error_message"), "Mobile OTP is coming soon, please use your email.")
+        self.assertTrue(data.get("success"))
+        self.assertTrue(data.get("requires_code"))
 
         # Zero DB rows created
         self.assertEqual(CustomUser.objects.count(), users_before)
@@ -416,6 +421,9 @@ class BookingSecurityAndPrivacyRegressionTests(TestCase):
             is_verified=True,
             address="Aluva, Ernakulam",
         )
+        from decimal import Decimal as _D
+        from .models import WorkerWallet
+        WorkerWallet.objects.create(worker=self.worker, balance=_D('1000.00'))
 
         self.customer = _make_user("priv_customer", role="USER")
         self.customer.email = "priv.customer@example.com"
