@@ -1897,20 +1897,17 @@
           hasError = true;
         }
 
-        if (!pass) {
-          passErr.textContent = 'Password is required.';
-          passErr.classList.add('show');
-          hasError = true;
-        } else if (pass.length < 8) {
-          passErr.textContent = 'Password must contain at least 8 characters.';
-          passErr.classList.add('show');
-          hasError = true;
-        }
-
-        if (pass !== confirmPass) {
-          confirmErr.textContent = 'Passwords do not match.';
-          confirmErr.classList.add('show');
-          hasError = true;
+        if (pass) {
+          if (pass.length < 8) {
+            passErr.textContent = 'Password must contain at least 8 characters.';
+            passErr.classList.add('show');
+            hasError = true;
+          }
+          if (pass !== confirmPass) {
+            confirmErr.textContent = 'Passwords do not match.';
+            confirmErr.classList.add('show');
+            hasError = true;
+          }
         }
 
         if (hasError) return;

@@ -168,6 +168,65 @@
                 </div>
 
 
+                <!-- PRICE (rendered so editing a service never blanks its price) -->
+
+                <div class="field-group">
+
+                    <label
+                        for="{{ form.price.id_for_label }}"
+                        class="field-label"
+                    >
+                        <span style="color:var(--dark);font-size:12px;font-weight:800;">
+                            Starting price (₹)
+                        </span>
+
+                        <span>Used for booking estimates</span>
+                    </label>
+
+                    {{ form.price }}
+
+                    {% if form.price.errors %}
+                        <div class="error-message">
+                            {{ form.price.errors }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+
+                <!-- PLATFORM COMMISSION -->
+
+                <div class="field-group">
+
+                    <label
+                        for="{{ form.commission_type.id_for_label }}"
+                        class="field-label"
+                    >
+                        <span style="color:var(--dark);font-size:12px;font-weight:800;">
+                            Platform commission
+                        </span>
+
+                        <span>Charged from the worker's wallet on acceptance</span>
+                    </label>
+
+                    {{ form.commission_type }}
+
+                    <label for="{{ form.commission_value.id_for_label }}" class="visually-hidden">Commission value</label>
+                    <div style="margin-top:8px;">{{ form.commission_value }}</div>
+
+                    <small class="field-help">
+                        Platform default is 10% of labour (minimum ₹15). Choose a percentage or a fixed amount to override it for this service.
+                    </small>
+
+                    {% if form.commission_type.errors or form.commission_value.errors %}
+                        <div class="error-message">
+                            {{ form.commission_type.errors }}{{ form.commission_value.errors }}
+                        </div>
+                    {% endif %}
+
+                </div>
+
+
                 <!-- IMAGE + ICON -->
 
                 <div class="field-grid">

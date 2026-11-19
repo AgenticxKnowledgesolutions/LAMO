@@ -1,7 +1,12 @@
 from django.urls import path
+from django.views.generic import RedirectView
+from django.templatetags.static import static as _static_url
 from . import views
 
 urlpatterns = [
+    # Health check for Render / Container orchestrators
+    path('health/', views.health_check, name='health_check'),
+
     # General / Dashboard
     path('', views.home, name='home'),
     path('register/', views.register_view, name='register'),
@@ -21,6 +26,7 @@ urlpatterns = [
     path('privacy/', views.privacy_view, name='privacy'),
     path('splash/', views.splash_view, name='splash'),
     path('robots.txt', views.robots_txt, name='robots_txt'),
+    path('favicon.ico', RedirectView.as_view(url=_static_url('img/lamo_icon_dark.png'), permanent=False), name='favicon'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap_xml'),
     path('sw.js', views.service_worker_js, name='service_worker_js'),
     path('manifest.json', views.manifest_json, name='manifest_json'),
@@ -41,12 +47,16 @@ urlpatterns = [
 
     # Live Route Map & GPS Tracking
     path('api/booking/<int:booking_id>/tracking/', views.api_booking_tracking, name='api_booking_tracking'),
+    path('api/booking/<int:booking_id>/doorstep-status/', views.api_booking_doorstep_status, name='api_booking_doorstep_status'),
+    path('worker/booking/<int:booking_id>/doorstep-qr/', views.worker_booking_doorstep_qr, name='worker_booking_doorstep_qr'),
     path('api/worker/update-coordinates/', views.api_worker_update_coordinates, name='api_worker_update_coordinates'),
     path('api/worker/start-shift/', views.api_worker_start_shift, name='api_worker_start_shift'),
     path('api/worker/incoming-job-alert/', views.api_worker_incoming_job_alert, name='api_worker_incoming_job_alert'),
+    path('verify/doorstep/<str:token>/', views.verify_doorstep_qr, name='verify_doorstep_qr'),
 
     # Profile Management
     path('profile/edit/', views.edit_profile_view, name='edit_profile'),
+    path('profile/phone-change/', views.phone_change_verify, name='phone_change_verify'),
     path('profile/delete/', views.delete_account_view, name='delete_account'),
     path('profile/change-password/', views.change_password_view, name='change_password'),
     path('worker/profile/edit/', views.edit_worker_profile_view, name='edit_worker_profile'),
@@ -100,6 +110,7 @@ urlpatterns = [
     path('worker/activate/<str:token>/', views.worker_magic_login, name='worker_magic_login'),
     path('worker/work-dashboard/', views.worker_manage_dashboard, name='worker_manage_dashboard'),
     path('worker-jobs/', views.worker_jobs, name='worker_jobs'),
+    path('worker/jobs/', views.worker_jobs, name='worker_jobs_slash'),
     path('worker-earnings/', views.worker_earnings, name='worker_earnings'),
     path('worker-profile/', views.worker_profile, name='worker_profile'),
     path('worker/wallet/recharge/', views.worker_recharge_wallet, name='worker_recharge_wallet'),
@@ -109,10 +120,13 @@ urlpatterns = [
     # Worker Booking Lifecycle
     path('worker/bookings/<int:booking_id>/accept/', views.worker_accept_booking, name='worker_accept_booking'),
     path('worker/bookings/<int:booking_id>/reject/', views.worker_reject_booking, name='worker_reject_booking'),
+    path('worker/booking/<int:booking_id>/accept/', views.worker_accept_booking, name='worker_accept_booking_alias'),
+    path('worker/booking/<int:booking_id>/reject/', views.worker_reject_booking, name='worker_reject_booking_alias'),
     path('worker/booking/<int:booking_id>/start/', views.worker_start_job, name='worker_start_job'),
     path('worker/jobs/<int:booking_id>/start/', views.worker_start_job, name='worker_start_job_alias'),
     path('worker/booking/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion'),
     path('worker/jobs/<int:booking_id>/request-completion/', views.worker_request_completion, name='worker_request_completion_alias'),
+    path('worker/booking/<int:booking_id>/payment-received/', views.worker_confirm_payment_received, name='worker_confirm_payment_received'),
     path('worker/booking/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking'),
     path('worker/jobs/<int:booking_id>/cancel/', views.worker_cancel_booking, name='worker_cancel_booking_alias'),
     path('worker/booking/<int:booking_id>/report-no-show/', views.worker_report_customer_no_show, name='worker_report_customer_no_show'),

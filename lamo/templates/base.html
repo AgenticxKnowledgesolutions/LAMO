@@ -9,6 +9,11 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Favicon: without an explicit link, browsers request /favicon.ico on every
+       first visit (a 404 before this was added). -->
+  <link rel="icon" type="image/png" href="{% static 'img/lamo_icon_dark.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/lamo_icon_dark.png' %}">
+
   <!-- CSRF token for JavaScript. Rendered by Django, NOT read from the
        csrftoken cookie, so AJAX keeps working when CSRF_COOKIE_HTTPONLY=True
        (which is the case in production). -->

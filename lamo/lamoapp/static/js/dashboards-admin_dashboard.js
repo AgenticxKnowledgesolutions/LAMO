@@ -129,6 +129,17 @@ document.addEventListener("DOMContentLoaded", function () {
             const bookingLayer = L.layerGroup().addTo(map);
             const workerLayer = L.layerGroup().addTo(map);
 
+            // Names, services and districts come from user input, so they are
+            // HTML-escaped before being placed into popup markup.
+            function esc(value) {
+                return String(value === null || value === undefined ? "" : value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
             // Custom icon creators
             function createBookingIcon(isEmergency) {
                 const color = isEmergency ? "#dc2626" : "#2563eb";
@@ -163,14 +174,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     const popupContent = `
                         <div style="font-family:inherit; min-width:180px; font-size:12px;">
                             <div style="font-weight:700; color:#1e293b; font-size:13px; margin-bottom:4px;">
-                                ${b.is_emergency ? '<span style="color:#dc2626;">🚨 Emergency</span>' : '📅 Booking'} #${b.id}
+                                ${b.is_emergency ? '<span style="color:#dc2626;">🚨 Emergency</span>' : '📅 Booking'} #${esc(b.id)}
                             </div>
-                            <div style="color:#059669; font-weight:600; margin-bottom:6px;">${b.service}</div>
+                            <div style="color:#059669; font-weight:600; margin-bottom:6px;">${esc(b.service)}</div>
                             <div style="color:#64748b; line-height:1.4;">
-                                <div><strong>Customer:</strong> ${b.customer}</div>
-                                <div><strong>Worker:</strong> ${b.worker}</div>
-                                <div><strong>District:</strong> ${b.district || 'Kerala'}</div>
-                                <div><strong>Status:</strong> <span style="font-weight:600; color:#2563eb;">${b.status}</span></div>
+                                <div><strong>Customer:</strong> ${esc(b.customer)}</div>
+                                <div><strong>Worker:</strong> ${esc(b.worker)}</div>
+                                <div><strong>District:</strong> ${esc(b.district || 'Kerala')}</div>
+                                <div><strong>Status:</strong> <span style="font-weight:600; color:#2563eb;">${esc(b.status)}</span></div>
                             </div>
                         </div>
                     `;
@@ -189,13 +200,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     const popupContent = `
                         <div style="font-family:inherit; min-width:180px; font-size:12px;">
                             <div style="font-weight:700; color:#059669; font-size:13px; margin-bottom:4px;">
-                                <i class="bi bi-person-badge me-1"></i> ${w.name}
+                                <i class="bi bi-person-badge me-1"></i> ${esc(w.name)}
                             </div>
-                            <div style="color:#334155; font-weight:600; margin-bottom:6px;">${w.service}</div>
+                            <div style="color:#334155; font-weight:600; margin-bottom:6px;">${esc(w.service)}</div>
                             <div style="color:#64748b; line-height:1.4;">
-                                <div><strong>District:</strong> ${w.district || 'Kerala'}</div>
-                                <div><strong>Status:</strong> <span style="font-weight:600; color:#059669;">${w.status}</span></div>
-                                <div><strong>Strikes:</strong> ${w.strikes > 0 ? '<span style="color:#dc2626; font-weight:700;">' + w.strikes + '/3</span>' : '<span style="color:#10b981;">Clean</span>'}</div>
+                                <div><strong>District:</strong> ${esc(w.district || 'Kerala')}</div>
+                                <div><strong>Status:</strong> <span style="font-weight:600; color:#059669;">${esc(w.status)}</span></div>
+                                <div><strong>Strikes:</strong> ${w.strikes > 0 ? '<span style="color:#dc2626; font-weight:700;">' + esc(w.strikes) + '/3</span>' : '<span style="color:#10b981;">Clean</span>'}</div>
                             </div>
                         </div>
                     `;
@@ -246,4 +257,4 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error("Failed to initialize Kerala Operations Map:", e);
         }
     }
-});
+});

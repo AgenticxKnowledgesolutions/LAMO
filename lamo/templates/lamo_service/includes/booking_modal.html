@@ -1271,6 +1271,7 @@
                                 <button type="button"
                                         class="modal-booking-type"
                                         data-booking-type="Recurring"
+                                        style="display: none;"
                                         onclick="selectModalBookingType(this)">
                                     <span class="type-check-badge"><i class="bi bi-check-circle-fill"></i></span>
                                     <i class="bi bi-arrow-repeat"></i>
@@ -2351,20 +2352,20 @@
                         </div>
                     </div>
 
-                    <!-- Step 3 -->
+                    <!-- Step 3: Doorstep QR Verification -->
                     <div class="timeline-step">
-                        <div class="timeline-dot dot-secure"><i class="bi bi-shield-lock-fill"></i></div>
+                        <div class="timeline-dot dot-secure"><i class="bi bi-qr-code-scan"></i></div>
                         <div class="timeline-step-body">
                             <div class="timeline-title-row">
-                                <h6>Doorstep Security PIN Verification</h6>
+                                <h6>Doorstep QR Verification</h6>
                                 <span class="timeline-tag tag-secure">At Doorstep</span>
                             </div>
-                            <p>For your safety, only share your secret 4-digit arrival PIN after the worker arrives at your door.</p>
-                            <div class="sheet-arrival-pin-box" id="sheetArrivalPinBox" style="display:none;">
-                                <div class="pin-box-icon"><i class="bi bi-key-fill"></i></div>
+                            <p>When the professional arrives, scan their official <strong>LAMO Doorstep QR Code</strong> with your phone camera to verify identity &amp; start service.</p>
+                            <div class="sheet-arrival-pin-box" id="sheetArrivalPinBox" style="display:inline-flex; background:#ecfdf5; border-color:#a7f3d0;">
+                                <div class="pin-box-icon" style="background:#059669; color:#ffffff;"><i class="bi bi-shield-check"></i></div>
                                 <div>
-                                    <span class="pin-box-label">Your Doorstep Arrival PIN:</span>
-                                    <strong class="pin-box-code" id="sheetArrivalPinCode">----</strong>
+                                    <span class="pin-box-label" style="color:#065f46;">Doorstep Verification:</span>
+                                    <strong class="pin-box-code" style="color:#047857; font-size:13.5px; letter-spacing:0;">Scan Worker QR on Arrival</strong>
                                 </div>
                             </div>
                         </div>
@@ -3223,7 +3224,8 @@ function updateModalTimeSlotAvailability() {
                             noticeEl.style.background = '#fef2f2';
                             noticeEl.style.color = '#991b1b';
                             noticeEl.style.border = '1px solid #fecaca';
-                            noticeEl.innerHTML = `<i class="bi bi-calendar-x"></i> <strong>${data.worker_name}</strong> is on leave on this date. Please choose another date.`;
+                            noticeEl.innerHTML = '<i class="bi bi-calendar-x"></i> <strong></strong> is on leave on this date. Please choose another date.';
+                            noticeEl.querySelector('strong').textContent = data.worker_name || 'This worker';
                         } else {
                             noticeEl.style.display = 'none';
                         }
@@ -4116,13 +4118,9 @@ function showBookingSuccessSheet(data) {
         workerCallText.innerHTML = "<strong>" + workerName + "</strong> will accept your booking within <strong>30 minutes</strong> and call your registered number to reconfirm timing &amp; arrival.";
     }
 
-    // Doorstep Arrival PIN
-    var pin = data.arrival_pin;
-    if (pin && pinBox && pinCodeEl) {
-        pinCodeEl.textContent = pin;
+    // Doorstep QR Verification indicator (No PIN required)
+    if (pinBox) {
         pinBox.style.display = "inline-flex";
-    } else if (pinBox) {
-        pinBox.style.display = "none";
     }
 
     // Track button redirect URL

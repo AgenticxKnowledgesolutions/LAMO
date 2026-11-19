@@ -120,8 +120,8 @@
                                 <input type="radio" class="btn-check" name="booking_type" id="bookingTypeOneTime" value="One Time" checked>
                                 <label class="btn" for="bookingTypeOneTime"><i class="bi bi-calendar-event me-1"></i> One-time</label>
 
-                                <input type="radio" class="btn-check" name="booking_type" id="bookingTypeRecurring" value="Recurring">
-                                <label class="btn" for="bookingTypeRecurring"><i class="bi bi-arrow-repeat me-1"></i> Recurring</label>
+                                <input type="radio" class="btn-check" name="booking_type" id="bookingTypeRecurring" value="Recurring" style="display: none;">
+                                <label class="btn" for="bookingTypeRecurring" style="display: none;"><i class="bi bi-arrow-repeat me-1"></i> Recurring</label>
                             </div>
                         </div>
 
@@ -260,24 +260,14 @@
                                 </span>
                             </label>
                             <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="payment-card-option" id="cardPayOnline" style="display: block; border: 2px solid #16a34a; border-radius: 12px; padding: 14px; cursor: pointer; background: #f0fdf4; transition: all 0.2s;">
+                                <!-- Online payment hidden as per policy: direct payment after service -->
+                                <div class="col-12">
+                                    <label class="payment-card-option" id="cardPayCash" style="display: block; border: 2px solid #16a34a; border-radius: 12px; padding: 14px; cursor: pointer; background: #f0fdf4; transition: all 0.2s;">
                                         <div class="d-flex align-items-start gap-2">
-                                            <input type="radio" name="payment_method" value="ONLINE" id="payOnlineRadio" checked style="margin-top: 4px; accent-color: #16a34a;">
+                                            <input type="radio" name="payment_method" value="CASH" id="payCashRadio" checked style="margin-top: 4px; accent-color: #16a34a;">
                                             <div>
-                                                <div style="font-weight: 600; font-size: 0.95rem; color: #166534;"><i class="bi bi-qr-code-scan"></i> Online Payment</div>
-                                                <small style="color: #4b5563; font-size: 0.8rem; display: block; margin-top: 2px;">UPI / QR on job completion. Zero cash handling.</small>
-                                            </div>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="payment-card-option" id="cardPayCash" style="display: block; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 14px; cursor: pointer; background: #ffffff; transition: all 0.2s;">
-                                        <div class="d-flex align-items-start gap-2">
-                                            <input type="radio" name="payment_method" value="CASH" id="payCashRadio" style="margin-top: 4px; accent-color: #16a34a;">
-                                            <div>
-                                                <div style="font-weight: 600; font-size: 0.95rem; color: #374151;"><i class="bi bi-cash-stack"></i> Cash on Service</div>
-                                                <small style="color: #4b5563; font-size: 0.8rem; display: block; margin-top: 2px;">Pay directly in cash once pro finishes work.</small>
+                                                <div style="font-weight: 600; font-size: 0.95rem; color: #166534;"><i class="bi bi-cash-stack"></i> Cash on Hand (Pay After Service)</div>
+                                                <small style="color: #4b5563; font-size: 0.8rem; display: block; margin-top: 2px;">Pay directly in cash to your verified professional once work is completed at your doorstep. No advance payment needed.</small>
                                             </div>
                                         </div>
                                     </label>
@@ -410,7 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 noticeEl.style.background = '#fef2f2';
                                 noticeEl.style.color = '#991b1b';
                                 noticeEl.style.border = '1px solid #fecaca';
-                                noticeEl.innerHTML = `<i class="bi bi-calendar-x"></i> <strong>${data.worker_name}</strong> is on leave on this date. Please choose another date.`;
+                                noticeEl.innerHTML = '<i class="bi bi-calendar-x"></i> <strong></strong> is on leave on this date. Please choose another date.';
+                                noticeEl.querySelector('strong').textContent = data.worker_name || 'This worker';
                             } else {
                                 noticeEl.style.display = 'none';
                             }

@@ -539,6 +539,17 @@ Monitor customer feedback and complaints.
 
                         </select>
 
+                        {% if complaint.booking and complaint.booking.status == 'DISPUTED' %}
+                            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin:0 8px;">
+                                <input type="checkbox" name="payment_verified" value="1">
+                                Payment received &amp; verified (mark paid)
+                            </label>
+                            <select name="payment_method" aria-label="Payment method if verified">
+                                <option value="CASH">Cash</option>
+                                <option value="UPI">UPI</option>
+                            </select>
+                        {% endif %}
+
 
                         <input
                             type="text"

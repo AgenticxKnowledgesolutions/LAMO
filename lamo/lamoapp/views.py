@@ -10,7 +10,7 @@ import uuid
 import hashlib
 import secrets
 import string
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 
 from django.db import IntegrityError, transaction, models
@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, FileResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, Http404, FileResponse, HttpResponseNotAllowed, HttpResponseNotFound
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from datetime import timedelta
@@ -51,6 +51,7 @@ from .rate_limit import (
     OTP_RESEND_WINDOW_SECONDS,
     OTP_VERIFY_LOCKOUT_SECONDS,
     OTP_VERIFY_MAX_ATTEMPTS,
+    otp_verify_target_key,
     ai_assistant_hour_key,
     ai_assistant_minute_key,
     ai_recommend_minute_key,
@@ -66,12 +67,21 @@ from .rate_limit import (
     forgot_password_key,
     is_rate_limited,
     login_key,
+    login_otp_ip_key,
     minutes_remaining,
     otp_resend_ip_key,
     otp_resend_user_key,
     register_attempt_within_window,
     register_failure,
     start_cooldown,
+    OTP_SEND_PER_IP_MAX,
+    OTP_SEND_PER_TARGET_MAX,
+    OTP_SEND_WINDOW_SECONDS,
+    otp_send_ip_key,
+    otp_send_target_key,
+    ARRIVAL_PIN_MAX_ATTEMPTS,
+    ARRIVAL_PIN_LOCKOUT_SECONDS,
+    arrival_pin_key,
 )
 from .forms import ServiceForm, UserProfileForm, WorkerProfileForm
 from django.core.paginator import Paginator
@@ -184,6 +194,19 @@ def custom_404_view(request, exception=None):
 def custom_500_view(request):
     """Friendly 500 page (wired up via handler500 in lamo/urls.py)."""
     return render(request, '500.html', status=500)
+
+
+def health_check(request):
+    """Ultra-lightweight health check endpoint for container orchestrators (e.g. Render).
+
+    Guarantees:
+    - HTTP 200 plain text response
+    - Zero database queries
+    - Zero external API calls
+    - Zero template rendering
+    - No authentication dependency
+    """
+    return HttpResponse('OK', content_type='text/plain; charset=utf-8', status=200)
 
 
 def robots_txt(request):
@@ -777,6 +800,13 @@ def build_worker_availability_maps(booking_date, start_time=None, end_time=None)
     return leave_worker_ids, busy_by_worker
 
 
+def worker_on_duty_can_take(booking_date):
+    """An ON_DUTY worker is busy now; only bookings for a later date are allowed."""
+    if not booking_date:
+        return False
+    return booking_date > timezone.localdate()
+
+
 def get_worker_unavailability_reasons(
     worker,
     leave_worker_ids=None,
@@ -784,6 +814,7 @@ def get_worker_unavailability_reasons(
     start_time=None,
     end_time=None,
     time_value=None,
+    booking_date=None,
 ):
     """Return the reasons this worker cannot be booked right now.
 
@@ -807,11 +838,30 @@ def get_worker_unavailability_reasons(
 
     if worker.work_status != 'AVAILABLE':
         if worker.work_status == 'ON_DUTY':
-            reasons.append('Currently on duty and not taking bookings.')
+            # On duty = busy right now. Later dates stay bookable (overlaps
+            # are still caught by the conflict checks below).
+            if not worker_on_duty_can_take(booking_date):
+                reasons.append('Working on a job right now - choose a later date to book.')
         elif worker.work_status == 'LEAVE':
             reasons.append('Currently on leave.')
         else:
             reasons.append('Not available for booking.')
+
+    # Check worker dues / prepaid wallet (Findings B1 / H2): a worker who
+    # cannot pay the acceptance commission could never accept the request,
+    # so they are not offered as bookable.
+    is_wallet_locked = False
+    if getattr(worker, 'is_paused_for_dues', False):
+        is_wallet_locked = True
+    else:
+        try:
+            if not worker_can_afford_acceptance(worker):
+                is_wallet_locked = True
+        except Exception:
+            is_wallet_locked = False
+
+    if is_wallet_locked:
+        reasons.append('Temporarily unavailable for new requests.')
 
     if leave_worker_ids is not None and worker.id in leave_worker_ids:
         reasons.append('On leave on the selected date.')
@@ -933,6 +983,34 @@ def _compute_worker_distance(customer_lat, customer_lng, worker):
         return distance_km, distance_label
 
     return None, 'Exact distance unavailable'
+
+
+def compute_dynamic_lead_time_min(distance_km=None):
+    """
+    Computes dynamic lead and preparation/travel time in minutes based on distance.
+    - <= 3 km: 15 minutes (local neighborhood)
+    - <= 7 km: 25 minutes
+    - <= 12 km: 35 minutes
+    - <= 18 km: 45 minutes
+    - > 18 km: 60 minutes
+    - Unknown distance fallback: 45 minutes
+    """
+    if distance_km is None:
+        return 45
+    try:
+        d = float(distance_km)
+        if d <= 3.0:
+            return 15
+        elif d <= 7.0:
+            return 25
+        elif d <= 12.0:
+            return 35
+        elif d <= 18.0:
+            return 45
+        else:
+            return 60
+    except (ValueError, TypeError):
+        return 45
 
 
 @lru_cache(maxsize=512)
@@ -1240,6 +1318,130 @@ def _handle_emergency_booking(request, service_id, time, location, latitude, lon
     return redirect('my_bookings')
 
 
+# ---------------------------------------------------------------------------
+# Public catalogue data shared by the home page, /service_page/ and the search
+# suggestions endpoint. Only PUBLIC, non-user-specific aggregates are cached
+# (service list, how many eligible workers per service/district, review
+# averages), for a few seconds, and always keyed per district. Booking and
+# availability decisions are never taken from this cache.
+# ---------------------------------------------------------------------------
+def _canonical_district(raw):
+    """The canonical district name for ``raw`` (case-insensitive), or ''."""
+    raw = (raw or '').strip().lower()
+    for name, _label in WorkerProfile.DISTRICT_CHOICES:
+        if name.lower() == raw:
+            return name
+    return ''
+
+
+def _cache_ttl(setting_name, default):
+    try:
+        return max(0, int(getattr(settings, setting_name, default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _cached_public(key, ttl, builder):
+    """Return ``builder()``, cached for ``ttl`` seconds (0 disables caching)."""
+    from django.core.cache import cache
+    if ttl > 0:
+        try:
+            hit = cache.get(key)
+        except Exception:
+            hit = None
+        if hit is not None:
+            return hit
+    value = builder()
+    if ttl > 0:
+        try:
+            cache.set(key, value, timeout=ttl)
+        except Exception:
+            pass
+    return value
+
+
+def _eligible_worker_stats(selected_district):
+    """{service_id: (total, in_district, min_price_in_district)} for AVAILABLE workers.
+
+    One aggregate query (leave days are a subquery, not a separate round trip).
+    """
+    today = timezone.localdate()
+    on_leave = WorkerLeave.objects.filter(leave_date=today).values('worker_id')
+    in_district = Q(district__iexact=selected_district) if selected_district else Q(pk=-1)
+    rows = (
+        WorkerProfile.objects.filter(
+            is_verified=True, work_status='AVAILABLE',
+            user__is_active=True, is_paused_for_dues=False,
+        )
+        .exclude(id__in=on_leave)
+        .values('service_id')
+        .annotate(
+            total=Count('id'),
+            in_district=Count('id', filter=in_district),
+            min_price=Min('pricing_amount', filter=in_district & Q(pricing_amount__gt=0)),
+        )
+    )
+    return {r['service_id']: (r['total'], r['in_district'], r['min_price']) for r in rows}
+
+
+def _get_service_catalog(selected_district, cache_prefix='svc_cat_data_', ttl=120):
+    """(services, category_counts) for a district, with display metadata attached."""
+    def build():
+        stats = _eligible_worker_stats(selected_district)
+        all_services_list = list(Service.objects.filter(is_active=True).order_by('name'))
+        category_counts = {
+            'all': len(all_services_list),
+            'cleaning': 0, 'electrical': 0, 'plumbing': 0, 'ac_repair': 0, 'painting': 0,
+            'carpentry': 0, 'appliance': 0, 'gardening': 0, 'pest_control': 0, 'more': 0,
+        }
+        for s in all_services_list:
+            meta = _map_service_metadata(s)
+            s.category_key = meta['category_key']
+            s.category_label = meta['category_label']
+            s.icon_class = meta['icon_class']
+            s.badge_bg = meta['badge_bg']
+            s.badge_color = meta['badge_color']
+            s.fallback_img = meta['fallback_img']
+            s.img_url = meta['img_url']
+            tot_count, dist_count, _min_price = stats.get(s.id, (0, 0, None))
+            s.dist_worker_count = dist_count
+            s.tot_worker_count = tot_count
+            s.real_worker_count = dist_count
+            if dist_count > 0:
+                s.pro_count_display = f"{dist_count} Verified Worker{'s' if dist_count != 1 else ''}"
+            elif tot_count > 0:
+                s.pro_count_display = f"{tot_count} Verified in Kerala (0 in {selected_district})"
+            else:
+                s.pro_count_display = "0 Verified Workers"
+            category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
+        return all_services_list, category_counts
+
+    return _cached_public(f"{cache_prefix}{selected_district.lower()}", ttl, build)
+
+
+def _home_public_stats(selected_district):
+    """Cached public aggregates for the home page (see the section comment above)."""
+    def build():
+        stats = _eligible_worker_stats(selected_district)
+        review_stats = {}
+        for row in Review.objects.filter(worker__service__isnull=False).values('worker__service_id').annotate(
+                avg_rating=Avg('rating'), review_count=Count('id')):
+            review_stats[row['worker__service_id']] = {
+                'avg': round(row['avg_rating'], 1) if row['avg_rating'] else None,
+                'count': row['review_count'],
+            }
+        return {
+            'total_counts': {sid: v[0] for sid, v in stats.items()},
+            'district_counts': {sid: v[1] for sid, v in stats.items()} if selected_district else {},
+            'min_prices': {sid: v[2] for sid, v in stats.items() if v[2] is not None} if selected_district else {},
+            'district_service_ids': [sid for sid, v in stats.items() if v[1] > 0] if selected_district else [],
+            'review_stats': review_stats,
+            'active_services': list(Service.objects.filter(is_active=True).order_by('name').values_list('id', 'name')),
+        }
+    ttl = _cache_ttl('HOME_CATALOG_CACHE_SECONDS', 60)
+    return _cached_public(f"home_public_stats_{(selected_district or 'all').lower()}", ttl, build)
+
+
 @never_cache
 def home(request):
     # ---------------------------------------------------------
@@ -1259,11 +1461,7 @@ def home(request):
     # Redirect them to their respective dashboards so they don't see
     # the customer-facing splash / service listing.
     if request.user.is_authenticated:
-        if (
-            getattr(request.user, 'role', None) == 'ADMIN'
-            or getattr(request.user, 'is_superuser', False)
-            or getattr(request.user, 'is_staff', False)
-        ):
+        if _is_admin_account(request.user):
             return redirect('admin_dashboard')
         elif getattr(request.user, 'role', None) == 'WORKER':
             return redirect('worker_dashboard')
@@ -1379,55 +1577,13 @@ def home(request):
         request.session.pop('lamo_selected_lat', None)
         request.session.pop('lamo_selected_lng', None)
 
-    # Exclude workers on leave today or paused for dues
-    today = timezone.localdate()
-    try:
-        workers_on_leave_ids = set(
-            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
-        )
-    except Exception:
-        workers_on_leave_ids = set()
-
-    eligible_workers_qs = WorkerProfile.objects.filter(
-        is_verified=True,
-        work_status='AVAILABLE',
-        user__is_active=True,
-        is_paused_for_dues=False,
-    ).exclude(id__in=workers_on_leave_ids)
-
-    if selected_district:
-        district_worker_counts = dict(
-            eligible_workers_qs.filter(
-                district__iexact=selected_district,
-            ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-        )
-    else:
-        district_worker_counts = {}
-
-    total_worker_counts = dict(
-        eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-    )
-
-    # Worker minimum pricing in selected district
-    if selected_district:
-        worker_min_prices = dict(
-            eligible_workers_qs.filter(
-                district__iexact=selected_district,
-                pricing_amount__gt=0
-            ).values('service_id').annotate(
-                min_price=Min('pricing_amount')
-            ).values_list('service_id', 'min_price')
-        )
-    else:
-        worker_min_prices = {}
-
-    # Real review statistics per service from DB
-    review_stats = {}
-    for row in Review.objects.filter(worker__service__isnull=False).values('worker__service_id').annotate(avg_rating=Avg('rating'), review_count=Count('id')):
-        review_stats[row['worker__service_id']] = {
-            'avg': round(row['avg_rating'], 1) if row['avg_rating'] else None,
-            'count': row['review_count']
-        }
+    # Public aggregates (eligible-worker counts, min prices, review averages):
+    # one aggregate query, cached briefly per district (see _home_public_stats).
+    home_stats = _home_public_stats(selected_district)
+    district_worker_counts = home_stats['district_counts']
+    total_worker_counts = home_stats['total_counts']
+    worker_min_prices = home_stats['min_prices']
+    review_stats = home_stats['review_stats']
 
     CATEGORY_KEYWORD_MAP = {
         'plumb': ['plumb'],
@@ -1453,9 +1609,7 @@ def home(request):
     # Task 4: When a district is set, restrict services with the same rules service_workers uses
     if selected_district:
         # Get active services that have at least one eligible available worker in the selected district
-        service_ids_with_workers = eligible_workers_qs.filter(
-            district__iexact=selected_district
-        ).values_list('service_id', flat=True).distinct()
+        service_ids_with_workers = home_stats['district_service_ids']
 
         services_qs = Service.objects.filter(
             id__in=service_ids_with_workers,
@@ -1544,15 +1698,14 @@ def home(request):
         services_list = ranked_services
 
     # Extra categories for "More Services"
-    all_active_services = Service.objects.filter(is_active=True).order_by('name')
     more_categories = []
-    for asvc in all_active_services:
-        aname_lower = asvc.name.lower()
+    for asvc_id, asvc_name in home_stats['active_services']:
+        aname_lower = asvc_name.lower()
         if not any(kw in aname_lower for kw in ALL_STANDARD_KEYWORDS):
             more_categories.append({
-                'id': asvc.id,
-                'name': asvc.name,
-                'slug': asvc.name.lower().replace(' ', '-'),
+                'id': asvc_id,
+                'name': asvc_name,
+                'slug': asvc_name.lower().replace(' ', '-'),
             })
 
     if is_ajax:
@@ -1672,8 +1825,12 @@ def send_otp_sms(phone_number, otp):
     Safe and resilient:
     - Checks settings.SMS_OTP_ENABLED or presence of Twilio credentials.
     - If Twilio is configured, sends real SMS via Twilio API.
-    - If unconfigured (dev/test environment), logs code safely and returns True
-      so development and local testing can proceed without SMS gate blocking.
+    - If unconfigured:
+        * development (settings.DEBUG) or an explicit SMS_DEV_FALLBACK=True:
+          the code is logged to the console and True is returned so local
+          testing can proceed;
+        * otherwise (production): returns False and never logs the code, so
+          callers can tell the user the SMS could not be delivered.
     """
     if not phone_number or not otp:
         return False
@@ -1714,10 +1871,47 @@ def send_otp_sms(phone_number, otp):
             logger.warning('Failed to send SMS OTP via Twilio: %s', exc)
             return False
     else:
-        # Development / Fallback mode: log OTP to console/logger and succeed
-        logger.info(f'[LAMO SMS OTP DEV] Verification code for {to_phone}: {otp}')
-        print(f'\n========================================\n[LAMO SMS OTP] Code for {to_phone}: {otp}\n========================================\n')
+        if settings.DEBUG or getattr(settings, 'SMS_DEV_FALLBACK', False):
+            # Development fallback only: show the code locally and succeed.
+            logger.info(f'[LAMO SMS OTP DEV] Verification code for {to_phone}: {otp}')
+            print(f'\n========================================\n[LAMO SMS OTP] Code for {to_phone}: {otp}\n========================================\n')
+            return True
+        # Production without an SMS provider: report failure honestly and
+        # never write the code to the logs.
+        logger.warning('SMS OTP not sent: no SMS provider is configured (set TWILIO_* variables).')
+        return False
+
+
+def sms_delivery_available():
+    """True when phone OTPs can actually be delivered (provider or dev fallback)."""
+    account_sid = os.getenv('TWILIO_ACCOUNT_SID') or getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+    auth_token = os.getenv('TWILIO_AUTH_TOKEN') or getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+    from_number = os.getenv('TWILIO_PHONE_NUMBER') or getattr(settings, 'TWILIO_PHONE_NUMBER', '')
+    if account_sid and auth_token and from_number:
         return True
+    return bool(settings.DEBUG or getattr(settings, 'SMS_DEV_FALLBACK', False))
+
+
+def _otp_send_allowed(request, identifier):
+    """Shared-cache limits for OTP sends that are not tied to an account.
+
+    Per client IP and per destination (email / phone), so neither a single
+    client nor a botnet targeting one inbox can flood codes. Returns
+    (allowed, error_message).
+    """
+    ip_max = int(getattr(settings, 'OTP_SEND_PER_IP_MAX', OTP_SEND_PER_IP_MAX))
+    target_max = int(getattr(settings, 'OTP_SEND_PER_TARGET_MAX', OTP_SEND_PER_TARGET_MAX))
+    ip_ok, ip_wait = register_attempt_within_window(
+        otp_send_ip_key(request), ip_max, OTP_SEND_WINDOW_SECONDS
+    )
+    if not ip_ok:
+        return False, f'Too many verification codes requested. Please try again in {max(1, ip_wait)} minute(s).'
+    target_ok, target_wait = register_attempt_within_window(
+        otp_send_target_key(identifier), target_max, OTP_SEND_WINDOW_SECONDS
+    )
+    if not target_ok:
+        return False, f'Too many codes were sent to this contact. Please try again in {max(1, target_wait)} minute(s).'
+    return True, ''
 
 
 def _send_booking_verification_code(request, identifier, customer_name=None, phone=None):
@@ -1730,12 +1924,32 @@ def _send_booking_verification_code(request, identifier, customer_name=None, pho
     clean_id = (identifier or '').strip()
     is_email = '@' in clean_id
     clean_email = clean_id.lower() if is_email else ''
-    clean_phone = re.sub(r'\D', '', str(phone or (clean_id if not is_email else '')))
+    if is_email:
+        # Booking contact number only - NOT verified by this code.
+        clean_phone = _normalize_phone(phone) or re.sub(r'\D', '', str(phone or ''))
+    else:
+        # Phone channel: the code goes to the identifier itself, which is
+        # therefore both the verified identity and the contact number.
+        clean_phone = _normalize_phone(clean_id) or re.sub(r'\D', '', clean_id)
+
+    # Shared-cache send limits (per IP and per destination). Callers already
+    # treat sent=False as "could not send a code".
+    send_ok, _send_error = _otp_send_allowed(request, clean_id)
+    if not send_ok:
+        logger.warning('booking_otp_rate_limited')
+        return None, False
 
     otp = ''.join(secrets.choice(string.digits) for _ in range(6))
     code_hash = hashlib.sha256(otp.encode('utf-8')).hexdigest()
+    # Server-side session (database backed). pending_channel /
+    # pending_identifier record exactly where this code was dispatched.
+    # verified_channel / verified_identifier are established ONLY upon successful verification (B1).
     request.session['booking_auth_data'] = {
         'identifier': clean_id,
+        'pending_channel': 'email' if is_email else 'phone',
+        'pending_identifier': clean_email if is_email else clean_phone,
+        'verified_channel': None,
+        'verified_identifier': None,
         'email': clean_email,
         'phone': clean_phone,
         'code_hash': code_hash,
@@ -1897,29 +2111,28 @@ def verify_otp_view(request):
             if not auth_identifier:
                 return JsonResponse({'success': False, 'error_message': 'Please enter your email or mobile number.'}, status=400)
 
-            clean_digits = re.sub(r'\D', '', auth_identifier)
-            if '@' in auth_identifier:
-                try:
-                    validate_email(auth_identifier)
-                except ValidationError:
-                    return JsonResponse({'success': False, 'error_message': 'Please enter a valid email address.'}, status=400)
-
-                existing_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
-                if existing_user and existing_user.role != 'USER':
-                    return JsonResponse({'success': False, 'error_message': 'This email belongs to a worker or administrator account. Please use a customer email address.'}, status=400)
-            elif len(clean_digits) in (10, 11, 12):
-                if len(clean_digits) == 10:
-                    auth_identifier = clean_digits
-                elif len(clean_digits) == 12 and clean_digits.startswith('91'):
-                    auth_identifier = clean_digits[2:]
-                else:
-                    auth_identifier = clean_digits[-10:]
-
-                existing_profile = UserProfile.objects.filter(phone=auth_identifier).select_related('user').first()
-                if existing_profile and existing_profile.user and existing_profile.user.role != 'USER':
-                    return JsonResponse({'success': False, 'error_message': 'This phone number belongs to a worker or administrator account.'}, status=400)
-            else:
-                return JsonResponse({'success': False, 'error_message': 'Please enter a valid email or 10-digit mobile number.'}, status=400)
+            # Audit B1: a resend creates a brand-new verification for exactly
+            # this identifier (the previous code stops working). The contact
+            # phone is only a booking detail: it is validated like at booking
+            # time and can never identify or unlock an account.
+            pending_for_phone = request.session.get('pending_booking_data') or {}
+            cust_phone = (
+                request.POST.get('phone')
+                or pending_for_phone.get('phone')
+                or (booking_auth.get('phone') if booking_auth else '')
+                or ''
+            )
+            identity = _resolve_guest_identity(auth_identifier, cust_phone)
+            if identity['error']:
+                return JsonResponse({'success': False, 'error_message': identity['error']}, status=400)
+            auth_identifier = identity['verified_identifier']
+            # The staged booking's own contact phone must pass the same check.
+            staged_phone = _normalize_phone(pending_for_phone.get('phone'))
+            if identity['channel'] == 'email' and staged_phone:
+                allowed = {identity['user'].id} if identity['user'] else set()
+                if _user_ids_for_phone(staged_phone) - allowed:
+                    return JsonResponse({'success': False, 'error_message': GUEST_PHONE_TAKEN_MSG}, status=400)
+            cust_phone = identity['contact_phone']
 
             if booking_auth and (booking_auth.get('identifier') == auth_identifier or booking_auth.get('email') == auth_identifier.lower() or booking_auth.get('phone') == auth_identifier):
                 created_at_str = booking_auth.get('created_at')
@@ -1931,7 +2144,6 @@ def verify_otp_view(request):
                         return JsonResponse({'success': False, 'error_message': f'Please wait {rem_s}s before requesting a new code.'}, status=400)
 
             cust_name = request.POST.get('customer_name') or (booking_auth.get('customer_name') if booking_auth else '')
-            cust_phone = request.POST.get('phone') or (booking_auth.get('phone') if booking_auth else '')
             otp, sent = _send_booking_verification_code(request, auth_identifier, cust_name, cust_phone)
             if not sent:
                 target_word = "email" if '@' in auth_identifier else "mobile number"
@@ -1959,6 +2171,22 @@ def verify_otp_view(request):
                     return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'requires_resend': True})
 
                 attempts = booking_auth.get('attempts', 0)
+
+                # Server-side, session-independent wrong-code counter for this
+                # destination: a fresh session / cleared cookies cannot reset it.
+                otp_target = (booking_auth.get('pending_identifier') or booking_auth.get('identifier') or '')
+                otp_attempt_key = otp_verify_target_key('booking', otp_target)
+                if is_rate_limited(otp_attempt_key, OTP_VERIFY_MAX_ATTEMPTS):
+                    booking_auth['code_hash'] = None
+                    request.session.modified = True
+                    msg = (
+                        'Too many incorrect codes for this contact. '
+                        f'Please try again in {max(1, minutes_remaining(otp_attempt_key))} minute(s).'
+                    )
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg, 'locked_out': True, 'remaining_attempts': 0}, status=429)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', ''), 'locked_out': True})
                 if attempts >= 5 or not booking_auth.get('code_hash'):
                     booking_auth['code_hash'] = None
                     request.session.modified = True
@@ -1980,6 +2208,11 @@ def verify_otp_view(request):
                 is_valid = bool(stored_hash and secrets.compare_digest(stored_hash, submitted_hash))
 
                 if not is_valid:
+                    _locked_now, _wait = register_failure(
+                        otp_attempt_key, OTP_VERIFY_MAX_ATTEMPTS, OTP_VERIFY_LOCKOUT_SECONDS
+                    )
+                    if _locked_now:
+                        booking_auth['attempts'] = max(attempts + 1, 5)
                     booking_auth['attempts'] = attempts + 1
                     request.session.modified = True
                     if booking_auth['attempts'] >= 5:
@@ -1997,19 +2230,45 @@ def verify_otp_view(request):
                     messages.error(request, msg)
                     return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
-                # Valid Code! Check existing user by email OR phone
-                email = booking_auth.get('email', '').strip()
-                phone = booking_auth.get('phone', '').strip()
+                # Valid code. The code is consumed immediately (no reuse).
+                clear(otp_attempt_key)
+                pending_channel = booking_auth.get('pending_channel') or booking_auth.get('verified_channel')
+                pending_identifier = (booking_auth.get('pending_identifier') or booking_auth.get('verified_identifier') or '').strip()
+                contact_phone = (booking_auth.get('phone') or '').strip()
                 customer_name = booking_auth.get('customer_name', '').strip()
+
+                # Invalidate OTP immediately to prevent OTP reuse
+                booking_auth['code_hash'] = None
                 request.session.pop('booking_auth_data', None)
 
-                existing_user = None
-                if email:
-                    existing_user = CustomUser.objects.filter(email__iexact=email).first()
-                if not existing_user and phone:
-                    p = UserProfile.objects.filter(phone=phone).select_related('user').first()
-                    if p and p.user:
-                        existing_user = p.user
+                def _verify_failed(msg):
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': msg, 'requires_resend': True}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'accounts/verify_otp.html', {'user_email': '', 'requires_resend': True})
+
+                if pending_channel not in ('email', 'phone') or not pending_identifier:
+                    return _verify_failed('Your verification session has expired. Please request a new code.')
+
+                # Verified channel and identifier established ONLY upon successful verification
+                verified_channel = pending_channel
+                verified_identifier = pending_identifier
+
+                # Audit B1: resolve the account ONLY from the identifier the
+                # code was sent to, re-checking every guard at verify time.
+                identity = _resolve_guest_identity(verified_identifier, contact_phone)
+                if identity['error']:
+                    return _verify_failed(identity['error'])
+                pending_booking_peek = request.session.get('pending_booking_data') or {}
+                staged_phone = _normalize_phone(pending_booking_peek.get('phone'))
+                if verified_channel == 'email' and staged_phone:
+                    allowed = {identity['user'].id} if identity['user'] else set()
+                    if _user_ids_for_phone(staged_phone) - allowed:
+                        return _verify_failed(GUEST_PHONE_TAKEN_MSG)
+
+                email = verified_identifier if verified_channel == 'email' else ''
+                verified_phone = verified_identifier if verified_channel == 'phone' else ''
+                existing_user = identity['user']
 
                 if existing_user:
                     user = existing_user
@@ -2018,7 +2277,7 @@ def verify_otp_view(request):
                         user.save(update_fields=['is_email_verified'])
                 else:
                     # Auto-register new guest user
-                    target_email = email if email else f"{phone}@guest.lamo.in"
+                    target_email = email if email else f"{verified_phone}@guest.lamo.in"
                     unique_uname = _generate_unique_customer_username(target_email, customer_name)
                     parts = (customer_name or '').split(None, 1)
                     first_name = parts[0] if parts else ''
@@ -2026,26 +2285,35 @@ def verify_otp_view(request):
                     user = CustomUser.objects.create_user(
                         username=unique_uname,
                         email=email if email else '',
-                        password=secrets.token_urlsafe(32),
+                        # Customers authenticate with OTP only (audit B3).
+                        password=None,
                         first_name=first_name,
                         last_name=last_name,
                         role='USER',
                         is_email_verified=bool(email),
                     )
-                    pending_booking = request.session.get('pending_booking_data') or {}
+                    user.set_unusable_password()
+                    user.save(update_fields=['password'])
                     UserProfile.objects.create(
                         user=user,
-                        phone=phone or pending_booking.get('phone', ''),
-                        address=pending_booking.get('location', ''),
-                        district=pending_booking.get('district', ''),
-                        latitude=pending_booking.get('latitude'),
-                        longitude=pending_booking.get('longitude')
+                        # Only a phone number proven by this OTP is stored on
+                        # the account; an email-channel contact number stays
+                        # on the booking itself.
+                        phone=verified_phone,
+                        address=pending_booking_peek.get('location', ''),
+                        district=pending_booking_peek.get('district', ''),
+                        latitude=pending_booking_peek.get('latitude'),
+                        longitude=pending_booking_peek.get('longitude')
                     )
 
                 login(request, user)
                 request.session.cycle_key()
 
                 pending_booking = request.session.pop('pending_booking_data', None)
+                if pending_booking is not None:
+                    pending_booking['phone_verified'] = bool(
+                        verified_phone and _normalize_phone(pending_booking.get('phone')) == verified_phone
+                    )
                 if pending_booking:
                     created_b = _create_booking_from_pending(request, user, pending_booking)
                     if created_b:
@@ -2246,12 +2514,26 @@ def verify_otp_view(request):
                         messages.error(request, msg)
                         return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
 
-                identifier = booking_auth.get('identifier') or booking_auth.get('email') or booking_auth.get('phone')
+                identifier = (
+                    booking_auth.get('pending_identifier')
+                    or booking_auth.get('identifier')
+                    or booking_auth.get('email')
+                    or booking_auth.get('phone')
+                )
+                contact_phone = (booking_auth.get('phone') or '').strip()
+                # Prevent resend identity manipulation: re-validate guest identity against session identifier
+                identity = _resolve_guest_identity(identifier, contact_phone)
+                if identity['error']:
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error_message': identity['error']}, status=400)
+                    messages.error(request, identity['error'])
+                    return render(request, 'accounts/verify_otp.html', {'user_email': booking_auth.get('email', '')})
+
                 otp, sent = _send_booking_verification_code(
                     request,
-                    identifier,
+                    identity['verified_identifier'],
                     booking_auth.get('customer_name'),
-                    booking_auth.get('phone')
+                    identity['contact_phone']
                 )
                 if not sent:
                     target_dest = "email" if '@' in (identifier or '') else "mobile number"
@@ -2731,25 +3013,139 @@ def _safe_post_login_redirect(request, raw_next):
     return fallback
 
 
-def _find_user_by_identifier(auth_identifier):
-    """Lookup a CustomUser by email, 10-digit phone number, or username."""
+def _normalize_phone(raw):
+    """Return a 10-digit Indian mobile number, or '' when not valid."""
+    digits = re.sub(r'\D', '', str(raw or ''))
+    if len(digits) == 12 and digits.startswith('91'):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith('0'):
+        digits = digits[1:]
+    return digits if re.fullmatch(r'[6-9]\d{9}', digits) else ''
+
+
+def _user_ids_for_phone(phone):
+    """Ids of every account (customer or worker) holding this phone number."""
+    if not phone:
+        return set()
+    ids = set(UserProfile.objects.filter(phone=phone).values_list('user_id', flat=True))
+    ids |= set(WorkerProfile.objects.filter(phone=phone).values_list('user_id', flat=True))
+    return ids
+
+
+def _user_ids_for_email(email):
+    if not email:
+        return set()
+    return set(CustomUser.objects.filter(email__iexact=email).values_list('id', flat=True))
+
+
+def _users_matching_identifier(auth_identifier):
+    """Distinct accounts matching an email, phone number or username."""
     if not auth_identifier:
-        return None
+        return []
     auth_identifier = str(auth_identifier).strip()
     if '@' in auth_identifier:
-        return CustomUser.objects.filter(email__iexact=auth_identifier).first()
-    raw_digits = re.sub(r'\D', '', auth_identifier)
-    if len(raw_digits) == 12 and raw_digits.startswith('91'):
-        raw_digits = raw_digits[2:]
-    elif len(raw_digits) == 11 and raw_digits.startswith('0'):
-        raw_digits = raw_digits[1:]
-    if len(raw_digits) == 10:
-        return (
-            CustomUser.objects.filter(user_profile__phone=raw_digits).first()
-            or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
-            or CustomUser.objects.filter(username=auth_identifier).first()
-        )
-    return CustomUser.objects.filter(username=auth_identifier).first()
+        ids = _user_ids_for_email(auth_identifier)
+    else:
+        phone = _normalize_phone(auth_identifier)
+        ids = _user_ids_for_phone(phone) if phone else set()
+        if not ids:
+            ids = set(CustomUser.objects.filter(username=auth_identifier).values_list('id', flat=True))
+    return list(CustomUser.objects.filter(id__in=ids))
+
+
+def _find_user_by_identifier(auth_identifier):
+    """Lookup a CustomUser by email, 10-digit phone number, or username.
+
+    Returns None when nothing matches OR when the identifier is shared by more
+    than one account: an ambiguous identifier must never silently pick one
+    account (use _users_matching_identifier to tell the two cases apart).
+    """
+    users = _users_matching_identifier(auth_identifier)
+    return users[0] if len(users) == 1 else None
+
+
+def _is_admin_account(user):
+    """LAMO administrators: ADMIN role or a Django superuser (never plain staff)."""
+    return bool(user) and (user.role == 'ADMIN' or getattr(user, 'is_superuser', False))
+
+
+PASSWORD_LOGIN_ADMIN_ONLY_MSG = (
+    'Customers and service professionals sign in with a one-time code sent to '
+    'their mobile number or email. Please use "Send code" to continue.'
+)
+ADMIN_OTP_NOT_ALLOWED_MSG = (
+    'Administrator accounts sign in with their password on the admin sign-in page.'
+)
+
+
+GUEST_PHONE_TAKEN_MSG = (
+    'This mobile number is already associated with an existing account. '
+    'Please sign in with that number, or enter a different mobile number.'
+)
+
+
+def _resolve_guest_identity(identifier, contact_phone=''):
+    """Decide who a guest booking OTP may authenticate (audit B1).
+
+    The OTP is sent to ``identifier`` only, so that is the ONLY value that can
+    identify an existing account after verification:
+      * channel / verified_identifier: where the code goes (email or phone);
+      * user: the single active customer account owning that identifier, or
+        None for a new customer;
+      * contact_phone: the booking contact number. On the email channel it is
+        NOT verified, so it must not belong to any other account (it can never
+        be used to find or log into an account).
+    Worker, admin and staff accounts can never be authenticated here.
+    Returns a dict; on failure ``error`` holds a user-facing message.
+    """
+    result = {'channel': '', 'verified_identifier': '', 'contact_phone': '', 'user': None, 'error': ''}
+    ident = (identifier or '').strip()
+    if '@' in ident:
+        try:
+            validate_email(ident)
+        except ValidationError:
+            result['error'] = 'Please enter a valid email address.'
+            return result
+        result['channel'] = 'email'
+        result['verified_identifier'] = ident.lower()
+        owners = _user_ids_for_email(result['verified_identifier'])
+        contact = _normalize_phone(contact_phone)
+    else:
+        phone = _normalize_phone(ident)
+        if not phone:
+            result['error'] = 'Please enter a valid email or 10-digit mobile number.'
+            return result
+        result['channel'] = 'phone'
+        result['verified_identifier'] = phone
+        owners = _user_ids_for_phone(phone)
+        # On the phone channel the verified number IS the contact number.
+        contact = phone
+
+    if len(owners) > 1:
+        result['error'] = 'This contact is linked to more than one account. Please contact support.'
+        return result
+    user = CustomUser.objects.filter(id__in=owners).first() if owners else None
+    if user is not None:
+        if user.role != 'USER' or user.is_superuser or user.is_staff:
+            noun = 'email' if result['channel'] == 'email' else 'phone number'
+            result['error'] = (
+                f'This {noun} belongs to a worker or administrator account. '
+                f'Please use your customer contact details.'
+            )
+            return result
+        if not user.is_active:
+            result['error'] = 'This account is deactivated. Please contact support.'
+            return result
+
+    if result['channel'] == 'email' and contact:
+        allowed = {user.id} if user else set()
+        if _user_ids_for_phone(contact) - allowed:
+            result['error'] = GUEST_PHONE_TAKEN_MSG
+            return result
+
+    result['user'] = user
+    result['contact_phone'] = contact
+    return result
 
 
 def _is_valid_booking_transition(current_status, new_status):
@@ -2769,26 +3165,92 @@ def _is_valid_booking_transition(current_status, new_status):
     return new_status in valid_transitions.get(current_status, [])
 
 
+import threading as _threading
+_maintenance_guard = _threading.local()
+
+
 def trigger_booking_reminders_throttled():
-    """Opportunistically deliver scheduled slot reminders and arrival checks, throttled to max 1 run/minute."""
+    """Opportunistically run booking maintenance (expiry, reminders, stuck-job
+    follow-up), throttled to max 1 run/minute across all processes.
+
+    The same work is available as ``manage.py process_booking_reminders`` for a
+    scheduled job; both paths are idempotent, so running both is safe.
+    """
+    if getattr(_maintenance_guard, 'active', False):
+        return
+    if not getattr(settings, 'BOOKING_MAINTENANCE_ON_REQUEST', True):
+        return
     from django.core.cache import cache
     cache_key = 'booking_schedule_reminders_last_run'
     try:
-        if cache.get(cache_key):
+        # cache.add is atomic on shared caches: only one process wins per minute.
+        if not cache.add(cache_key, True, timeout=60):
             return
-        cache.set(cache_key, True, timeout=60)
     except Exception:
-        pass
+        return
+    _maintenance_guard.active = True
     try:
-        from .booking_reminders import process_booking_schedule_notifications
-        process_booking_schedule_notifications()
+        from .booking_reminders import run_scheduled_booking_maintenance
+        run_scheduled_booking_maintenance()
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Booking schedule notification error: %s", e)
+        logging.getLogger(__name__).warning("Booking maintenance error: %s", e)
+    finally:
+        _maintenance_guard.active = False
 
 
-def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
-    trigger_booking_reminders_throttled()
+# Single source of truth for how long a worker has to answer a request.
+# Used by both the expiry sweep and the accept view, so a worker can never
+# accept a request the sweep already considers expired (or vice versa).
+RESPONSE_WINDOW_EMERGENCY_MIN = 15
+RESPONSE_WINDOW_SAME_DAY_MIN = 20
+RESPONSE_WINDOW_FUTURE_MIN = 60
+# A worker's counter-proposal gives the customer this long to answer.
+RESPONSE_WINDOW_PROPOSAL_HOURS = 24
+
+
+def pending_request_has_expired(booking, now_local=None):
+    """Return (has_expired, reason_text) for a PENDING / EMERGENCY_PENDING request.
+
+    - Emergency: 15 minutes.
+    - Same-day: 20 minutes.
+    - Future date: 60 minutes, paused overnight (requests created 9 PM-8 AM
+      may still be answered until 11 AM).
+    - Worker proposed a new time: the customer has 24 hours to answer.
+    """
+    from django.utils import timezone as dj_timezone
+    now_local = now_local or dj_timezone.localtime()
+    now = dj_timezone.now()
+    if not booking.created_at:
+        return False, ''
+
+    if booking.proposed_time and booking.proposed_date and booking.reschedule_proposed_at:
+        if now - booking.reschedule_proposed_at < timedelta(hours=RESPONSE_WINDOW_PROPOSAL_HOURS):
+            return False, ''
+        return True, 'The proposed new time was not answered within 24 hours.'
+
+    is_emergency = (booking.booking_type == 'Emergency' or booking.status == 'EMERGENCY_PENDING')
+    if is_emergency:
+        window = timedelta(minutes=RESPONSE_WINDOW_EMERGENCY_MIN)
+        reason = f'Worker did not respond within the {RESPONSE_WINDOW_EMERGENCY_MIN}-minute emergency response window.'
+    elif booking.date == now_local.date():
+        window = timedelta(minutes=RESPONSE_WINDOW_SAME_DAY_MIN)
+        reason = f'Worker did not respond within the {RESPONSE_WINDOW_SAME_DAY_MIN}-minute same-day response window.'
+    else:
+        created_local = dj_timezone.localtime(booking.created_at)
+        if (created_local.hour >= 21 or created_local.hour < 8) and now_local.hour < 11:
+            return False, ''
+        window = timedelta(minutes=RESPONSE_WINDOW_FUTURE_MIN)
+        reason = f'Worker did not respond within the {RESPONSE_WINDOW_FUTURE_MIN}-minute scheduled response window.'
+
+    if now - booking.created_at < window:
+        return False, ''
+    return True, reason
+
+
+def check_and_expire_pending_bookings(customer=None, worker=None, booking=None, _run_maintenance=True):
+    if _run_maintenance:
+        trigger_booking_reminders_throttled()
     """Expire PENDING bookings whose worker response window has lapsed.
 
     Smart response window:
@@ -2819,24 +3281,8 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
         if not candidate.created_at:
             continue
 
-        is_emergency = (candidate.booking_type == 'Emergency' or candidate.status == 'EMERGENCY_PENDING')
-        is_same_day = (candidate.date == today)
-
-        if is_emergency:
-            window_limit = timedelta(minutes=15)
-            reason_text = 'Worker did not respond within the 15-minute emergency response window.'
-        elif is_same_day:
-            window_limit = timedelta(minutes=20)
-            reason_text = 'Worker did not respond within the 20-minute same-day response window.'
-        else:
-            created_local = dj_timezone.localtime(candidate.created_at)
-            # If created late at night (>= 9 PM or < 8 AM), pause expiry until 11:00 AM next morning
-            if (created_local.hour >= 21 or created_local.hour < 8) and now_local.hour < 11:
-                continue
-            window_limit = timedelta(minutes=60)
-            reason_text = 'Worker did not respond within the 60-minute scheduled response window.'
-
-        if (dj_timezone.now() - candidate.created_at) < window_limit:
+        has_expired, reason_text = pending_request_has_expired(candidate, now_local=now_local)
+        if not has_expired:
             continue
 
         with transaction.atomic():
@@ -2848,6 +3294,19 @@ def check_and_expire_pending_bookings(customer=None, worker=None, booking=None):
             b.cancelled_by = 'SYSTEM'
             b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
             expired_list.append(b)
+
+            # If this booking belongs to a recurring series, expire other unaccepted bookings in series (Finding B5)
+            if b.series:
+                Booking.objects.filter(
+                    series=b.series,
+                    status='PENDING'
+                ).exclude(id=b.id).update(
+                    status='EXPIRED',
+                    cancellation_reason=reason_text,
+                    cancelled_by='SYSTEM'
+                )
+                b.series.is_active = False
+                b.series.save(update_fields=['is_active'])
 
             # Notify customer
             Notification.objects.create(
@@ -2919,7 +3378,12 @@ def check_and_expire_stale_accepted_bookings(customer=None, worker=None):
             expired_list.append(b)
 
             try:
-                _handle_booking_cancellation_refund(b)
+                # The worker accepted (and was charged) but never started the
+                # job: commission is forfeited, any customer advance is flagged.
+                _handle_booking_cancellation_refund(
+                    b, commission_refund=False,
+                    refund_reason='Accepted job expired without being started',
+                )
             except Exception:
                 pass
 
@@ -3041,13 +3505,57 @@ def _generate_unique_customer_username(email, name=None):
     return candidate
 
 
+# ---------------------------------------------------------------------------
+# Booking-type validation (shared by every booking-creation path)
+# ---------------------------------------------------------------------------
+BOOKING_TYPE_ALIASES = {
+    'one time': 'One Time',
+    'onetime': 'One Time',
+    'recurring': 'Recurring',
+    'emergency': 'Emergency',
+}
+
+
+def normalize_booking_type(raw, default='One Time'):
+    """Return the canonical booking type for client input, or None if unsupported.
+
+    Case, spacing, '-' and '_' are ignored ('recurring', 'RECURRING', 'one_time'
+    all normalise). A missing/blank value means ``default``. Anything else is
+    unsupported and must be rejected by the caller.
+    """
+    value = ' '.join(str(raw if raw is not None else '').replace('_', ' ').replace('-', ' ').split()).lower()
+    if not value:
+        return default
+    return BOOKING_TYPE_ALIASES.get(value)
+
+
+RECURRING_DISABLED_MSG = 'Recurring bookings are temporarily unavailable. Please choose a one-time booking.'
+
+
+def booking_type_error(booking_type):
+    """Message when a *worker-selected* booking cannot use ``booking_type``, else None.
+
+    Recurring is handled separately (it is temporarily disabled and has its own
+    message); Emergency requests are created only by the dedicated emergency
+    flow, which assigns no worker up front and applies emergency rules.
+    """
+    if booking_type is None:
+        return 'Please choose a valid booking type.'
+    if booking_type == 'Emergency':
+        return 'Emergency requests must be raised from the emergency request option, not as a scheduled booking.'
+    return None
+
+
 def _create_booking_from_pending(request, user, pending_data):
     """Finalize a booking from validated pending session data after email verification."""
     from datetime import datetime
 
     worker_id = pending_data.get('worker_id')
     service_id = pending_data.get('service_id')
-    booking_type = pending_data.get('booking_type', 'One Time')
+    booking_type = normalize_booking_type(pending_data.get('booking_type'))
+    if booking_type_error(booking_type):
+        messages.warning(request, booking_type_error(booking_type))
+        return None
     date_str = pending_data.get('date')
     time = pending_data.get('time')
     location = pending_data.get('location', '')
@@ -3063,11 +3571,41 @@ def _create_booking_from_pending(request, user, pending_data):
     frequency = pending_data.get('frequency', 'Weekly')
     preferred_day = pending_data.get('preferred_day', '')
 
-    worker = get_object_or_404(
-        WorkerProfile.objects.select_related('user', 'service'),
-        id=worker_id
+    worker = WorkerProfile.objects.select_related('user', 'service', 'wallet').filter(id=worker_id).first()
+    if not worker:
+        messages.warning(request, 'The selected worker could not be found. Please choose another worker.')
+        return None
+
+    service = Service.objects.filter(id=service_id, is_active=True).first()
+    if not service:
+        messages.warning(request, 'The selected service is currently inactive. Please choose another service.')
+        return None
+
+    # Revalidate critical worker status and availability after OTP verification (Finding B3)
+    _pending_date = None
+    try:
+        from datetime import datetime as _dt
+        _raw_pd = pending_data.get('date') or pending_data.get('start_date')
+        _pending_date = _dt.strptime(_raw_pd, '%Y-%m-%d').date() if isinstance(_raw_pd, str) and _raw_pd else None
+    except (ValueError, TypeError):
+        _pending_date = None
+    status_ok = worker.work_status == 'AVAILABLE' or (
+        worker.work_status == 'ON_DUTY' and worker_on_duty_can_take(_pending_date)
     )
-    service = get_object_or_404(Service, id=service_id)
+    if not worker.is_verified or not worker.user.is_active or not status_ok:
+        messages.warning(request, 'The service professional is currently unavailable. Please choose another available worker.')
+        return None
+
+    is_wallet_locked = getattr(worker, 'is_paused_for_dues', False)
+    if not is_wallet_locked:
+        try:
+            if not worker_can_afford_acceptance(worker):
+                is_wallet_locked = True
+        except Exception:
+            pass
+    if is_wallet_locked:
+        messages.warning(request, 'The service professional is temporarily unavailable for new requests. Please choose another available worker.')
+        return None
 
     start_t, end_t, dur_val, buf_val = compute_booking_window(
         time, service=service,
@@ -3075,18 +3613,10 @@ def _create_booking_from_pending(request, user, pending_data):
         buffer_min=pending_data.get('buffer_min', 15)
     )
 
-    # Check for existing duplicate to prevent duplicate creation on refresh/back
+    # Check for recurring booking temporary restriction
     if booking_type == 'Recurring':
-        existing_series = BookingSeries.objects.filter(
-            customer=user,
-            worker=worker,
-            service=service,
-            frequency=frequency,
-            start_date=start_date_str,
-            end_date=end_date_str,
-        ).first()
-        if existing_series:
-            return existing_series.bookings.first()
+        messages.warning(request, RECURRING_DISABLED_MSG)
+        return None
 
         try:
             start_d = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -3099,7 +3629,7 @@ def _create_booking_from_pending(request, user, pending_data):
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
             # Defensive schedule re-validation for recurring series
-            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+            if locked_worker.is_paused_for_dues or not worker_can_afford_acceptance(locked_worker):
                 messages.warning(
                     request,
                     'Your email was verified, but the service professional is temporarily unavailable for new requests. Please choose another available worker.'
@@ -3207,13 +3737,14 @@ def _create_booking_from_pending(request, user, pending_data):
                         message=f'New recurring booking series #{series.id} by {user.get_full_name() or user.username}.'
                     )
                 send_email_safely(
-                    subject=f'Recurring Booking Confirmed - #{series.id}',
+                    subject=f'Recurring Booking Request Received - Series #{series.id}',
                     message=(
                         f'Hi {user.username},\n\n'
-                        f'Your recurring booking series has been confirmed!\n'
+                        f'Your recurring booking request has been received!\n'
                         f'Service: {service.name}\n'
                         f'Worker: {worker.user.get_full_name() or worker.user.username}\n'
                         f'Occurrences: {len(created_bookings)}\n\n'
+                        f'The worker will review and confirm your schedule shortly.\n\n'
                         f'Thanks for choosing LAMO!'
                     ),
                     recipient_list=[user.email],
@@ -3243,7 +3774,7 @@ def _create_booking_from_pending(request, user, pending_data):
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
             # Defensive schedule re-validation: verify worker hasn't become unavailable or booked in the gap
-            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+            if locked_worker.is_paused_for_dues or not worker_can_afford_acceptance(locked_worker):
                 messages.warning(
                     request,
                     'Your email was verified, but the service professional is temporarily unavailable for new requests. Please choose another available worker.'
@@ -3311,7 +3842,7 @@ def _create_booking_from_pending(request, user, pending_data):
                 )
 
             send_email_safely(
-                subject=f'Booking Confirmed - #{booking.id}',
+                subject=f'Booking Request Received - #{booking.id}',
                 message=(
                     f'Hi {user.username},\n\n'
                     f'Great! Your booking request has been submitted successfully.\n\n'
@@ -3330,11 +3861,16 @@ def _create_booking_from_pending(request, user, pending_data):
                 async_send=True,
             )
 
-            # Ensure UserProfile has saved phone/address
+            # Ensure UserProfile has saved phone/address. A phone number is
+            # stored on the account only when it was proven by OTP (B1/section
+            # 4); otherwise it remains a booking contact detail.
             profile, _ = UserProfile.objects.get_or_create(user=user)
             profile_changed = False
-            if not profile.phone and phone:
-                profile.phone = phone
+            if (
+                not profile.phone and phone and pending_data.get('phone_verified')
+                and not (_user_ids_for_phone(_normalize_phone(phone)) - {user.id})
+            ):
+                profile.phone = _normalize_phone(phone) or phone
                 profile_changed = True
             if not profile.address and location:
                 profile.address = location
@@ -3544,7 +4080,7 @@ def _handle_recurring_booking(request, worker, service, form_data, respond_error
 
     # Send email confirmation (Resend-aware; failures are logged, never raised)
     send_email_safely(
-        subject=f'Recurring Booking Confirmed - Series #{series.id}',
+        subject=f'Recurring Booking Request Received - Series #{series.id}',
         message=(
             f'Hi {request.user.username},\n\n'
             f'Your recurring booking has been submitted successfully.\n\n'
@@ -3677,9 +4213,7 @@ def book_service(request):
         end_date = request.POST.get('end_date', '').strip()
         frequency = request.POST.get('frequency', 'Weekly').strip()
         preferred_day = request.POST.get('preferred_day', '').strip()
-        payment_method = request.POST.get('payment_method', 'CASH').strip().upper()
-        if payment_method not in ['ONLINE', 'CASH']:
-            payment_method = 'CASH'
+        payment_method = request.POST.get('payment_method', '')
 
         if not time:
             if custom_time:
@@ -3691,6 +4225,34 @@ def book_service(request):
 
         if is_emergency:
             return _handle_emergency_booking(request, service_id, time, location, latitude, longitude, description, phone)
+
+        # Server-side booking-type validation (the client radio buttons are not
+        # a security boundary). Normalises case/spacing, so 'recurring' and
+        # 'RECURRING' reach the recurring block below instead of bypassing it.
+        booking_type = normalize_booking_type(request.POST.get('booking_type'))
+        # New recurring bookings are disabled for EVERY caller (logged-in or guest,
+        # ajax or form). Rejected up front, before any OTP is sent or row written.
+        if booking_type == 'Recurring':
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error_message': RECURRING_DISABLED_MSG}, status=400)
+            messages.warning(request, RECURRING_DISABLED_MSG)
+            return redirect('service_list')
+        _bt_error = booking_type_error(booking_type)
+        if _bt_error:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error_message': _bt_error}, status=400)
+            messages.error(request, _bt_error)
+            return redirect('service_list')
+
+        # Payment preference: only supported values, never silently replaced.
+        payment_method, _pm_error = clean_payment_method(
+            payment_method, BOOKING_PAYMENT_PREFERENCES, default='CASH'
+        )
+        if _pm_error:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error_message': _pm_error}, status=400)
+            messages.error(request, _pm_error)
+            return redirect('service_list')
 
         form_data = {
             'booking_type': booking_type,
@@ -3773,66 +4335,55 @@ def book_service(request):
             if not auth_identifier:
                 return respond_error('Please enter your email or mobile number.')
 
-            clean_digits = re.sub(r'\D', '', auth_identifier)
             if '@' in auth_identifier:
                 customer_email = auth_identifier
-                from django.core.validators import validate_email
-                from django.core.exceptions import ValidationError
-                try:
-                    validate_email(customer_email)
-                except ValidationError:
-                    return respond_error('Please enter a valid email address.')
-
-                existing_user = CustomUser.objects.filter(email__iexact=customer_email).first()
-                if existing_user:
-                    if existing_user.role != 'USER':
-                        return respond_error(
-                            'This email belongs to a worker or administrator account. Please use a customer email address.'
-                        )
-                    target_user = existing_user
-            elif len(clean_digits) in (10, 11, 12):
-                if len(clean_digits) == 10:
-                    phone = clean_digits
-                elif len(clean_digits) == 12 and clean_digits.startswith('91'):
-                    phone = clean_digits[2:]
-                else:
-                    phone = clean_digits[-10:]
-                auth_identifier = phone
-
-                existing_profile = UserProfile.objects.filter(phone=phone).select_related('user').first()
-                if existing_profile and existing_profile.user:
-                    if existing_profile.user.role != 'USER':
-                        return respond_error('This phone number belongs to a worker or administrator account.')
-                    target_user = existing_profile.user
             else:
-                return respond_error('Please enter a valid email or 10-digit mobile number.')
+                # Phone channel: the verified number is the contact number.
+                phone = _normalize_phone(auth_identifier) or phone
 
-            if not phone or not re.fullmatch(r'[6-9]\d{9}', phone):
+            if not _normalize_phone(phone):
                 return respond_error('Please enter a valid 10-digit Indian mobile number.')
+            phone = _normalize_phone(phone)
 
-            # Check phone collision against other accounts
-            phone_collision = UserProfile.objects.filter(phone=phone)
-            if target_user:
-                phone_collision = phone_collision.exclude(user=target_user)
-            elif customer_email:
-                phone_collision = phone_collision.exclude(user__email__iexact=customer_email)
-
-            if phone_collision.exists() and not target_user:
-                existing_match = phone_collision.first().user
-                if existing_match and existing_match.role == 'USER':
-                    target_user = existing_match
-                else:
-                    return respond_error(
-                        'This contact number is already associated with an existing worker/admin account.'
-                    )
+            # Audit B1: the account is identified ONLY by the identifier the
+            # OTP is sent to; a contact phone belonging to another account is
+            # rejected (never adopted), and worker/admin accounts are refused.
+            identity = _resolve_guest_identity(auth_identifier, phone)
+            if identity['error']:
+                return respond_error(identity['error'])
+            auth_identifier = identity['verified_identifier']
+            target_user = identity['user']
 
         if not location:
             return respond_error('Please enter the service location.')
         if not phone:
             return respond_error('Please enter your phone number.')
 
-        if worker.work_status == 'SUSPENDED':
-            return respond_error('This service professional is currently unavailable. Please choose another worker.')
+        # Requested service date (one-time date or recurring start date), used
+        # to let ON_DUTY workers take bookings for later days.
+        _requested_date = None
+        try:
+            from datetime import datetime as _dt
+            _raw_req_date = (date or request.POST.get('start_date') or '').strip()
+            _requested_date = _dt.strptime(_raw_req_date, '%Y-%m-%d').date() if _raw_req_date else None
+        except (ValueError, TypeError):
+            _requested_date = None
+
+        if worker.work_status != 'AVAILABLE' and not (
+            worker.work_status == 'ON_DUTY' and worker_on_duty_can_take(_requested_date)
+        ):
+            if worker.work_status == 'LEAVE':
+                return respond_error('This service professional is currently on leave. Please choose another worker.')
+            elif worker.work_status == 'ON_DUTY':
+                return respond_error('This service professional is working on a job right now. Please choose a later date or another worker.')
+            else:
+                return respond_error('This service professional is currently unavailable. Please choose another worker.')
+
+        # H2: a worker whose prepaid wallet cannot cover the acceptance
+        # commission could never accept, so the request would only sit until
+        # it expired. Refuse it up front instead.
+        if getattr(worker, 'is_paused_for_dues', False) or not worker_can_afford_acceptance(worker):
+            return respond_error('This service professional is temporarily unavailable for new requests. Please choose another available worker.')
 
         lat_val = _safe_coord(latitude)
         lng_val = _safe_coord(longitude)
@@ -3881,93 +4432,6 @@ def book_service(request):
             )
 
         # -------------------------------------------------------------------------
-        # RECURRING BOOKING PATH
-        # -------------------------------------------------------------------------
-        if booking_type == 'Recurring':
-            if request.user.is_authenticated:
-                return _handle_recurring_booking(
-                    request, worker, service, form_data, respond_error,
-                    start_date, end_date, frequency, preferred_day, time,
-                    location, latitude, longitude, description, phone
-                )
-            else:
-                # Guest Recurring Booking Validation
-                from datetime import datetime, timedelta
-                if not start_date:
-                    return respond_error('Please select a start date for the recurring booking.')
-                if not end_date:
-                    return respond_error('Please select an end date for the recurring booking.')
-                try:
-                    s_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    e_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-                except (ValueError, TypeError):
-                    return respond_error('Invalid start or end date format.')
-
-                now_local = timezone.localtime()
-                if s_date < now_local.date():
-                    return respond_error('Start date cannot be in the past.')
-                if e_date <= s_date:
-                    return respond_error('End date must be after start date.')
-                if e_date > s_date + timedelta(days=90):
-                    return respond_error('Recurring bookings cannot exceed 90 days.')
-
-                recurring_dates = _generate_recurring_dates(s_date, e_date, frequency, preferred_day)
-                if not recurring_dates or len(recurring_dates) > 30:
-                    return respond_error('Please select a valid frequency and date range (max 30 visits).')
-
-                if recurring_dates and recurring_dates[0] == now_local.date() and start_t <= now_local.time():
-                    return respond_error('Cannot book a time slot that has already passed today.')
-
-                for r_date in recurring_dates:
-                    if WorkerLeave.objects.filter(worker=worker, leave_date=r_date).exists():
-                        return respond_error(f'Worker is on leave on {r_date.strftime("%Y-%m-%d")}. Please adjust the date range.')
-                    if has_worker_schedule_conflict(worker, booking_date=r_date, start_time=start_t, end_time=end_t):
-                        return respond_error(f'Worker is already booked on {r_date.strftime("%Y-%m-%d")} at the selected time.')
-
-                _otp, otp_sent = _send_booking_verification_code(request, auth_identifier, customer_name, phone)
-                if not otp_sent:
-                    target_dest = "email" if '@' in auth_identifier else "mobile number"
-                    return respond_error(f'Could not send verification code to your {target_dest}. Please check and try again.')
-
-                request.session['pending_booking_data'] = {
-                    'worker_id': worker.id,
-                    'service_id': service.id,
-                    'booking_type': 'Recurring',
-                    'time': time,
-                    'start_time': start_t.strftime('%H:%M:%S') if start_t else None,
-                    'end_time': end_t.strftime('%H:%M:%S') if end_t else None,
-                    'duration_min': dur_val,
-                    'buffer_min': buf_val,
-                    'location': location,
-                    'latitude': lat_val,
-                    'longitude': lng_val,
-                    'district': district,
-                    'description': description,
-                    'phone': phone,
-                    'customer_name': customer_name,
-                    'payment_method': payment_method,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'frequency': frequency,
-                    'preferred_day': preferred_day,
-                    'created_at': timezone.now().isoformat(),
-                }
-                if is_ajax:
-                    return JsonResponse({
-                        'success': True,
-                        'requires_otp': True,
-                        'requires_code': True,
-                        'target': auth_identifier,
-                        'email': customer_email,
-                        'phone': phone,
-                        'auth_method': 'email' if '@' in auth_identifier else 'mobile',
-                        'redirect_url': reverse('verify_otp'),
-                        'message': f'Verification code sent to {auth_identifier}.'
-                    })
-                messages.info(request, f'Please verify your code sent to {auth_identifier} to complete your booking.')
-                return redirect('verify_otp')
-
-        # -------------------------------------------------------------------------
         # ONE TIME BOOKING PATH
         # -------------------------------------------------------------------------
         if not date:
@@ -3987,12 +4451,25 @@ def book_service(request):
             if start_t <= now_local.time():
                 return respond_error('Cannot book a time slot that has already passed today.')
             from datetime import timedelta
-            min_lead_cutoff = (now_local + timedelta(minutes=60)).time()
+
+            # Dynamic lead time calculation based on customer-worker distance
+            dist_km = None
+            try:
+                c_lat = float(latitude) if latitude else None
+                c_lng = float(longitude) if longitude else None
+                if c_lat is not None and c_lng is not None:
+                    dist_km, _ = _compute_worker_distance(c_lat, c_lng, worker)
+            except Exception:
+                pass
+
+            lead_mins = compute_dynamic_lead_time_min(dist_km)
+            min_lead_cutoff = (now_local + timedelta(minutes=lead_mins)).time()
             if start_t < min_lead_cutoff:
-                lead_time_formatted = (now_local + timedelta(minutes=60)).strftime('%I:%M %p').lstrip('0')
+                lead_time_formatted = (now_local + timedelta(minutes=lead_mins)).strftime('%I:%M %p').lstrip('0')
+                dist_note = f" (~{dist_km:.1f} km away)" if dist_km is not None else ""
                 return respond_error(
-                    f'For same-day service, please choose a time at least 60 minutes in advance '
-                    f'(after {lead_time_formatted}) to allow your professional time to prepare and travel.'
+                    f'For same-day service, please choose a time at least {lead_mins} minutes in advance '
+                    f'(after {lead_time_formatted}){dist_note} to allow your professional time to prepare and travel.'
                 )
 
         if booking_date == now_local.date() and worker.work_status == 'LEAVE':
@@ -4012,7 +4489,7 @@ def book_service(request):
         with transaction.atomic():
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
-            if locked_worker.is_paused_for_dues or (hasattr(locked_worker, 'wallet') and locked_worker.wallet.is_locked):
+            if locked_worker.is_paused_for_dues or not worker_can_afford_acceptance(locked_worker):
                 return respond_error('This service professional is temporarily unavailable for new requests. Please choose another available worker.')
 
             check_user = request.user if request.user.is_authenticated else target_user
@@ -4116,9 +4593,8 @@ def book_service(request):
         try:
             cust_profile, _ = UserProfile.objects.get_or_create(user=request.user)
             cust_dirty = False
-            if phone and phone != cust_profile.phone:
-                cust_profile.phone = phone
-                cust_dirty = True
+            # The booking keeps its contact phone; the account phone changes
+            # only through the OTP-verified profile flow (audit section 4).
             if location and location != cust_profile.address:
                 cust_profile.address = location
                 cust_dirty = True
@@ -4136,7 +4612,7 @@ def book_service(request):
 
         # Booking request confirmation (Resend-aware)
         send_email_safely(
-            subject=f'Booking Confirmed - #{booking.id}',
+            subject=f'Booking Request Received - #{booking.id}',
             message=(
                 f'Hi {request.user.username},\n\n'
                 f'Great! Your booking request has been submitted successfully.\n\n'
@@ -4181,16 +4657,54 @@ def book_service(request):
 # LAMO has no payment-gateway integration. A customer submission is only a
 # manual payment report; an admin must verify it before the booking is paid.
 
-# A booking can only be paid once a worker has accepted it.
+# Payment can only be reported after the customer has confirmed the final
+# bill (COMPLETION_REQUESTED with bill_confirmed_at set), or for a legacy
+# COMPLETED booking that is still unpaid. Never before the work is billed.
 MANUAL_PAYMENT_ALLOWED_STATUSES = (
-    'ACCEPTED',
-    'IN_PROGRESS',
     'COMPLETION_REQUESTED',
     'COMPLETED',
 )
 
+
+def booking_payment_reportable(booking):
+    """True when the customer may report (and see instructions for) payment."""
+    if booking.is_paid:
+        return False
+    if booking.status == 'COMPLETION_REQUESTED':
+        return bool(booking.bill_confirmed_at)
+    return booking.status == 'COMPLETED'
+
 # Payment methods the UI offers. Anything else falls back to UPI.
 MANUAL_PAYMENT_METHODS = ('UPI', 'CARD', 'NETBANKING', 'CASH')
+# Supported customer payment methods (CARD and NETBANKING are temporarily hidden until a certified payment gateway is integrated)
+ACTIVE_CUSTOMER_PAYMENT_METHODS = ('UPI', 'CASH')
+# Payment *preference* captured when a booking is created (not a payment).
+BOOKING_PAYMENT_PREFERENCES = ('CASH', 'ONLINE')
+CARD_NETBANKING_UNAVAILABLE_MSG = (
+    'Card and Netbanking payments are temporarily unavailable. '
+    'Please pay your professional directly via Cash or UPI.'
+)
+
+
+def clean_payment_method(raw, allowed, default=None):
+    """Validate a submitted payment method. Returns (method, error_message).
+
+    The value is trimmed and upper-cased, then must be one of ``allowed``.
+    Nothing is ever silently converted to another method: CARD/NETBANKING and
+    unknown values are rejected with a message. A blank value uses ``default``
+    when one is given (the booking form's existing "Cash" default) and is an
+    error otherwise.
+    """
+    value = (raw or '').strip().upper()
+    if not value:
+        if default:
+            return default, None
+        return None, 'Please choose how you paid (Cash or UPI).'
+    if value in ('CARD', 'NETBANKING'):
+        return None, CARD_NETBANKING_UNAVAILABLE_MSG
+    if value not in allowed:
+        return None, 'Unsupported payment method. Please choose Cash or UPI.'
+    return value, None
 
 
 @login_required
@@ -4209,21 +4723,21 @@ def confirm_payment(request, booking_id):
         customer=request.user
     )
 
-    # Cancelled / rejected / not-yet-accepted bookings are never payable.
-    if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES:
-        messages.error(
-            request,
-            'This booking cannot be paid for at its current status. Please '
-            'wait until the request is accepted by a worker.'
-        )
-        return redirect('my_bookings')
-
     if booking.is_paid:
         messages.info(request, 'This booking has already been paid.')
         return redirect('my_bookings')
 
-    # The amount always comes from the server, never from the request.
-    amount = booking.estimated_cost or booking.service.price
+    # Payment is only possible after the customer confirmed the final bill.
+    if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES or not booking_payment_reportable(booking):
+        messages.error(
+            request,
+            'Payment opens after your professional submits the final bill and you confirm it.'
+        )
+        return redirect('my_bookings')
+
+    # The amount always comes from the server (the confirmed final bill),
+    # never from the request.
+    amount = booking.final_amount or booking.estimated_cost or booking.service.price
     if amount is None or amount <= 0:
         messages.error(
             request,
@@ -4232,9 +4746,12 @@ def confirm_payment(request, booking_id):
         )
         return redirect('my_bookings')
 
-    payment_method = request.POST.get('payment_method', '').strip().upper()
-    if payment_method not in MANUAL_PAYMENT_METHODS:
-        payment_method = 'UPI'
+    payment_method, payment_error = clean_payment_method(
+        request.POST.get('payment_method'), ACTIVE_CUSTOMER_PAYMENT_METHODS
+    )
+    if payment_error:
+        messages.error(request, payment_error)
+        return redirect('my_bookings')
 
     # A reference typed by the customer is kept only when it is unique.
     # Payment.payment_reference is unique, so a clash must never reach the DB.
@@ -4270,7 +4787,8 @@ def confirm_payment(request, booking_id):
             reference = ''
 
         payment.amount = amount
-        payment.payment_method = booking.payment_method
+        # Record the method the customer actually chose in this request.
+        payment.payment_method = payment_method
         payment.payment_reference = reference or build_server_reference()
         payment.gateway = 'manual'
         payment.status = 'PENDING'
@@ -4286,10 +4804,21 @@ def confirm_payment(request, booking_id):
         locked_booking.payment_method = payment_method
         locked_booking.save(update_fields=['payment_method', 'updated_at'])
 
+    if booking.worker and booking.worker.user:
+        _create_idempotent_notification(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='PAYMENT',
+            message=(
+                f'The customer reports paying ₹{amount:.2f} by {payment_method} for Booking #{booking.id}. '
+                f'Please check and tap "Payment received" to complete the job.'
+            )
+        )
+
     messages.success(
         request,
-        'Your manual payment report was submitted and is awaiting admin '
-        'verification. The booking will remain unpaid until it is verified.'
+        'Thanks! Your payment has been reported. The booking will be marked complete '
+        'once your professional (or our team) confirms the payment was received.'
     )
     return redirect('my_bookings')
 
@@ -4313,10 +4842,11 @@ def admin_confirm_payment(request, payment_id):
         )
         payment = Payment.objects.select_for_update().get(pk=payment.pk)
 
-        if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES:
+        if booking.status not in MANUAL_PAYMENT_ALLOWED_STATUSES or not booking_payment_reportable(booking):
             messages.error(
                 request,
-                'This booking cannot be marked paid at its current status.'
+                'This booking cannot be marked paid at its current status '
+                '(the customer must confirm the final bill first).'
             )
             return redirect('admin_payments')
 
@@ -4324,15 +4854,19 @@ def admin_confirm_payment(request, payment_id):
             messages.info(request, 'This payment is no longer awaiting verification.')
             return redirect('admin_payments')
 
-        payment.status = 'PAID'
-        payment.paid_at = timezone.now()
-        payment.save(update_fields=['status', 'paid_at', 'updated_at'])
+        # Verified payment completes the job (same path as a worker
+        # confirming receipt): Payment PAID, booking COMPLETED and paid.
+        _booking, error = _complete_booking_after_payment(
+            booking.id,
+            payment_method=payment.payment_method,
+            verified_by='ADMIN',
+            reference=payment.payment_reference,
+        )
+        if error:
+            messages.error(request, error)
+            return redirect('admin_payments')
 
-        booking.is_paid = True
-        booking.payment_method = payment.payment_method
-        booking.save(update_fields=['is_paid', 'payment_method', 'updated_at'])
-
-    messages.success(request, 'Payment verified and booking marked as paid.')
+    messages.success(request, 'Payment verified and booking marked as completed and paid.')
     return redirect('admin_payments')
 
 
@@ -4626,6 +5160,204 @@ def api_call_check_incoming(request):
     return JsonResponse({'has_incoming': False})
 
 
+def _commission_defaults():
+    """Platform-wide (percent, minimum) commission from settings, as Decimals."""
+    try:
+        pct = Decimal(str(getattr(settings, 'PLATFORM_COMMISSION_PERCENT', '10')))
+    except Exception:
+        pct = Decimal('10')
+    try:
+        minimum = Decimal(str(getattr(settings, 'PLATFORM_COMMISSION_MIN', '15')))
+    except Exception:
+        minimum = Decimal('15')
+    return pct, minimum
+
+
+def calculate_commission_for_amount(service, labor_amount, worker=None):
+    """Commission for a labour amount under the service's commission rule.
+
+    - 0 during the worker's launch period.
+    - DEFAULT: settings percent of labour, minimum settings minimum (10%, ₹15).
+    - PERCENT: service.commission_value percent of labour, same minimum.
+    - FIXED:   service.commission_value rupees per job.
+
+    The commission can never exceed the eligible labour amount (a Rs 10 job
+    never pays more than Rs 10), and a zero/negative/invalid amount pays nothing.
+    """
+    if worker is not None and getattr(worker, 'is_in_launch', False):
+        return Decimal('0.00')
+
+    default_pct, minimum = _commission_defaults()
+    try:
+        labor_amount = Decimal(str(labor_amount or '0'))
+    except Exception:
+        return Decimal('0.00')
+    if not labor_amount.is_finite() or labor_amount <= Decimal('0.00'):
+        return Decimal('0.00')
+    labor_amount = labor_amount.quantize(Decimal('0.01'))
+    c_type = getattr(service, 'commission_type', 'DEFAULT') or 'DEFAULT'
+    c_value = getattr(service, 'commission_value', None)
+
+    if c_type == 'FIXED' and c_value is not None:
+        fixed_fee = max(Decimal('0.00'), Decimal(str(c_value))).quantize(Decimal('0.01'))
+        return min(fixed_fee, labor_amount)
+
+    pct = Decimal(str(c_value)) if (c_type == 'PERCENT' and c_value is not None) else default_pct
+    fee = (labor_amount * pct / Decimal('100')).quantize(Decimal('0.01'))
+    return min(max(fee, minimum), labor_amount)
+
+
+def calculate_booking_platform_fee(booking, worker=None):
+    """
+    Platform commission for a booking (charged at acceptance).
+    Labour = job amount - material cost; see calculate_commission_for_amount.
+    """
+    target_worker = worker or booking.worker
+    cost = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+    material_cost = getattr(booking, 'material_amount', Decimal('0.00')) or Decimal('0.00')
+    labor_amount = max(Decimal('0.00'), Decimal(str(cost or '0')) - Decimal(str(material_cost)))
+    return calculate_commission_for_amount(booking.service, labor_amount, worker=target_worker)
+
+
+def estimate_worker_acceptance_fee(worker):
+    """Commission this worker would pay to accept a standard job for their service."""
+    service = getattr(worker, 'service', None)
+    price = getattr(service, 'price', None) or Decimal('0.00')
+    return calculate_commission_for_amount(service, price, worker=worker)
+
+
+def worker_can_afford_acceptance(worker):
+    """True when the worker's prepaid wallet covers the acceptance commission."""
+    fee = estimate_worker_acceptance_fee(worker)
+    if fee <= Decimal('0.00'):
+        return True
+    wallet = getattr(worker, 'wallet', None) if hasattr(worker, 'wallet') else None
+    try:
+        balance = Decimal(str(wallet.balance)) if wallet is not None and wallet.balance is not None else Decimal('0.00')
+    except Exception:
+        balance = Decimal('0.00')
+    return balance >= fee
+
+
+# ------------------------------------------------------------------
+# Commission ledger helpers
+# ------------------------------------------------------------------
+# The ledger (WalletTransaction) is the single source of truth for what a
+# worker actually paid for a booking: FEE_DEDUCTION rows are negative,
+# REFUND rows positive. Refunds are computed from the ledger, never from
+# booking.platform_fee, so money that was never deducted can never be
+# "refunded", and a second refund of the same booking finds nothing left.
+
+def _commission_outstanding(booking, wallet):
+    """Commission charged to ``wallet`` for ``booking`` and not yet refunded (>= 0)."""
+    total = WalletTransaction.objects.filter(
+        wallet=wallet,
+        booking=booking,
+        transaction_type__in=('FEE_DEDUCTION', 'REFUND'),
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    return max(Decimal('0.00'), -Decimal(str(total)))
+
+
+def _charge_acceptance_commission(booking, wallet, fee, note):
+    """Deduct ``fee`` for ``booking`` from a wallet that the caller has locked.
+
+    Idempotent per (booking, wallet): if this wallet already holds an
+    unrefunded charge for the booking nothing is deducted again. The caller
+    must have verified ``wallet.balance >= fee``. Sets platform_fee and
+    fee_settled on the booking object (caller saves the booking).
+    Returns the amount actually deducted.
+    """
+    fee = Decimal(str(fee or '0.00'))
+    if _commission_outstanding(booking, wallet) > Decimal('0.00'):
+        booking.fee_settled = True
+        return Decimal('0.00')
+
+    current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+    if fee > Decimal('0.00'):
+        if current_balance < fee:
+            # Defensive: never mark an unpaid commission as settled.
+            raise ValueError('Insufficient wallet balance for commission.')
+        wallet.balance = current_balance - fee
+        wallet.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            booking=booking,
+            transaction_type='FEE_DEDUCTION',
+            amount=-fee,
+            balance_after=wallet.balance,
+            notes=note,
+        )
+    else:
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            booking=booking,
+            transaction_type='FEE_DEDUCTION',
+            amount=Decimal('0.00'),
+            balance_after=wallet.balance,
+            notes=f"Launch Offer Benefit: 0% Platform Fee for Booking #{booking.id}",
+        )
+    booking.platform_fee = fee
+    booking.fee_settled = True
+    return fee
+
+
+def _refund_booking_commission(booking, reason):
+    """Return the commission the *current* worker actually paid for ``booking``.
+
+    Locks the wallet row, so concurrent or repeated calls cannot refund twice.
+    Returns the refunded amount (0 when nothing was outstanding).
+    """
+    if not booking.worker_id:
+        return Decimal('0.00')
+    with transaction.atomic():
+        wallet = WorkerWallet.objects.select_for_update().filter(worker_id=booking.worker_id).first()
+        if wallet is None:
+            return Decimal('0.00')
+        outstanding = _commission_outstanding(booking, wallet)
+        if outstanding <= Decimal('0.00'):
+            return Decimal('0.00')
+        wallet.balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00')) + outstanding
+        wallet.save(update_fields=['balance', 'updated_at'])
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            booking=booking,
+            transaction_type='REFUND',
+            amount=outstanding,
+            balance_after=wallet.balance,
+            notes=f"Commission refunded for Booking #{booking.id}: {reason}"[:500],
+        )
+        worker = booking.worker
+        if worker.is_paused_for_dues and not wallet.is_locked:
+            worker.is_paused_for_dues = False
+            worker.save(update_fields=['is_paused_for_dues'])
+        Booking.objects.filter(pk=booking.pk).update(fee_settled=False)
+        booking.fee_settled = False
+    return outstanding
+
+
+def _booking_scheduled_start(booking):
+    """Aware datetime of the booking's scheduled start, or None."""
+    if not booking.date:
+        return None
+    s_time = booking.start_time
+    if not s_time and booking.time:
+        s_time, _ = parse_time_range(booking.time)
+    if not s_time:
+        return None
+    from datetime import datetime as dt_cls
+    return timezone.make_aware(dt_cls.combine(booking.date, s_time), timezone.get_current_timezone())
+
+
+def _worker_cancellation_refund_allowed(booking, now=None):
+    """Worker cancelling an ACCEPTED job is refunded only when done early enough."""
+    start = _booking_scheduled_start(booking)
+    if start is None:
+        return False
+    now = now or timezone.now()
+    min_hours = int(getattr(settings, 'WORKER_CANCEL_REFUND_MIN_HOURS', 12) or 12)
+    return (start - now) >= timedelta(hours=min_hours)
+
+
 @login_required
 def worker_accept_booking(request, booking_id):
     is_ajax = (
@@ -4633,6 +5365,11 @@ def worker_accept_booking(request, booking_id):
         request.POST.get('ajax') == '1' or
         request.GET.get('ajax') == '1'
     )
+    if request.method != 'POST':
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': 'Method not allowed. POST required.'}, status=405)
+        return HttpResponseNotAllowed(['POST'])
+
     if request.user.role != 'WORKER':
         if is_ajax:
             return JsonResponse({'success': False, 'message': 'You are not authorized.'}, status=403)
@@ -4649,21 +5386,17 @@ def worker_accept_booking(request, booking_id):
         messages.error(request, error_msg)
         return redirect('worker_dashboard')
 
-    # Check worker wallet dues lock:
-    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker)
-    if wallet.is_locked:
-        msg = f'Cannot accept new bookings: Your wallet balance is ₹{wallet.balance:.2f} (below ₹-500 credit limit). Please recharge your wallet to continue receiving jobs.'
-        if is_ajax:
-            return JsonResponse({'success': False, 'message': msg}, status=400)
-        messages.error(request, msg)
-        return redirect('worker_dashboard')
-
     with transaction.atomic():
         locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
-        booking = get_object_or_404(
-            Booking.objects.select_for_update().select_related('customer', 'service'),
-            id=booking_id, worker=locked_worker
-        )
+        try:
+            booking = Booking.objects.select_for_update().select_related('customer', 'service').get(
+                id=booking_id, worker=locked_worker
+            )
+        except Booking.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': 'Booking not found or not assigned to you.'}, status=404)
+            messages.error(request, 'Booking not found or not assigned to you.')
+            return redirect('worker_dashboard')
 
         if booking.status != 'PENDING':
             messages.warning(request, 'This booking has already been processed.')
@@ -4677,29 +5410,47 @@ def worker_accept_booking(request, booking_id):
             messages.error(request, 'Cannot accept booking: The customer has paused this recurring series.')
             return redirect('worker_dashboard')
 
-        # Check response timer expiry with smart logic
-        now_local = timezone.localtime()
-        today = now_local.date()
-        is_emergency = (booking.booking_type == 'Emergency' or booking.status == 'EMERGENCY_PENDING')
-        is_same_day = (booking.date == today)
+        # Prepaid Wallet check (Finding C1 & C2)
+        wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=locked_worker)
+        current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+        required_fee = calculate_booking_platform_fee(booking, locked_worker)
 
-        has_expired = False
-        reason_msg = 'Worker did not respond within the response window.'
-        if booking.created_at:
-            if is_emergency and (timezone.now() > booking.created_at + timedelta(minutes=30)):
-                has_expired = True
-                reason_msg = 'Worker did not respond within the 30-minute emergency response window.'
-            elif is_same_day and (timezone.now() > booking.created_at + timedelta(minutes=60)):
-                has_expired = True
-                reason_msg = 'Worker did not respond within the 60-minute same-day response window.'
-            elif not is_emergency and not is_same_day:
-                created_local = timezone.localtime(booking.created_at)
-                # If created at night (>= 9 PM or < 8 AM), allow worker to accept until 11:00 AM next morning
-                if (created_local.hour >= 21 or created_local.hour < 8) and now_local.hour < 11:
-                    has_expired = False
-                elif timezone.now() > booking.created_at + timedelta(hours=6):
-                    has_expired = True
-                    reason_msg = 'Worker did not respond within the response window.'
+        # A recurring request is accepted as a whole series, so the wallet
+        # must cover the commission for every pending visit up front.
+        # Visits that cannot be paid for are never accepted or marked settled.
+        series_visits = []
+        total_required = required_fee
+        if booking.series:
+            series_visits = list(
+                Booking.objects.select_for_update().select_related('service').filter(
+                    series=booking.series,
+                    worker=locked_worker,
+                    status='PENDING'
+                ).exclude(id=booking.id)
+            )
+            for sb in series_visits:
+                total_required += calculate_booking_platform_fee(sb, locked_worker)
+
+        if current_balance < total_required or (wallet.is_locked and total_required > Decimal('0.00')):
+            if series_visits:
+                msg = (
+                    f'Cannot accept this recurring series: it has {len(series_visits) + 1} visits and needs '
+                    f'₹{total_required:.2f} in platform fees, but your prepaid wallet balance is ₹{current_balance:.2f}. '
+                    f'Please recharge your wallet to accept the series.'
+                )
+            else:
+                msg = (
+                    f'Cannot accept booking: Insufficient prepaid wallet balance (₹{current_balance:.2f}). '
+                    f'Platform fee of ₹{required_fee:.2f} is required. Please recharge your wallet to accept bookings.'
+                )
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': msg}, status=400)
+            messages.error(request, msg)
+            return redirect('worker_dashboard')
+
+        # Check response timer expiry - same windows as the expiry sweep.
+        has_expired, reason_msg = pending_request_has_expired(booking)
+        reason_msg = reason_msg or 'Worker did not respond within the response window.'
 
         if has_expired:
             booking.status = 'EXPIRED'
@@ -4749,7 +5500,29 @@ def worker_accept_booking(request, booking_id):
 
         booking.status = 'ACCEPTED'
         booking.generate_arrival_otp()
-        booking.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
+
+        # Deduct platform commission exactly once upon acceptance (Finding C1 & C2).
+        # The ledger-based helper is idempotent per booking and wallet, so a
+        # reassigned booking is charged to its new worker even if an earlier
+        # worker's charge exists, and a double-submit never charges twice.
+        _charge_acceptance_commission(
+            booking, wallet, required_fee,
+            note=f"Platform fee deducted upon booking acceptance for Booking #{booking.id}",
+        )
+
+        booking.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'platform_fee', 'fee_settled', 'updated_at'])
+
+        # If this booking belongs to a recurring series, accept the entire series schedule (Finding B5).
+        # The wallet was verified above to cover every visit, so each visit is charged in full.
+        for sb in series_visits:
+            sb_fee = calculate_booking_platform_fee(sb, locked_worker)
+            sb.status = 'ACCEPTED'
+            sb.generate_arrival_otp()
+            _charge_acceptance_commission(
+                sb, wallet, sb_fee,
+                note=f"Platform fee deducted upon recurring booking acceptance for Booking #{sb.id}",
+            )
+            sb.save(update_fields=['status', 'arrival_otp', 'worker_badge_code', 'platform_fee', 'fee_settled', 'updated_at'])
 
         # Create notifications and register on_commit external dispatch
         _create_idempotent_notification(
@@ -4808,6 +5581,11 @@ def worker_reject_booking(request, booking_id):
         request.POST.get('ajax') == '1' or
         request.GET.get('ajax') == '1'
     )
+    if request.method != 'POST':
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': 'Method not allowed. POST required.'}, status=405)
+        return HttpResponseNotAllowed(['POST'])
+
     if request.user.role != 'WORKER':
         if is_ajax:
             return JsonResponse({'success': False, 'message': 'You are not authorized.'}, status=403)
@@ -4819,6 +5597,8 @@ def worker_reject_booking(request, booking_id):
     # Check worker verification
     is_verified, error_msg = _check_worker_verification(worker)
     if not is_verified:
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': error_msg}, status=400)
         messages.error(request, error_msg)
         return redirect('worker_dashboard')
 
@@ -4835,11 +5615,19 @@ def worker_reject_booking(request, booking_id):
             booking=emergency_booking,
             notification_type='EMERGENCY'
         ).update(is_read=True)
+        if is_ajax:
+            return JsonResponse({'success': True, 'message': 'Emergency request dismissed.'})
         messages.info(request, 'Emergency request dismissed.')
         return redirect('worker_dashboard')
 
     with transaction.atomic():
-        locked_booking = Booking.objects.select_for_update().select_related('customer', 'service').get(id=booking_id, worker=worker)
+        try:
+            locked_booking = Booking.objects.select_for_update().select_related('customer', 'service').get(id=booking_id, worker=worker)
+        except Booking.DoesNotExist:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': 'Booking not found or not assigned to you.'}, status=404)
+            messages.error(request, 'Booking not found or not assigned to you.')
+            return redirect('worker_dashboard')
         if locked_booking.status != 'PENDING':
             messages.warning(request, 'This booking has already been processed.')
             return redirect('worker_dashboard')
@@ -4849,6 +5637,20 @@ def worker_reject_booking(request, booking_id):
         locked_booking.cancellation_reason = rejection_reason
         locked_booking.cancelled_by = 'WORKER'
         locked_booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+
+        # If this booking belongs to a recurring series, decline the entire series (Finding B5)
+        if locked_booking.series:
+            Booking.objects.filter(
+                series=locked_booking.series,
+                worker=worker,
+                status='PENDING'
+            ).exclude(id=locked_booking.id).update(
+                status='REJECTED',
+                cancellation_reason=rejection_reason,
+                cancelled_by='WORKER'
+            )
+            locked_booking.series.is_active = False
+            locked_booking.series.save(update_fields=['is_active'])
 
         _create_idempotent_notification(
             recipient=locked_booking.customer, booking=locked_booking, notification_type='BOOKING_UPDATE',
@@ -4891,6 +5693,9 @@ def worker_reject_booking(request, booking_id):
 @login_required
 def worker_accept_emergency(request, booking_id):
     """Worker accepts an emergency request - first accept wins"""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
     if request.user.role != 'WORKER':
         messages.error(request, 'You are not authorized.')
         return redirect('dashboard')
@@ -4909,31 +5714,48 @@ def worker_accept_emergency(request, booking_id):
             locked_worker = WorkerProfile.objects.select_for_update().get(id=worker.id)
 
             # Lock the booking row to prevent race conditions
-            booking = Booking.objects.select_for_update().select_related(
-                'customer', 'service'
-            ).get(
-                id=booking_id,
-                status='EMERGENCY_PENDING',
-                worker__isnull=True
-            )
+            try:
+                booking = Booking.objects.select_for_update().select_related(
+                    'customer', 'service'
+                ).get(
+                    id=booking_id,
+                    status='EMERGENCY_PENDING',
+                    worker__isnull=True
+                )
+            except Booking.DoesNotExist:
+                messages.warning(request, 'This emergency request has already been accepted or is no longer available.')
+                return redirect('worker_dashboard')
 
             # Double-check status after locking (prevent race condition)
             if booking.status != 'EMERGENCY_PENDING' or booking.worker is not None:
                 messages.warning(request, 'This emergency request has already been accepted by another worker.')
                 return redirect('worker_dashboard')
 
-            # Only workers offering this trade may take the job. Without this
-            # check any worker could accept any other trade's emergency
-            # request (an electrician accepting a plumbing job, etc.).
+            # Only workers offering this trade may take the job.
             if locked_worker.service_id is None or locked_worker.service_id != booking.service_id:
                 messages.error(request, 'This emergency request is for a different service than yours.')
                 return redirect('worker_dashboard')
 
+            # Finding C4: District check - emergency workers may only accept jobs in their district
+            if booking.district and locked_worker.district and booking.district.strip().lower() != locked_worker.district.strip().lower():
+                messages.error(request, f'This emergency booking is in {booking.district}, which is outside your service district ({locked_worker.district}).')
+                return redirect('worker_dashboard')
+
+            # Finding C1, C2 & C4: Prepaid Wallet & Commission Check
+            required_fee = calculate_booking_platform_fee(booking, locked_worker)
+            wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=locked_worker)
+            current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+
+            if current_balance < required_fee or (wallet.is_locked and required_fee > Decimal('0.00')):
+                messages.error(
+                    request,
+                    f'Cannot accept emergency booking: Insufficient prepaid wallet balance (₹{current_balance:.2f}). '
+                    f'Platform fee of ₹{required_fee:.2f} is required. Please recharge your wallet.'
+                )
+                return redirect('worker_dashboard')
+
             # The emergency broadcast is dateless, so check leave/conflicts
             # against the acceptance day and then stamp it onto the booking.
-            # Stamping Booking.date is what makes the accepted job visible to
-            # later has_worker_schedule_conflict() checks (they filter on
-            # date=) and to WorkerLeave matching.
             today = timezone.localdate()
 
             # Re-check worker leave status at acceptance time
@@ -4982,7 +5804,15 @@ def worker_accept_emergency(request, booking_id):
             booking.buffer_min = 15
             booking.status = 'ACCEPTED'
             booking.generate_arrival_otp()
-            booking.save(update_fields=['worker', 'date', 'start_time', 'end_time', 'duration_min', 'buffer_min', 'status', 'arrival_otp', 'worker_badge_code', 'updated_at'])
+
+            # Deduct platform commission on acceptance (Finding C1 & C2) via the
+            # idempotent ledger helper (never charges the same wallet twice).
+            _charge_acceptance_commission(
+                booking, wallet, required_fee,
+                note=f"Platform fee deducted on emergency booking acceptance for Booking #{booking.id}",
+            )
+
+            booking.save(update_fields=['worker', 'date', 'start_time', 'end_time', 'duration_min', 'buffer_min', 'status', 'arrival_otp', 'worker_badge_code', 'platform_fee', 'fee_settled', 'updated_at'])
 
             # Notify the customer
             _create_idempotent_notification(
@@ -5060,15 +5890,16 @@ def worker_accept_emergency(request, booking_id):
 @login_required
 def service_create(request):
 
+    # Plain Django staff accounts are not LAMO admins (same rule as login):
+    # only the ADMIN role or a superuser may manage services.
     is_admin = (
         request.user.role == 'ADMIN'
         or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
     )
     if not is_admin:
         messages.error(request, 'You are not authorized to access this page.')
         return redirect('dashboard')
-    if request.user.role != 'ADMIN':
+    if request.user.role != 'ADMIN' and request.user.is_superuser:
         request.user.role = 'ADMIN'
         request.user.save(update_fields=['role'])
     if request.method == 'POST':
@@ -5141,27 +5972,74 @@ def register_view(request):
             if not name or not identifier:
                 return JsonResponse({'success': False, 'error': 'Please enter both your name and email or mobile number.'})
 
-            existing = _find_user_by_identifier(identifier)
-            if existing:
+            # Any match (including an ambiguous one) means "already registered".
+            if _users_matching_identifier(identifier):
                 return JsonResponse({'success': False, 'error': 'An account with this email or mobile number already exists. Please sign in.'})
 
-            reg_otp = ''.join(secrets.choice(string.digits) for _ in range(6))
-            request.session['customer_reg_data'] = {
-                'name': name,
-                'identifier': identifier,
-                'otp': reg_otp,
-                'created_at': timezone.now().isoformat()
-            }
-            if '@' in identifier:
+            # Cooldown check: 60 seconds between resend requests (Finding A2)
+            last_sent_str = request.session.get('customer_reg_last_sent')
+            if last_sent_str:
+                from datetime import datetime as dt_cls
                 try:
-                    send_email_safely(
+                    last_sent_dt = dt_cls.fromisoformat(last_sent_str)
+                    elapsed = (timezone.now() - last_sent_dt).total_seconds()
+                    if elapsed < 60:
+                        wait_sec = max(1, int(60 - elapsed))
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Please wait {wait_sec} second(s) before requesting a new code.',
+                            'cooldown_remaining': wait_sec
+                        })
+                except Exception:
+                    pass
+
+            is_email_identifier = '@' in identifier
+            phone_digits = '' if is_email_identifier else re.sub(r'\D', '', identifier)[-10:]
+            if not is_email_identifier and not re.fullmatch(r'[6-9]\d{9}', phone_digits or ''):
+                return JsonResponse({'success': False, 'error': 'Please enter a valid email address or 10-digit mobile number.'})
+            if not is_email_identifier and not sms_delivery_available():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Mobile verification is temporarily unavailable. Please register with your email address instead.'
+                })
+
+            # Shared-cache limits (per IP and per destination) - unlike the
+            # session cooldown above, these cannot be reset by dropping cookies.
+            send_ok, send_error = _otp_send_allowed(request, identifier)
+            if not send_ok:
+                return JsonResponse({'success': False, 'error': send_error})
+
+            reg_otp = ''.join(secrets.choice(string.digits) for _ in range(6))
+
+            if is_email_identifier:
+                try:
+                    delivered = send_email_safely(
                         subject='LAMO Account Verification Code',
                         message=f'Hello {name},\n\nYour 6-digit verification code for LAMO is: {reg_otp}\nValid for 10 minutes.\n\nThank you,\nTeam LAMO',
                         recipient_list=[identifier],
                         purpose='customer_registration_otp',
                     )
                 except Exception:
-                    pass
+                    delivered = False
+            else:
+                delivered = send_otp_sms(phone_digits, reg_otp)
+
+            if not delivered:
+                request.session.pop('customer_reg_data', None)
+                target_word = 'email address' if is_email_identifier else 'mobile number'
+                return JsonResponse({
+                    'success': False,
+                    'error': f'We could not send a verification code to your {target_word}. Please check it and try again.'
+                })
+
+            request.session['customer_reg_last_sent'] = timezone.now().isoformat()
+            request.session['customer_reg_data'] = {
+                'name': name,
+                'identifier': identifier,
+                'otp': reg_otp,
+                'created_at': timezone.now().isoformat(),
+                'attempts': 0
+            }
 
             target_str = identifier
             if '@' in target_str:
@@ -5179,9 +6057,35 @@ def register_view(request):
             if not reg_data:
                 return JsonResponse({'success': False, 'error': 'Registration session expired. Please start again.'})
 
-            if reg_data.get('otp') != otp:
-                return JsonResponse({'success': False, 'error': 'Invalid 6-digit verification code. Please try again.'})
+            # Attempt tracking & lockout guard (Finding A2). The counter is kept
+            # server-side per destination so a new session cannot reset it.
+            reg_attempt_key = otp_verify_target_key('customer-reg', reg_data.get('identifier'))
+            if is_rate_limited(reg_attempt_key, OTP_VERIFY_MAX_ATTEMPTS):
+                request.session.pop('customer_reg_data', None)
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Too many incorrect attempts. Please try again in {max(1, minutes_remaining(reg_attempt_key))} minute(s).'
+                })
+            attempts = reg_data.get('attempts', 0) + 1
+            reg_data['attempts'] = attempts
+            request.session['customer_reg_data'] = reg_data
+            request.session.modified = True
 
+            if not secrets.compare_digest(str(reg_data.get('otp') or ''), otp):
+                register_failure(reg_attempt_key, OTP_VERIFY_MAX_ATTEMPTS, OTP_VERIFY_LOCKOUT_SECONDS)
+                if attempts >= 5:
+                    request.session.pop('customer_reg_data', None)
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Too many incorrect attempts. For your security, this registration code has been invalidated. Please request a new code.'
+                    })
+                remaining = 5 - attempts
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid 6-digit verification code. {remaining} attempt(s) remaining.'
+                })
+
+            clear(reg_attempt_key)
             from datetime import datetime as dt_cls
             created_at_dt = dt_cls.fromisoformat(reg_data.get('created_at'))
             if timezone.now() > created_at_dt + timedelta(minutes=10):
@@ -5189,6 +6093,11 @@ def register_view(request):
 
             name = reg_data.get('name')
             identifier = reg_data.get('identifier')
+            # Re-check at creation time: the contact may have been registered
+            # by someone else after the code was sent (no duplicate accounts).
+            if _users_matching_identifier(identifier):
+                request.session.pop('customer_reg_data', None)
+                return JsonResponse({'success': False, 'error': 'An account with this email or mobile number already exists. Please sign in.'})
             base_username = re.sub(r'[^a-zA-Z0-9_]', '', name.lower().replace(' ', '_')) or 'user'
             username = base_username
             counter = 1
@@ -5292,45 +6201,43 @@ def register_view(request):
                 {'services': services}
             )
 
-        # PASSWORD
+        # PASSWORD (Policy B3: Worker registration is passwordless; workers log in via OTP)
+        if role == 'WORKER':
+            password = None
+        else:
+            if password != confirm_password:
+                messages.error(
+                    request,
+                    'Passwords do not match.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
 
-        if password != confirm_password:
+            if len(password) < 8:
+                messages.error(
+                    request,
+                    'Password must contain at least 8 characters.'
+                )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
 
-            messages.error(
-                request,
-                'Passwords do not match.'
-            )
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                for message in exc.messages:
+                    messages.error(request, message)
 
-            return render(
-                request,
-                'accounts/register.html',
-                {'services': services}
-            )
-
-        if len(password) < 8:
-
-            messages.error(
-                request,
-                'Password must contain at least 8 characters.'
-            )
-
-            return render(
-                request,
-                'accounts/register.html',
-                {'services': services}
-            )
-
-        try:
-            validate_password(password)
-        except ValidationError as exc:
-            for message in exc.messages:
-                messages.error(request, message)
-
-            return render(
-                request,
-                'accounts/register.html',
-                {'services': services}
-            )
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
 
         # ROLE
 
@@ -5479,16 +6386,14 @@ def register_view(request):
                 )
 
             # ------------------------------------------------
-            # DUPLICATE PHONE
+            # DUPLICATE PHONE (Cross-role uniqueness)
             # ------------------------------------------------
 
-            if WorkerProfile.objects.filter(
-                phone=phone
-            ).exists():
+            if _user_ids_for_phone(phone):
 
                 messages.error(
                     request,
-                    'This phone number is already registered.'
+                    'This phone number is already registered with another account.'
                 )
 
                 return render(
@@ -5944,6 +6849,22 @@ def register_view(request):
                 uuid.uuid4().hex, proof_ext.lower()
             )
 
+            # Full content validation: the bytes must decode as a real,
+            # non-corrupt PDF / JPEG / PNG (not just carry the right header).
+            try:
+                from .upload_validation import validate_proof_document
+                # The name set above is already a server-generated UUID; drop any
+                # doubled dot so the validator's strict name check accepts it.
+                proof_document.name = proof_document.name.replace('..', '.')
+                validate_proof_document(proof_document)
+            except DjangoValidationError as exc:
+                messages.error(request, ' '.join(exc.messages))
+                return render(
+                    request,
+                    'accounts/register.html',
+                    {'services': services}
+                )
+
             # ------------------------------------------------
             # PROFILE IMAGE
             # ------------------------------------------------
@@ -5984,6 +6905,19 @@ def register_view(request):
                         'Profile image must be less than 5 MB.'
                     )
 
+                    return render(
+                        request,
+                        'accounts/register.html',
+                        {'services': services}
+                    )
+
+            # Profile image content validation (magic bytes + full decode).
+            if profile_image:
+                try:
+                    from .upload_validation import validate_profile_photo
+                    validate_profile_photo(profile_image)
+                except DjangoValidationError as exc:
+                    messages.error(request, ' '.join(exc.messages))
                     return render(
                         request,
                         'accounts/register.html',
@@ -6033,9 +6967,12 @@ def register_view(request):
                 user = CustomUser.objects.create_user(
                     username=username,
                     email=email,
-                    password=password,
+                    password=password if role not in ['WORKER', 'USER'] else None,
                     role=role
                 )
+                if role in ['WORKER', 'USER']:
+                    user.set_unusable_password()
+                    user.save(update_fields=['password'])
 
                 # --------------------------------------------
                 # WORKER PROFILE
@@ -6183,6 +7120,11 @@ def forgot_password_view(request, token=None):
     # ==========================================================
     if request.method == 'POST' and token_valid and reset_user:
 
+        # Policy B3: Only administrators use password authentication and recovery
+        if not _is_admin_account(reset_user):
+            messages.error(request, 'Password reset is only available for administrator accounts. Customers and workers authenticate with OTP.')
+            return redirect('login')
+
         password = request.POST.get('password', '').strip()
         confirm_password = request.POST.get('confirm_password', '').strip()
 
@@ -6321,6 +7263,16 @@ def forgot_password_view(request, token=None):
             )
             return render(request, 'accounts/forgot_password.html')
 
+        # Policy B3: Customer and Worker password reset prohibited (Admin password only)
+        if not _is_admin_account(user):
+            register_failure(fp_key, FORGOT_PASSWORD_MAX_ATTEMPTS, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            register_failure(fp_ip_key, FORGOT_PASSWORD_MAX_ATTEMPTS * 5, FORGOT_PASSWORD_LOCKOUT_SECONDS)
+            messages.info(
+                request,
+                'Password reset is only available for administrator accounts. Customers and service professionals sign in with OTP.'
+            )
+            return render(request, 'accounts/forgot_password.html')
+
         token = user.generate_password_reset_token()
         # Reset link points to the SAME forgot-password page
         reset_path = reverse('forgot_password')
@@ -6398,9 +7350,27 @@ def login_view(request):
             identifier = (request.POST.get('identifier') or request.POST.get('username') or '').strip()
             if not identifier:
                 return JsonResponse({'success': False, 'error': 'Please enter your email or mobile number.'})
-            user = _find_user_by_identifier(identifier)
+
+            # Check network/IP rate limit before checking user existence (Finding A6)
+            otp_ip_key = login_otp_ip_key(request)
+            if is_rate_limited(otp_ip_key, 10):
+                remaining = minutes_remaining(otp_ip_key)
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Too many login attempts from this network. Please try again in {max(1, remaining)} minute(s).'
+                })
+
+            matches = _users_matching_identifier(identifier)
+            if len(matches) > 1:
+                return JsonResponse({'success': False, 'error': 'This contact is linked to more than one account. Please contact support.'})
+            user = matches[0] if matches else None
             if not user:
+                register_failure(otp_ip_key, 10, LOGIN_LOCKOUT_SECONDS)
                 return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number. Please check your details or create an account.'})
+
+            # Audit B3: administrators authenticate with their password only.
+            if _is_admin_account(user):
+                return JsonResponse({'success': False, 'admin_password_required': True, 'redirect_url': reverse('admin_login'), 'error': ADMIN_OTP_NOT_ALLOWED_MSG})
 
             if not user.is_active:
                 return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
@@ -6459,10 +7429,12 @@ def login_view(request):
                     user_phone = user_phone or raw_digits
 
             # Send SMS via Twilio if enabled and phone number available
+            sms_delivered = False
             if user_phone:
-                send_otp_sms(user_phone, otp)
+                sms_delivered = bool(send_otp_sms(user_phone, otp))
 
             # Send Email if user has an email address
+            email_delivered = False
             if user.email:
                 subject = 'LAMO - Your Verification OTP'
                 message = (
@@ -6472,17 +7444,32 @@ def login_view(request):
                     f'Do not share this OTP with anyone.\n\n'
                     f'Thanks,\nLAMO Team'
                 )
-                send_email_safely(
+                email_delivered = bool(send_email_safely(
                     subject=subject,
                     message=message,
                     recipient_list=[user.email],
                     purpose='otp_verification',
-                )
+                ))
+
+            if not (sms_delivered or email_delivered):
+                # Nothing reached the user: say so instead of a fake success.
+                if user_phone and not user.email:
+                    error_text = ('We could not send an SMS code to this mobile number right now. '
+                                  'Please try again later or contact support.')
+                else:
+                    error_text = 'We could not send your verification code right now. Please try again in a moment.'
+                return JsonResponse({'success': False, 'error': error_text})
 
             start_cooldown(ip_key, OTP_RESEND_COOLDOWN_SECONDS)
             start_cooldown(user_key, OTP_RESEND_COOLDOWN_SECONDS)
 
-            target_str = user.email or user_phone or identifier
+            # Mask the channel the code was actually delivered to.
+            if '@' not in identifier and sms_delivered:
+                target_str = user_phone
+            elif email_delivered:
+                target_str = user.email
+            else:
+                target_str = user_phone or identifier
             if '@' in target_str:
                 p = target_str.split('@')
                 masked = (p[0][:2] + '***@' + p[1]) if len(p[0]) > 2 else ('*@' + p[1])
@@ -6499,9 +7486,16 @@ def login_view(request):
             if not identifier or not otp:
                 return JsonResponse({'success': False, 'error': 'Please enter both your identifier and the 6-digit OTP.'})
 
-            user = _find_user_by_identifier(identifier)
+            matches = _users_matching_identifier(identifier)
+            if len(matches) > 1:
+                return JsonResponse({'success': False, 'error': 'This contact is linked to more than one account. Please contact support.'})
+            user = matches[0] if matches else None
             if not user:
                 return JsonResponse({'success': False, 'error': 'No account found with this email or mobile number.'})
+
+            # Audit B3: administrators authenticate with their password only.
+            if _is_admin_account(user):
+                return JsonResponse({'success': False, 'admin_password_required': True, 'redirect_url': reverse('admin_login'), 'error': ADMIN_OTP_NOT_ALLOWED_MSG})
 
             if not user.is_active:
                 return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
@@ -6544,6 +7538,7 @@ def login_view(request):
             clear(otp_resend_user_key(user.id) + ':window')
             clear(otp_resend_user_key(user.id))
             clear(otp_resend_ip_key(request))
+            clear(login_otp_ip_key(request))
 
             if user.role == 'WORKER':
                 try:
@@ -6563,7 +7558,7 @@ def login_view(request):
             request.session.cycle_key()
 
             safe_next = _safe_internal_path(request, requested_next or request.session.pop('registration_next', None), '')
-            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False):
                 dest = reverse('admin_dashboard')
             elif user.role == 'WORKER':
                 dest = reverse('worker_dashboard')
@@ -6581,23 +7576,9 @@ def login_view(request):
                 return JsonResponse({'success': False, 'error': 'Please enter both your identifier and password.'})
 
             resolved_username = identifier
-            if '@' in identifier:
-                matched_user = CustomUser.objects.filter(email__iexact=identifier).first()
-                if matched_user:
-                    resolved_username = matched_user.username
-            else:
-                raw_digits = re.sub(r'\D', '', identifier)
-                if len(raw_digits) == 12 and raw_digits.startswith('91'):
-                    raw_digits = raw_digits[2:]
-                elif len(raw_digits) == 11 and raw_digits.startswith('0'):
-                    raw_digits = raw_digits[1:]
-                if len(raw_digits) == 10:
-                    matched_user = (
-                        CustomUser.objects.filter(user_profile__phone=raw_digits).first()
-                        or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
-                    )
-                    if matched_user:
-                        resolved_username = matched_user.username
+            matched_user = _find_user_by_identifier(identifier) if ('@' in identifier or _normalize_phone(identifier)) else None
+            if matched_user:
+                resolved_username = matched_user.username
 
             rl_key = login_key(request, identifier)
             if is_rate_limited(rl_key, LOGIN_MAX_ATTEMPTS):
@@ -6612,11 +7593,15 @@ def login_view(request):
             if not user.is_active:
                 return JsonResponse({'success': False, 'error': 'Your account has been deactivated. Please contact support.'})
 
+            # Audit B3: password sign-in is for administrators only.
+            # Customers and workers sign in with a one-time code.
+            if not _is_admin_account(user):
+                return JsonResponse({'success': False, 'otp_required': True, 'error': PASSWORD_LOGIN_ADMIN_ONLY_MSG})
+
             clear(rl_key)
             is_admin_account = (
                 user.role == 'ADMIN'
                 or getattr(user, 'is_superuser', False)
-                or getattr(user, 'is_staff', False)
             )
             if is_admin_account:
                 if user.role != 'ADMIN' or not user.is_email_verified:
@@ -6652,7 +7637,7 @@ def login_view(request):
             request.session.cycle_key()
 
             safe_next = _safe_internal_path(request, requested_next or request.session.pop('registration_next', None), '')
-            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False):
+            if user.role == 'ADMIN' or getattr(user, 'is_superuser', False):
                 dest = reverse('admin_dashboard')
             elif user.role == 'WORKER':
                 dest = reverse('worker_dashboard')
@@ -6690,31 +7675,25 @@ def login_view(request):
             ''
         )
 
-        # Support Email or Phone in addition to Username
+        # Support Email or Phone in addition to Username (ambiguous
+        # identifiers never resolve to an arbitrary account).
         resolved_username = auth_identifier
-        if '@' in auth_identifier:
-            matched_user = CustomUser.objects.filter(email__iexact=auth_identifier).first()
+        if '@' in auth_identifier or _normalize_phone(auth_identifier):
+            matched_user = _find_user_by_identifier(auth_identifier)
             if matched_user:
                 resolved_username = matched_user.username
-        else:
-            raw_digits = re.sub(r'\D', '', auth_identifier)
-            if len(raw_digits) == 12 and raw_digits.startswith('91'):
-                raw_digits = raw_digits[2:]
-            elif len(raw_digits) == 11 and raw_digits.startswith('0'):
-                raw_digits = raw_digits[1:]
-            if len(raw_digits) == 10:
-                matched_user = (
-                    CustomUser.objects.filter(user_profile__phone=raw_digits).first()
-                    or CustomUser.objects.filter(worker_profile__phone=raw_digits).first()
-                )
-                if matched_user:
-                    resolved_username = matched_user.username
 
         user = authenticate(
             request,
             username=resolved_username,
             password=password
         )
+
+        # Audit B3: password sign-in is for administrators only.
+        if user is not None and not _is_admin_account(user):
+            clear(rl_key)
+            messages.info(request, PASSWORD_LOGIN_ADMIN_ONLY_MSG)
+            return render(request, 'accounts/login.html')
 
         if user is not None:
 
@@ -6724,7 +7703,6 @@ def login_view(request):
             is_admin_account = (
                 user.role == 'ADMIN'
                 or getattr(user, 'is_superuser', False)
-                or getattr(user, 'is_staff', False)
             )
             if is_admin_account:
                 if user.role != 'ADMIN' or not user.is_email_verified:
@@ -6911,9 +7889,7 @@ def login_view(request):
 
 def admin_login_view(request):
     """Dedicated secure sign-in portal for administrators and staff."""
-    if request.user.is_authenticated and (
-        request.user.role == 'ADMIN' or getattr(request.user, 'is_superuser', False) or getattr(request.user, 'is_staff', False)
-    ):
+    if request.user.is_authenticated and _is_admin_account(request.user):
         return redirect('admin_dashboard')
 
     if request.method == 'POST':
@@ -6939,22 +7915,22 @@ def admin_login_view(request):
                 messages.error(request, 'This administrator account has been disabled.')
                 return render(request, 'accounts/admin_login.html', {'entered_username': username})
 
-            is_admin = (
-                user.role == 'ADMIN'
-                or getattr(user, 'is_superuser', False)
-                or getattr(user, 'is_staff', False)
-            )
-            if not is_admin:
+            # Audit B2: only the ADMIN role or a genuine superuser may use the
+            # admin portal. Plain Django staff accounts are refused and are
+            # never promoted.
+            if not _is_admin_account(user):
                 register_failure(rl_key, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS)
                 messages.error(request, 'Access denied. This portal is restricted to system administrators.')
                 return render(request, 'accounts/admin_login.html', {'entered_username': username})
 
             clear(rl_key)
 
-            if user.role != 'ADMIN' or not user.is_email_verified:
+            if user.role != 'ADMIN' and user.is_superuser:
                 user.role = 'ADMIN'
+                user.save(update_fields=['role'])
+            if not user.is_email_verified:
                 user.is_email_verified = True
-                user.save(update_fields=['role', 'is_email_verified'])
+                user.save(update_fields=['is_email_verified'])
 
             login(request, user)
             request.session.cycle_key()
@@ -6994,11 +7970,7 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    if (
-        request.user.role == 'ADMIN'
-        or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
-    ):
+    if _is_admin_account(request.user):
         return redirect('admin_dashboard')
 
     elif request.user.role == 'USER':
@@ -7275,16 +8247,16 @@ def admin_dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
+    # Plain Django staff accounts are not LAMO admins (same rule as login).
     is_admin_user = (
         request.user.role == 'ADMIN'
         or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
     )
 
     if not is_admin_user:
         return redirect('dashboard')
 
-    if request.user.role != 'ADMIN':
+    if request.user.role != 'ADMIN' and request.user.is_superuser:
         request.user.role = 'ADMIN'
         request.user.is_email_verified = True
         request.user.save(update_fields=['role', 'is_email_verified'])
@@ -7349,6 +8321,12 @@ def admin_dashboard(request):
     commission_rate = 10
     platform_commission = round(gross_revenue * 0.10, 2)
     worker_payouts = round(gross_revenue * 0.90, 2)
+    # Actual platform revenue: commission charged to worker wallets at job
+    # acceptance, minus commission refunds (the ledger is the source of truth).
+    _ledger_net = WalletTransaction.objects.filter(
+        transaction_type__in=('FEE_DEDUCTION', 'REFUND')
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    commission_collected = max(Decimal('0.00'), -Decimal(str(_ledger_net)))
 
     # Platform Dues & Launch Metrics
     negative_wallets = WorkerWallet.objects.filter(balance__lt=0)
@@ -7523,10 +8501,13 @@ def admin_dashboard(request):
             'commission_rate': commission_rate,
             'platform_commission': platform_commission,
             'worker_payouts': worker_payouts,
+            'commission_collected': commission_collected,
             'monthly_revenue': monthly_revenue,
             'top_services_data': top_services_data,
             'district_revenue_data': district_revenue_data,
             'live_map_json': live_map_json,
+            # Rendered with |json_script (escapes <, >, &) - never |safe.
+            'live_map_data': live_map_data,
             'map_bookings_count': len(map_bookings),
             'map_workers_count': len(map_workers),
             'avg_rating': round(avg_rating, 1),
@@ -7661,29 +8642,36 @@ def worker_dashboard(request):
     ).order_by('-created_at')[:5]
 
     # Get emergency bookings that are pending (no worker assigned yet).
-    # Only this worker's own trade is broadcast here: without the service
-    # filter a plumber would see electricians' emergency requests, including
-    # other customers' locations/phones, and could accept a job outside
-    # their trade.
+    # Finding C4: Filter to worker's own trade and district, and block if wallet is locked.
     emergency_bookings = []
+    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker_profile)
     if worker_profile.is_verified and worker_profile.work_status in ['AVAILABLE', 'ON_DUTY'] and request.user.is_active and worker_profile.service_id:
-        dismissed_booking_ids = Notification.objects.filter(
-            recipient=request.user,
-            notification_type='EMERGENCY',
-            is_read=True
-        ).values_list('booking_id', flat=True)
+        if not wallet.is_locked:
+            dismissed_booking_ids = Notification.objects.filter(
+                recipient=request.user,
+                notification_type='EMERGENCY',
+                is_read=True
+            ).values_list('booking_id', flat=True)
 
-        emergency_bookings = Booking.objects.filter(
-            status='EMERGENCY_PENDING',
-            worker__isnull=True,
-            service=worker_profile.service,
-        ).exclude(id__in=dismissed_booking_ids).select_related('customer', 'service').order_by('-created_at')[:10]
+            em_qs = Booking.objects.filter(
+                status='EMERGENCY_PENDING',
+                worker__isnull=True,
+                service=worker_profile.service,
+            ).exclude(id__in=dismissed_booking_ids)
+
+            # Finding C4: Only broadcast within worker's registered district
+            if worker_profile.district:
+                em_qs = em_qs.filter(district__iexact=worker_profile.district.strip())
+
+            emergency_bookings = em_qs.select_related('customer', 'service').order_by('-created_at')[:10]
 
     emergency_reason = None
     if not emergency_bookings:
-        emergency_reason = _emergency_unavailable_reason(worker_profile, request.user)
+        if wallet.is_locked:
+            emergency_reason = "Wallet balance is low. Please recharge your wallet to receive emergency jobs."
+        else:
+            emergency_reason = _emergency_unavailable_reason(worker_profile, request.user)
 
-    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker_profile)
     recent_wallet_transactions = wallet.transactions.select_related('booking').order_by('-created_at')[:8]
 
     context = {
@@ -7725,6 +8713,20 @@ def worker_dashboard(request):
     )
 
 
+def _release_rejected_utr(tx):
+    """Free the UTR held by a REJECTED recharge so the real payer can use it.
+
+    The reference is moved into the audit notes (nothing is deleted) and the
+    unique column is cleared. Pending and credited rows keep their reference, so
+    a UTR that is awaiting verification or already credited can never be
+    submitted - or credited - a second time.
+    """
+    if tx.reference_id:
+        tx.notes = f"{tx.notes} | UTR {tx.reference_id} released after rejection".strip(' |')[:2000]
+        tx.reference_id = None
+        tx.save(update_fields=['notes', 'reference_id'])
+
+
 @login_required
 @require_POST
 def worker_recharge_wallet(request):
@@ -7739,14 +8741,15 @@ def worker_recharge_wallet(request):
         messages.error(request, 'Worker profile not found.')
         return redirect('dashboard')
 
-    raw_amount = request.POST.get('amount', '').strip()
-    try:
-        amount = Decimal(raw_amount)
-        if amount < Decimal('10.00'):
-            messages.error(request, 'Minimum recharge / payment amount is ₹10.00.')
-            return redirect('worker_dashboard')
-    except (ValueError, TypeError, ArithmeticError):
-        messages.error(request, 'Please provide a valid payment amount.')
+    # Decimal only; NaN, Infinity, negatives, zero, malformed text, more than two
+    # decimal places and amounts above the ledger column limit are rejected
+    # before anything can reach a wallet calculation.
+    amount, amount_error = _strict_money(request.POST.get('amount', ''), 'Recharge amount')
+    if amount_error:
+        messages.error(request, amount_error)
+        return redirect('worker_dashboard')
+    if amount < Decimal('10.00'):
+        messages.error(request, 'Minimum recharge / payment amount is ₹10.00.')
         return redirect('worker_dashboard')
 
     reference_id = request.POST.get('reference_id', '').strip().upper()[:100]
@@ -7756,9 +8759,15 @@ def worker_recharge_wallet(request):
 
     try:
         with transaction.atomic():
-            if WalletTransaction.objects.filter(reference_id=reference_id).exists():
-                messages.error(request, 'This transaction reference ID has already been registered.')
-                return redirect('worker_dashboard')
+            existing_ref = WalletTransaction.objects.select_for_update().filter(reference_id=reference_id).first()
+            if existing_ref is not None:
+                if existing_ref.transaction_type == 'RECHARGE_REJECTED':
+                    # A rejected claim must not reserve the UTR forever (older
+                    # rejected rows still hold it): release it, keep the audit trail.
+                    _release_rejected_utr(existing_ref)
+                else:
+                    messages.error(request, 'This transaction reference ID has already been registered.')
+                    return redirect('worker_dashboard')
 
             wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker_profile)
             current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
@@ -7769,7 +8778,7 @@ def worker_recharge_wallet(request):
             WalletTransaction.objects.create(
                 wallet=wallet,
                 transaction_type='RECHARGE_PENDING',
-                amount=Decimal('0.00'),
+                amount=amount,
                 balance_after=current_balance,
                 reference_id=reference_id,
                 notes=f"Recharge of ₹{amount:.2f} submitted with UTR {reference_id} (Status: PENDING_APPROVAL)"
@@ -7857,13 +8866,20 @@ def user_dashboard(request):
 @never_cache
 @login_required
 def change_password_view(request):
-    """Let a signed-in user change their own password.
-
-    Unlike the forgot-password flow this asks for the *current* password, so a
-    hijacked session on its own cannot be used to lock the real owner out.
-    Any outstanding reset token is consumed so a previously emailed link stops
-    working once the password changes.
+    """Let an authenticated administrator change their password.
+    Password management is only enabled for ADMIN accounts; customers and workers log in via secure OTP.
     """
+    # Admins, and workers who registered with a password, can change it.
+    # OTP-only accounts (no usable password) keep signing in with codes.
+    can_manage_password = request.user.role == 'ADMIN' or (
+        request.user.role == 'WORKER'
+        and bool(request.user.password)
+        and request.user.has_usable_password()
+    )
+    if not can_manage_password:
+        messages.info(request, 'Your account uses secure OTP authentication. Password management is only required for platform administrators.')
+        return redirect('dashboard')
+
     context = {}
 
     if request.method == 'POST':
@@ -7910,6 +8926,169 @@ def change_password_view(request):
     return render(request, 'accounts/change_password.html', context)
 
 
+# ---------------------------------------------------------------------------
+# Phone-number change with real OTP verification of the NEW number
+# ---------------------------------------------------------------------------
+# A separate, session-bound flow (it never touches the login / registration OTP
+# state). The pending change lives only in the server-side session:
+#   user_id, role, new_phone, code_hash (SHA-256), created_at, attempts.
+# The phone is written ONLY after the code for exactly that number, issued to
+# exactly this signed-in user, is verified once.
+PHONE_CHANGE_SESSION_KEY = 'phone_change_pending'
+
+
+def _phone_change_keys(user_id, new_phone):
+    digest = hashlib.sha256(f'{user_id}:{new_phone}'.encode('utf-8')).hexdigest()
+    return (
+        f'ratelimit:phonechange:send:{user_id}',
+        f'ratelimit:phonechange:verify:{digest}',
+    )
+
+
+def _phone_change_profile(user):
+    """The UserProfile / WorkerProfile that holds this user's phone, or None."""
+    if user.role == 'WORKER':
+        return WorkerProfile.objects.filter(user=user).first()
+    if user.role == 'USER':
+        return UserProfile.objects.filter(user=user).first()
+    return None
+
+
+def begin_phone_change(request, user, new_phone):
+    """Validate ``new_phone`` and send an OTP to it. Returns (ok, message).
+
+    Nothing is written to the profile here. Re-submitting a different number
+    replaces the previous pending change (the old code stops working).
+    """
+    new_phone = _normalize_phone(new_phone)
+    if not new_phone:
+        return False, 'Please enter a valid 10-digit Indian mobile number.'
+    if _user_ids_for_phone(new_phone) - {user.id}:
+        return False, 'This phone number is already registered with another account.'
+    if not sms_delivery_available():
+        return False, 'Mobile verification is temporarily unavailable, so the phone number was not changed.'
+    send_key, _verify_key = _phone_change_keys(user.id, new_phone)
+    allowed, wait = register_attempt_within_window(
+        send_key, int(getattr(settings, 'PHONE_CHANGE_MAX_SENDS_PER_HOUR', 3)), 60 * 60
+    )
+    if not allowed:
+        return False, f'Too many codes requested. Please try again in {max(1, wait)} minute(s).'
+    ok, error = _otp_send_allowed(request, new_phone)
+    if not ok:
+        return False, error
+    otp = ''.join(secrets.choice(string.digits) for _ in range(6))
+    if not send_otp_sms(new_phone, otp):
+        return False, 'We could not send a code to that number. Please try again.'
+    request.session[PHONE_CHANGE_SESSION_KEY] = {
+        'user_id': user.id,
+        'role': user.role,
+        'new_phone': new_phone,
+        'code_hash': hashlib.sha256(otp.encode('utf-8')).hexdigest(),
+        'created_at': timezone.now().isoformat(),
+        'attempts': 0,
+    }
+    request.session.modified = True
+    return True, f'We sent a 6-digit code to {new_phone}.'
+
+
+def _mask_phone(phone):
+    return f'{phone[:2]}******{phone[-2:]}' if phone and len(phone) >= 4 else ''
+
+
+@login_required
+def phone_change_verify(request):
+    """Verify the OTP sent to the new number and only then update the phone."""
+    back_url = 'edit_worker_profile' if request.user.role == 'WORKER' else 'edit_profile'
+    pending = request.session.get(PHONE_CHANGE_SESSION_KEY)
+    if not pending or pending.get('user_id') != request.user.id:
+        # Another user's (or no) pending change can never be completed here.
+        if pending:
+            request.session.pop(PHONE_CHANGE_SESSION_KEY, None)
+        messages.info(request, 'There is no phone number change waiting for verification.')
+        return redirect(back_url)
+
+    new_phone = pending.get('new_phone', '')
+    context = {'masked_phone': _mask_phone(new_phone), 'back_url': back_url}
+
+    if request.method != 'POST':
+        return render(request, 'accounts/verify_phone_change.html', context)
+
+    action = request.POST.get('action', 'verify')
+    if action == 'cancel':
+        request.session.pop(PHONE_CHANGE_SESSION_KEY, None)
+        messages.info(request, 'Phone number change cancelled.')
+        return redirect(back_url)
+
+    if action == 'resend':
+        ok, message = begin_phone_change(request, request.user, new_phone)
+        (messages.success if ok else messages.error)(request, message)
+        return redirect('phone_change_verify')
+
+    max_attempts = int(getattr(settings, 'PHONE_CHANGE_MAX_ATTEMPTS', 5))
+    _send_key, verify_key = _phone_change_keys(request.user.id, new_phone)
+    if is_rate_limited(verify_key, max_attempts):
+        request.session.pop(PHONE_CHANGE_SESSION_KEY, None)
+        messages.error(request, 'Too many incorrect codes. Please start the phone number change again later.')
+        return redirect(back_url)
+
+    # Expiry
+    try:
+        created = datetime.fromisoformat(pending.get('created_at'))
+    except (TypeError, ValueError):
+        created = None
+    ttl = int(getattr(settings, 'PHONE_CHANGE_OTP_TTL_SECONDS', 600))
+    if not created or timezone.now() > created + timedelta(seconds=ttl):
+        request.session.pop(PHONE_CHANGE_SESSION_KEY, None)
+        messages.error(request, 'The code has expired. Please request a new phone number change.')
+        return redirect(back_url)
+
+    code = (request.POST.get('otp') or '').strip()
+    if len(code) != 6 or not code.isdigit():
+        messages.error(request, 'Please enter the 6-digit code.')
+        return render(request, 'accounts/verify_phone_change.html', context)
+
+    submitted_hash = hashlib.sha256(code.encode('utf-8')).hexdigest()
+    if not (pending.get('code_hash') and secrets.compare_digest(pending['code_hash'], submitted_hash)):
+        register_failure(verify_key, max_attempts, 15 * 60)
+        pending['attempts'] = int(pending.get('attempts', 0)) + 1
+        request.session[PHONE_CHANGE_SESSION_KEY] = pending
+        request.session.modified = True
+        messages.error(request, 'Incorrect code. Please try again.')
+        return render(request, 'accounts/verify_phone_change.html', context)
+
+    # Valid code: consume it first so it can never be replayed, then apply.
+    request.session.pop(PHONE_CHANGE_SESSION_KEY, None)
+    clear(verify_key)
+
+    from django.core.cache import cache
+    lock_key = f'phonechange:lock:{new_phone}'
+    try:
+        lock_acquired = cache.add(lock_key, request.user.id, 30)
+    except Exception:
+        lock_acquired = False
+    if not lock_acquired:
+        messages.error(request, 'That number is being updated right now. Please try again.')
+        return redirect(back_url)
+    try:
+        with transaction.atomic():
+            CustomUser.objects.select_for_update().get(pk=request.user.pk)
+            profile = _phone_change_profile(request.user)
+            if profile is None:
+                messages.error(request, 'Profile not found.')
+                return redirect(back_url)
+            # Re-check uniqueness at the moment of writing (it may have been
+            # claimed since the code was sent).
+            if _user_ids_for_phone(new_phone) - {request.user.id}:
+                messages.error(request, 'This phone number is already registered with another account.')
+                return redirect(back_url)
+            profile.phone = new_phone
+            profile.save(update_fields=['phone'])
+    finally:
+        cache.delete(lock_key)
+    messages.success(request, 'Your mobile number has been verified and updated.')
+    return redirect('worker_profile' if request.user.role == 'WORKER' else 'edit_profile')
+
+
 @login_required
 def edit_profile_view(request):
     if request.user.role == 'WORKER':
@@ -7927,7 +9106,18 @@ def edit_profile_view(request):
             request.POST.get('ajax_avatar') == 'true'
         )
         if is_ajax_avatar and 'profile_image' in request.FILES:
-            profile.profile_image = request.FILES['profile_image']
+            # Validate extension, MIME type, magic bytes, size and a full
+            # image decode before anything is stored (same rules as the form).
+            from .upload_validation import validate_profile_photo
+            from django.core.exceptions import ValidationError as _UploadError
+            try:
+                avatar_file = validate_profile_photo(request.FILES['profile_image'])
+            except _UploadError as exc:
+                return JsonResponse(
+                    {'status': 'error', 'message': ' '.join(exc.messages)},
+                    status=400,
+                )
+            profile.profile_image = avatar_file
             profile.save(update_fields=['profile_image'])
             return JsonResponse({
                 'status': 'success',
@@ -7935,9 +9125,27 @@ def edit_profile_view(request):
                 'image_url': profile.profile_image.url if profile.profile_image else ''
             })
 
+        original_phone = profile.phone
         form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            # A changed mobile number is NOT saved here: ownership of the new
+            # number must first be proven with an OTP sent to it (see
+            # begin_phone_change / phone_change_verify). Everything else saves now.
+            submitted_phone = form.cleaned_data.get('phone')
+            phone_change_requested = bool(submitted_phone) and submitted_phone != (original_phone or '')
+            if phone_change_requested:
+                form.instance.phone = original_phone
+
             form.save()
+
+            if phone_change_requested:
+                sent, info = begin_phone_change(request, request.user, submitted_phone)
+                if sent:
+                    messages.success(request, 'Profile updated. ' + info + ' Enter it to confirm your new number.')
+                    return redirect('phone_change_verify')
+                messages.error(request, 'Your other changes were saved, but the mobile number was not changed. ' + info)
+                return redirect('edit_profile')
+
             messages.success(request, 'Profile updated successfully.')
             return redirect('edit_profile')
         else:
@@ -7960,12 +9168,20 @@ def edit_worker_profile_view(request):
         return redirect('dashboard')
 
     if request.method == 'POST':
+        original_phone = profile.phone
         form = WorkerProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
+            # A changed mobile number is not saved until the OTP sent to the new
+            # number is verified (see begin_phone_change / phone_change_verify).
+            submitted_phone = form.cleaned_data.get('phone')
+            phone_change_requested = bool(submitted_phone) and submitted_phone != (original_phone or '')
+
             original_service = profile.service
             original_district = profile.district
 
             profile = form.save(commit=False)
+            if phone_change_requested:
+                profile.phone = original_phone
 
             # Defensive server-side guard: if worker is verified, ignore any forged tampering of service/district
             if profile.is_verified:
@@ -7979,6 +9195,13 @@ def edit_worker_profile_view(request):
                 )
 
             profile.save()
+            if phone_change_requested:
+                sent, info = begin_phone_change(request, request.user, submitted_phone)
+                if sent:
+                    messages.success(request, 'Profile updated. ' + info + ' Enter it to confirm your new number.')
+                    return redirect('phone_change_verify')
+                messages.error(request, 'Your other changes were saved, but the mobile number was not changed. ' + info)
+                return redirect('edit_worker_profile')
             messages.success(request, 'Profile updated successfully.')
             return redirect('worker_profile')
         else:
@@ -8059,8 +9282,12 @@ def _cancel_single_booking_internal(booking, reason, actor='CUSTOMER'):
         'status', 'cancellation_reason', 'cancelled_by', 'updated_at'
     ])
 
-    # 1. Process customer refund
-    _handle_booking_cancellation_refund(booking)
+    # 1. Process customer refund. Customer-side closure is not the worker's
+    # fault, so any commission the worker prepaid is returned.
+    _handle_booking_cancellation_refund(
+        booking, commission_refund=True,
+        refund_reason=f'Customer booking closed ({actor})',
+    )
 
     # 2 & 3. Worker notification and email (if worker was assigned)
     if booking.worker:
@@ -8241,20 +9468,38 @@ def delete_account_view(request):
     if request.method != 'POST':
         return redirect('edit_profile')
 
-    # Require password confirmation
-    password = request.POST.get('password', '').strip()
-    if not password:
-        messages.error(request, 'Please enter your password to confirm account deletion.')
-        return redirect('edit_profile')
-
     user = request.user
-    if not user.check_password(password):
-        messages.error(request, 'Incorrect password. Account deletion cancelled.')
-        return redirect('edit_profile')
-
     if user.role != 'USER':
         messages.error(request, 'Only customer accounts can be deleted via this option.')
         return redirect('edit_profile')
+
+    # Confirmation validation
+    if user.has_usable_password():
+        # Account with password configured (e.g. legacy/admin-created): verify password
+        password = request.POST.get('password', '').strip()
+        if not password:
+            messages.error(request, 'Please enter your password to confirm account deletion.')
+            return redirect('edit_profile')
+        if not user.check_password(password):
+            messages.error(request, 'Incorrect password. Account deletion cancelled.')
+            return redirect('edit_profile')
+    else:
+        # Passwordless OTP customer: confirm via typed confirmation or explicit confirmation token
+        confirm_val = request.POST.get('confirm_delete', '').strip() or request.POST.get('password', '').strip()
+        if confirm_val.upper() not in ('DELETE', 'CONFIRM', 'YES'):
+            messages.error(request, 'Please confirm account deletion by typing DELETE.')
+            return redirect('edit_profile')
+        # Step-up check: with no password to re-enter, require a recent
+        # (OTP) sign-in so an unattended, already-open session cannot
+        # permanently delete the account.
+        recent_window = timedelta(minutes=30)
+        if not user.last_login or timezone.now() - user.last_login > recent_window:
+            messages.error(
+                request,
+                'For your security, please sign out and sign in again with your verification code, '
+                'then delete your account within 30 minutes.'
+            )
+            return redirect('edit_profile')
 
     success, err_msg = _anonymize_and_soft_delete_customer(user, actor='CUSTOMER')
     if not success:
@@ -8326,86 +9571,149 @@ def admin_delete_worker(request, worker_id):
     return redirect('workers_list')
 
 
+def _true_up_commission_for_final_bill(booking):
+    """Adjust the commission already charged at acceptance to the final bill.
+
+    Only the DIFFERENCE is moved: e.g. Rs 50 charged on a Rs 500 estimate and a
+    Rs 2,000 final labour bill => correct fee Rs 200 => deduct Rs 150 more
+    (never Rs 200 again). If the final fee is lower, the excess is returned as a
+    REFUND row. The amount already charged is read from the ledger, so running
+    this twice (or after a partial refund) moves nothing the second time.
+    Returns the signed amount applied to the wallet (negative = extra charge).
+    """
+    worker = booking.worker
+    if worker is None:
+        return Decimal('0.00')
+    final_fee = calculate_booking_platform_fee(booking, worker)
+    with transaction.atomic():
+        wallet = WorkerWallet.objects.select_for_update().filter(worker=worker).first()
+        if wallet is None:
+            return Decimal('0.00')
+        commission_rows = WalletTransaction.objects.filter(
+            wallet=wallet, booking=booking,
+            transaction_type__in=('FEE_DEDUCTION', 'REFUND'),
+        )
+        if not commission_rows.exists():
+            # fee_settled with no ledger entry: nothing to compare against.
+            return Decimal('0.00')
+        if commission_rows.filter(
+            transaction_type='FEE_DEDUCTION', amount=Decimal('0.00'),
+            notes__startswith='Launch Offer',
+        ).exists():
+            # Launch-offer waiver granted at acceptance is honoured.
+            return Decimal('0.00')
+        charged = _commission_outstanding(booking, wallet)
+        diff = (final_fee - charged).quantize(Decimal('0.01'))
+        if diff == Decimal('0.00'):
+            Booking.objects.filter(pk=booking.pk).update(platform_fee=final_fee)
+            booking.platform_fee = final_fee
+            return Decimal('0.00')
+        balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+        if diff > Decimal('0.00'):
+            wallet.balance = balance - diff
+            wallet.save(update_fields=['balance', 'updated_at'])
+            WalletTransaction.objects.create(
+                wallet=wallet, booking=booking, transaction_type='FEE_DEDUCTION',
+                amount=-diff, balance_after=wallet.balance,
+                notes=(f"Commission adjustment for Booking #{booking.id}: final bill fee Rs {final_fee:.2f}, "
+                       f"Rs {charged:.2f} already charged at acceptance.")[:500],
+            )
+            if wallet.is_locked and not worker.is_paused_for_dues:
+                worker.is_paused_for_dues = True
+                worker.save(update_fields=['is_paused_for_dues'])
+        else:
+            refund = -diff
+            wallet.balance = balance + refund
+            wallet.save(update_fields=['balance', 'updated_at'])
+            WalletTransaction.objects.create(
+                wallet=wallet, booking=booking, transaction_type='REFUND',
+                amount=refund, balance_after=wallet.balance,
+                notes=(f"Commission adjustment for Booking #{booking.id}: final bill fee Rs {final_fee:.2f} "
+                       f"is lower than Rs {charged:.2f} charged at acceptance.")[:500],
+            )
+            if worker.is_paused_for_dues and not wallet.is_locked:
+                worker.is_paused_for_dues = False
+                worker.save(update_fields=['is_paused_for_dues'])
+        Booking.objects.filter(pk=booking.pk).update(platform_fee=final_fee)
+        booking.platform_fee = final_fee
+        return -diff
+
+
 def _settle_booking_completion_financials(booking):
     """
     Settles platform fee upon booking completion.
-    - Direct payment (Cash or UPI to worker): deducts platform fee (FEE_DEDUCTION) from worker's wallet balance.
-    - Platform fee is calculated on labor charges (final_amount - material_amount), 10% min ₹15, max cap ₹300.
+    In the prepaid model (Finding C1):
+    - Commission is deducted when worker accepts the booking (booking.fee_settled = True).
+    - If fee was already settled at acceptance, this function safely returns without duplicate deductions.
+    - If fee was not yet settled (e.g. legacy bookings), it deducts the fee once and marks fee_settled=True.
+    - Under the direct cash/UPI payment model, LAMO never touches customer funds, so fictional online payouts are eliminated.
     """
-    if not booking.worker or booking.fee_settled:
+    if not booking.worker:
+        return
+    if booking.fee_settled:
+        # Commission was charged at acceptance on the *estimate*. The final
+        # bill may differ, so charge/refund only the difference (idempotent).
+        _true_up_commission_for_final_bill(booking)
         return
 
     worker = booking.worker
-    job_amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
-    material_cost = getattr(booking, 'material_amount', Decimal('0.00')) or Decimal('0.00')
-    labor_amount = max(Decimal('0.00'), job_amount - material_cost)
-
-    if worker.is_in_launch:
-        platform_fee = Decimal('0.00')
-    else:
-        platform_fee = max(labor_amount * Decimal('0.10'), Decimal('15.00'))
-
+    platform_fee = calculate_booking_platform_fee(booking, worker)
     booking.platform_fee = platform_fee
 
     with transaction.atomic():
         wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=worker)
         current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
 
-        # Direct customer-to-worker payment (Cash or UPI)
-        if booking.payment_method in ('CASH', 'UPI', None, ''):
-            if platform_fee > Decimal('0.00'):
-                wallet.balance = current_balance - platform_fee
-                wallet.save()
-
-                if wallet.is_locked:
-                    worker.is_paused_for_dues = True
-                    worker.save(update_fields=['is_paused_for_dues'])
-
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    booking=booking,
-                    transaction_type='FEE_DEDUCTION',
-                    amount=-platform_fee,
-                    balance_after=wallet.balance,
-                    notes=f"Platform fee (10% on ₹{labor_amount:.2f} labor, parts ₹{material_cost:.2f} exempt) for Booking #{booking.id}"
-                )
-            else:
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    booking=booking,
-                    transaction_type='FEE_DEDUCTION',
-                    amount=Decimal('0.00'),
-                    balance_after=wallet.balance,
-                    notes=f"Launch Offer Benefit: 0% Platform Fee for Booking #{booking.id}"
-                )
-        else:
-            # ONLINE payment via platform - Credit worker net payout (job_amount - platform_fee)
-            payout_amount = max(Decimal('0.00'), job_amount - platform_fee)
-            wallet.balance = current_balance + payout_amount
+        if platform_fee > Decimal('0.00'):
+            wallet.balance = current_balance - platform_fee
             wallet.save()
 
-            if wallet.balance >= Decimal('-500.00') and worker.is_paused_for_dues:
-                worker.is_paused_for_dues = False
+            if wallet.is_locked:
+                worker.is_paused_for_dues = True
                 worker.save(update_fields=['is_paused_for_dues'])
 
             WalletTransaction.objects.create(
                 wallet=wallet,
                 booking=booking,
-                transaction_type='ONLINE_PAYOUT_OFFSET',
-                amount=payout_amount,
+                transaction_type='FEE_DEDUCTION',
+                amount=-platform_fee,
                 balance_after=wallet.balance,
-                notes=f"Net earnings payout for Online Booking #{booking.id} (Gross: ₹{job_amount:.2f}, Fee: ₹{platform_fee:.2f})"
+                notes=f"Platform fee for Booking #{booking.id}"
+            )
+        else:
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                booking=booking,
+                transaction_type='FEE_DEDUCTION',
+                amount=Decimal('0.00'),
+                balance_after=wallet.balance,
+                notes=f"Launch Offer Benefit: 0% Platform Fee for Booking #{booking.id}"
             )
 
         booking.fee_settled = True
         booking.save(update_fields=['platform_fee', 'fee_settled', 'updated_at'])
 
 
-def _handle_booking_cancellation_refund(booking):
+def _handle_booking_cancellation_refund(booking, commission_refund=False, refund_reason='Booking cancelled'):
     """
-    If a cancelled booking was paid online (is_paid=True or Payment status is PAID),
-    queue a refund by updating Payment status to REFUNDED, and alert admins and customer.
+    Cancellation side effects for money.
+
+    Commission (worker's prepaid wallet) - decided by the caller from the
+    platform refund policy, and refunded from the ledger only:
+      refunded   - customer cancels before work starts, customer not available,
+                   worker cancels early enough (WORKER_CANCEL_REFUND_MIN_HOURS),
+                   admin suspension, customer account closure, admin decision.
+      forfeited  - worker no-show, late worker cancellation, accepted job that
+                   auto-expired without being started, anything after the
+                   customer verified the worker's arrival.
+    Only money actually deducted can be refunded, and only once.
+
+    Customer advance payment - if one was recorded, it is flagged for an
+    admin refund (unchanged behaviour).
     """
+    if commission_refund:
+        _refund_booking_commission(booking, refund_reason)
+
     is_paid = booking.is_paid or (hasattr(booking, 'payment') and booking.payment.status == 'PAID')
     if not is_paid:
         return
@@ -8485,7 +9793,12 @@ def _cancel_upcoming_worker_bookings_on_suspension(worker_profile, admin_user=No
             b.cancellation_reason = reason
             b.cancelled_by = 'ADMIN_SUSPEND'
             b.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-            _handle_booking_cancellation_refund(b)
+            # Platform-initiated cancellation of jobs that were never performed:
+            # prepaid commission is returned to the worker's wallet.
+            _handle_booking_cancellation_refund(
+                b, commission_refund=True,
+                refund_reason='Cancelled by administration (worker suspended)',
+            )
             cancelled_count += 1
 
             # In-app notification to the customer
@@ -8568,11 +9881,7 @@ def admin_suspend_worker(request, worker_id):
 @login_required
 def admin_worker_strike(request, worker_id):
     """Admin issues an official warning, strike, or resets strikes with audit notes."""
-    is_admin = (
-        request.user.role == 'ADMIN'
-        or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
-    )
+    is_admin = _is_admin_account(request.user)
     if not is_admin:
         messages.error(request, 'You are not authorized to perform this action.')
         return redirect('dashboard')
@@ -8650,15 +9959,16 @@ def admin_worker_strike(request, worker_id):
 @login_required
 def service_update(request, pk):
 
+    # Plain Django staff accounts are not LAMO admins (same rule as login):
+    # only the ADMIN role or a superuser may manage services.
     is_admin = (
         request.user.role == 'ADMIN'
         or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
     )
     if not is_admin:
         messages.error(request, 'You are not authorized to access this page.')
         return redirect('dashboard')
-    if request.user.role != 'ADMIN':
+    if request.user.role != 'ADMIN' and request.user.is_superuser:
         request.user.role = 'ADMIN'
         request.user.save(update_fields=['role'])
 
@@ -8714,11 +10024,7 @@ def service_delete(request, pk):
         return redirect('service_list')
 
     # Only ADMIN can delete services
-    is_admin = (
-        request.user.role == 'ADMIN'
-        or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
-    )
+    is_admin = _is_admin_account(request.user)
     if not is_admin:
         messages.error(
             request,
@@ -8887,11 +10193,16 @@ def service_workers(request, pk):
     # unverified workers stay hidden entirely.
     workers = (
         WorkerProfile.objects
-        .select_related('user', 'service')
+        .select_related('user', 'service', 'wallet')
         .filter(
             service=service,
             is_verified=True,
-            work_status='AVAILABLE',
+            # ON_DUTY workers are busy right now, so they are only offered
+            # when the customer picked a later date (book_service accepts
+            # exactly that case).
+            work_status__in=(
+                ['AVAILABLE', 'ON_DUTY'] if worker_on_duty_can_take(selected_date) else ['AVAILABLE']
+            ),
             district__iexact=district,
         )
         .annotate(
@@ -8912,6 +10223,7 @@ def service_workers(request, pk):
             start_time=selected_start,
             end_time=selected_end,
             time_value=selected_time_value,
+            booking_date=selected_date,
         )
         worker.is_bookable = not worker.unavailable_reasons
 
@@ -9142,86 +10454,7 @@ def service_page(request):
         if request.session.get('lamo_selected_district') != selected_district:
             request.session['lamo_selected_district'] = selected_district
 
-    from django.core.cache import cache
-
-    cache_key = f"svc_cat_data_{selected_district.lower()}"
-    cached_payload = None
-    try:
-        cached_payload = cache.get(cache_key)
-    except Exception:
-        cached_payload = None
-    if cached_payload is not None:
-        all_services_list, category_counts = cached_payload
-    else:
-        services_qs = Service.objects.filter(is_active=True)
-
-        today = timezone.localdate()
-        try:
-            workers_on_leave_ids = set(
-                WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
-            )
-        except Exception:
-            workers_on_leave_ids = set()
-
-        eligible_workers_qs = WorkerProfile.objects.filter(
-            is_verified=True,
-            work_status='AVAILABLE',
-            user__is_active=True,
-            is_paused_for_dues=False,
-        ).exclude(id__in=workers_on_leave_ids)
-
-        district_worker_counts = dict(
-            eligible_workers_qs.filter(
-                district__iexact=selected_district,
-            ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-        )
-        total_worker_counts = dict(
-            eligible_workers_qs.values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
-        )
-
-        all_services_list = list(services_qs.order_by('name'))
-        category_counts = {
-            'all': len(all_services_list),
-            'cleaning': 0,
-            'electrical': 0,
-            'plumbing': 0,
-            'ac_repair': 0,
-            'painting': 0,
-            'carpentry': 0,
-            'appliance': 0,
-            'gardening': 0,
-            'pest_control': 0,
-            'more': 0,
-        }
-
-        for s in all_services_list:
-            meta = _map_service_metadata(s)
-            s.category_key = meta['category_key']
-            s.category_label = meta['category_label']
-            s.icon_class = meta['icon_class']
-            s.badge_bg = meta['badge_bg']
-            s.badge_color = meta['badge_color']
-            s.fallback_img = meta['fallback_img']
-            s.img_url = meta['img_url']
-            
-            dist_count = district_worker_counts.get(s.id, 0)
-            tot_count = total_worker_counts.get(s.id, 0)
-            s.dist_worker_count = dist_count
-            s.tot_worker_count = tot_count
-            s.real_worker_count = dist_count
-            if dist_count > 0:
-                s.pro_count_display = f"{dist_count} Verified Worker{'s' if dist_count != 1 else ''}"
-            elif tot_count > 0:
-                s.pro_count_display = f"{tot_count} Verified in Kerala (0 in {selected_district})"
-            else:
-                s.pro_count_display = "0 Verified Workers"
-                
-            category_counts[s.category_key] = category_counts.get(s.category_key, 0) + 1
-
-        try:
-            cache.set(cache_key, (all_services_list, category_counts), timeout=120)
-        except Exception:
-            pass
+    all_services_list, category_counts = _get_service_catalog(selected_district)
 
     search_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
     selected_category = request.GET.get('category', 'all').strip().lower()
@@ -9305,52 +10538,35 @@ def service_page(request):
     return response
 
 
+SEARCH_QUERY_MAX_LENGTH = 100
+
+
 def api_search_suggestions(request):
     """
     Returns live search suggestions and popular services.
     Supports typo-tolerance, phonetic matching, and category aliases.
+
+    The service list and per-district worker counts come from a short-lived
+    public cache, so a typical keystroke costs no database query beyond the
+    session lookup. Input is length-limited and the district must be a real
+    district (an arbitrary value can neither be echoed back nor create cache keys).
     """
-    raw_query = (request.GET.get('q') or request.GET.get('search') or '').strip()
+    raw_query = (request.GET.get('q') or request.GET.get('search') or '').strip()[:SEARCH_QUERY_MAX_LENGTH]
     district = (
-        request.GET.get('district')
-        or request.session.get('district')
-        or request.session.get('lamo_selected_district')
+        _canonical_district(request.GET.get('district'))
+        or _canonical_district(request.session.get('district'))
+        or _canonical_district(request.session.get('lamo_selected_district'))
         or 'Kollam'
-    ).strip()
-
-    services_qs = Service.objects.filter(is_active=True).order_by('-is_featured', 'name')
-    all_services = list(services_qs)
-
-    today = timezone.localdate()
-    try:
-        workers_on_leave_ids = set(
-            WorkerLeave.objects.filter(leave_date=today).values_list('worker_id', flat=True)
-        )
-    except Exception:
-        workers_on_leave_ids = set()
-
-    eligible_workers = WorkerProfile.objects.filter(
-        is_verified=True,
-        work_status='AVAILABLE',
-        user__is_active=True,
-        is_paused_for_dues=False,
-    ).exclude(id__in=workers_on_leave_ids)
-
-    district_worker_counts = dict(
-        eligible_workers.filter(
-            district__iexact=district,
-        ).values('service_id').annotate(c=Count('id')).values_list('service_id', 'c')
     )
 
+    all_services, _counts = _get_service_catalog(
+        district, cache_prefix='svc_search_data_',
+        ttl=_cache_ttl('HOME_CATALOG_CACHE_SECONDS', 60),
+    )
+    # Same ordering the endpoint always used: featured first, then by name.
+    all_services = sorted(all_services, key=lambda s: (not s.is_featured, (s.name or '').lower()))
     for s in all_services:
-        meta = _map_service_metadata(s)
-        s.category_key = meta['category_key']
-        s.category_label = meta['category_label']
-        s.icon_class = meta['icon_class']
-        s.badge_bg = meta['badge_bg']
-        s.badge_color = meta['badge_color']
-        cnt = district_worker_counts.get(s.id, 0)
-        s.real_worker_count = cnt
+        cnt = s.real_worker_count
         if cnt > 0:
             s.pro_count_display = f"{cnt} Verified Pro{'s' if cnt != 1 else ''} in {district}"
         else:
@@ -9359,6 +10575,8 @@ def api_search_suggestions(request):
     from .search_utils import get_search_suggestions_payload
     payload = get_search_suggestions_payload(all_services, raw_query, district=district, limit=8)
     return JsonResponse(payload)
+
+
 @login_required
 def admin_payments(request):
     """List recorded manual payment reports for admin review.
@@ -9451,25 +10669,28 @@ def admin_approve_wallet_recharge(request, tx_id):
         wallet = WorkerWallet.objects.select_for_update().get(id=tx.wallet_id)
         worker_profile = wallet.worker
 
-        # Extract amount from notes e.g., "Recharge of ₹100.00 submitted with UTR..."
-        amount = Decimal('0.00')
-        raw_amt_match = re.search(r'₹([\d\.]+)', tx.notes or '')
-        if raw_amt_match:
-            try:
-                amount = Decimal(raw_amt_match.group(1))
-            except Exception:
-                amount = Decimal('0.00')
+        # Finding C6: Read recharge amount directly from transaction amount field
+        amount = tx.amount or Decimal('0.00')
+
+        # Fallback to notes parsing only for legacy transactions created before this update
+        if amount <= Decimal('0.00') and tx.notes:
+            raw_amt_match = re.search(r'₹([\d\.]+)', tx.notes)
+            if raw_amt_match:
+                try:
+                    amount = Decimal(raw_amt_match.group(1))
+                except Exception:
+                    amount = Decimal('0.00')
 
         if amount <= Decimal('0.00'):
-            # Fallback to amount field if greater than 0
-            amount = tx.amount if tx.amount > Decimal('0.00') else Decimal('100.00')
+            messages.error(request, f"Cannot approve recharge #{tx.id}: Invalid or missing recharge amount.")
+            return redirect('admin_payments')
 
         current_balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
         wallet.balance = current_balance + amount
         wallet.save()
 
-        # If dues were cleared above the -₹500 threshold, unpause the worker
-        if wallet.balance >= Decimal('-500.00') and worker_profile.is_paused_for_dues:
+        # If dues were cleared, unpause the worker
+        if wallet.balance >= Decimal('0.00') and worker_profile.is_paused_for_dues:
             worker_profile.is_paused_for_dues = False
             worker_profile.save(update_fields=['is_paused_for_dues'])
 
@@ -9513,14 +10734,18 @@ def admin_reject_wallet_recharge(request, tx_id):
         )
         worker_user = tx.wallet.worker.user
 
+        rejected_utr = tx.reference_id
         tx.transaction_type = 'RECHARGE_REJECTED'
         tx.notes = f"Rejected by Admin #{request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M')}. Reason: {rejection_reason}"
         tx.save(update_fields=['transaction_type', 'notes'])
+        # A rejected claim must not reserve the UTR for the genuine payer.
+        tx.reference_id = rejected_utr
+        _release_rejected_utr(tx)
 
         Notification.objects.create(
             recipient=worker_user,
             notification_type='PAYMENT',
-            message=f"❌ Wallet Recharge Rejected: Your UTR {tx.reference_id} could not be verified by the admin team. Reason: {rejection_reason}."
+            message=f"❌ Wallet Recharge Rejected: Your UTR {rejected_utr} could not be verified by the admin team. Reason: {rejection_reason}."
         )
 
     messages.info(request, f"Recharge #{tx.id} rejected. Worker has been notified.")
@@ -9667,7 +10892,7 @@ def worker_verify(request, pk):
     # --------------------------------------------------------
     try:
         signer = TimestampSigner(salt='worker-magic-login')
-        magic_token = signer.sign(str(worker.user.id))
+        magic_token = signer.sign(f"{worker.user.id}:{_magic_login_marker(worker.user)}")
         magic_url = request.build_absolute_uri(reverse('worker_magic_login', args=[magic_token]))
 
         worker_name = worker.user.first_name or worker.user.username
@@ -9727,6 +10952,11 @@ def worker_application_status(request):
     })
 
 
+def _magic_login_marker(user):
+    """Value that changes once the user logs in (makes magic links single-use)."""
+    return str(int(user.last_login.timestamp())) if user.last_login else '0'
+
+
 def worker_magic_login(request, token):
     """Direct, 1-click activation and login for approved workers from their verification email.
 
@@ -9735,10 +10965,23 @@ def worker_magic_login(request, token):
     """
     signer = TimestampSigner(salt='worker-magic-login')
     try:
-        user_id = signer.unsign(token, max_age=86400 * 7)
-        user = CustomUser.objects.get(id=user_id, role='WORKER')
+        raw = signer.unsign(token, max_age=86400 * 7)
+        user_id, _, login_marker = raw.partition(':')
+        user = CustomUser.objects.get(id=int(user_id), role='WORKER')
     except (BadSignature, SignatureExpired, CustomUser.DoesNotExist, ValueError):
         messages.error(request, 'This activation link is invalid or has expired. Please sign in with your credentials.')
+        return redirect('login')
+
+    # Single use: the token embeds the user's last_login at issue time, and
+    # logging in changes last_login, so a used link no longer matches.
+    # Legacy id-only links are honoured only while the worker has never
+    # logged in (i.e. still at most once).
+    if login_marker:
+        valid = login_marker == _magic_login_marker(user)
+    else:
+        valid = user.last_login is None
+    if not valid:
+        messages.error(request, 'This activation link has already been used. Please sign in with your credentials.')
         return redirect('login')
 
     worker = getattr(user, 'worker_profile', None)
@@ -10295,14 +11538,28 @@ def series_cancel(request, series_id):
     open_statuses = ['PENDING', 'ACCEPTED', 'EMERGENCY_PENDING']
 
     # Only future, not-yet-finished bookings are touched. Completed work and
-    # anything already in progress is deliberately left alone.
-    cancelled = series.bookings.filter(
-        date__gte=today,
-        status__in=open_statuses
-    ).update(status='CANCELLED')
+    # anything already in progress is deliberately left alone. Each visit is
+    # cancelled individually so the worker gets back the commission they
+    # prepaid for accepted visits (customer-initiated cancellation).
+    cancelled = 0
+    with transaction.atomic():
+        visits = list(
+            series.bookings.select_for_update().filter(
+                date__gte=today,
+                status__in=open_statuses
+            )
+        )
+        for visit in visits:
+            visit.status = 'CANCELLED'
+            visit.cancelled_by = 'CUSTOMER'
+            if not visit.cancellation_reason:
+                visit.cancellation_reason = 'Recurring series cancelled by customer'
+            visit.save(update_fields=['status', 'cancelled_by', 'cancellation_reason', 'updated_at'])
+            _refund_booking_commission(visit, 'Customer cancelled recurring series')
+            cancelled += 1
 
-    series.is_active = False
-    series.save(update_fields=['is_active', 'updated_at'])
+        series.is_active = False
+        series.save(update_fields=['is_active', 'updated_at'])
 
     if cancelled:
         messages.success(
@@ -10662,7 +11919,8 @@ def worker_jobs(request):
         series__is_active=False
     ).select_related(
         'customer',
-        'service'
+        'service',
+        'payment',
     ).annotate(
         priority_group=Case(
             When(status__in=active_statuses, date__gte=today, then=Value(1)),
@@ -10673,28 +11931,40 @@ def worker_jobs(request):
         )
     ).order_by('priority_group', 'date', '-created_at')
 
-    # Get emergency bookings that are pending (no worker assigned yet).
-    # Only this worker's own trade is broadcast here: without the service
-    # filter a plumber would see electricians' emergency requests, including
-    # other customers' locations/phones, and could accept a job outside
-    # their trade.
-    emergency_bookings = []
-    if worker.is_verified and worker.work_status in ['AVAILABLE', 'ON_DUTY'] and worker.user.is_active and worker.service_id:
-        dismissed_booking_ids = Notification.objects.filter(
-            recipient=request.user,
-            notification_type='EMERGENCY',
-            is_read=True
-        ).values_list('booking_id', flat=True)
+    paginator = Paginator(bookings, 20)
+    page_number = request.GET.get('page', 1)
+    bookings_page = paginator.get_page(page_number)
 
-        emergency_bookings = Booking.objects.filter(
-            status='EMERGENCY_PENDING',
-            worker__isnull=True,
-            service=worker.service,
-        ).exclude(id__in=dismissed_booking_ids).select_related('customer', 'service').order_by('-created_at')[:10]
+    # Get emergency bookings that are pending (no worker assigned yet).
+    # Finding C4: Filter to worker's own trade and district, and block if wallet is locked.
+    emergency_bookings = []
+    wallet, _ = WorkerWallet.objects.get_or_create(worker=worker)
+    if worker.is_verified and worker.work_status in ['AVAILABLE', 'ON_DUTY'] and worker.user.is_active and worker.service_id:
+        if not wallet.is_locked:
+            dismissed_booking_ids = Notification.objects.filter(
+                recipient=request.user,
+                notification_type='EMERGENCY',
+                is_read=True
+            ).values_list('booking_id', flat=True)
+
+            em_qs = Booking.objects.filter(
+                status='EMERGENCY_PENDING',
+                worker__isnull=True,
+                service=worker.service,
+            ).exclude(id__in=dismissed_booking_ids)
+
+            # Finding C4: Only broadcast within worker's registered district
+            if worker.district:
+                em_qs = em_qs.filter(district__iexact=worker.district.strip())
+
+            emergency_bookings = em_qs.select_related('customer', 'service').order_by('-created_at')[:10]
 
     emergency_reason = None
     if not emergency_bookings:
-        emergency_reason = _emergency_unavailable_reason(worker, request.user)
+        if wallet.is_locked:
+            emergency_reason = "Wallet balance is low. Please recharge your wallet to receive emergency jobs."
+        else:
+            emergency_reason = _emergency_unavailable_reason(worker, request.user)
 
     transit_context = get_worker_transit_and_delay_context(worker, target_date=today)
 
@@ -10703,7 +11973,7 @@ def worker_jobs(request):
         'workers/worker_jobs.html',
         {
             'worker_profile': worker,
-            'bookings': bookings,
+            'bookings': bookings_page,
             'emergency_bookings': emergency_bookings,
             'emergency_reason': emergency_reason,
             'transit_context': transit_context,
@@ -10899,7 +12169,7 @@ def my_bookings(request):
     today = timezone.localdate()
     active_statuses = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETION_REQUESTED', 'EMERGENCY_PENDING']
 
-    bookings = (
+    bookings_qs = (
         Booking.objects
         .filter(customer=request.user)
         .select_related(
@@ -10922,18 +12192,40 @@ def my_bookings(request):
         .order_by('priority_group', 'date', '-created_at')
     )
 
-    # Attach dynamic UPI QR and direct payment info
-    for b in bookings:
-        if b.status in ('COMPLETION_REQUESTED', 'ACCEPTED', 'IN_PROGRESS'):
+    paginator = Paginator(bookings_qs, 20)
+    page_number = request.GET.get('page', 1)
+    bookings_page = paginator.get_page(page_number)
+
+    # Bulk pre-fetch active same-day jobs for assigned workers to eliminate N+1 queries (Task 5)
+    today_worker_ids = {
+        b.worker_id for b in bookings_page
+        if b.status in ('PENDING', 'ACCEPTED') and b.worker_id and b.date == today
+    }
+    active_jobs_by_worker = {}
+    if today_worker_ids:
+        active_jobs = Booking.objects.filter(
+            worker_id__in=today_worker_ids,
+            date=today,
+            status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED']
+        ).select_related('service', 'worker__user')
+        for aj in active_jobs:
+            if aj.worker_id not in active_jobs_by_worker:
+                active_jobs_by_worker[aj.worker_id] = aj
+
+    # Attach dynamic UPI QR and direct payment info - only once the customer
+    # has confirmed the final bill (payment instructions never appear earlier).
+    for b in bookings_page:
+        b.payment_reportable = booking_payment_reportable(b)
+        if b.payment_reportable:
             b.upi_data = get_booking_upi_payment_data(b)
         if b.status in ('PENDING', 'ACCEPTED') and b.worker and b.date == today:
-            b.transit_info = get_customer_booking_transit_status(b)
+            b.transit_info = get_customer_booking_transit_status(b, active_jobs_by_worker=active_jobs_by_worker)
 
     return render(
         request,
         'user/my_bookings.html',
         {
-            'bookings': bookings,
+            'bookings': bookings_page,
             'payment_allowed_statuses': MANUAL_PAYMENT_ALLOWED_STATUSES,
             'today': today,
         }
@@ -10994,11 +12286,7 @@ def admin_notifications(request):
 @login_required
 def admin_broadcast_announcement(request):
     """Admin tool to broadcast in-app notifications/alerts to all users, workers, or customers."""
-    is_admin = (
-        request.user.role == 'ADMIN'
-        or getattr(request.user, 'is_superuser', False)
-        or getattr(request.user, 'is_staff', False)
-    )
+    is_admin = _is_admin_account(request.user)   # plain is_staff is not an administrator
     if not is_admin:
         messages.error(request, 'You are not authorized to broadcast announcements.')
         return redirect('dashboard')
@@ -11060,7 +12348,11 @@ def get_booking_upi_payment_data(booking):
     payee_name = worker.user.get_full_name() or worker.user.username
     worker_upi = (getattr(worker, 'upi_id', '') or '').strip()
 
-    amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
+    amount = booking.final_amount or booking.estimated_cost or (booking.service.price if booking.service else None)
+    # A booking without any configured amount has nothing to pay by QR.
+    if amount is None:
+        amount = Decimal('0.00')
+    amount = Decimal(str(amount))
     amount_str = f"{amount:.2f}"
 
     qr_b64 = None
@@ -11098,90 +12390,39 @@ def get_booking_upi_payment_data(booking):
 
 @login_required
 def confirm_completion(request, booking_id):
+    """Customer approves the worker's final bill (H7, step 4).
 
-    # ==========================================
-    # POST ONLY
-    # ==========================================
-
+    Approving the bill is NOT proof of payment: the booking stays
+    COMPLETION_REQUESTED ("awaiting payment") with bill_confirmed_at set, and
+    only then are payment instructions (UPI QR / cash) shown. The booking is
+    marked COMPLETED when the payment is verified - by the worker
+    ("Payment received") or by an admin verifying a reported payment.
+    """
     if request.method != 'POST':
         return redirect('my_bookings')
 
-
-    # ==========================================
-    # GET CUSTOMER'S BOOKING
-    # ==========================================
-
-    booking = get_object_or_404(
-        Booking,
-        id=booking_id,
-        customer=request.user
-    )
-
-
-    # ==========================================
-    # CHECK STATUS
-    # ==========================================
-
-    if booking.status != 'COMPLETION_REQUESTED':
-
-        messages.error(
-            request,
-            'This booking is not waiting for completion confirmation.'
+    with transaction.atomic():
+        booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('worker__user', 'service'),
+            id=booking_id,
+            customer=request.user
         )
 
-        return redirect('my_bookings')
+        if booking.status != 'COMPLETION_REQUESTED':
+            messages.error(
+                request,
+                'This booking is not waiting for completion confirmation.'
+            )
+            return redirect('my_bookings')
 
+        if booking.bill_confirmed_at:
+            messages.info(request, 'You have already confirmed this bill. Please complete the payment to your professional.')
+            return redirect('my_bookings')
 
-    # ==========================================
-    # COMPLETION REQUESTED → COMPLETED
-    # ==========================================
+        booking.bill_confirmed_at = timezone.now()
+        booking.save(update_fields=['bill_confirmed_at', 'updated_at'])
 
-    post_method = request.POST.get('payment_method', '').strip().upper()
-    if post_method in ('CASH', 'UPI', 'ONLINE'):
-        booking.payment_method = post_method
-    elif not booking.payment_method:
-        booking.payment_method = 'CASH'
-
-    if booking.final_amount and booking.final_amount > 0:
-        booking.estimated_cost = booking.final_amount
-
-    booking.status = 'COMPLETED'
-    booking.is_paid = True
-
-    booking.save(
-        update_fields=[
-            'status',
-            'estimated_cost',
-            'is_paid',
-            'payment_method',
-            'updated_at'
-        ]
-    )
-
-    # Record or update Payment model so invoice/receipt is officially marked PAID
-    try:
-        final_amt = booking.final_amount or booking.estimated_cost or Decimal('0.00')
-        payment, _ = Payment.objects.get_or_create(booking=booking)
-        payment.amount = final_amt
-        payment.payment_method = booking.payment_method
-        payment.status = 'PAID'
-        payment.paid_at = timezone.now()
-        payment.gateway = 'direct_to_worker'
-        if not payment.payment_reference:
-            payment.payment_reference = f"DIRECT-{booking.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
-        payment.save()
-    except Exception as e:
-        logger.warning(f"Could not record payment for booking {booking.id}: {e}")
-
-    # ==========================================
-    # PLATFORM FEE & WALLET SETTLEMENT (Auto-deduct from Worker Wallet)
-    # ==========================================
-    _settle_booking_completion_financials(booking)
-
-
-    # ==========================================
-    # NOTIFY WORKER + SEND EMAIL
-    # ==========================================
+    bill_total = booking.final_amount or booking.estimated_cost or Decimal('0.00')
 
     if booking.worker:
         _create_idempotent_notification(
@@ -11189,8 +12430,8 @@ def confirm_completion(request, booking_id):
             booking=booking,
             notification_type='BOOKING_UPDATE',
             message=(
-                f'The customer has confirmed that the '
-                f'{booking.service.name} work is complete.'
+                f'The customer confirmed your final bill of ₹{bill_total:.2f} for Booking #{booking.id} '
+                f'({booking.service.name}). Collect the payment and tap "Payment received" to close the job.'
             )
         )
 
@@ -11201,11 +12442,11 @@ def confirm_completion(request, booking_id):
 
         if worker_email:
             send_email_safely(
-                subject=f'Job Completed - Booking #{b_id}',
+                subject=f'Bill Confirmed - Booking #{b_id}',
                 message=(
                     f'Hi {worker_username},\n\n'
-                    f'Congratulations! The customer has confirmed that your {service_name} work for Booking #{b_id} is complete.\n\n'
-                    f'Payment will be processed shortly. Thank you for your excellent service!\n\n'
+                    f'The customer has confirmed your final bill of ₹{bill_total:.2f} for your {service_name} work (Booking #{b_id}).\n\n'
+                    f'Please collect the payment (cash or UPI) and mark it as received in your LAMO dashboard to complete the job.\n\n'
                     f'Best regards,\nTeam LAMO'
                 ),
                 recipient_list=[worker_email],
@@ -11213,22 +12454,155 @@ def confirm_completion(request, booking_id):
                 async_send=True,
             )
 
-
-    # ==========================================
-    # SUCCESS MESSAGE
-    # ==========================================
-
     messages.success(
         request,
-        'Work confirmed successfully. You can now record payment and leave a review.'
+        f'Bill confirmed. Please pay ₹{bill_total:.2f} to your professional by cash or UPI - '
+        f'payment details are now shown on your booking.'
     )
-
-
-    # ==========================================
-    # BACK TO MY BOOKINGS
-    # ==========================================
-
     return redirect('my_bookings')
+
+
+def _complete_booking_after_payment(booking_id, payment_method=None, verified_by='WORKER', reference=None):
+    """Mark the payment verified and the booking COMPLETED (H7 steps 7-8).
+
+    Only valid for a COMPLETION_REQUESTED booking whose bill the customer has
+    confirmed (or a legacy unpaid COMPLETED booking). Locks the booking row so
+    a worker confirmation and an admin verification cannot both run.
+    Returns (booking, error_message).
+    """
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().select_related(
+            'customer', 'worker__user', 'service'
+        ).get(id=booking_id)
+
+        legacy_unpaid_completed = booking.status == 'COMPLETED' and not booking.is_paid
+        if booking.status == 'COMPLETION_REQUESTED':
+            if not booking.bill_confirmed_at:
+                return booking, 'The customer has not confirmed the final bill yet.'
+        elif not legacy_unpaid_completed:
+            if booking.status == 'COMPLETED' and booking.is_paid:
+                return booking, 'This booking is already completed and paid.'
+            return booking, 'This booking is not awaiting payment.'
+
+        method = (payment_method or booking.payment_method or 'CASH').upper()
+        if verified_by == 'WORKER' and method not in ACTIVE_CUSTOMER_PAYMENT_METHODS:
+            # New worker-recorded transactions only accept supported methods.
+            # (Admin verification of an older customer report keeps its method
+            # so historical CARD/NETBANKING records are not rewritten.)
+            return booking, 'Unsupported payment method. Please record the payment as Cash or UPI.'
+        if method not in MANUAL_PAYMENT_METHODS:
+            method = 'CASH'
+
+        final_amt = booking.final_amount or booking.estimated_cost or (
+            booking.service.price if booking.service else Decimal('0.00')
+        ) or Decimal('0.00')
+
+        payment, _ = Payment.objects.select_for_update().get_or_create(booking=booking)
+        payment.amount = final_amt
+        payment.payment_method = method
+        payment.status = 'PAID'
+        payment.paid_at = timezone.now()
+        if verified_by == 'WORKER':
+            payment.gateway = 'direct_to_worker'
+        if not payment.payment_reference:
+            candidate_ref = (reference or '').strip()[:100]
+            if candidate_ref and not Payment.objects.filter(payment_reference=candidate_ref).exclude(pk=payment.pk).exists():
+                payment.payment_reference = candidate_ref
+            else:
+                payment.payment_reference = f"DIRECT-{booking.id}-{timezone.now().strftime('%Y%m%d%H%M%S%f')}"
+        payment.save()
+
+        if booking.final_amount and booking.final_amount > 0:
+            booking.estimated_cost = booking.final_amount
+        booking.payment_method = method
+        booking.is_paid = True
+        booking.status = 'COMPLETED'
+        booking.save(update_fields=['status', 'is_paid', 'payment_method', 'estimated_cost', 'updated_at'])
+
+    # Legacy bookings accepted before commission moved to acceptance are
+    # settled once here (no-op when the fee was already charged).
+    _settle_booking_completion_financials(booking)
+
+    _create_idempotent_notification(
+        recipient=booking.customer,
+        booking=booking,
+        notification_type='BOOKING_UPDATE',
+        message=(
+            (
+                f'Payment of ₹{final_amt:.2f} for Booking #{booking.id} ({booking.service.name}) has been verified. '
+                if verified_by == 'ADMIN' else
+                f'Your professional has confirmed receiving ₹{final_amt:.2f} for Booking #{booking.id} ({booking.service.name}). '
+            ) + 'Your job is complete - please leave a review.'
+        )
+    )
+    if booking.worker and booking.worker.user:
+        _create_idempotent_notification(
+            recipient=booking.worker.user,
+            booking=booking,
+            notification_type='BOOKING_UPDATE',
+            message=f'Booking #{booking.id} is complete. Payment of ₹{final_amt:.2f} has been recorded.'
+        )
+        if booking.worker.user.email:
+            send_email_safely(
+                subject=f'Job Completed - Booking #{booking.id}',
+                message=(
+                    f'Hi {booking.worker.user.username},\n\n'
+                    f'Booking #{booking.id} ({booking.service.name}) is now complete and the payment of '
+                    f'₹{final_amt:.2f} has been recorded.\n\nThank you for your excellent service!\n\n'
+                    f'Best regards,\nTeam LAMO'
+                ),
+                recipient_list=[booking.worker.user.email],
+                purpose='job_completed_worker_notified',
+                async_send=True,
+            )
+    return booking, None
+
+
+@login_required
+@require_POST
+def worker_confirm_payment_received(request, booking_id):
+    """Worker confirms they received the customer's cash / UPI payment."""
+    if request.user.role != 'WORKER':
+        messages.error(request, 'You are not authorized.')
+        return redirect('dashboard')
+
+    worker = get_object_or_404(WorkerProfile, user=request.user)
+    get_object_or_404(Booking, id=booking_id, worker=worker)
+
+    # Only methods the platform supports for NEW transactions are accepted,
+    # exactly as for customers. Nothing is silently converted to another
+    # method; CARD/NETBANKING and unknown values are refused with a message.
+    # NOTE: this records a *worker-reported* receipt of money (gateway
+    # 'direct_to_worker'). It is not an independently verified payment.
+    method = request.POST.get('payment_method', '').strip().upper()
+    if method in ('CARD', 'NETBANKING'):
+        messages.error(
+            request,
+            'Card and Netbanking payments are not supported. Please record the payment as Cash or UPI.'
+        )
+        return redirect('worker_jobs')
+    if method and method not in ACTIVE_CUSTOMER_PAYMENT_METHODS:
+        messages.error(request, 'Unsupported payment method. Please choose Cash or UPI.')
+        return redirect('worker_jobs')
+    if not method:
+        # No method posted: reuse a supported method already on record, else ask.
+        existing_payment = Payment.objects.filter(booking_id=booking_id).first()
+        for candidate in (
+            getattr(existing_payment, 'payment_method', None),
+            getattr(Booking.objects.filter(id=booking_id).first(), 'payment_method', None),
+        ):
+            if (candidate or '').upper() in ACTIVE_CUSTOMER_PAYMENT_METHODS:
+                method = candidate.upper()
+                break
+        if not method:
+            messages.error(request, 'Please choose how the payment was received (Cash or UPI).')
+            return redirect('worker_jobs')
+    booking, error = _complete_booking_after_payment(booking_id, payment_method=method, verified_by='WORKER')
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, f'Payment recorded. Booking #{booking.id} is now complete.')
+    return redirect('worker_jobs')
 
 
 @login_required
@@ -11318,11 +12692,57 @@ def worker_start_job(request, booking_id):
         )
         return redirect('worker_dashboard')
 
-    # Arrival OTP verification: only enforced if booking has an arrival_otp set
+    # Arrival verification: Customer must either have verified via QR scan or provided their Arrival PIN (Finding D1)
     arrival_otp = request.POST.get('arrival_otp', '').strip()
 
-    # Schedule timing check: cannot start scheduled job before booking time window unless customer provided Arrival PIN
-    can_start, not_allowed_reason = booking.check_can_start(arrival_otp=arrival_otp)
+    if not booking.arrival_verified_at and booking.status != 'IN_PROGRESS':
+        if not arrival_otp:
+            messages.error(
+                request,
+                'Customer arrival verification required. Please have the customer scan your Doorstep QR Code, or ask them for their 4-digit Arrival PIN.'
+            )
+            referer = request.META.get('HTTP_REFERER', '')
+            if 'worker-jobs' in referer or 'worker_jobs' in referer:
+                return redirect('worker_jobs')
+            return redirect('worker_dashboard')
+
+        # Brute-force protection: a 4-digit PIN has only 10,000 values, so
+        # wrong guesses are counted per booking in the shared cache and PIN
+        # entry is locked after ARRIVAL_PIN_MAX_ATTEMPTS failures.
+        pin_key = arrival_pin_key(booking.id)
+        if is_rate_limited(pin_key, ARRIVAL_PIN_MAX_ATTEMPTS):
+            messages.error(
+                request,
+                f'Too many incorrect Arrival PIN attempts. PIN entry is locked for '
+                f'{max(1, minutes_remaining(pin_key))} minute(s). Please ask the customer to scan your Doorstep QR Code instead.'
+            )
+            referer = request.META.get('HTTP_REFERER', '')
+            if 'worker-jobs' in referer or 'worker_jobs' in referer:
+                return redirect('worker_jobs')
+            return redirect('worker_dashboard')
+
+        if not booking.arrival_otp or not secrets.compare_digest(str(arrival_otp).strip(), str(booking.arrival_otp).strip()):
+            locked, _mins = register_failure(pin_key, ARRIVAL_PIN_MAX_ATTEMPTS, ARRIVAL_PIN_LOCKOUT_SECONDS)
+            if locked:
+                messages.error(
+                    request,
+                    'Too many incorrect Arrival PIN attempts. PIN entry is now locked for 15 minutes. '
+                    'Please ask the customer to scan your Doorstep QR Code instead.'
+                )
+            else:
+                messages.error(
+                    request,
+                    'Invalid verification code. Please check the 4-digit Arrival PIN with the customer or have them scan your QR code.'
+                )
+            referer = request.META.get('HTTP_REFERER', '')
+            if 'worker-jobs' in referer or 'worker_jobs' in referer:
+                return redirect('worker_jobs')
+            return redirect('worker_dashboard')
+
+        clear(pin_key)
+
+    # Schedule timing check: cannot start scheduled job before booking time window unless customer verified
+    can_start, not_allowed_reason = booking.check_can_start(arrival_otp=arrival_otp, is_qr_verified=bool(booking.arrival_verified_at))
     if not can_start:
         messages.error(request, not_allowed_reason)
         referer = request.META.get('HTTP_REFERER', '')
@@ -11330,16 +12750,9 @@ def worker_start_job(request, booking_id):
             return redirect('worker_jobs')
         return redirect('worker_dashboard')
 
-    if booking.arrival_otp:
-        if not arrival_otp or arrival_otp != booking.arrival_otp:
-            messages.error(
-                request,
-                'Invalid Arrival OTP. Please ask the customer for their 4-digit verification code.'
-            )
-            return redirect('worker_jobs')
-
     booking.status = 'IN_PROGRESS'
-    booking.arrival_verified_at = timezone.now()
+    if not booking.arrival_verified_at:
+        booking.arrival_verified_at = timezone.now()
     booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
 
     # Notify customer that job has started
@@ -11359,6 +12772,300 @@ def worker_start_job(request, booking_id):
     if 'worker-jobs' in referer or 'worker_jobs' in referer:
         return redirect('worker_jobs')
     return redirect('worker_dashboard')
+
+
+@login_required
+def verify_doorstep_qr(request, token):
+    """
+    Landing and verification endpoint when a customer scans the worker's Doorstep QR code.
+    Enforces customer-only verification and blocks worker self-verification (Finding D1).
+    """
+    booking_id, worker_id = Booking.verify_arrival_token(token)
+    if not booking_id:
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'invalid_token': True,
+            'error_title': 'Invalid or Expired QR Code',
+            'error_message': 'This Doorstep QR Code is either invalid or has expired. Please ask your service professional to refresh their screen and display a fresh QR code.'
+        }, status=400)
+
+    try:
+        booking = Booking.objects.select_related('worker__user', 'service', 'customer').get(id=booking_id)
+    except Booking.DoesNotExist:
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'invalid_token': True,
+            'error_title': 'Booking Not Found',
+            'error_message': 'The booking associated with this QR code could not be found.'
+        }, status=404)
+
+    if worker_id and booking.worker_id and worker_id != booking.worker_id:
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'invalid_token': True,
+            'error_title': 'Worker Assignment Mismatch',
+            'error_message': 'This QR code does not belong to the technician currently assigned to this booking.'
+        }, status=400)
+
+    # Finding D1: Prevent worker from scanning their own QR code
+    if request.user.role == 'WORKER' or (booking.worker and booking.worker.user == request.user):
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'invalid_token': True,
+            'error_title': 'Self-Verification Prohibited',
+            'error_message': 'Service professionals cannot verify their own arrival. Please ask the customer to scan the Doorstep QR Code from their own device.'
+        }, status=403)
+
+    # Finding D1: Enforce customer-only scanning (or admin)
+    if request.user != booking.customer and request.user.role != 'ADMIN':
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'invalid_token': True,
+            'error_title': 'Unauthorized Customer Account',
+            'error_message': 'You are logged in as a different user. Only the customer who booked this service can verify the technician\'s arrival.'
+        }, status=403)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+    if request.method == 'POST':
+        if booking.status != 'ACCEPTED':
+            if booking.status == 'IN_PROGRESS':
+                if is_ajax:
+                    return JsonResponse({'success': True, 'already_active': True, 'message': 'Job is already in progress.'})
+                return render(request, 'user/verify_doorstep_arrival.html', {
+                    'booking': booking,
+                    'already_active': True,
+                    'token': token
+                })
+            error_msg = f'This booking cannot be verified at this stage (current status: {booking.status}).'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error_msg})
+            return render(request, 'user/verify_doorstep_arrival.html', {
+                'booking': booking,
+                'error_message': error_msg,
+                'token': token
+            })
+
+        # Check start eligibility (customer scanned QR, so early arrival is explicitly consented!)
+        can_start, not_allowed_reason = booking.check_can_start(is_qr_verified=True)
+        if not can_start:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': not_allowed_reason})
+            return render(request, 'user/verify_doorstep_arrival.html', {
+                'booking': booking,
+                'error_message': not_allowed_reason,
+                'token': token
+            })
+
+        # Transition booking to IN_PROGRESS
+        booking.status = 'IN_PROGRESS'
+        booking.arrival_verified_at = timezone.now()
+        booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
+
+        # Create notifications
+        worker_user = booking.worker.user if booking.worker else None
+        worker_name = (worker_user.get_full_name() or worker_user.username) if worker_user else 'Assigned Professional'
+        cust_name = (booking.customer.get_full_name() or booking.customer.username) if booking.customer else 'Customer'
+
+        if worker_user:
+            Notification.objects.create(
+                recipient=worker_user,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f'Doorstep verified! {cust_name} scanned your QR code and confirmed your arrival. Booking #{booking.id} is now IN PROGRESS.'
+            )
+
+        if booking.customer:
+            Notification.objects.create(
+                recipient=booking.customer,
+                booking=booking,
+                notification_type='BOOKING_UPDATE',
+                message=f'Technician verified! {worker_name} has been admitted and work has started on your {booking.service.name}.'
+            )
+
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': 'Technician verified! Service is now in progress.',
+                'verified_at': booking.arrival_verified_at.strftime('%I:%M %p')
+            })
+
+        return render(request, 'user/verify_doorstep_arrival.html', {
+            'booking': booking,
+            'just_verified': True,
+            'token': token
+        })
+
+    # GET request: render verification screen
+    can_start, not_allowed_reason = booking.check_can_start(is_qr_verified=True)
+    return render(request, 'user/verify_doorstep_arrival.html', {
+        'booking': booking,
+        'token': token,
+        'can_start': can_start,
+        'not_allowed_reason': not_allowed_reason,
+        'already_active': (booking.status == 'IN_PROGRESS')
+    })
+
+
+@login_required
+def api_booking_doorstep_status(request, booking_id):
+    """
+    Finding D2: Polling API endpoint for worker's modal to check if customer confirmed arrival.
+    Requires authentication and authorizes only the assigned worker, customer, or admin.
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+    except Booking.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+    is_worker = (booking.worker and booking.worker.user == request.user)
+    is_customer = (booking.customer == request.user)
+    is_admin = (request.user.role == 'ADMIN')
+
+    if not (is_worker or is_customer or is_admin):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    return JsonResponse({
+        'success': True,
+        'booking_id': booking.id,
+        'status': booking.status,
+        'is_in_progress': (booking.status == 'IN_PROGRESS'),
+        'arrival_verified_at': booking.arrival_verified_at.strftime('%I:%M %p') if booking.arrival_verified_at else None
+    })
+
+
+@login_required
+def worker_booking_doorstep_qr(request, booking_id):
+    """
+    Finding D2: Local QR code generation endpoint.
+    Generates and streams a PNG QR image locally without leaking URLs or tokens to third parties.
+    Authorized only for assigned worker, booking customer, or admin.
+    """
+    try:
+        booking = Booking.objects.select_related('worker__user', 'customer').get(id=booking_id)
+    except Booking.DoesNotExist:
+        return HttpResponseNotFound("Booking not found")
+
+    is_worker = (booking.worker and booking.worker.user == request.user)
+    is_customer = (booking.customer == request.user)
+    is_admin = (request.user.role == 'ADMIN')
+
+    if not (is_worker or is_customer or is_admin):
+        return HttpResponseForbidden("Unauthorized")
+
+    # A doorstep QR is only issued for a confirmed job on its scheduled day,
+    # so it cannot be generated days ahead and shared.
+    if booking.status != 'ACCEPTED' or (booking.date and booking.date != timezone.localdate()):
+        return HttpResponseForbidden("The doorstep QR is available on the day of the job.")
+
+    token = booking.get_arrival_token()
+    verify_url = request.build_absolute_uri(reverse('verify_doorstep_qr', args=[token]))
+
+    import io
+    try:
+        import qrcode
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=8,
+            border=2,
+        )
+        qr.add_data(verify_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        return HttpResponse(buf.getvalue(), content_type='image/png')
+    except Exception as e:
+        logger.error(f"Error generating local QR code for booking #{booking_id}: {e}")
+        return HttpResponse("Error generating QR code", status=500)
+
+FINAL_BILL_DB_MAX = Decimal('99999999.99')   # Booking.final_amount: max_digits=10, decimal_places=2
+
+
+def _strict_money(raw, field_label, allow_zero=False):
+    """Parse a rupee amount from untrusted input.
+
+    Returns (Decimal, None) or (None, error_message). Only plain decimal text is
+    accepted (digits with at most two decimal places). NaN, Infinity, exponent
+    notation, signs, malformed text, more than two decimals, negatives, zero
+    (unless ``allow_zero``) and anything above the database column limit are
+    rejected - never rounded or silently replaced.
+    """
+    text = (raw or '').strip().replace(',', '')
+    if text.startswith('-'):
+        return None, f'{field_label} must be greater than zero.' if not allow_zero else f'{field_label} cannot be negative.'
+    if re.fullmatch(r'\d+\.\d{3,}', text):
+        return None, f'{field_label} cannot have more than 2 decimal places.'
+    if not re.fullmatch(r'\d{1,12}(\.\d{1,2})?', text):
+        return None, f'{field_label} must be a valid amount.'
+    try:
+        value = Decimal(text)
+    except (InvalidOperation, ValueError, TypeError):
+        return None, f'{field_label} must be a valid amount.'
+    if not value.is_finite():
+        return None, f'{field_label} must be a valid amount.'
+    if value > FINAL_BILL_DB_MAX:
+        return None, f'{field_label} is too large.'
+    value = value.quantize(Decimal('0.01'))
+    if value == 0 and not allow_zero:
+        return None, f'{field_label} must be greater than zero.'
+    return value, None
+
+
+def _parse_final_bill(raw_labor, raw_material, raw_amount, estimate):
+    """Validate the worker's final bill. Returns (final, material, error).
+
+    Labour and material are validated separately. When neither a labour nor a
+    total is posted, the bill defaults to the estimate (existing behaviour).
+    Policy limits come from settings (see FINAL_BILL_* in settings.py); a bill
+    above the optional absolute ceiling is rejected here, while the optional
+    percentage limit is enforced by the caller so it can escalate to admins.
+    """
+    material = Decimal('0.00')
+    if (raw_material or '').strip():
+        material, err = _strict_money(raw_material, 'Material cost', allow_zero=True)
+        if err:
+            return None, None, err
+    final = None
+    if (raw_labor or '').strip():
+        labor, err = _strict_money(raw_labor, 'Labour charge')
+        if err:
+            return None, None, err
+        final = labor + material
+    elif (raw_amount or '').strip():
+        final, err = _strict_money(raw_amount, 'Final amount')
+        if err:
+            return None, None, err
+        if material > final:
+            return None, None, 'Material cost cannot be more than the final amount.'
+    if final is None:
+        final = estimate or Decimal('0.00')
+        if final <= 0:
+            return None, None, 'Please enter the labour charge for this job.'
+        if material > final:
+            return None, None, 'Material cost cannot be more than the final amount.'
+    if final > FINAL_BILL_DB_MAX:
+        return None, None, 'The final amount is too large.'
+    ceiling_raw = str(getattr(settings, 'FINAL_BILL_MAX_AMOUNT', '') or '').strip()
+    if ceiling_raw:
+        try:
+            ceiling = Decimal(ceiling_raw)
+        except InvalidOperation:
+            ceiling = None
+        if ceiling is not None and ceiling.is_finite() and final > ceiling:
+            return None, None, f'The final amount cannot exceed ₹{ceiling:.2f}. Please contact support.'
+    return final, material, None
+
+
+def _final_bill_needs_admin_review(final, estimate):
+    """True when the bill exceeds the estimate by more than the configured percent."""
+    limit_raw = str(getattr(settings, 'FINAL_BILL_MAX_ADJUSTMENT_PERCENT', '') or '').strip()
+    if not limit_raw or not estimate or estimate <= 0:
+        return False
+    try:
+        limit = Decimal(limit_raw)
+    except InvalidOperation:
+        return False
+    if not limit.is_finite() or limit < 0:
+        return False
+    return (final - estimate) * Decimal('100') / estimate > limit
+
 
 @login_required
 def worker_request_completion(request, booking_id):
@@ -11400,80 +13107,78 @@ def worker_request_completion(request, booking_id):
 
 
     # ==========================================
-    # GET THIS WORKER'S BOOKING
+    # LOCK THE BOOKING, RE-CHECK ITS STATE, THEN TRANSITION
     # ==========================================
+    # The status is read again under a row lock and the write itself is a
+    # compare-and-set (UPDATE ... WHERE status='IN_PROGRESS'), so two concurrent
+    # or repeated requests produce exactly one IN_PROGRESS -> COMPLETION_REQUESTED
+    # transition, one notification and one e-mail. A request that loses the race
+    # changes nothing.
+    get_object_or_404(Booking.objects.only('id'), id=booking_id, worker=worker)  # 404 for someone else's job
 
-    booking = get_object_or_404(
-        Booking,
-        id=booking_id,
-        worker=worker
-    )
-
-
-    # ==========================================
-    # ONLY IN-PROGRESS JOB CAN REQUEST COMPLETION
-    # ==========================================
-
-    if booking.status != 'IN_PROGRESS':
-
-        messages.warning(
-            request,
-            'Only an in-progress job can request completion.'
+    with transaction.atomic():
+        booking = get_object_or_404(
+            Booking.objects.select_for_update().select_related('customer', 'service'),
+            id=booking_id,
+            worker=worker
         )
 
-        return redirect('worker_jobs')
+        # ONLY AN IN-PROGRESS JOB CAN REQUEST COMPLETION
+        if booking.status != 'IN_PROGRESS':
+            messages.warning(request, 'Only an in-progress job can request completion.')
+            return redirect('worker_jobs')
 
-    # Parse and validate labor, material, and final service amount
-    raw_amount = request.POST.get('final_amount', '').strip()
-    raw_labor = request.POST.get('labor_amount', '').strip()
-    raw_material = request.POST.get('material_amount', '0').strip()
+        # Parse and validate labor, material and final service amount.
+        # Every field is validated strictly and separately (no silent fallback
+        # for malformed input); see _parse_final_bill. Direct POSTs get the same checks.
+        estimate = booking.estimated_cost or (booking.service.price if booking.service else None)
+        final_amount, material_amount, bill_error = _parse_final_bill(
+            request.POST.get('labor_amount', ''),
+            request.POST.get('material_amount', ''),
+            request.POST.get('final_amount', ''),
+            estimate,
+        )
+        if bill_error:
+            messages.error(request, bill_error)
+            return redirect('worker_jobs')
 
-    material_amount = Decimal('0.00')
-    if raw_material:
-        try:
-            m_parsed = Decimal(raw_material)
-            if m_parsed >= 0:
-                material_amount = m_parsed
-        except (ValueError, TypeError, ArithmeticError):
-            material_amount = Decimal('0.00')
+        # A bill far above the estimate is not sent to the customer: it is
+        # escalated to the admins (threshold is optional - FINAL_BILL_MAX_ADJUSTMENT_PERCENT).
+        if _final_bill_needs_admin_review(final_amount, estimate):
+            for admin_user in CustomUser.objects.filter(role='ADMIN', is_active=True):
+                _create_idempotent_notification(
+                    recipient=admin_user,
+                    booking=booking,
+                    notification_type='BOOKING_UPDATE',
+                    message=(
+                        f'Review needed: worker {request.user.username} asked to bill ₹{final_amount:.2f} '
+                        f'against an estimate of ₹{estimate:.2f} on Booking #{booking.id}. '
+                        f'The bill was not sent to the customer.'
+                    ),
+                )
+            messages.error(
+                request,
+                'This bill is much higher than the original estimate, so it needs admin review before '
+                'it can be sent to the customer. Our team has been notified.'
+            )
+            return redirect('worker_jobs')
 
-    final_amount = None
-    if raw_labor:
-        try:
-            l_parsed = Decimal(raw_labor)
-            if l_parsed > 0:
-                final_amount = l_parsed + material_amount
-        except (ValueError, TypeError, ArithmeticError):
-            pass
-
-    if not final_amount and raw_amount:
-        try:
-            parsed = Decimal(raw_amount)
-            if parsed > 0:
-                final_amount = parsed
-        except (ValueError, TypeError, ArithmeticError):
-            final_amount = None
-
-    if not final_amount:
-        final_amount = booking.estimated_cost or (booking.service.price if booking.service else Decimal('0.00'))
-
-    # ==========================================
-    # CHANGE STATUS
-    # IN_PROGRESS → COMPLETION_REQUESTED
-    # ==========================================
-
-    booking.final_amount = final_amount
-    booking.material_amount = material_amount
-    booking.status = 'COMPLETION_REQUESTED'
-
-    booking.save(
-        update_fields=[
-            'status',
-            'final_amount',
-            'material_amount',
-            'updated_at'
-        ]
-    )
+        # IN_PROGRESS -> COMPLETION_REQUESTED (compare-and-set). A new bill
+        # always needs a fresh customer approval before payment.
+        changed = Booking.objects.filter(pk=booking.pk, worker=worker, status='IN_PROGRESS').update(
+            status='COMPLETION_REQUESTED',
+            final_amount=final_amount,
+            material_amount=material_amount,
+            bill_confirmed_at=None,
+            updated_at=timezone.now(),
+        )
+        if not changed:
+            messages.warning(request, 'Only an in-progress job can request completion.')
+            return redirect('worker_jobs')
+        booking.status = 'COMPLETION_REQUESTED'
+        booking.final_amount = final_amount
+        booking.material_amount = material_amount
+        booking.bill_confirmed_at = None
 
 
     # ==========================================
@@ -12090,7 +13795,14 @@ def admin_booking_view(request, booking_id):
                 booking.cancellation_reason = f"Dispute resolved by admin: {remark or 'Cancelled by admin'}"
                 booking.cancelled_by = 'ADMIN'
                 booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-                _handle_booking_cancellation_refund(booking)
+                # Work was already performed (dispute follows a completion
+                # request), so commission is kept unless the admin decides to
+                # return it.
+                _handle_booking_cancellation_refund(
+                    booking,
+                    commission_refund=request.POST.get('refund_commission') in ('1', 'on', 'true'),
+                    refund_reason='Admin dispute resolution',
+                )
 
                 Complaint.objects.filter(booking=booking).update(
                     status='RESOLVED',
@@ -12245,6 +13957,9 @@ def admin_reviews_complaints(request):
     )
 
 
+CUSTOMER_CANCELLABLE_STATUSES = ('PENDING', 'ACCEPTED', 'EMERGENCY_PENDING')
+
+
 @login_required
 def cancel_booking(request, booking_id):
     if request.method != 'POST':
@@ -12262,6 +13977,17 @@ def cancel_booking(request, booking_id):
             messages.error(request, "This booking cannot be cancelled at its current status.")
             return redirect('my_bookings')
 
+        # Customers may only cancel before the worker's arrival is verified.
+        # Once work has started (IN_PROGRESS) a problem must go through a
+        # dispute or support, not a self-service cancellation.
+        if booking.status not in CUSTOMER_CANCELLABLE_STATUSES or booking.arrival_verified_at:
+            messages.error(
+                request,
+                "This job has already started, so it can't be cancelled here. "
+                "If there is a problem, please raise a dispute or contact support."
+            )
+            return redirect('my_bookings')
+
         cancellation_reason = request.POST.get('cancellation_reason', '').strip()
         if 'cancellation_reason' in request.POST and not cancellation_reason:
             messages.error(request, "Please provide a reason for cancelling this booking.")
@@ -12273,7 +13999,11 @@ def cancel_booking(request, booking_id):
         booking.cancellation_reason = cancellation_reason
         booking.cancelled_by = 'CUSTOMER'
         booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-        _handle_booking_cancellation_refund(booking)
+        # Customer cancelled before work started: the worker is not at fault,
+        # so their prepaid commission is returned.
+        _handle_booking_cancellation_refund(
+            booking, commission_refund=True, refund_reason='Customer cancelled before work started',
+        )
 
         # Notify worker inside transaction
         if booking.worker and booking.worker.user:
@@ -12344,11 +14074,28 @@ def worker_cancel_booking(request, booking_id):
             messages.error(request, 'Please provide a reason for cancelling this booking.')
             return redirect('worker_jobs')
 
+        # Decide the commission refund from the schedule *before* changing
+        # anything: early cancellations are refunded, late ones forfeit it.
+        # A job whose arrival was already verified never reaches here
+        # (status would be IN_PROGRESS).
+        refund_allowed = _worker_cancellation_refund_allowed(booking) and not booking.arrival_verified_at
+
         booking.status = 'CANCELLED'
         booking.cancellation_reason = cancellation_reason
         booking.cancelled_by = 'WORKER'
         booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-        _handle_booking_cancellation_refund(booking)
+        _handle_booking_cancellation_refund(
+            booking,
+            commission_refund=refund_allowed,
+            refund_reason='Worker cancelled well before the scheduled start',
+        )
+        if not refund_allowed:
+            messages.warning(
+                request,
+                f'Because this job was cancelled less than '
+                f'{getattr(settings, "WORKER_CANCEL_REFUND_MIN_HOURS", 12)} hours before the start time, '
+                f'the platform fee is not refunded.'
+            )
 
         # Record worker cancellation for admin review
         StrikeRecord.objects.create(
@@ -12457,7 +14204,11 @@ def report_worker_no_show(request, booking_id):
         'status', 'cancellation_reason', 'cancelled_by',
         'worker_no_show_reported_at', 'updated_at'
     ])
-    _handle_booking_cancellation_refund(booking)
+    # The worker did not turn up: their commission is forfeited (an admin can
+    # still return it after reviewing the strike record).
+    _handle_booking_cancellation_refund(
+        booking, commission_refund=False, refund_reason='Worker no-show',
+    )
 
     # Create strike record pending admin review
     if booking.worker and booking.worker.user:
@@ -12516,7 +14267,11 @@ def worker_report_customer_no_show(request, booking_id):
 
     from datetime import datetime as dt_cls, time as tm_cls
     from django.utils import timezone as dj_tz
-    scheduled_time = booking.start_time or tm_cls(9, 0)
+    scheduled_time = booking.start_time
+    if not scheduled_time and booking.time:
+        scheduled_time, _ = parse_time_range(booking.time)
+    if not scheduled_time:
+        scheduled_time = tm_cls(9, 0)
     scheduled_dt = dj_tz.make_aware(dt_cls.combine(booking.date, scheduled_time))
     allowed_time = scheduled_dt + timedelta(minutes=15)
 
@@ -12561,6 +14316,11 @@ def worker_report_customer_no_show(request, booking_id):
         'status', 'cancellation_reason', 'cancelled_by',
         'customer_no_show_reported_at', 'updated_at'
     ])
+    # The worker turned up and the customer was unavailable: the worker is
+    # not at fault, so the prepaid commission is returned.
+    _handle_booking_cancellation_refund(
+        booking, commission_refund=True, refund_reason='Customer not available at the scheduled time',
+    )
 
     evidence_str = " ".join(evidence_parts)
     StrikeRecord.objects.create(
@@ -12664,6 +14424,31 @@ def update_complaint_status(request, complaint_id):
             messages.error(request, 'Please provide an admin remark/reason before resolving or rejecting a complaint.')
             return redirect('admin_reviews_complaints')
         if status in valid_statuses:
+            # Validate dispute-resolution inputs first, so a bad value leaves
+            # the complaint and the booking untouched.
+            dispute_booking_obj = complaint.booking
+            pre_adjusted = None
+            pre_payment_method = None
+            payment_verified = request.POST.get('payment_verified') in ('1', 'on', 'true')
+            if status == 'RESOLVED' and dispute_booking_obj and dispute_booking_obj.status == 'DISPUTED':
+                pre_action = request.POST.get('dispute_action', '').strip().upper()
+                pre_is_cancel = (pre_action == 'CANCEL') or (
+                    not pre_action and admin_remark and admin_remark.strip().lower().startswith(('cancel', 'refund'))
+                )
+                if not pre_is_cancel:
+                    raw_adjusted = request.POST.get('adjusted_amount', '').strip()
+                    if raw_adjusted:
+                        pre_adjusted, adj_error = _strict_money(raw_adjusted, 'Adjusted amount')
+                        if adj_error:
+                            messages.error(request, adj_error)
+                            return redirect('admin_reviews_complaints')
+                    if payment_verified:
+                        pre_payment_method, pm_error = clean_payment_method(
+                            request.POST.get('payment_method'), ACTIVE_CUSTOMER_PAYMENT_METHODS
+                        )
+                        if pm_error:
+                            messages.error(request, pm_error)
+                            return redirect('admin_reviews_complaints')
             complaint.status = status
             complaint.admin_remark = admin_remark
             complaint.save(update_fields=['status', 'admin_remark'])
@@ -12683,18 +14468,54 @@ def update_complaint_status(request, complaint_id):
                     booking.cancellation_reason = f"Dispute resolved by admin: {admin_remark}"
                     booking.cancelled_by = 'ADMIN'
                     booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-                    _handle_booking_cancellation_refund(booking)
+                    # Disputes follow completed work: commission is kept unless
+                    # the admin explicitly returns it.
+                    _handle_booking_cancellation_refund(
+                        booking,
+                        commission_refund=request.POST.get('refund_commission') in ('1', 'on', 'true'),
+                        refund_reason='Admin dispute resolution',
+                    )
                 else:
-                    if adjusted_amount_str:
-                        try:
-                            adj_amt = Decimal(adjusted_amount_str)
-                            if adj_amt > 0:
-                                booking.final_amount = adj_amt
-                        except Exception:
-                            pass
-                    booking.status = 'COMPLETED'
-                    booking.save(update_fields=['status', 'final_amount', 'updated_at'])
-                    _settle_booking_completion_financials(booking)
+                    # Completing a dispute is NOT a payment confirmation. The
+                    # booking becomes COMPLETED, but is marked paid only when the
+                    # admin explicitly states that the payment was received and
+                    # verified; that goes through the same settlement service as
+                    # a normal completion (single Payment row, no duplicate
+                    # commission). Row-locked and re-checked, so resolving the
+                    # same dispute twice does nothing the second time.
+                    with transaction.atomic():
+                        locked_booking = Booking.objects.select_for_update().get(pk=booking.pk)
+                        if locked_booking.status == 'DISPUTED':
+                            if pre_adjusted is not None:
+                                locked_booking.final_amount = pre_adjusted
+                            locked_booking.status = 'COMPLETED'
+                            locked_booking.save(update_fields=['status', 'final_amount', 'updated_at'])
+                            _settle_booking_completion_financials(locked_booking)
+                            paid_note = 'payment NOT confirmed (booking remains unpaid)'
+                            if payment_verified:
+                                _paid_booking, pay_error = _complete_booking_after_payment(
+                                    locked_booking.id,
+                                    payment_method=pre_payment_method,
+                                    verified_by='ADMIN',
+                                    reference=f'DISPUTE-{locked_booking.id}',
+                                )
+                                paid_note = (
+                                    'payment verified by admin' if not pay_error
+                                    else f'payment could not be recorded: {pay_error}'
+                                )
+                            logger.info(
+                                'Dispute resolved by admin=%s booking=%s complaint=%s outcome=COMPLETED '
+                                'adjusted_amount=%s %s',
+                                request.user.id, locked_booking.id, complaint.id,
+                                pre_adjusted, paid_note,
+                            )
+                            complaint.admin_remark = (
+                                f"{admin_remark}\n[Resolution by admin #{request.user.id}: COMPLETED; "
+                                f"{('amount set to Rs ' + str(pre_adjusted) + '; ') if pre_adjusted is not None else ''}"
+                                f"{paid_note}]"
+                            )[:4000]
+                            complaint.save(update_fields=['admin_remark'])
+                            booking = locked_booking
 
             messages.success(request, f"Complaint #{complaint.id} status updated to {status}.")
 
@@ -13129,6 +14950,10 @@ def ai_service_assistant(request):
             })
 
         return JsonResponse({
+            # The assistant widget checks data.success; without it every
+            # successful match was shown as "Could not find matching service".
+            'success': True,
+            'type': 'service_match',
             'status': 'success',
             'service': {
                 'id': matched_service.id,
@@ -13263,7 +15088,8 @@ def api_booking_tracking(request, booking_id):
 
     is_customer = (request.user == booking.customer)
     is_worker = (booking.worker and request.user == booking.worker.user)
-    is_admin = (request.user.is_staff or getattr(request.user, 'role', None) == 'ADMIN')
+    # Only genuine LAMO administrators (ADMIN role / superuser) - never plain Django staff.
+    is_admin = _is_admin_account(request.user)
 
     if not (is_customer or is_worker or is_admin):
         return JsonResponse({'success': False, 'error': 'Unauthorized to track this booking.'}, status=403)
@@ -13811,6 +15637,26 @@ def customer_accept_reschedule(request, booking_id):
                 messages.error(request, 'Worker is no longer available at this proposed time due to another booking. Please decline to keep the original request or cancel.')
                 return redirect('my_bookings')
 
+            # A PENDING request becomes ACCEPTED here, so the worker's
+            # acceptance commission must be taken now (exactly as in
+            # worker_accept_booking). Already-ACCEPTED jobs were charged at
+            # acceptance; the idempotent helper never charges them again.
+            if booking.status == 'PENDING':
+                wallet, _ = WorkerWallet.objects.select_for_update().get_or_create(worker=locked_worker)
+                fee = calculate_booking_platform_fee(booking, locked_worker)
+                balance = Decimal(str(wallet.balance if wallet.balance is not None else '0.00'))
+                if balance < fee:
+                    messages.error(
+                        request,
+                        'This professional cannot confirm the new time right now. '
+                        'Please decline the proposal to keep your original request, or choose another worker.'
+                    )
+                    return redirect('my_bookings')
+                _charge_acceptance_commission(
+                    booking, wallet, fee,
+                    note=f"Platform fee deducted when customer accepted rescheduled Booking #{booking.id}",
+                )
+
         booking.date = new_date
         booking.time = new_time
         booking.start_time = start_t
@@ -13820,8 +15666,8 @@ def customer_accept_reschedule(request, booking_id):
         booking.proposed_time = None
         booking.reschedule_note = None
         booking.generate_arrival_otp()
-        booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'status', 'proposed_date', 'proposed_time', 'reschedule_note', 'arrival_otp', 'worker_badge_code', 'updated_at'])
-    
+        booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'status', 'proposed_date', 'proposed_time', 'reschedule_note', 'arrival_otp', 'worker_badge_code', 'platform_fee', 'fee_settled', 'updated_at'])
+
     cust_name = request.user.get_full_name() or request.user.username
     if booking.worker and booking.worker.user:
         Notification.objects.create(
@@ -13845,11 +15691,16 @@ def customer_decline_reschedule(request, booking_id):
     if booking.customer != request.user:
         messages.error(request, 'Unauthorized action.')
         return redirect('my_bookings')
-        
+
+    if not booking.has_pending_reschedule:
+        messages.error(request, 'No pending reschedule proposal found for this booking.')
+        return redirect('my_bookings')
+
     booking.proposed_date = None
     booking.proposed_time = None
     booking.reschedule_note = None
-    booking.save(update_fields=['proposed_date', 'proposed_time', 'reschedule_note', 'updated_at'])
+    booking.reschedule_proposed_at = None
+    booking.save(update_fields=['proposed_date', 'proposed_time', 'reschedule_note', 'reschedule_proposed_at', 'updated_at'])
     
     if booking.worker and booking.worker.user:
         cust_name = request.user.get_full_name() or request.user.username
@@ -13860,7 +15711,7 @@ def customer_decline_reschedule(request, booking_id):
             message=f"{cust_name} declined your proposed alternative time for Booking #{booking.id}."
         )
         
-    messages.info(request, 'Counter-offer declined. The original request remains pending or you may cancel.')
+    messages.info(request, 'Proposed time declined. Your booking keeps its original date and time.')
     return redirect('my_bookings')
 
 
@@ -13978,7 +15829,7 @@ def get_worker_transit_and_delay_context(worker, target_date=None):
     }
 
 
-def get_customer_booking_transit_status(booking):
+def get_customer_booking_transit_status(booking, active_jobs_by_worker=None):
     """
     Check if the assigned worker is currently busy on an active earlier job,
     and whether delay / transit notification should be displayed to the customer.
@@ -13993,12 +15844,16 @@ def get_customer_booking_transit_status(booking):
 
     now_mins = now_local.hour * 60 + now_local.minute
 
-    # Check if worker is active on another job
-    other_active = Booking.objects.filter(
-        worker=booking.worker,
-        date=today,
-        status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED']
-    ).exclude(id=booking.id).first()
+    # Check if worker is active on another job (use pre-fetched bulk map if provided)
+    if active_jobs_by_worker is not None:
+        cand = active_jobs_by_worker.get(booking.worker_id)
+        other_active = cand if (cand and cand.id != booking.id) else None
+    else:
+        other_active = Booking.objects.filter(
+            worker=booking.worker,
+            date=today,
+            status__in=['IN_PROGRESS', 'COMPLETION_REQUESTED']
+        ).exclude(id=booking.id).first()
 
     if not other_active:
         return None
@@ -14107,10 +15962,7 @@ def customer_request_reschedule(request, booking_id):
         messages.error(request, 'Unauthorized action.')
         return redirect('worker_jobs')
 
-    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-    if booking.status not in ('PENDING', 'ACCEPTED'):
-        messages.error(request, 'Only pending or accepted bookings can be rescheduled.')
-        return redirect('my_bookings')
+    get_object_or_404(Booking, id=booking_id, customer=request.user)
 
     new_date_str = request.POST.get('date', '').strip()
     new_time_str = request.POST.get('time', '').strip()
@@ -14136,12 +15988,45 @@ def customer_request_reschedule(request, booking_id):
         messages.error(request, 'Invalid time range.')
         return redirect('my_bookings')
 
-    booking.date = new_date
-    booking.time = new_time_str
-    booking.start_time = start_t
-    booking.end_time = end_t
-    booking.reschedule_note = reason
-    booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'reschedule_note', 'updated_at'])
+    if new_date == now_local.date() and start_t <= now_local.time():
+        messages.error(request, 'That time has already passed today. Please choose a later time.')
+        return redirect('my_bookings')
+
+    # Lock the booking and the worker so two reschedules / bookings cannot
+    # claim the same slot concurrently, then re-check status and overlaps.
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().select_related('worker__user').get(
+            id=booking_id, customer=request.user
+        )
+        if booking.status not in ('PENDING', 'ACCEPTED'):
+            messages.error(request, 'Only pending or accepted bookings can be rescheduled.')
+            return redirect('my_bookings')
+
+        if booking.worker_id:
+            locked_worker = WorkerProfile.objects.select_for_update().get(id=booking.worker_id)
+            if WorkerLeave.objects.filter(worker=locked_worker, leave_date=new_date).exists():
+                messages.error(request, 'Your professional is on leave on that date. Please choose another date.')
+                return redirect('my_bookings')
+            if has_worker_schedule_conflict(
+                locked_worker,
+                booking_date=new_date,
+                start_time=start_t,
+                end_time=end_t,
+                time_value=new_time_str,
+                exclude_booking_id=booking.id,
+            ):
+                messages.error(
+                    request,
+                    'Your professional already has another job at that time. Please choose a different time slot.'
+                )
+                return redirect('my_bookings')
+
+        booking.date = new_date
+        booking.time = new_time_str
+        booking.start_time = start_t
+        booking.end_time = end_t
+        booking.reschedule_note = reason
+        booking.save(update_fields=['date', 'time', 'start_time', 'end_time', 'reschedule_note', 'updated_at'])
 
     if booking.worker and booking.worker.user:
         cust_name = request.user.get_full_name() or request.user.username
@@ -14156,6 +16041,43 @@ def customer_request_reschedule(request, booking_id):
     return redirect('my_bookings')
 
 
+def _reassignment_problem(worker, booking, wallet=None):
+    """Why ``worker`` may NOT take ``booking`` right now, or None when eligible.
+
+    Applies the same rules a worker faces when accepting a booking themselves
+    (verification/suspension, leave, schedule conflict, dues pause and the
+    prepaid-wallet commission check), so a reassigned booking can never land on
+    a worker who could not have accepted it normally. Call it again under row
+    locks immediately before assigning.
+    """
+    ok, message = _check_worker_verification(worker)
+    if not ok:
+        return message
+    if not worker.user.is_active:
+        return 'Worker account is not active.'
+    if worker.work_status != 'AVAILABLE':
+        return 'Worker is not available.'
+    if worker.is_paused_for_dues:
+        return 'Worker is paused for platform dues.'
+    if booking.date and WorkerLeave.objects.filter(worker=worker, leave_date=booking.date).exists():
+        return 'Worker is on leave on this date.'
+    if has_worker_schedule_conflict(
+        worker,
+        booking_date=booking.date,
+        start_time=booking.start_time,
+        end_time=booking.end_time,
+        time_value=booking.time,
+        exclude_booking_id=booking.id,
+    ):
+        return 'Worker already has a booking at this time.'
+    fee = calculate_booking_platform_fee(booking, worker)
+    if fee > Decimal('0.00'):
+        balance = Decimal(str(wallet.balance)) if wallet is not None and wallet.balance is not None else Decimal('0.00')
+        if balance < fee or (wallet is not None and wallet.is_locked):
+            return 'Worker wallet balance does not cover the platform fee.'
+    return None
+
+
 @login_required
 @require_POST
 def customer_reassign_booking(request, booking_id):
@@ -14168,8 +16090,26 @@ def customer_reassign_booking(request, booking_id):
         return redirect('worker_jobs')
 
     booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-    if booking.status not in ('EXPIRED', 'REJECTED'):
-        messages.error(request, 'Only expired or declined bookings can be automatically reassigned.')
+    is_worker_cancelled = (booking.status == 'CANCELLED' and booking.cancelled_by == 'WORKER')
+
+    if booking.status not in ('EXPIRED', 'REJECTED') and not is_worker_cancelled:
+        messages.error(request, 'Only expired, declined, or professional-cancelled bookings can be automatically reassigned.')
+        return redirect('my_bookings')
+
+    def _past_date_error(b):
+        """A booking whose slot has already started cannot be handed to a new worker."""
+        if not b.date:
+            return 'This booking has no scheduled date, so it cannot be reassigned.'
+        if b.date < timezone.localdate():
+            return 'This booking date has already passed. Please book a new date.'
+        start = _booking_scheduled_start(b)
+        if start is not None and start <= timezone.now():
+            return 'The scheduled time for this booking has already passed. Please book a new time.'
+        return None
+
+    past_error = _past_date_error(booking)
+    if past_error:
+        messages.error(request, past_error)
         return redirect('my_bookings')
 
     service = booking.service
@@ -14183,7 +16123,8 @@ def customer_reassign_booking(request, booking_id):
             service=service,
             is_verified=True,
             work_status='AVAILABLE',
-            user__is_active=True
+            user__is_active=True,
+            is_paused_for_dues=False,
         )
         .annotate(
             avg_rating=models.Avg('reviews_received__rating')
@@ -14198,68 +16139,75 @@ def customer_reassign_booking(request, booking_id):
         if district_candidates.exists():
             candidates = district_candidates
 
-    # Exclude workers who have conflicting bookings or are on leave
-    available_candidate = None
-    for cand in candidates.order_by(models.F('avg_rating').desc(nulls_last=True), '-experience_years', 'id'):
-        if hasattr(cand, 'is_on_leave') and cand.is_on_leave(booking.date):
-            continue
-        if booking.start_time and booking.end_time:
-            has_conflict = Booking.objects.filter(
-                worker=cand,
-                date=booking.date,
-                status__in=['ACCEPTED', 'IN_PROGRESS']
-            ).filter(
-                start_time__lt=booking.end_time,
-                end_time__gt=booking.start_time
-            ).exists()
-            if has_conflict:
-                continue
-        available_candidate = cand
-        break
+    # Best candidates first; at most a handful are tried (each one is locked and
+    # re-validated before it is assigned).
+    ordered = list(candidates.order_by(models.F('avg_rating').desc(nulls_last=True), '-experience_years', 'id')[:15])
 
-    if not available_candidate:
-        messages.warning(
-            request,
-            f"No other available verified professionals found for {service.name} in your area at the requested time. "
-            "Please select another time slot or browse all professionals."
-        )
-        return redirect('my_bookings')
-
+    assigned = None
+    old_worker_name = ''
     with transaction.atomic():
-        b = Booking.objects.select_for_update().get(id=booking.id)
+        b = Booking.objects.select_for_update().get(id=booking.id, customer=request.user)
+        locked_worker_cancelled = (b.status == 'CANCELLED' and b.cancelled_by == 'WORKER')
+        if b.status not in ('EXPIRED', 'REJECTED') and not locked_worker_cancelled:
+            messages.error(request, 'This booking cannot be reassigned at this time.')
+            return redirect('my_bookings')
+        past_error = _past_date_error(b)
+        if past_error:
+            messages.error(request, past_error)
+            return redirect('my_bookings')
+
         old_worker_name = b.worker.user.get_full_name() if b.worker and b.worker.user else "Previous Worker"
-        b.worker = available_candidate
+
+        for cand in ordered:
+            # Lock the candidate and their wallet, then re-check everything
+            # against the committed state (it may have changed since the list was built).
+            locked = WorkerProfile.objects.select_for_update().select_related('user').get(pk=cand.pk)
+            wallet = WorkerWallet.objects.select_for_update().filter(worker=locked).first()
+            if _reassignment_problem(locked, b, wallet) is None:
+                assigned = locked
+                break
+
+        if assigned is None:
+            messages.warning(
+                request,
+                f"No other available verified professionals found for {service.name} in your area at the requested time. "
+                "Please select another time slot or browse all professionals."
+            )
+            return redirect('my_bookings')
+
+        b.worker = assigned
         b.status = 'PENDING'
+        b.cancelled_by = ''
         b.created_at = timezone.now()
-        b.cancellation_reason = f"Auto-reassigned by customer from {old_worker_name} to {available_candidate.user.get_full_name()}."
-        b.save(update_fields=['worker', 'status', 'created_at', 'cancellation_reason', 'updated_at'])
+        b.cancellation_reason = f"Auto-reassigned by customer from {old_worker_name} to {assigned.user.get_full_name()}."
+        b.save(update_fields=['worker', 'status', 'created_at', 'cancelled_by', 'cancellation_reason', 'updated_at'])
 
         # Notify the new worker
         Notification.objects.create(
-            recipient=available_candidate.user,
+            recipient=assigned.user,
             booking=b,
             notification_type='NEW_BOOKING',
             message=f"New booking assignment #{b.id} for {service.name} on {b.date.strftime('%b %d, %Y')} at {b.time}. Please respond within the response window."
         )
+
         # Safely notify via email
         send_email_safely(
             subject=f"New Booking Request #{b.id} - LAMO",
             message=(
-                f"Hello {available_candidate.user.get_full_name() or available_candidate.user.username},\n\n"
+                f"Hello {assigned.user.get_full_name() or assigned.user.username},\n\n"
                 f"You have received a new booking request #{b.id} for {service.name} scheduled on {b.date.strftime('%b %d, %Y')} at {b.time}.\n\n"
                 f"Please log in to your LAMO Partner portal and respond within the response window.\n\n"
                 f"Best regards,\nTeam LAMO"
             ),
-            recipient_list=[available_candidate.user.email],
+            recipient_list=[assigned.user.email],
             purpose='worker_new_booking',
             async_send=True
         )
 
-        new_name = available_candidate.user.get_full_name() or available_candidate.user.username
-        messages.success(
-            request,
-            f"Booking #{b.id} has been automatically reassigned to {new_name}! "
-            "They have been notified to review and confirm."
-        )
-
+    new_name = assigned.user.get_full_name() or assigned.user.username
+    messages.success(
+        request,
+        f"Booking #{b.id} has been automatically reassigned to {new_name}! "
+        "They have been notified to review and confirm."
+    )
     return redirect('my_bookings')

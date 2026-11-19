@@ -158,8 +158,8 @@
     <div class="stat-card">
         <div class="stat-info">
             <small>Platform Commission</small>
-            <h3>₹{{ platform_commission|floatformat:2 }}</h3>
-            <span>10% platform fee</span>
+            <h3>₹{{ commission_collected|floatformat:2 }}</h3>
+            <span>Collected from worker wallets (net of refunds)</span>
         </div>
         <div class="stat-icon" style="background:#ecfdf5; color:#059669;"><i class="bi bi-pie-chart-fill"></i></div>
     </div>
@@ -167,9 +167,9 @@
     <!-- WORKER PAYOUTS -->
     <div class="stat-card">
         <div class="stat-info">
-            <small>Worker Payouts</small>
+            <small>Earned by Workers (est.)</small>
             <h3>₹{{ worker_payouts|floatformat:2 }}</h3>
-            <span>Net 90% to workers</span>
+            <span>Paid directly by customers</span>
         </div>
         <div class="stat-icon" style="background:#eff6ff; color:#2563eb;"><i class="bi bi-wallet2"></i></div>
     </div>
@@ -348,11 +348,11 @@
                 <div style="font-size:16px; font-weight:800; color:#1e293b;">₹{{ gross_revenue|floatformat:2 }}</div>
             </div>
             <div>
-                <small style="color:#059669; font-size:11px; font-weight:600;">Platform Cut (10%)</small>
+                <small style="color:#059669; font-size:11px; font-weight:600;">Platform Cut (10% est.)</small>
                 <div style="font-size:16px; font-weight:800; color:#059669;">₹{{ platform_commission|floatformat:2 }}</div>
             </div>
             <div>
-                <small style="color:#2563eb; font-size:11px; font-weight:600;">Worker Share (90%)</small>
+                <small style="color:#2563eb; font-size:11px; font-weight:600;">Worker Share (90% est.)</small>
                 <div style="font-size:16px; font-weight:800; color:#2563eb;">₹{{ worker_payouts|floatformat:2 }}</div>
             </div>
             <div>
@@ -785,6 +785,6 @@
     </div>
 </div>
 
-<script id="liveMapData" type="application/json">{{ live_map_json|safe }}</script>
+{{ live_map_data|json_script:"liveMapData" }}
 
 {% endblock %}

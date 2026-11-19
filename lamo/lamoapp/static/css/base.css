@@ -3238,3 +3238,27 @@
     }
 }
 
+
+/* =====================================================
+   DESKTOP NAVBAR FIT (992px+)
+   At >=1200px the guest navbar also shows "Become a Worker", so logo +
+   location + links + three actions can be wider than the bar and push the
+   Register button past the right edge (where the page clips it). Let the
+   link group shrink and tighten spacing between 992px and 1399px; the action
+   group never shrinks, so Register stays fully visible.
+   ===================================================== */
+@media (min-width: 992px) {
+  .navbar .navbar-collapse { min-width: 0; }
+  .navbar .nav-pill { min-width: 0; flex: 0 1 auto; }
+  .navbar .nav-actions { flex-shrink: 0; white-space: nowrap; }
+  .navbar .nav-actions .btn-register { line-height: 1.25; }
+}
+@media (min-width: 992px) and (max-width: 1399.98px) {
+  .navbar .nav-pill { margin-left: 4px !important; }
+  html body .navbar.lamo-navbar .nav-pill .navbar-nav { gap: 0 !important; }
+  html body .navbar.lamo-navbar .nav-pill .navbar-nav .nav-link { padding-left: .6rem !important; padding-right: .6rem !important; }
+  .navbar .nav-actions { gap: 8px !important; margin-left: auto !important; }
+  .navbar .nav-actions .btn-become-pro { padding: 7px 11px !important; }
+  .navbar .nav-actions .btn-register,
+  .navbar .nav-actions .btn-login { padding-left: 14px !important; padding-right: 14px !important; }
+}

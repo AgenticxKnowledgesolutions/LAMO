@@ -2061,12 +2061,13 @@ body {
 }
 
 /* Side reveal modifiers (additive only: inherits opacity, duration, easing, and will-change) */
-.scroll-reveal.reveal-left {
-  transform: translateX(-90px);
-}
-
+/* The side-reveal sections are full viewport width, so a horizontal
+   translateX() (it used to be +/-90px) pushed them past the viewport edge and
+   made the document 90px wider than the screen until revealed. They now use the
+   same vertical rise as .scroll-reveal; nothing leaves the viewport. */
+.scroll-reveal.reveal-left,
 .scroll-reveal.reveal-right {
-  transform: translateX(90px);
+  transform: translateY(34px);
 }
 
 .scroll-reveal.reveal-left.is-visible,

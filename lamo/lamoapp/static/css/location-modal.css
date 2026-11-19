@@ -255,6 +255,8 @@ body.location-modal-open {
 .loc-brand-svg-logo {
   height: 42px;
   width: auto;
+  max-width: 100%;
+  overflow: visible;   /* an <svg> root clips by default; never crop the wordmark */
   display: block;
 }
 

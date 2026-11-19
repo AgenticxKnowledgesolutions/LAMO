@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Doorstep Verification | LAMO{% endblock %}
+
+{% block extra_css %}
+<style>
+.doorstep-verify-page {
+    background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
+    min-height: calc(100vh - 120px);
+    padding: 30px 16px 60px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+.doorstep-verify-container {
+    width: 100%;
+    max-width: 520px;
+}
+.verify-card-shell {
+    background: #ffffff;
+    border: 1.5px solid #a7f3d0;
+    border-radius: 24px;
+    box-shadow: 0 12px 36px rgba(5, 150, 105, 0.12), 0 2px 6px rgba(0,0,0,0.04);
+    overflow: hidden;
+    position: relative;
+}
+.verify-header-banner {
+    background: linear-gradient(135deg, #065f46 0%, #087f5b 50%, #059669 100%);
+    color: #ffffff;
+    padding: 24px 20px 20px;
+    text-align: center;
+    position: relative;
+}
+.verify-shield-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #ffffff;
+    margin-bottom: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.verify-header-banner h1 {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0 0 4px;
+    letter-spacing: -0.3px;
+}
+.verify-header-banner p {
+    font-size: 13px;
+    color: #d1fae5;
+    margin: 0;
+    font-weight: 500;
+}
+.pro-profile-card {
+    padding: 24px 20px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: center;
+    background: #ffffff;
+}
+.pro-avatar-wrap {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 12px;
+}
+.pro-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3.5px solid #10b981;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+.pro-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 800;
+    border: 3.5px solid #10b981;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+}
+.pro-verified-tick {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #059669;
+    color: #ffffff;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 2.5px solid #ffffff;
+}
+.pro-name-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px;
+}
+.pro-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ecfdf5;
+    color: #065f46;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: 1px solid #a7f3d0;
+    margin-bottom: 12px;
+}
+.trust-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.trust-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #047857;
+    background: #f0fdf4;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+.booking-summary-section {
+    padding: 20px;
+    background: #f8fafc;
+}
+.detail-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e2e8f0;
+    font-size: 13.5px;
+}
+.detail-item-row:last-child {
+    border-bottom: none;
+}
+.detail-label {
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.detail-val {
+    font-weight: 700;
+    color: #1e293b;
+    text-align: right;
+}
+.verify-action-footer {
+    padding: 20px;
+    background: #ffffff;
+    text-align: center;
+}
+.btn-admit-pro {
+    width: 100%;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #059669 0%, #087f5b 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 8px 24px rgba(5, 150, 105, 0.35);
+    transition: all 0.2s ease;
+}
+.btn-admit-pro:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(5, 150, 105, 0.45);
+    color: #ffffff;
+}
+.status-badge-active {
+    background: #ecfdf5;
+    border: 1.5px solid #10b981;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+}
+.btn-back-dashboard {
+    margin-top: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: #087f5b;
+    color: #ffffff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13.5px;
+}
+.btn-back-dashboard:hover {
+    background: #065f46;
+    color: #ffffff;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doorstep-verify-page">
+    <div class="doorstep-verify-container">
+        {% if invalid_token %}
+            <!-- INVALID OR EXPIRED TOKEN -->
+            <div class="verify-card-shell" style="border-color: #fecaca; text-align: center; padding: 36px 24px;">
+                <div style="width: 64px; height: 64px; background: #fee2e2; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 30px; color: #dc2626; margin-bottom: 16px;">
+                    <i class="bi bi-shield-x"></i>
+                </div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #991b1b; margin-bottom: 8px;">{{ error_title|default:"Invalid QR Code" }}</h2>
+                <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-bottom: 24px;">{{ error_message|default:"This verification code is either invalid or expired." }}</p>
+                <a href="{% url 'home' %}" class="btn-back-dashboard" style="background: #475569;">
+                    <i class="bi bi-house-door"></i> Return to Homepage
+                </a>
+            </div>
+        {% else %}
+            <!-- OFFICIAL VERIFICATION PASS -->
+            <div class="verify-card-shell">
+                <!-- TOP BANNER -->
+                <div class="verify-header-banner">
+                    <div class="verify-shield-icon">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <h1>LAMO Doorstep Identity Verification</h1>
+                    <p>Official Service Handshake &bull; Safe &amp; Verified</p>
+                </div>
+
+                <!-- TECHNICIAN IDENTITY PROFILE -->
+                <div class="pro-profile-card">
+                    <div class="pro-avatar-wrap">
+                        {% if booking.worker and booking.worker.profile_image %}
+                            <img src="{{ booking.worker.profile_image.url }}" alt="Verified Pro" class="pro-avatar-img">
+                        {% elif booking.worker and booking.worker.user.profile_picture %}
+                            <img src="{{ booking.worker.user.profile_picture.url }}" alt="Verified Pro" class="pro-avatar-img">
+                        {% else %}
+                            <div class="pro-avatar-placeholder">
+                                {{ booking.worker.user.first_name|first|default:booking.worker.user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                        <div class="pro-verified-tick" title="LAMO Verified Professional">
+                            <i class="bi bi-check-lg"></i>
+                        </div>
+                    </div>
+
+                    <h2 class="pro-name-title">
+                        {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}
+                    </h2>
+                    <div class="pro-role-badge">
+                        <i class="bi bi-award-fill"></i>
+                        <span>LAMO Verified {{ booking.service.category.name|default:booking.service.name }}</span>
+                    </div>
+
+                    <div class="trust-indicators">
+                        <span class="trust-chip"><i class="bi bi-fingerprint"></i> ID Verified</span>
+                        <span class="trust-chip"><i class="bi bi-shield-shaded"></i> Police Clearance</span>
+                        <span class="trust-chip"><i class="bi bi-star-fill" style="color:#eab308;"></i> 4.9 &bull; Top Pro</span>
+                    </div>
+                </div>
+
+                <!-- BOOKING DETAILS -->
+                <div class="booking-summary-section">
+                    <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #047857; margin-bottom: 10px;">
+                        <i class="bi bi-card-checklist"></i> Scheduled Service Details
+                    </div>
+
+                    <div class="detail-item-row">
+                        <span class="detail-label"><i class="bi bi-hash"></i> Booking Reference</span>
+                        <span class="detail-val">#{{ booking.id }}</span>
+                    </div>
+                    <div class="detail-item-row">
+                        <span class="detail-label"><i class="bi bi-tools"></i> Service</span>
+                        <span class="detail-val">{{ booking.service.name }}</span>
+                    </div>
+                    <div class="detail-item-row">
+                        <span class="detail-label"><i class="bi bi-calendar-event"></i> Scheduled Date</span>
+                        <span class="detail-val">{{ booking.date|date:"D, d M Y"|default:booking.date }}</span>
+                    </div>
+                    <div class="detail-item-row">
+                        <span class="detail-label"><i class="bi bi-clock"></i> Scheduled Time</span>
+                        <span class="detail-val">{{ booking.time }}</span>
+                    </div>
+                    <div class="detail-item-row">
+                        <span class="detail-label"><i class="bi bi-cash-stack"></i> Base / Agreed Cost</span>
+                        <span class="detail-val" style="color: #047857; font-size: 15px;">₹{{ booking.estimated_cost|default:booking.service.price }}</span>
+                    </div>
+                </div>
+
+                <!-- ACTION FOOTER -->
+                <div class="verify-action-footer">
+                    {% if booking.status == 'ACCEPTED' and not just_verified %}
+                        <p style="font-size: 13px; color: #475569; margin: 0 0 16px; line-height: 1.45;">
+                            Confirm that the technician at your door matches the photo above, then tap below to admit the worker and begin the service.
+                        </p>
+
+                        <form id="verifyArrivalForm" method="POST" action="">
+                            {% csrf_token %}
+                            <button type="submit" id="btnAdmitPro" class="btn-admit-pro">
+                                <i class="bi bi-shield-fill-check"></i>
+                                <span>Admit Technician &amp; Start Service</span>
+                            </button>
+                        </form>
+                    {% elif booking.status == 'IN_PROGRESS' or just_verified %}
+                        <div class="status-badge-active">
+                            <div style="font-size: 26px; color: #059669; margin-bottom: 6px;">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                            <h3 style="font-size: 17px; font-weight: 800; color: #065f46; margin: 0 0 4px;">Technician Admitted &amp; Work Started!</h3>
+                            <p style="font-size: 12.5px; color: #047857; margin: 0;">
+                                Verified at {% if booking.arrival_verified_at %}{{ booking.arrival_verified_at|date:"h:i A" }}{% else %}just now{% endif %}. The technician's live timer is running.
+                            </p>
+                        </div>
+                        <a href="{% url 'my_bookings' %}?booking_id={{ booking.id }}" class="btn-back-dashboard">
+                            <i class="bi bi-speedometer2"></i> View Booking in My Dashboard
+                        </a>
+                    {% else %}
+                        <div style="padding: 10px; background: #f8fafc; border-radius: 12px; color: #475569; font-size: 13.5px; font-weight: 600;">
+                            Booking Status: {{ booking.get_status_display|default:booking.status }}
+                        </div>
+                        <a href="{% url 'my_bookings' %}" class="btn-back-dashboard">
+                            <i class="bi bi-arrow-left"></i> Go to My Bookings
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("verifyArrivalForm");
+    const btn = document.getElementById("btnAdmitPro");
+
+    if (form && btn) {
+        form.addEventListener("submit", function(e) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying & Starting Service...';
+        });
+    }
+});
+</script>
+{% endblock %}

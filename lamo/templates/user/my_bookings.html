@@ -326,6 +326,101 @@
         align-items: center !important;
         gap: 3px !important;
     }
+
+    /* =========================================================
+       SEGMENTED STATUS FILTER PILL BAR (Idea 1)
+       ========================================================= */
+    .booking-filter-bar-wrap {
+        width: 100%;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .booking-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 4px 2px 10px;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .booking-filter-bar::-webkit-scrollbar {
+        display: none;
+    }
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 1.5px solid #e2e8f0;
+        background: #ffffff;
+        color: #475569;
+        font-size: 13.5px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .filter-pill:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #1e293b;
+        transform: translateY(-1px);
+    }
+    .filter-pill .pill-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 11.5px;
+        font-weight: 800;
+        transition: all 0.2s ease;
+    }
+    /* Active States */
+    .filter-pill.is-active {
+        background: #087f5b;
+        border-color: #087f5b;
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(8, 127, 91, 0.28);
+        transform: translateY(-1px);
+    }
+    .filter-pill.is-active .pill-count {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+    .filter-pill[data-filter="active"].is-active {
+        background: #0284c7;
+        border-color: #0284c7;
+        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    }
+    .filter-pill[data-filter="completed"].is-active {
+        background: #059669;
+        border-color: #059669;
+        box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+    }
+    .filter-pill[data-filter="cancelled"].is-active {
+        background: #ea580c;
+        border-color: #ea580c;
+        box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+    }
+    .filter-pill[data-filter="rejected"].is-active {
+        background: #dc2626;
+        border-color: #dc2626;
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+    }
+    .filter-pill[data-filter="no_show"].is-active {
+        background: #991b1b;
+        border-color: #991b1b;
+        box-shadow: 0 4px 14px rgba(153, 27, 27, 0.3);
+    }
     </style>
 {% endblock %}
 
@@ -343,6 +438,42 @@
         </header>
 
         {% if bookings %}
+            <!-- HORIZONTAL SEGMENTED STATUS FILTERS (Idea 1) -->
+            <div class="booking-filter-bar-wrap">
+                <div class="booking-filter-bar" id="bookingFilterBar" role="tablist" aria-label="Filter bookings by status">
+                    <button type="button" class="filter-pill is-active" data-filter="all" onclick="setBookingFilter('all')">
+                        <i class="bi bi-grid-fill"></i>
+                        <span>All</span>
+                        <span class="pill-count" id="countAll">0</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="active" onclick="setBookingFilter('active')">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Active / New</span>
+                        <span class="pill-count" id="countActive">0</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="completed" onclick="setBookingFilter('completed')">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>Completed</span>
+                        <span class="pill-count" id="countCompleted">0</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="cancelled" onclick="setBookingFilter('cancelled')">
+                        <i class="bi bi-x-circle-fill"></i>
+                        <span>Cancelled</span>
+                        <span class="pill-count" id="countCancelled">0</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="rejected" onclick="setBookingFilter('rejected')">
+                        <i class="bi bi-slash-circle"></i>
+                        <span>Rejected</span>
+                        <span class="pill-count" id="countRejected">0</span>
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="no_show" onclick="setBookingFilter('no_show')">
+                        <i class="bi bi-person-x-fill"></i>
+                        <span>No-Show</span>
+                        <span class="pill-count" id="countNoShow">0</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="bookings-content-wrap">
 
                 <!-- BOOKING CARDS LIST -->
@@ -351,6 +482,7 @@
                         <article
                             class="booking-card{% if booking.status == 'COMPLETED' %} booking-card--completed{% endif %}{% if booking.is_past_due %} booking-card--overdue{% endif %}"
                             data-booking-id="{{ booking.id }}"
+                            data-filter-category="{% if booking.worker_no_show_reported_at or booking.customer_no_show_reported_at or booking.status == 'DISPUTED' or 'no-show' in booking.cancellation_reason|lower %}no_show{% elif booking.status == 'COMPLETED' %}completed{% elif booking.status == 'CANCELLED' %}cancelled{% elif booking.status == 'REJECTED' or booking.status == 'EXPIRED' %}rejected{% else %}active{% endif %}"
                             tabindex="0"
                             role="button"
                             aria-label="View details for {{ booking.service.name }}"
@@ -447,7 +579,7 @@
                                     {% endif %}
                                 {% elif booking.status == 'COMPLETION_REQUESTED' %}
                                     <span class="status-pill completion-req">
-                                        <i class="bi bi-hourglass-split"></i> Verify &amp; Pay
+                                        <i class="bi bi-hourglass-split" aria-hidden="true"></i> {% if booking.bill_confirmed_at %}Awaiting Payment{% else %}Review Bill{% endif %}
                                     </span>
                                 {% elif booking.status == 'EMERGENCY_PENDING' %}
                                     <span class="status-pill emergency">
@@ -469,6 +601,22 @@
                             </div>
                         </article>
                     {% endfor %}
+
+                    <!-- FILTER EMPTY STATE -->
+                    <div id="filterEmptyState" style="display: none; text-align: center; padding: 48px 24px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 18px; margin: 16px 0; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
+                        <div style="width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <h4 style="margin: 0 0 6px; color: #1e293b; font-size: 16px; font-weight: 800;">
+                            No <span id="filterEmptyName"></span> Bookings Found
+                        </h4>
+                        <p style="margin: 0 0 16px; color: #64748b; font-size: 13.5px;">
+                            You don't have any bookings matching this status filter.
+                        </p>
+                        <button type="button" onclick="setBookingFilter('all')" style="padding: 9px 20px; border-radius: 10px; background: #087f5b; color: #ffffff; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(8,127,91,0.25);">
+                            <i class="bi bi-grid-fill"></i> View All Bookings
+                        </button>
+                    </div>
                     {% if bookings.has_other_pages %}
                     <nav class="my-bookings-pagination" aria-label="Bookings pagination" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:24px; padding:16px 20px; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px;">
                         <div style="font-size:13px; color:#64748b; font-weight:600;">
@@ -535,7 +683,7 @@
                 </div>
                 <h3 style="font-size:22px; font-weight:800; color:#0f172a; margin-bottom:8px;">Ready to book your first service?</h3>
                 <p style="color:#64748b; font-size:14px; max-width:440px; margin:0 auto 24px; line-height:1.6;">
-                    Connect with verified electricians, plumbers, cleaners, and home repair professionals across Kerala with upfront pricing and arrival security PIN.
+                    Connect with verified electricians, plumbers, cleaners, and home repair professionals across Kerala with upfront pricing and doorstep QR identity verification.
                 </p>
                 <div style="margin-bottom:24px;">
                     <a href="{% url 'service_page' %}" class="btn-book-primary" style="display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:#087f5b; color:#fff; border-radius:12px; font-weight:700; font-size:14.5px; text-decoration:none; box-shadow:0 6px 20px rgba(8,127,91,0.25);">
@@ -665,8 +813,13 @@
                                         <span class="status-pill accepted"><i class="bi bi-check-circle-fill"></i> Accepted</span>
                                         <span class="status-subtext">Booking accepted by worker.</span>
                                     {% elif booking.status == 'COMPLETION_REQUESTED' %}
-                                        <span class="status-pill completion-req"><i class="bi bi-hourglass-split"></i> Verify &amp; Pay</span>
-                                        <span class="status-subtext">Worker marked job as done.</span>
+                                        {% if booking.bill_confirmed_at %}
+                                            <span class="status-pill completion-req"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Awaiting Payment</span>
+                                            <span class="status-subtext">Bill confirmed. Pay your professional by cash or UPI.</span>
+                                        {% else %}
+                                            <span class="status-pill completion-req"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Review Bill</span>
+                                            <span class="status-subtext">Worker marked job as done. Please review the final bill.</span>
+                                        {% endif %}
                                     {% elif booking.status == 'EMERGENCY_PENDING' %}
                                         <span class="status-pill emergency"><i class="bi bi-lightning-charge-fill"></i> Emergency Pending</span>
                                         <span class="status-subtext">Broadcasting request to nearby workers.</span>
@@ -739,9 +892,39 @@
                                     <div class="expired-banner-content">
                                         <div class="expired-banner-title" style="color:#991b1b;">Booking Declined by Worker</div>
                                         <p>{{ booking.cancellation_reason|default:"The worker was unavailable for the requested schedule." }}</p>
-                                        <a href="{% url 'service_workers' booking.service.id %}?district={% if booking.district %}{{ booking.district|urlencode }}{% elif booking.worker and booking.worker.district %}{{ booking.worker.district|urlencode }}{% endif %}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker">
-                                            <i class="bi bi-people-fill"></i> Select Another Worker
-                                        </a>
+                                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+                                            <form method="POST" action="{% url 'customer_reassign_booking' booking.id %}" style="display: inline; margin: 0;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm" style="background: #2563eb; color: #ffffff; border: none; font-weight: 700; border-radius: 8px; padding: 7px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
+                                                    <i class="bi bi-arrow-repeat"></i> Auto-Reassign to Next Top Pro
+                                                </button>
+                                            </form>
+                                            <a href="{% url 'service_workers' booking.service.id %}?district={% if booking.district %}{{ booking.district|urlencode }}{% elif booking.worker and booking.worker.district %}{{ booking.worker.district|urlencode }}{% endif %}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker" style="margin: 0; padding: 7px 14px; font-size: 13px;">
+                                                <i class="bi bi-people-fill"></i> Select Another Worker
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <!-- WORKER CANCELLED STATE: REASON & 1-TAP REASSIGNMENT ACTION -->
+                            {% if booking.status == 'CANCELLED' and booking.cancelled_by == 'WORKER' %}
+                                <div class="expired-alert-banner" style="background: #fff7ed; border: 1.5px solid #ffedd5; border-left: 4px solid #f97316;">
+                                    <div class="expired-banner-icon" style="background:#ffedd5; color:#ea580c;"><i class="bi bi-person-x-fill"></i></div>
+                                    <div class="expired-banner-content">
+                                        <div class="expired-banner-title" style="color:#9a3412;">Booking Cancelled by Professional</div>
+                                        <p>{{ booking.cancellation_reason|default:"The professional cancelled this booking due to unforeseen circumstances." }} You can instantly auto-reassign to another available verified professional, or pick another worker manually.</p>
+                                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+                                            <form method="POST" action="{% url 'customer_reassign_booking' booking.id %}" style="display: inline; margin: 0;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm" style="background: #f97316; color: #ffffff; border: none; font-weight: 700; border-radius: 8px; padding: 7px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(249,115,22,0.25);">
+                                                    <i class="bi bi-arrow-repeat"></i> Auto-Reassign to Next Top Pro
+                                                </button>
+                                            </form>
+                                            <a href="{% url 'service_workers' booking.service.id %}?district={% if booking.district %}{{ booking.district|urlencode }}{% elif booking.worker and booking.worker.district %}{{ booking.worker.district|urlencode }}{% endif %}&date={{ booking.date|date:'Y-m-d' }}&time={{ booking.time|urlencode }}" class="btn-select-another-worker" style="margin: 0; padding: 7px 14px; font-size: 13px;">
+                                                <i class="bi bi-people-fill"></i> Select Another Worker
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             {% endif %}
@@ -842,67 +1025,34 @@
                                 </div>
                             {% endif %}
 
-                            <!-- ARRIVAL VERIFICATION OTP FOR ACCEPTED BOOKINGS -->
-                            {% if booking.status == 'ACCEPTED' and booking.arrival_otp %}
-                                <div class="arrival-otp-card-redesigned">
+                            <!-- DOORSTEP QR VERIFICATION FOR ACCEPTED BOOKINGS (NO PIN REQUIRED) -->
+                            {% if booking.status == 'ACCEPTED' %}
+                                <div class="arrival-otp-card-redesigned" style="background: linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%); border: 1.5px solid #a7f3d0; border-radius: 18px; padding: 20px; margin-bottom: 22px; box-shadow: 0 4px 20px rgba(5,150,105,0.08);">
                                     <div class="otp-card-topbar">
                                         <div class="otp-shield-pill">
                                             <span class="otp-pulse-dot"></span>
-                                            <i class="bi bi-shield-lock-fill"></i>
-                                            <span>Doorstep Security Handshake</span>
+                                            <i class="bi bi-qr-code-scan"></i>
+                                            <span>Doorstep QR Verification</span>
                                         </div>
-                                        <span class="otp-secure-badge"><i class="bi bi-shield-check"></i> 2-Way Protection</span>
+                                        <span class="otp-secure-badge"><i class="bi bi-shield-check"></i> 1-Tap Camera Scan</span>
                                     </div>
 
-                                    <!-- STEP 1: VERIFY WORKER FIRST (COUNTER-CODE) -->
-                                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;">
-                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-                                            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #1e40af; background: #dbeafe; padding: 3px 8px; border-radius: 6px;">
-                                                <i class="bi bi-person-badge"></i> Step 1 &bull; Verify Worker Identity First
-                                            </span>
-                                            <span style="font-size: 11.5px; color: #2563eb; font-weight: 600;">
-                                                <i class="bi bi-shield-fill-check"></i> Impostor Protection
-                                            </span>
+                                    <div style="background: #ffffff; border: 1.5px solid #bbf7d0; border-radius: 14px; padding: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                                        <div style="width: 52px; height: 52px; background: #ecfdf5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #059669; flex-shrink: 0; border: 1px solid #a7f3d0;">
+                                            <i class="bi bi-upc-scan"></i>
                                         </div>
-                                        <p style="margin: 0 0 10px; font-size: 13px; color: #334155; line-height: 1.45;">
-                                            Before opening your door, ask the service professional for their <strong>LAMO Verification Code</strong>:
-                                        </p>
-                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: #ffffff; border: 1.5px dashed #3b82f6; border-radius: 10px; padding: 10px 16px;">
-                                            <span style="font-size: 12.5px; font-weight: 600; color: #475569;">Expected Pro Code:</span>
-                                            <strong style="font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #1d4ed8; font-family: monospace;">#{{ booking.get_worker_badge_code }}</strong>
-                                        </div>
-                                        <div style="margin-top: 8px; font-size: 12px; color: #1e40af; display: flex; align-items: center; gap: 6px;">
-                                            <i class="bi bi-check-circle-fill" style="color: #2563eb;"></i> If their code matches <strong>#{{ booking.get_worker_badge_code }}</strong>, they are officially dispatched by LAMO.
+                                        <div style="flex: 1; min-width: 220px;">
+                                            <h4 style="font-size: 15px; font-weight: 800; color: #065f46; margin: 0 0 4px;">Scan Worker's Screen on Arrival</h4>
+                                            <p style="font-size: 12.5px; color: #475569; margin: 0; line-height: 1.45;">
+                                                When your professional arrives, they will display their official <strong>LAMO Doorstep QR Code</strong>. Point your camera at their screen to verify identity and start service.
+                                            </p>
                                         </div>
                                     </div>
 
-                                    <!-- STEP 2: SHARE DOORSTEP PIN TO START SERVICE -->
-                                    <div class="otp-display-center" style="margin: 4px 0 14px;">
-                                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
-                                            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #065f46; background: #d1fae5; padding: 3px 8px; border-radius: 6px;">
-                                                <i class="bi bi-key-fill"></i> Step 2 &bull; Share PIN to Start Service
-                                            </span>
-                                            <span style="font-size: 11.5px; color: #059669; font-weight: 600;">
-                                                <i class="bi bi-lock-fill"></i> In-Person Only
-                                            </span>
-                                        </div>
-                                        <p class="otp-instruction-lead" style="margin-bottom: 10px;">Once verified, share this 4-digit PIN with your pro to begin the work:</p>
-                                        <div class="otp-boxes-group" role="group" aria-label="Security PIN {{ booking.arrival_otp }}">
-                                            {% for digit in booking.arrival_otp|stringformat:"s" %}
-                                                <span class="otp-digit-box">{{ digit }}</span>
-                                            {% empty %}
-                                                <span class="otp-digit-box">{{ booking.arrival_otp }}</span>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-
-                                    <div class="otp-safety-callout">
-                                        <div class="safety-icon-bubble">
-                                            <i class="bi bi-exclamation-triangle-fill"></i>
-                                        </div>
-                                        <div class="safety-content">
-                                            <strong>Safety Rule:</strong> Do <u>NOT</u> share your PIN over phone or chat. Confirm their badge code <strong>#{{ booking.get_worker_badge_code }}</strong> in person first, then share your PIN to start.
-                                        </div>
+                                    <div style="text-align: center; margin: 10px 0 14px;">
+                                        <a href="{% url 'verify_doorstep_qr' booking.get_arrival_qr_token %}" class="btn-verify-doorstep-direct" style="display: inline-flex; align-items: center; gap: 8px; background: #059669; color: #ffffff; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 13.5px; text-decoration: none; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+                                            <i class="bi bi-shield-lock-fill"></i> Verify Pro on This Phone
+                                        </a>
                                     </div>
 
                                     <div class="otp-schedule-footer">
@@ -915,7 +1065,7 @@
                                             </div>
                                             {% if booking.can_start_now %}
                                                 <div class="schedule-sub-line is-ready">
-                                                    <i class="bi bi-check-circle-fill"></i> Service window is active now. When the worker arrives, share your Doorstep PIN to begin.
+                                                    <i class="bi bi-check-circle-fill"></i> Service window is active. Scan the technician's QR code when they arrive.
                                                 </div>
                                             {% else %}
                                                 <div class="schedule-sub-line">
@@ -1022,10 +1172,10 @@
                                         <div class="payment-stat-row">
                                             <span class="stat-label"><i class="bi bi-wallet2"></i> Payment Method</span>
                                             <span class="stat-val" style="font-weight: 700; color: #047857;">
-                                                {% if booking.payment_method == 'ONLINE' %}
-                                                    Online Payment
-                                                {% elif booking.payment_method == 'UPI' %}
-                                                    Direct UPI
+                                                {% if booking.is_paid and booking.payment_method == 'UPI' %}
+                                                    UPI (paid to professional)
+                                                {% elif booking.is_paid and booking.payment_method == 'CASH' %}
+                                                    <i class="bi bi-cash-stack" aria-hidden="true"></i> Cash (paid to professional)
                                                 {% else %}
                                                     <i class="bi bi-cash-stack"></i> Pay After Service (Cash / UPI)
                                                 {% endif %}
@@ -1036,7 +1186,7 @@
                                             <span class="stat-val">
                                                 {% if booking.payment %}
                                                     {% if booking.payment.status == 'PENDING' %}
-                                                        <span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Pending Verification</span>
+                                                        <span class="badge" style="background:#fef3c7; color:#b45309; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">Reported &ndash; awaiting confirmation</span>
                                                     {% else %}
                                                         <span class="badge" style="background:#ecfdf5; color:#047857; font-weight:700; padding:2px 8px; border-radius:6px; font-size:11px;">{{ booking.payment.get_status_display }}</span>
                                                     {% endif %}
@@ -1070,14 +1220,14 @@
 
                                     <!-- PAYMENT NOTICES OR ACTIONS -->
                                     {% if booking.payment and booking.payment.status == 'PENDING' %}
-                                        <div class="payment-alert-box info" style="margin-top:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:12px; color:#1e40af; font-size:12px;">
+                                        <div class="payment-alert-box info" role="status" style="margin-top:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:12px; color:#1e40af; font-size:12px;">
                                             <div style="font-weight:700; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                                                <i class="bi bi-clock-history"></i> Manual Payment Verification in Progress
+                                                <i class="bi bi-clock-history" aria-hidden="true"></i> Payment Reported
                                             </div>
-                                            <span>Manual payment reported; awaiting admin verification. UTR / Transaction Ref: <strong>{{ booking.payment.payment_reference }}</strong></span>
-                                            <p style="margin:4px 0 0 0; color:#2563eb; font-size:11.5px; line-height:1.45;">Our administration team is manually verifying your payment against platform records. Your booking is active and confirmed. You do not need to make another payment at the doorstep unless requested.</p>
+                                            <span>You reported paying your professional. Reference: <strong>{{ booking.payment.payment_reference }}</strong></span>
+                                            <p style="margin:4px 0 0 0; color:#2563eb; font-size:11.5px; line-height:1.45;">The job is marked complete once your professional (or the LAMO team) confirms the payment was received. You do not need to pay again.</p>
                                         </div>
-                                    {% elif booking.payment and booking.payment.status == 'COMPLETED' or booking.is_paid %}
+                                    {% elif booking.is_paid %}
                                         <div class="payment-alert-box success" style="margin-top:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:10px 12px; font-size:12px; color:#166534;">
                                             <i class="bi bi-check-circle-fill"></i>
                                             <span>Payment completed and verified. No further payment required.</span>
@@ -1088,45 +1238,13 @@
                                             <span>Payment is unavailable because no amount is configured for this booking.</span>
                                         </div>
                                     {% elif not booking.is_paid and not booking.payment or not booking.is_paid and booking.payment.status != 'PENDING' %}
-                                        <!-- Cash on Delivery / Pay at Doorstep informative notice -->
-                                        {% if booking.payment_method != 'ONLINE' %}
-                                            <div style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 12px; font-size: 12px; color: #166534; line-height: 1.5;">
-                                                <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                                                    <i class="bi bi-cash-stack"></i> Pay After Service (Standard)
-                                                </div>
-                                                <span>No advance payment is needed. Please pay directly to your verified professional via <strong>Cash</strong> or <strong>UPI (GPay / PhonePe / Paytm)</strong> only after the work is completed at your doorstep.</span>
+                                        <!-- Pay after service: payment instructions unlock once the final bill is confirmed -->
+                                        <div style="margin-top: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 12px; font-size: 12px; color: #166534; line-height: 1.5;">
+                                            <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                                <i class="bi bi-cash-stack" aria-hidden="true"></i> Pay After Service (Standard)
                                             </div>
-                                        {% endif %}
-
-                                        {% if booking.status == 'ACCEPTED' or booking.status == 'IN_PROGRESS' or booking.status == 'COMPLETION_REQUESTED' or booking.status == 'COMPLETED' %}
-                                            <div class="payment-action-wrap" style="margin-top:8px;">
-                                                <button
-                                                    type="button"
-                                                    class="record-payment-btn"
-                                                    style="background: transparent; border: 1px solid #cbd5e1; color: #64748b; font-size: 11px; padding: 5px 10px;"
-                                                    onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block';"
-                                                >
-                                                    <i class="bi bi-receipt"></i> Already paid platform via bank/UPI? Submit Ref <span class="visually-hidden">Record Manual Payment</span>
-                                                </button>
-                                                <div class="manual-pay-form-wrap" style="display:none; margin-top:10px;">
-                                                    <form method="POST" action="{% url 'confirm_payment' booking.id %}" class="compact-pay-form">
-                                                        {% csrf_token %}
-                                                        <div class="pay-input-group">
-                                                            <input
-                                                                type="text"
-                                                                name="payment_reference"
-                                                                placeholder="UPI Ref / Transaction ID"
-                                                                required
-                                                                class="pay-ref-input"
-                                                            >
-                                                            <button type="submit" class="pay-submit-btn">
-                                                                Submit
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        {% endif %}
+                                            <span>No advance payment is needed. After the work is done, your professional sends the final bill. Once you confirm it, pay them directly by <strong>Cash</strong> or <strong>UPI (GPay / PhonePe / Paytm)</strong>.</span>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -1150,7 +1268,11 @@
                                 <div class="completion-amount-review-card" style="border: 2px solid #10b981; border-radius: 14px; padding: 18px; background: #ffffff; box-shadow: 0 4px 18px rgba(16, 185, 129, 0.08);">
                                     <div class="amount-review-header" style="border-bottom: 1.5px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
                                         <div class="review-tag" style="background: #ecfdf5; color: #047857; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 6px;">
-                                            <i class="bi bi-check2-circle"></i> Service Completed &mdash; Verify &amp; Pay
+                                            {% if booking.bill_confirmed_at %}
+                                                <i class="bi bi-wallet2" aria-hidden="true"></i> Bill Confirmed &mdash; Pay Your Professional
+                                            {% else %}
+                                                <i class="bi bi-receipt" aria-hidden="true"></i> Work Done &mdash; Please Review the Final Bill
+                                            {% endif %}
                                         </div>
                                         <div class="review-sum" style="font-size: 22px; font-weight: 800; color: #065f46;">
                                             &#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}
@@ -1171,26 +1293,35 @@
                                         {% endif %}
                                     </div>
 
-                                    <!-- GUARANTEE NOTICE -->
-                                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
-                                        <i class="bi bi-shield-check" style="font-size: 16px; color: #059669;"></i>
-                                        <span><strong>LAMO 30-Day Guarantee:</strong> Billed directly by verified professional <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong>. Choose an option below to settle.</span>
-                                    </div>
+                                    {% if not booking.bill_confirmed_at %}
+                                        <!-- STEP 1: CUSTOMER REVIEWS AND CONFIRMS THE BILL (no payment yet) -->
+                                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi bi-shield-check" style="font-size: 16px; color: #059669;" aria-hidden="true"></i>
+                                            <span>Check the work first. Confirm the bill only if the job is done and the amount from <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong> is correct. Payment details appear after you confirm.</span>
+                                        </div>
+                                        <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0 0 12px;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-confirm-amount-complete" style="width: 100%; justify-content: center; background: #087f5b; padding: 10px; font-size: 13px;">
+                                                <i class="bi bi-check2-circle" aria-hidden="true"></i> Confirm Bill of &#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <!-- STEP 2: BILL CONFIRMED - PAYMENT INSTRUCTIONS -->
+                                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 8px 12px; margin-bottom: 14px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px;">
+                                            <i class="bi bi-shield-check" style="font-size: 16px; color: #059669;" aria-hidden="true"></i>
+                                            <span>Pay <strong>{{ booking.worker.user.get_full_name|default:booking.worker.user.username }}</strong> directly by UPI or cash. LAMO does not collect this payment.</span>
+                                        </div>
 
-                                    <!-- PAYMENT OPTIONS -->
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
-                                        
-                                        <!-- OPTION 1: UPI / QR CODE -->
-                                        <div class="pay-card-option" style="border: 1.5px solid #087f5b; border-radius: 12px; padding: 14px; background: #fafdfc; display: flex; flex-direction: column; justify-content: space-between;">
-                                            <div>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                                            <!-- OPTION 1: UPI / QR CODE -->
+                                            <div class="pay-card-option" style="border: 1.5px solid #087f5b; border-radius: 12px; padding: 14px; background: #fafdfc;">
                                                 <div style="font-weight: 700; color: #087f5b; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                                                    <i class="bi bi-qr-code-scan"></i> Pay via UPI QR Code
+                                                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Pay via UPI QR Code
                                                 </div>
-                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 10px;">Instant GPay / PhonePe / Paytm directly to worker.</p>
-                                                
+                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 10px;">GPay / PhonePe / Paytm directly to your professional.</p>
                                                 {% if booking.upi_data and booking.upi_data.qr_b64 %}
                                                     <div style="text-align: center; margin-bottom: 10px;">
-                                                        <img src="{{ booking.upi_data.qr_b64 }}" alt="Worker UPI QR" style="width: 145px; height: 145px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                                                        <img src="{{ booking.upi_data.qr_b64 }}" alt="UPI QR code for paying {{ booking.worker.user.get_full_name|default:booking.worker.user.username }}" style="width: 145px; height: 145px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
                                                         <div style="font-size: 11px; color: #475569; margin-top: 4px;">
                                                             UPI: <strong>{{ booking.upi_data.worker_upi }}</strong>
                                                         </div>
@@ -1198,55 +1329,62 @@
                                                     {% if booking.upi_data.upi_intent_url %}
                                                         <div style="text-align: center; margin-bottom: 10px;">
                                                             <a href="{{ booking.upi_data.upi_intent_url }}" style="display: inline-flex; align-items: center; gap: 6px; background: #087f5b; color: #ffffff; text-decoration: none; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;">
-                                                                <i class="bi bi-phone"></i> Tap to Open UPI App
+                                                                <i class="bi bi-phone" aria-hidden="true"></i> Tap to Open UPI App
                                                             </a>
                                                         </div>
                                                     {% endif %}
                                                 {% else %}
                                                     <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; font-size: 12px; color: #475569; text-align: center; margin-bottom: 10px;">
-                                                        Ask worker for their GPay / PhonePe QR code in person.
+                                                        Ask your professional for their GPay / PhonePe QR code in person.
                                                     </div>
                                                 {% endif %}
                                             </div>
 
-                                            <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0;">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="payment_method" value="UPI">
-                                                <button type="submit" class="btn-confirm-amount-complete" style="width: 100%; justify-content: center; background: #087f5b; padding: 9px; font-size: 12.5px;">
-                                                    <i class="bi bi-check2-circle"></i> Confirm Paid via UPI
-                                                </button>
-                                            </form>
-                                        </div>
-
-                                        <!-- OPTION 2: CASH PAYMENT -->
-                                        <div class="pay-card-option" style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between;">
-                                            <div>
+                                            <!-- OPTION 2: CASH PAYMENT -->
+                                            <div class="pay-card-option" style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; background: #f8fafc;">
                                                 <div style="font-weight: 700; color: #334155; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                                                    <i class="bi bi-cash-stack"></i> Pay Cash to Worker
+                                                    <i class="bi bi-cash-stack" aria-hidden="true"></i> Pay Cash to Your Professional
                                                 </div>
-                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 14px;">Pay exact cash amount directly to your service professional.</p>
-                                                
-                                                <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 14px;">
-                                                    <span style="font-size: 12px; color: #64748b; display: block;">Total Cash to Hand Over:</span>
+                                                <p style="font-size: 11.5px; color: #64748b; margin: 0 0 14px;">Hand over the exact confirmed amount.</p>
+                                                <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center;">
+                                                    <span style="font-size: 12px; color: #64748b; display: block;">Total to Pay:</span>
                                                     <span style="font-size: 22px; font-weight: 800; color: #0f172a;">&#8377;{{ booking.final_amount|default:booking.estimated_cost|floatformat:2 }}</span>
                                                 </div>
                                             </div>
-
-                                            <form method="POST" action="{% url 'confirm_completion' booking.id %}" style="margin:0;">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="payment_method" value="CASH">
-                                                <button type="submit" class="btn-confirm-amount-complete" style="width: 100%; justify-content: center; background: #334155; padding: 9px; font-size: 12.5px;">
-                                                    <i class="bi bi-check2-circle"></i> Confirm Paid via Cash
-                                                </button>
-                                            </form>
                                         </div>
 
-                                    </div>
+                                        {% if booking.payment and booking.payment.status == 'PENDING' %}
+                                            <div class="payment-alert-box info" role="status" style="margin-bottom:12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:12px; color:#1e40af; font-size:12px;">
+                                                <i class="bi bi-clock-history" aria-hidden="true"></i>
+                                                Payment reported ({{ booking.payment.payment_method|default:"-" }}). Waiting for your professional to confirm they received it.
+                                            </div>
+                                        {% else %}
+                                            <!-- STEP 3: CUSTOMER REPORTS PAYMENT; WORKER/ADMIN VERIFIES IT -->
+                                            <form method="POST" action="{% url 'confirm_payment' booking.id %}" class="compact-pay-form" style="margin:0 0 12px;">
+                                                {% csrf_token %}
+                                                <fieldset style="border:0; padding:0; margin:0;">
+                                                    <legend style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:6px;">Already paid? Tell your professional</legend>
+                                                    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                                                        <label for="payMethod{{ booking.id }}" class="visually-hidden">Payment method</label>
+                                                        <select id="payMethod{{ booking.id }}" name="payment_method" class="pay-ref-input" style="flex:0 0 auto;">
+                                                            <option value="UPI">Paid by UPI</option>
+                                                            <option value="CASH">Paid in cash</option>
+                                                        </select>
+                                                        <label for="payRef{{ booking.id }}" class="visually-hidden">UPI transaction reference (optional)</label>
+                                                        <input id="payRef{{ booking.id }}" type="text" name="payment_reference" placeholder="UPI ref (optional)" maxlength="100" class="pay-ref-input" style="flex:1 1 140px;">
+                                                        <button type="submit" class="btn-confirm-amount-complete" style="background:#087f5b; padding:9px 14px; font-size:12.5px;">
+                                                            <i class="bi bi-check2-circle" aria-hidden="true"></i> I've Paid
+                                                        </button>
+                                                    </div>
+                                                </fieldset>
+                                            </form>
+                                        {% endif %}
+                                    {% endif %}
 
                                     <!-- DISPUTE BUTTON -->
                                     <div style="text-align: right; border-top: 1px solid #f1f5f9; padding-top: 10px;">
                                         <button type="button" class="btn-open-dispute" onclick="openDisputeModal({{ booking.id }})" style="font-size: 12px;">
-                                            <i class="bi bi-exclamation-octagon"></i> Dispute / Incorrect Amount?
+                                            <i class="bi bi-exclamation-octagon" aria-hidden="true"></i> Dispute / Incorrect Amount?
                                         </button>
                                     </div>
                                 </div>
@@ -1284,6 +1422,8 @@
                                     <p class="subcard-desc blue">
                                         {% if booking.status == 'COMPLETED' %}
                                             Work confirmed and completed successfully.
+                                        {% elif booking.status == 'COMPLETION_REQUESTED' and booking.bill_confirmed_at %}
+                                            Bill confirmed. Waiting for payment to be confirmed.
                                         {% elif booking.status == 'COMPLETION_REQUESTED' %}
                                             Worker reported completion. Awaiting your approval.
                                         {% elif booking.status == 'IN_PROGRESS' %}
@@ -1684,6 +1824,113 @@
                 }
             });
         }
+
+        // =========================================================
+        // SEGMENTED STATUS FILTERS (Idea 1 - Non-intrusive)
+        // =========================================================
+        function initBookingFilters() {
+            const filterPills = document.querySelectorAll('.filter-pill');
+            const allCards = document.querySelectorAll('.booking-card');
+            const emptyState = document.getElementById('filterEmptyState');
+            const emptyName = document.getElementById('filterEmptyName');
+            const pagination = document.querySelector('.my-bookings-pagination');
+
+            if (!filterPills.length || !allCards.length) return;
+
+            // Compute counts for all categories
+            const counts = {
+                all: allCards.length,
+                active: 0,
+                completed: 0,
+                cancelled: 0,
+                rejected: 0,
+                no_show: 0
+            };
+
+            allCards.forEach(function (card) {
+                const cat = card.getAttribute('data-filter-category') || 'active';
+                if (counts[cat] !== undefined) {
+                    counts[cat]++;
+                }
+            });
+
+            // Set badge numbers
+            const elCountAll = document.getElementById('countAll');
+            const elCountActive = document.getElementById('countActive');
+            const elCountCompleted = document.getElementById('countCompleted');
+            const elCountCancelled = document.getElementById('countCancelled');
+            const elCountRejected = document.getElementById('countRejected');
+            const elCountNoShow = document.getElementById('countNoShow');
+
+            if (elCountAll) elCountAll.textContent = counts.all;
+            if (elCountActive) elCountActive.textContent = counts.active;
+            if (elCountCompleted) elCountCompleted.textContent = counts.completed;
+            if (elCountCancelled) elCountCancelled.textContent = counts.cancelled;
+            if (elCountRejected) elCountRejected.textContent = counts.rejected;
+            if (elCountNoShow) elCountNoShow.textContent = counts.no_show;
+
+            // Global filter switcher
+            window.setBookingFilter = function (filterKey) {
+                filterPills.forEach(function (pill) {
+                    if (pill.getAttribute('data-filter') === filterKey) {
+                        pill.classList.add('is-active');
+                    } else {
+                        pill.classList.remove('is-active');
+                    }
+                });
+
+                let visibleCount = 0;
+                allCards.forEach(function (card) {
+                    const cat = card.getAttribute('data-filter-category') || 'active';
+                    if (filterKey === 'all' || cat === filterKey) {
+                        card.style.display = '';
+                        visibleCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // Toggle empty state if 0 cards match
+                if (emptyState) {
+                    if (visibleCount === 0) {
+                        emptyState.style.display = 'block';
+                        if (emptyName) {
+                            const activePill = document.querySelector('.filter-pill[data-filter="' + filterKey + '"] span:not(.pill-count)');
+                            emptyName.textContent = activePill ? activePill.textContent : filterKey;
+                        }
+                    } else {
+                        emptyState.style.display = 'none';
+                    }
+                }
+
+                // If pagination exists, hide it during filtered view to prevent pagination mismatch
+                if (pagination) {
+                    pagination.style.display = (filterKey === 'all') ? '' : 'none';
+                }
+
+                // Preserve URL query parameter smoothly
+                try {
+                    const url = new URL(window.location.href);
+                    if (filterKey === 'all') {
+                        url.searchParams.delete('filter');
+                    } else {
+                        url.searchParams.set('filter', filterKey);
+                    }
+                    window.history.replaceState({}, '', url.toString());
+                } catch (e) {}
+            };
+
+            // Support loading direct filter via URL: ?filter=completed / ?filter=active / ?filter=cancelled
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryFilter = urlParams.get('filter');
+                if (queryFilter && counts[queryFilter] !== undefined) {
+                    window.setBookingFilter(queryFilter);
+                }
+            } catch (e) {}
+        }
+
+        initBookingFilters();
     });
 </script>
 

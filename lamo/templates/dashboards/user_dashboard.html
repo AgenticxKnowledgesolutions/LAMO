@@ -126,15 +126,15 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                {% if active_booking.arrival_otp and active_booking.status == 'ACCEPTED' %}
+                {% if active_booking.status == 'ACCEPTED' %}
                 <div style="background: rgba(255,255,255,0.12); border: 1px dashed rgba(255,255,255,0.3); border-radius: 10px; padding: 6px 14px; text-align: center;">
-                    <span style="font-size: 10.5px; color: #a7f3d0; display: block; font-weight: 600;">Doorstep Security PIN</span>
-                    <strong style="font-size: 17px; letter-spacing: 2px; color: #ffffff;">{{ active_booking.arrival_otp }}</strong>
+                    <span style="font-size: 10.5px; color: #a7f3d0; display: block; font-weight: 600;">Doorstep Security</span>
+                    <strong style="font-size: 13.5px; color: #ffffff;"><i class="bi bi-qr-code-scan"></i> Scan QR on Arrival</strong>
                 </div>
                 {% endif %}
 
                 <a href="{% url 'my_bookings' %}?booking_id={{ active_booking.id }}" style="padding: 10px 20px; border-radius: 10px; background: #34d399; color: #022c1e; font-weight: 800; font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.2);">
-                    Track &amp; PIN <i class="bi bi-arrow-right"></i>
+                    Track &amp; Verify <i class="bi bi-arrow-right"></i>
                 </a>
             </div>
         </div>
