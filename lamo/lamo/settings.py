@@ -186,7 +186,7 @@ for _default_render_host in ('.onrender.com', 'lamo-39by.onrender.com'):
 
 if DEBUG:
     # Allow all local Wi-Fi devices (phones, laptops) and testserver in development
-    for _dev_host in ('*', '192.168.68.51', 'testserver'):
+    for _dev_host in ('*', '192.168.220.41', '192.168.68.51', 'testserver'):
         if _dev_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_dev_host)
 
@@ -258,14 +258,21 @@ def resolve_cache_config(raw_url, environment):
     """
     url = (raw_url or '').strip()
 
-    # Local development, tests, or deployments without external Redis: use safe LocMemCache
-    if not url or url.startswith(('redis://127.0.0.1', 'redis://localhost')):
-        return {
-            'default': {
-                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-                'LOCATION': 'lamo-rate-limit-cache',
+    if environment == 'production':
+        if not url:
+            raise ImproperlyConfigured(
+                'DJANGO_CACHE_URL is required in production so that rate limits '
+                'and OTP counters are shared across instances. Supported schemes: '
+                '{0}.'.format(', '.join(SHARED_CACHE_URL_PREFIXES))
+            )
+    else:
+        if not url:
+            return {
+                'default': {
+                    'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                    'LOCATION': 'lamo-rate-limit-cache',
+                }
             }
-        }
 
     if url.startswith(('redis://', 'rediss://')):
         return {
@@ -295,6 +302,8 @@ CACHES = resolve_cache_config(DJANGO_CACHE_URL, ENVIRONMENT)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Referrer-Policy + Content-Security-Policy (Report-Only by default).
+    'lamoapp.security_headers.SecurityHeadersMiddleware',
     # WhiteNoise must follow SecurityMiddleware and precede every other
     # middleware that could short-circuit a static file response. It serves
     # STATIC_ROOT (populated by `manage.py collectstatic`) straight from the
@@ -361,9 +370,13 @@ _DB_SCHEME_ENGINES = {
     'sqlite3': 'django.db.backends.sqlite3',
 }
 
+# connect_timeout bounds how long a request can wait for a MySQL connection
+# (default 10 s, env DJANGO_DB_CONNECT_TIMEOUT). Without it an unreachable or
+# stalled database holds a web request for the operating system's TCP timeout.
 _MYSQL_OPTIONS = {
     'charset': 'utf8mb4',
     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+    'connect_timeout': int(os.getenv('DJANGO_DB_CONNECT_TIMEOUT', '10') or 10),
 }
 
 # ============================================================
@@ -733,6 +746,52 @@ STORAGES = {
     },
 }
 
+# ============================================================
+# PLATFORM COMMISSION (prepaid worker wallet)
+# ============================================================
+# Default commission charged from the worker's wallet when a job is
+# accepted. Individual services can override this (Service.commission_type).
+# Defaults reproduce the original hard-coded rule: 10% of labour, min ₹15.
+PLATFORM_COMMISSION_PERCENT = os.getenv('PLATFORM_COMMISSION_PERCENT', '10').strip() or '10'
+PLATFORM_COMMISSION_MIN = os.getenv('PLATFORM_COMMISSION_MIN', '15').strip() or '15'
+
+# ---------------------------------------------------------------------------
+# Final-bill policy (worker_request_completion). Both are OPTIONAL and unset by
+# default because the right values are a business decision:
+#   FINAL_BILL_MAX_ADJUSTMENT_PERCENT - largest allowed increase of the final
+#       bill over the estimate. A bigger bill is not accepted from the worker;
+#       it is escalated to the admins for review instead. Blank = no limit.
+#   FINAL_BILL_MAX_AMOUNT - absolute ceiling for any final bill (rupees).
+#       Blank = only the database column limit applies.
+# Whatever the values, the customer must always confirm the bill before any
+# payment can be recorded.
+FINAL_BILL_MAX_ADJUSTMENT_PERCENT = os.getenv('FINAL_BILL_MAX_ADJUSTMENT_PERCENT', '').strip()
+FINAL_BILL_MAX_AMOUNT = os.getenv('FINAL_BILL_MAX_AMOUNT', '').strip()
+
+# Upload size limits in bytes (profile photos and worker KYC proofs).
+PROFILE_PHOTO_MAX_BYTES = int(os.getenv('PROFILE_PHOTO_MAX_BYTES', str(5 * 1024 * 1024)) or 5 * 1024 * 1024)
+PROOF_DOCUMENT_MAX_BYTES = int(os.getenv('PROOF_DOCUMENT_MAX_BYTES', str(5 * 1024 * 1024)) or 5 * 1024 * 1024)
+
+# Seconds the PUBLIC home-page / search-suggestion aggregates (eligible-worker
+# counts, review averages, service list) are cached per district. 0 disables it.
+# Only public, non-user-specific data is cached; booking and availability checks
+# always read the database.
+HOME_CATALOG_CACHE_SECONDS = int(os.getenv('HOME_CATALOG_CACHE_SECONDS', '60') or 60)
+
+# Phone-number change verification (OTP sent to the NEW number).
+PHONE_CHANGE_OTP_TTL_SECONDS = 10 * 60
+PHONE_CHANGE_MAX_ATTEMPTS = 5
+PHONE_CHANGE_MAX_SENDS_PER_HOUR = 3
+
+# A worker who cancels an accepted job at least this many hours before the
+# scheduled start gets the commission back; later cancellations forfeit it.
+WORKER_CANCEL_REFUND_MIN_HOURS = int(os.getenv('WORKER_CANCEL_REFUND_MIN_HOURS', '12') or 12)
+
+# Run booking maintenance (expiry, reminders, stuck-job follow-up) at most
+# once a minute from normal page traffic. Keep True unless a dedicated
+# scheduler runs `manage.py process_booking_reminders` instead.
+BOOKING_MAINTENANCE_ON_REQUEST = os.getenv('BOOKING_MAINTENANCE_ON_REQUEST', 'True').lower() in ('true', '1', 'yes')
+
 # Google Gemini API
 
 
@@ -741,6 +800,8 @@ STORAGES = {
 # ============================================================
 # These settings are controlled via environment variables.
 # Set DJANGO_ENV=production in production to enable all security features.
+
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # ENVIRONMENT is resolved once near the top of this file so that the
 # SECRET_KEY and CACHES gates above can consult it. It is deliberately not
@@ -779,7 +840,10 @@ if IS_PRODUCTION:
 # Logging out only occurs when the user explicitly clicks "Logout".
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
-SESSION_SAVE_EVERY_REQUEST = True
+# Set to False to prevent redundant SQL writes on every read-only HTTP request.
+# Django automatically persists sessions whenever session data is modified (request.session['...'] = val),
+# or upon login/logout key rotation.
+SESSION_SAVE_EVERY_REQUEST = False
 
 
 # ============================================================
@@ -802,6 +866,17 @@ if RENDER_EXTERNAL_HOSTNAME:
 for _default_render_origin in ('https://*.onrender.com', 'https://lamo-39by.onrender.com'):
     if _default_render_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_default_render_origin)
+
+if DEBUG:
+    # Allow local Wi-Fi devices to submit POST forms (login, bookings) without CSRF rejection
+    for _dev_origin in (
+        'http://192.168.220.41:8000',
+        'http://192.168.220.41',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ):
+        if _dev_origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_dev_origin)
 
 
 # ============================================================
@@ -905,5 +980,11 @@ VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@lamo.in')
 # SMS / MOBILE OTP GATEWAY
 # ============================================================
 SMS_OTP_ENABLED = os.getenv('SMS_OTP_ENABLED', 'False').lower() in ('true', '1', 'yes')
+
+# When no SMS provider (TWILIO_*) is configured, phone OTPs are only
+# "delivered" by printing them to the console in development (DEBUG) or when
+# this flag is explicitly enabled. In production the send fails honestly.
+# Never enable this on a public deployment.
+SMS_DEV_FALLBACK = os.getenv('SMS_DEV_FALLBACK', 'False').lower() in ('true', '1', 'yes')
 
 

@@ -129,9 +129,10 @@ def send_email_safely(
     so the web request can return immediately without blocking on SMTP/API.
     """
     if async_send:
-        # Background worker thread so HTTP request does not wait on remote socket
+        # Background worker thread so HTTP request does not wait on remote
+        # socket. Transient provider/SMTP failures are retried with backoff.
         thread = threading.Thread(
-            target=_send_email_internal,
+            target=_send_email_with_retry,
             args=(subject, message, recipient_list, purpose, from_email, fail_silently),
             daemon=True,
         )
@@ -141,6 +142,29 @@ def send_email_safely(
     return _send_email_internal(
         subject, message, recipient_list, purpose, from_email, fail_silently
     )
+
+
+# Background e-mails (booking updates etc.) are retried this many times in
+# total, waiting EMAIL_RETRY_BACKOFF_SECONDS[i] before attempt i+2. OTP mails
+# are sent synchronously (single attempt) so the user gets an immediate answer.
+EMAIL_MAX_ATTEMPTS = 3
+EMAIL_RETRY_BACKOFF_SECONDS = (2, 6)
+
+
+def _send_email_with_retry(subject, message, recipient_list, purpose, from_email=None, fail_silently=True):
+    """Attempt delivery up to EMAIL_MAX_ATTEMPTS times; never raises."""
+    import time as _time
+    for attempt in range(1, EMAIL_MAX_ATTEMPTS + 1):
+        try:
+            if _send_email_internal(subject, message, recipient_list, purpose, from_email, fail_silently):
+                return True
+        except Exception as exc:  # pragma: no cover - _send_email_internal already catches
+            logger.error('email_send_failed purpose=%s attempt=%s exc_type=%s', purpose, attempt, type(exc).__name__)
+        if attempt < EMAIL_MAX_ATTEMPTS:
+            delay = EMAIL_RETRY_BACKOFF_SECONDS[min(attempt - 1, len(EMAIL_RETRY_BACKOFF_SECONDS) - 1)]
+            _time.sleep(delay)
+    logger.error('email_send_gave_up purpose=%s attempts=%s', purpose, EMAIL_MAX_ATTEMPTS)
+    return False
 
 
 def send_email_async(

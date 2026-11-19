@@ -59,6 +59,10 @@ temp_render.py
 home_render.html
 _probe_bell.py
 pyaudit/
+failing_tests_list.txt
+mobile_390x844_home.png
+find_failing_tests.py
+.playwright-mcp/
 
 # Accidental shell-history artifact: a broken PowerShell activation line was
 # saved as a file in the repo root. Never commit it.

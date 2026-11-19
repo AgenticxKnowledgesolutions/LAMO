@@ -31,6 +31,8 @@ os.environ.pop('CLOUDINARY_CLOUD_NAME', None)
 os.environ.pop('CLOUDINARY_API_KEY', None)
 os.environ.pop('CLOUDINARY_API_SECRET', None)
 os.environ.pop('CLOUDINARY_URL', None)
+for _provider_var in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER', 'GOOGLE_API_KEY'):
+    os.environ.pop(_provider_var, None)
 
 from .settings import *  # noqa: E402,F401,F403
 
@@ -70,3 +72,30 @@ CLOUDINARY_API_KEY = ''
 CLOUDINARY_API_SECRET = ''
 
 DEBUG = False
+
+# Never call a real SMS provider or the real Gemini API from tests.
+# (settings.py runs load_dotenv(), which can re-add these from .env.)
+for _provider_var in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER', 'GOOGLE_API_KEY'):
+    os.environ.pop(_provider_var, None)
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
+TWILIO_PHONE_NUMBER = ''
+GOOGLE_API_KEY = ''
+# Phone-OTP flows print the code instead of sending SMS in tests. Tests for
+# the production behaviour override this with SMS_DEV_FALLBACK=False.
+SMS_DEV_FALLBACK = True
+
+# Every test client shares IP 127.0.0.1 and the LocMem cache lives for the
+# whole run, so the production OTP send limits (10/hour per IP, 5/hour per
+# destination) would leak between unrelated tests. Tests of the limits
+# themselves use override_settings with the production values.
+OTP_SEND_PER_IP_MAX = 100000
+OTP_SEND_PER_TARGET_MAX = 100000
+
+# The once-a-minute background maintenance (global expiry, reminders,
+# stuck-job follow-up) would otherwise fire inside whichever test happens to
+# load a page first. Tests call those functions directly instead.
+BOOKING_MAINTENANCE_ON_REQUEST = False
+
+# Public catalogue caching is off in tests so each test sees its own data.
+HOME_CATALOG_CACHE_SECONDS = 0

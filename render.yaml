@@ -24,14 +24,30 @@ services:
       python -m pip install -r requirements.txt &&
       cd lamo &&
       python manage.py collectstatic --noinput
-    startCommand: cd lamo && python manage.py migrate && gunicorn lamo.wsgi --workers 2 --threads 4 --worker-class gthread --log-file -
+    # Migrations are NOT part of startup. They run exactly once per deploy in
+    # Render's pre-deploy step (before the new instance is started), instead of
+    # on every boot and in every restart. Startup only launches gunicorn.
+    # (Pre-deploy commands need a paid instance type; the "starter" plan has them.)
+    # If a migration fails, the deploy is aborted and the old version keeps running.
+    preDeployCommand: cd lamo && python manage.py migrate --noinput
+    startCommand: cd lamo && gunicorn lamo.wsgi --workers 2 --threads 4 --worker-class gthread --log-file -
 
-    # Render's default health check. `/` is the public home page.
-    # HTTPS redirection is safe here: Render terminates TLS and sets
-    # X-Forwarded-Proto, which settings.py already trusts.
-    healthCheckPath: /
+    # Render's health check: ultra-lightweight endpoint returning 200 OK
+    # with 0 database queries, 0 external API calls, and no template rendering.
+    healthCheckPath: /health/
 
     autoDeploy: false       # set to true if you want deploys on git push
+
+    # Persistent disk for local media. Worker KYC/ID proofs (worker_proofs/)
+    # are deliberately never sent to Cloudinary, so without this disk they are
+    # wiped on every deploy/restart. DJANGO_MEDIA_ROOT (below) points
+    # MEDIA_ROOT here. Proofs stay private: urls.py blocks /media/worker_proofs/
+    # unconditionally and they are only served by the admin-only
+    # proof_download view. Requires a paid instance type (starter or above).
+    disk:
+      name: lamo-private-media
+      mountPath: /var/data
+      sizeGB: 1
 
     envVars:
       # ---- Not secret: safe to keep in this file ----
@@ -44,16 +60,38 @@ services:
         value: INFO
       # Public images (services/, workers/, users/) persist on Cloudinary via
       # the prefix-routing default storage backend - Render's disk is
-      # ephemeral. DJANGO_SERVE_MEDIA only serves the local-disk fallback
-      # (and never worker_proofs/, blocked unconditionally in urls.py).
+      # ephemeral. Cloudinary is the intended production store, so
+      # DJANGO_SERVE_MEDIA is left off. If it is ever set to "True" it serves
+      # ONLY the local-disk fallback for those three public prefixes (used when
+      # Cloudinary is not configured); worker_proofs/ and every other path are
+      # never served from /media/ (see lamo/urls.py).
       - key: DJANGO_SERVE_MEDIA
+        value: "False"
+      # Content-Security-Policy mode: report-only (default) | enforce | off.
+      # Keep report-only until the browser console shows no violations.
+      - key: DJANGO_CSP_MODE
+        value: report-only
+      # Booking reminders/expiry run in the cron service below. After it has run
+      # successfully, set this to "False" in the dashboard so web requests stop
+      # doing maintenance. Until then the on-request trigger stays as a fallback.
+      - key: BOOKING_MAINTENANCE_ON_REQUEST
         value: "True"
+      # MEDIA_ROOT on the persistent disk declared above (keeps worker proofs).
+      - key: DJANGO_MEDIA_ROOT
+        value: /var/data/media
 
       # ---- Secrets: enter the real values in the Render dashboard ----
       # Generate with: python -c "import secrets; print(secrets.token_urlsafe(50))"
       # Render refuses to start the service until these are provided, and
       # settings.py raises ImproperlyConfigured if they are missing/weak.
       - key: DJANGO_SECRET_KEY
+        sync: false
+      # Secret path for the Django admin site, e.g. a long random string such as
+      # "manage-7f3k9x2q". REQUIRED in production: when it is missing the Django
+      # admin is simply not mounted (it never falls back to /admin/). Set it in
+      # the dashboard BEFORE deploying if you still use /admin/. This is an extra
+      # layer only - keep strong passwords (and 2FA, if added) on admin accounts.
+      - key: DJANGO_ADMIN_URL
         sync: false
       # External MySQL/MariaDB connection string. Render does NOT create a
       # MySQL instance for you - attach/provision one and paste its URL here.
@@ -86,6 +124,59 @@ services:
         value: lamo.agenticx.co.in,lamo-qucn.onrender.com
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         value: https://lamo.agenticx.co.in,https://lamo-qucn.onrender.com
+      - key: USE_RESEND
+        value: "True"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_SENDER
+        value: "LAMO <noreply@mail.agenticx.co.in>"
+      # SMS provider for phone OTP (sign-up / login / booking verification).
+      # Until these are set, phone OTP is reported as unavailable and users
+      # are asked to use email; codes are never logged in production.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+
+  # ------------------------------------------------------------------
+  # Scheduled booking maintenance (reminders, request expiry, stuck-job
+  # follow-ups). Runs every 5 minutes. A cron job is billed per run time, not
+  # as an always-on worker. The command is idempotent and takes a shared-cache
+  # lock, so overlapping runs (or the on-request fallback) cannot double-send.
+  #
+  # DASHBOARD STEP REQUIRED: a cron service does not inherit the web service's
+  # environment. Give it the SAME values for DJANGO_SECRET_KEY, DATABASE_URL,
+  # DJANGO_CACHE_URL (must be the same Redis as the web service, otherwise the
+  # lock is not shared), DJANGO_ALLOWED_HOSTS, USE_RESEND / RESEND_API_KEY /
+  # RESEND_SENDER and the EMAIL_* / TWILIO_* keys - ideally with a Render
+  # Environment Group attached to both services.
+  # ------------------------------------------------------------------
+  - type: cron
+    name: lamo-booking-maintenance
+    runtime: python3
+    plan: starter
+    schedule: "*/5 * * * *"
+    buildCommand: python -m pip install -r requirements.txt
+    startCommand: cd lamo && python manage.py process_booking_reminders
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_LOG_LEVEL
+        value: INFO
+      - key: BOOKING_MAINTENANCE_ON_REQUEST
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_CACHE_URL
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        value: lamo.agenticx.co.in,lamo-qucn.onrender.com
       - key: USE_RESEND
         value: "True"
       - key: RESEND_API_KEY

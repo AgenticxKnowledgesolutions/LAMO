@@ -58,7 +58,10 @@ Everything is read from `lamo/.env` (loaded by `python-dotenv`). See
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Gmail address + App Password |
 | `GOOGLE_API_KEY` | *(empty)* | Gemini key for the AI assistant; optional, falls back to DB matching |
 | `DATABASE_URL` / `DJANGO_DB_*` | MySQL `lamo_project` on `127.0.0.1` | See [Database](#3-database) |
-| `DJANGO_SERVE_MEDIA` | `False` | Serve `/media/` through Django when `DEBUG=False` |
+| `DJANGO_SERVE_MEDIA` | `False` | When `DEBUG=False`, serve ONLY the local-disk fallback for public uploads (`services/`, `workers/`, `users/`); `worker_proofs/` is never served. Production uses Cloudinary, so leave it off |
+| `DJANGO_CSP_MODE` | `report-only` | `report-only`, `enforce` or `off` for the Content-Security-Policy header |
+| `DJANGO_CSP_REPORT_URI` | *(empty)* | Optional URL receiving CSP violation reports |
+| `BOOKING_MAINTENANCE_ON_REQUEST` | `True` | Set `False` once the Render cron `process_booking_reminders` is running |
 
 ### Production configuration gates
 
@@ -192,7 +195,7 @@ GitHub Actions runs all three on every push/PR — see
    `whitenoise.middleware.WhiteNoiseMiddleware` right after
    `SecurityMiddleware`, then run `collectstatic` — `STATIC_ROOT` is already
    configured at `lamo/staticfiles/`.
-5. Serve `/media/` from the web server (or set `DJANGO_SERVE_MEDIA=True`).
+5. Public images live on Cloudinary. Only if Cloudinary is not configured, set `DJANGO_SERVE_MEDIA=True` to serve the local public fallback; private proofs are never served from `/media/`.
 6. Run the app with a real WSGI/ASGI server (e.g. `gunicorn lamo.wsgi`).
 6. Watch `lamo/logs/lamo.log` — errors that used to be swallowed now land there.
 

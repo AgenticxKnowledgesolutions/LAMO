@@ -6,6 +6,8 @@ that is allowed to serve application traffic. The values come from settings
 per deployment without touching templates or JavaScript.
 """
 
+from functools import lru_cache
+
 from django.conf import settings
 
 
@@ -18,6 +20,21 @@ def map_config(request):
         'map_tile_subdomains': getattr(settings, 'MAP_TILE_SUBDOMAINS', ''),
         'map_tile_max_zoom': getattr(settings, 'MAP_TILE_MAX_ZOOM', 19),
     }
+
+
+@lru_cache(maxsize=1)
+def _kerala_location_payload():
+    """Build the static Kerala location tree and its JSON once per process.
+
+    The tree never changes at runtime, so rebuilding and re-serialising it on
+    every request was wasted work. The <script> tag uses Django's json_script
+    escaping (<, >, & are escaped) instead of embedding raw JSON with |safe.
+    """
+    import json
+    from django.utils.html import json_script
+    from .location_data import get_kerala_location_tree
+    tree = get_kerala_location_tree()
+    return tree, json.dumps(tree), json_script(tree, 'keralaLocationTreeData')
 
 
 def global_notifications(request):
@@ -49,10 +66,7 @@ def global_notifications(request):
     current_lat = (session.get('lat') if session else '') or (session.get('lamo_selected_lat') if session else '') or ''
     current_lng = (session.get('lng') if session else '') or (session.get('lamo_selected_lng') if session else '') or ''
 
-    import json
-    from .location_data import get_kerala_location_tree
-    kerala_location_tree = get_kerala_location_tree()
-    kerala_location_tree_json = json.dumps(kerala_location_tree)
+    kerala_location_tree, kerala_location_tree_json, kerala_location_tree_script = _kerala_location_payload()
     kerala_districts = WorkerProfile.DISTRICT_CHOICES
 
     current_language = (
@@ -72,6 +86,8 @@ def global_notifications(request):
         'current_lng': current_lng,
         'kerala_location_tree': kerala_location_tree,
         'kerala_location_tree_json': kerala_location_tree_json,
+        # Pre-rendered, escaped <script type="application/json"> tag.
+        'kerala_location_tree_script': kerala_location_tree_script,
         'current_language': current_language,
         'vapid_public_key': vapid_public_key,
     }

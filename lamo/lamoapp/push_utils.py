@@ -6,6 +6,10 @@ from .models import PushSubscription
 
 logger = logging.getLogger(__name__)
 
+# Delivery attempts per subscription for transient push-service failures.
+PUSH_MAX_ATTEMPTS = 3
+PUSH_RETRY_BACKOFF_SECONDS = 2
+
 try:
     from pywebpush import webpush, WebPushException
     PYWEBPUSH_AVAILABLE = True
@@ -42,32 +46,47 @@ def send_web_push(user, title, body, url="/worker-dashboard/"):
         "tag": f"lamo-job-{user.id}",
     })
 
+    import time as _time
+
     for sub in subscriptions:
-        try:
-            webpush(
-                subscription_info={
-                    "endpoint": sub.endpoint,
-                    "keys": {
-                        "p256dh": sub.p256dh,
-                        "auth": sub.auth
-                    }
-                },
-                data=payload,
-                vapid_private_key=vapid_private_key,
-                vapid_claims={
-                    "sub": f"mailto:{vapid_email}"
-                },
-                ttl=3600  # 1 hour queue on browser push server
-            )
-        except WebPushException as ex:
-            if ex.response is not None and ex.response.status_code in (404, 410):
-                # Worker unsubscribed or cleared browser data
-                logger.info("Pruning expired push subscription %s for user %s", sub.id, user.username)
-                sub.delete()
-            else:
+        # Transient failures (network errors, 429, 5xx) are retried a couple
+        # of times with a short backoff; expired subscriptions are pruned.
+        for attempt in range(1, PUSH_MAX_ATTEMPTS + 1):
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": sub.endpoint,
+                        "keys": {
+                            "p256dh": sub.p256dh,
+                            "auth": sub.auth
+                        }
+                    },
+                    data=payload,
+                    vapid_private_key=vapid_private_key,
+                    vapid_claims={
+                        "sub": f"mailto:{vapid_email}"
+                    },
+                    ttl=3600  # 1 hour queue on browser push server
+                )
+                break
+            except WebPushException as ex:
+                status = ex.response.status_code if ex.response is not None else None
+                if status in (404, 410):
+                    # Worker unsubscribed or cleared browser data
+                    logger.info("Pruning expired push subscription %s for user %s", sub.id, user.username)
+                    sub.delete()
+                    break
+                transient = status is None or status == 429 or status >= 500
+                if transient and attempt < PUSH_MAX_ATTEMPTS:
+                    _time.sleep(PUSH_RETRY_BACKOFF_SECONDS * attempt)
+                    continue
                 logger.warning("WebPush failed for user %s: %s", user.username, str(ex))
-        except Exception as ex:
-            logger.error("Unexpected error sending WebPush to user %s: %s", user.username, str(ex))
+                break
+            except Exception as ex:
+                if attempt < PUSH_MAX_ATTEMPTS:
+                    _time.sleep(PUSH_RETRY_BACKOFF_SECONDS * attempt)
+                    continue
+                logger.error("Unexpected error sending WebPush to user %s: %s", user.username, str(ex))
 
 
 def send_web_push_async(user, title, body, url="/worker-dashboard/"):
