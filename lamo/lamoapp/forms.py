@@ -26,6 +26,8 @@ class ServiceForm(forms.ModelForm):
             'image',
             'is_active',
             'is_featured',
+            'commission_type',
+            'commission_value',
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -52,7 +54,39 @@ class ServiceForm(forms.ModelForm):
             'is_featured': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+            'commission_type': forms.Select(attrs={
+                'class': 'form-control',
+            }),
+            'commission_value': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. 8 (%) or 40 (₹)',
+                'min': '0',
+                'step': '0.01',
+            }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Older forms/clients that do not send these fields keep the
+        # platform default commission.
+        self.fields['commission_type'].required = False
+        self.fields['commission_value'].required = False
+
+    def clean_commission_type(self):
+        return self.cleaned_data.get('commission_type') or 'DEFAULT'
+
+    def clean(self):
+        cleaned = super().clean()
+        c_type = cleaned.get('commission_type') or 'DEFAULT'
+        c_value = cleaned.get('commission_value')
+        if c_type in ('PERCENT', 'FIXED'):
+            if c_value is None:
+                self.add_error('commission_value', 'Enter the commission value for this commission type.')
+            elif c_value < 0:
+                self.add_error('commission_value', 'Commission cannot be negative.')
+            elif c_type == 'PERCENT' and c_value > 100:
+                self.add_error('commission_value', 'A percentage commission cannot exceed 100%.')
+        return cleaned
 
 
 class UserProfileForm(forms.ModelForm):
@@ -141,6 +175,33 @@ class UserProfileForm(forms.ModelForm):
             if user_dirty:
                 user.save(update_fields=['first_name', 'last_name'])
         return profile
+    def clean_profile_image(self):
+        image = self.cleaned_data.get('profile_image')
+        # False = "clear" checkbox, None = nothing submitted, FieldFile = unchanged.
+        if not image or not hasattr(image, 'content_type'):
+            return image
+        from .upload_validation import validate_profile_photo
+        validate_profile_photo(image)
+        return image
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if not phone:
+            return ''
+        import re
+        from .views import _normalize_phone, _user_ids_for_phone
+        clean_p = _normalize_phone(phone)
+        if not clean_p:
+            raise forms.ValidationError('Please enter a valid 10-digit Indian mobile number.')
+
+        current_user_id = self.instance.user_id if self.instance and self.instance.pk else None
+        other_user_ids = _user_ids_for_phone(clean_p)
+        if current_user_id:
+            other_user_ids.discard(current_user_id)
+        if other_user_ids:
+            raise forms.ValidationError('This phone number is already registered with another account.')
+        return clean_p
+
     def clean_latitude(self):
         lat = self.cleaned_data.get('latitude')
         if lat is not None:
@@ -311,9 +372,9 @@ class WorkerProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             if self.instance.work_start_time:
-                self.initial['work_start_time'] = self.instance.work_start_time.strftime('%H:%M')
+                self.initial['work_start_time'] = self.instance.work_start_time.strftime('%H:%M') if hasattr(self.instance.work_start_time, 'strftime') else str(self.instance.work_start_time)[:5]
             if self.instance.work_end_time:
-                self.initial['work_end_time'] = self.instance.work_end_time.strftime('%H:%M')
+                self.initial['work_end_time'] = self.instance.work_end_time.strftime('%H:%M') if hasattr(self.instance.work_end_time, 'strftime') else str(self.instance.work_end_time)[:5]
 
     def clean(self):
         cleaned_data = super().clean()
@@ -331,29 +392,26 @@ class WorkerProfileForm(forms.ModelForm):
 
     def clean_phone(self):
         phone = self.cleaned_data.get('phone', '').strip()
-
-        # Indian mobile number:
-        # Must be exactly 10 digits
-        # Must start with 6, 7, 8 or 9
         import re
+        from .views import _normalize_phone, _user_ids_for_phone
 
-        if not re.fullmatch(r'[6-9]\d{9}', phone):
+        clean_p = _normalize_phone(phone)
+        if not clean_p:
             raise forms.ValidationError(
                 'Please enter a valid 10-digit Indian mobile number.'
             )
 
-        # Prevent duplicate phone numbers
-        if WorkerProfile.objects.filter(
-            phone=phone
-        ).exclude(
-            pk=self.instance.pk
-        ).exists():
-
+        # Cross-role uniqueness check across both WorkerProfile and UserProfile
+        current_user_id = self.instance.user_id if self.instance and self.instance.pk else None
+        other_user_ids = _user_ids_for_phone(clean_p)
+        if current_user_id:
+            other_user_ids.discard(current_user_id)
+        if other_user_ids:
             raise forms.ValidationError(
-                'This phone number is already registered.'
+                'This phone number is already registered with another account.'
             )
 
-        return phone
+        return clean_p
 
     def clean_experience_years(self):
         experience = self.cleaned_data.get(
@@ -447,6 +505,13 @@ class WorkerProfileForm(forms.ModelForm):
         safe_name = f'{uuid.uuid4().hex}{ext.lower()}'
         proof.name = safe_name
 
+        # ---- Content validation: the bytes must really be a valid PDF/JPEG/PNG ----
+        # (decoded with Pillow / structurally checked; corrupt or disguised files
+        # are refused). Also enforces the configurable size limit.
+        from .upload_validation import validate_proof_document
+        proof.name = base_name  # validator re-checks the original name safely
+        validate_proof_document(proof)
+
         return proof
 
     def clean_profile_image(self):
@@ -479,5 +544,11 @@ class WorkerProfileForm(forms.ModelForm):
             raise forms.ValidationError(
                 'Profile image must be less than 5 MB.'
             )
+
+        # Content validation (magic bytes + full decode). Skipped for an
+        # unchanged, already-stored image.
+        if hasattr(image, 'content_type'):
+            from .upload_validation import validate_profile_photo
+            validate_profile_photo(image)
 
         return image

@@ -14,6 +14,7 @@ mysqlclient==2.2.8
 
 # --- Image handling (Service.image, WorkerProfile.profile_image, ...) ---
 pillow==12.3.0
+qrcode==8.2
 
 # --- Persistent media (public images on Cloudinary, proofs stay local) ---
 # The default storage backend (lamoapp.cloudinary_storage) routes the public

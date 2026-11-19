@@ -116,8 +116,8 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'is_active', 'is_featured', 'created_at')
-    list_filter = ('is_active', 'is_featured')
+    list_display = ('name', 'price', 'commission_type', 'commission_value', 'is_active', 'is_featured', 'created_at')
+    list_filter = ('is_active', 'is_featured', 'commission_type')
     search_fields = ('name', 'description')
 
 

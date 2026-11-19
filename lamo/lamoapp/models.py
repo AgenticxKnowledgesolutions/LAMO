@@ -388,6 +388,32 @@ class Service(models.Model):
 
     # icon = models.CharField( max_length=100, default='bi bi-tools')
 
+    # Platform commission charged to the worker's prepaid wallet when a job
+    # for this service is accepted. DEFAULT keeps the platform-wide rule
+    # (settings.PLATFORM_COMMISSION_PERCENT of labour, minimum
+    # settings.PLATFORM_COMMISSION_MIN), so existing services behave exactly
+    # as before until an administrator chooses otherwise.
+    COMMISSION_TYPE_CHOICES = (
+        ('DEFAULT', 'Platform default (10%, min ₹15)'),
+        ('PERCENT', 'Percentage of labour charge'),
+        ('FIXED', 'Fixed amount per job'),
+    )
+
+    commission_type = models.CharField(
+        max_length=10,
+        choices=COMMISSION_TYPE_CHOICES,
+        default='DEFAULT',
+        help_text="How the platform commission is calculated for this service."
+    )
+
+    commission_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage (for PERCENT) or rupee amount (for FIXED). Ignored for DEFAULT."
+    )
+
     is_active = models.BooleanField( default=True)
 
     is_featured = models.BooleanField( default=False)
@@ -856,8 +882,6 @@ class WorkerProfile(models.Model):
 
         return max(0, diff.days + (1 if diff.seconds > 0 else 0))
 
-
-
     class Meta:
 
         indexes = [
@@ -1295,6 +1319,16 @@ class Booking(models.Model):
         help_text="Materials and spare parts cost reported by worker (exempt from platform fee)"
     )
 
+    # Set when the customer approves the worker's final bill. The booking
+    # stays COMPLETION_REQUESTED ("awaiting payment") until the payment is
+    # verified; only then does it become COMPLETED. Approving the bill is
+    # never treated as proof of payment.
+    bill_confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the customer approved the final bill (payment instructions unlock after this)."
+    )
+
 
 
     cancellation_reason = models.TextField(
@@ -1459,6 +1493,36 @@ class Booking(models.Model):
 
         return self.arrival_otp
 
+    def get_arrival_qr_token(self):
+        """Generate a secure cryptographic token for doorstep QR code verification."""
+        from django.core.signing import TimestampSigner
+        signer = TimestampSigner(salt='booking-doorstep-arrival')
+        payload = f"{self.id}:{self.worker_id or 0}"
+        return signer.sign(payload)
+
+    def get_arrival_token(self):
+        return self.get_arrival_qr_token()
+
+    # Doorstep QR tokens are short-lived: the worker's screen fetches a fresh
+    # QR every few minutes, so a screenshot shared earlier stops working.
+    # A token is also single-use in effect - verifying moves the booking to
+    # IN_PROGRESS and verification only accepts ACCEPTED bookings.
+    ARRIVAL_QR_TOKEN_MAX_AGE_SECONDS = 10 * 60
+
+    @classmethod
+    def verify_arrival_token(cls, token, max_age=None):
+        """Verifies a doorstep arrival token. Returns (booking_id, worker_id) or (None, None)."""
+        from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+        signer = TimestampSigner(salt='booking-doorstep-arrival')
+        try:
+            payload = signer.unsign(token, max_age=max_age or cls.ARRIVAL_QR_TOKEN_MAX_AGE_SECONDS)
+            parts = payload.split(':')
+            booking_id = int(parts[0])
+            worker_id = int(parts[1]) if len(parts) > 1 and int(parts[1]) > 0 else None
+            return booking_id, worker_id
+        except (BadSignature, SignatureExpired, ValueError, IndexError):
+            return None, None
+
 
 
     @property
@@ -1483,7 +1547,9 @@ class Booking(models.Model):
 
     def has_pending_reschedule(self):
 
-        return bool(self.status == 'PENDING' and self.proposed_time)
+        # Workers may propose a new time on PENDING requests and on ACCEPTED
+        # (already confirmed) jobs; both must be visible to the customer.
+        return bool(self.status in ('PENDING', 'ACCEPTED') and self.proposed_time and self.proposed_date)
 
 
 
@@ -1519,7 +1585,7 @@ class Booking(models.Model):
         tot = self.final_amount if self.final_amount is not None else (self.estimated_cost or Decimal('0.00'))
         return max(Decimal('0.00'), Decimal(str(tot)) - Decimal(str(mat)))
 
-    def check_can_start(self, arrival_otp=None):
+    def check_can_start(self, arrival_otp=None, is_qr_verified=False):
 
         """
 
@@ -1549,8 +1615,11 @@ class Booking(models.Model):
             if active_other:
                 return False, 'You already have another job currently in progress. Please complete your current job before starting this one.'
 
-        if self.booking_type == 'Emergency':
-
+        if self.booking_type == 'Emergency' and (self.date is None or self.date <= timezone.localdate()):
+            # Genuine emergency jobs are stamped with the acceptance date
+            # (today) and may start immediately. An "Emergency" booking dated
+            # in the future did not come from the emergency flow, so it falls
+            # through to the normal early-start validation below.
             return True, ''
 
 
@@ -1611,8 +1680,8 @@ class Booking(models.Model):
 
             if now_local < early_allowed_dt:
 
-                # Customer Consent Early Start: If customer shared Arrival PIN, allow early start
-                if arrival_otp and self.arrival_otp and str(arrival_otp).strip() == str(self.arrival_otp).strip():
+                # Customer Consent Early Start: If customer scanned QR or shared Arrival PIN, allow early start
+                if is_qr_verified or (arrival_otp and self.arrival_otp and str(arrival_otp).strip() == str(self.arrival_otp).strip()):
                     return True, ''
 
                 minutes_left = int((scheduled_dt - now_local).total_seconds() / 60)
@@ -1949,56 +2018,28 @@ class WorkerWallet(models.Model):
 
 
     @property
-
     def zone(self):
-
         bal = Decimal(str(self.balance if self.balance is not None else '0.00'))
-
-        if bal >= Decimal('0.00'):
-
+        if bal >= Decimal('50.00'):
             return 'GREEN'
-
-        elif bal >= Decimal('-500.00'):
-
+        elif bal > Decimal('0.00'):
             return 'YELLOW'
-
         return 'RED'
 
-
-
     @property
-
     def is_locked(self):
-
         bal = Decimal(str(self.balance if self.balance is not None else '0.00'))
-
-        return bal < Decimal('-500.00')
-
-
+        return bal < Decimal('0.00')
 
     @property
-
     def amount_due(self):
-
         bal = Decimal(str(self.balance if self.balance is not None else '0.00'))
-
         return abs(bal) if bal < Decimal('0.00') else Decimal('0.00')
 
-
-
     @property
-
     def buffer_remaining(self):
-
         bal = Decimal(str(self.balance if self.balance is not None else '0.00'))
-
-        if bal >= Decimal('0.00'):
-
-            return Decimal('500.00')
-
-        remaining = Decimal('500.00') + bal
-
-        return max(Decimal('0.00'), remaining)
+        return max(Decimal('0.00'), bal)
 
 
 
@@ -2010,15 +2051,51 @@ class WorkerWallet(models.Model):
 
 
 
+    def ledger_total(self):
+        """Sum of the transactions that actually moved money in or out of this wallet.
+
+        RECHARGE_PENDING (money claimed but not yet verified) and
+        RECHARGE_REJECTED rows are history only: they carry a positive
+        ``amount`` for the admin to review but are NOT part of the balance.
+        """
+        from django.db.models import Sum
+        total = self.transactions.filter(
+            transaction_type__in=WalletTransaction.BALANCE_AFFECTING_TYPES
+        ).aggregate(t=Sum('amount'))['t']
+        return total or Decimal('0.00')
+
+    def pending_recharge_total(self):
+        """Recharges submitted but not yet verified (never available funds)."""
+        from django.db.models import Sum
+        total = self.transactions.filter(
+            transaction_type='RECHARGE_PENDING'
+        ).aggregate(t=Sum('amount'))['t']
+        return total or Decimal('0.00')
+
+
 class WalletTransaction(models.Model):
+
+    # Types that change the wallet balance once recorded. Anything else
+    # (RECHARGE_PENDING, RECHARGE_REJECTED) is audit history only.
+    BALANCE_AFFECTING_TYPES = (
+        'FEE_DEDUCTION', 'REFUND', 'RECHARGE', 'ONLINE_PAYOUT_OFFSET',
+        'WELCOME_CREDIT', 'ADJUSTMENT',
+    )
+    NON_BALANCE_TYPES = ('RECHARGE_PENDING', 'RECHARGE_REJECTED')
 
     TRANSACTION_TYPES = (
 
-        ('FEE_DEDUCTION', 'Platform Fee (Cash Job)'),
+        ('FEE_DEDUCTION', 'Platform Commission'),
+
+        ('REFUND', 'Commission Refund'),
 
         ('RECHARGE', 'UPI Wallet Recharge'),
 
-        ('ONLINE_PAYOUT_OFFSET', 'Online Payout Offset'),
+        ('RECHARGE_PENDING', 'Recharge Awaiting Verification'),
+
+        ('RECHARGE_REJECTED', 'Recharge Rejected'),
+
+        ('ONLINE_PAYOUT_OFFSET', 'Online Payout Offset (legacy)'),
 
         ('WELCOME_CREDIT', 'Welcome Launch Credit'),
 
