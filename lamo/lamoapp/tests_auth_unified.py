@@ -1,3 +1,5 @@
+import re
+from django.core import mail
 from django.test import TestCase, Client
 from django.urls import reverse
 from lamoapp.models import CustomUser, UserProfile
@@ -49,10 +51,13 @@ class PureOtpAuthParityTest(TestCase):
         d1 = res1.json()
         self.assertTrue(d1.get('success'))
 
-        # Reload user to get generated OTP
+        # Reload user and get delivered OTP from sent email
         self.user.refresh_from_db()
-        otp = self.user.email_verification_otp
-        self.assertTrue(otp)
+        self.assertTrue(self.user.email_verification_otp)
+        self.assertTrue(len(mail.outbox) > 0)
+        m = re.search(r'\b\d{6}\b', mail.outbox[-1].body)
+        self.assertIsNotNone(m, "6-digit OTP not found in outbox email body")
+        otp = m.group(0)
 
         # 2. Verify OTP
         res2 = self.client.post(

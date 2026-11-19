@@ -112,39 +112,34 @@ class CustomUser(AbstractUser):
 
 
     is_email_verified = models.BooleanField(default=False)
-
-    email_verification_otp = models.CharField(max_length=6, blank=True, null=True)
-
+    # Hashed at rest (sha256:<digest>). The plaintext OTP lives only in the
+    # email sent to the user so a database leak cannot expose live credentials.
+    email_verification_otp = models.CharField(max_length=128, blank=True, null=True)
     otp_created_at = models.DateTimeField(blank=True, null=True)
-
     otp_failed_attempts = models.PositiveIntegerField(default=0)
-
     otp_locked_until = models.DateTimeField(blank=True, null=True)
-
     password_reset_token = models.CharField(max_length=64, blank=True, null=True)
-
     # SHA-256 of the reset token. The plaintext token is only ever put in the
-
     # email link; the database keeps the hash so a DB leak cannot be replayed.
-
     password_reset_token_hash = models.CharField(max_length=64, blank=True, null=True)
-
     password_reset_expires = models.DateTimeField(blank=True, null=True)
 
-
+    @staticmethod
+    def hash_otp(otp):
+        """Return the SHA-256 hex digest of the OTP combined with SECRET_KEY."""
+        from django.conf import settings
+        secret = getattr(settings, 'SECRET_KEY', 'lamo-otp-salt')
+        digest = hashlib.sha256(f"{otp}:{secret}".encode('utf-8')).hexdigest()
+        return f"sha256:{digest}"
 
     def generate_otp(self):
-
         # secrets (CSPRNG) instead of random - OTPs are an auth credential.
-
         otp = ''.join(secrets.choice(string.digits) for _ in range(6))
-
-        self.email_verification_otp = otp
-
+        # Persist only the SHA-256 hash at rest; plaintext lives solely in the email.
+        self.email_verification_otp = self.hash_otp(otp)
         self.otp_created_at = timezone.now()
-
-        self.save(update_fields=['email_verification_otp', 'otp_created_at'])
-
+        self.otp_failed_attempts = 0
+        self.save(update_fields=['email_verification_otp', 'otp_created_at', 'otp_failed_attempts'])
         return otp
 
 
@@ -306,18 +301,24 @@ class CustomUser(AbstractUser):
 
 
     def is_otp_valid(self, otp):
-
-        if not self.email_verification_otp or not self.otp_created_at:
-
+        if not otp or not self.email_verification_otp or not self.otp_created_at:
             return False
 
-        if not secrets.compare_digest(str(self.email_verification_otp).strip(), str(otp).strip()):
-
-            return False
-
+        # 10-minute expiry check
         expiry = self.otp_created_at + timedelta(minutes=10)
+        if timezone.now() > expiry:
+            return False
 
-        return timezone.now() <= expiry
+        candidate = str(otp).strip()
+        stored = str(self.email_verification_otp).strip()
+
+        # Timing-safe comparison against hash
+        if stored.startswith('sha256:'):
+            computed = self.hash_otp(candidate)
+            return secrets.compare_digest(stored, computed)
+
+        # Backward compatibility for legacy/mock plaintext OTPs
+        return secrets.compare_digest(stored, candidate)
 
 
 

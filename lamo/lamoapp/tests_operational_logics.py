@@ -153,13 +153,14 @@ class OperationalLogicsTests(TestCase):
     def test_customer_request_reschedule_flow(self):
         """Customer can reschedule their delayed booking directly."""
         now = timezone.localtime()
+        target_date = (now + timedelta(days=1)).date()
         self.client.force_login(self.user)
 
         job = Booking.objects.create(
             customer=self.user,
             worker=self.worker,
             service=self.service,
-            date=now.date(),
+            date=target_date,
             time="2:30 PM - 3:00 PM",
             start_time=time(14, 30),
             end_time=time(15, 0),
@@ -167,93 +168,91 @@ class OperationalLogicsTests(TestCase):
         )
 
         resp = self.client.post(f'/booking/{job.id}/request-reschedule/', {
-            'date': str(now.date()),
+            'date': str(target_date),
             'time': '3:30 PM - 4:00 PM',
             'reason': 'Professional running late on prior job',
         })
         self.assertEqual(resp.status_code, 302)
 
         job.refresh_from_db()
+        self.assertEqual(job.date, target_date)
         self.assertEqual(job.time, '3:30 PM - 4:00 PM')
         self.assertEqual(job.start_time, time(15, 30))
         self.assertEqual(job.end_time, time(16, 0))
 
     def test_tiered_acceptance_expiry_same_day_and_future_day(self):
         """Tiered response window: same-day expires at 20m, future-day expires at 60m."""
+        from unittest.mock import patch
         from lamoapp.views import check_and_expire_pending_bookings
-        now = timezone.localtime()
+        fixed_now = timezone.datetime(2026, 10, 17, 14, 30, tzinfo=timezone.get_current_timezone())
 
-        # Same-day booking created 19 minutes ago -> should NOT expire
-        b_same_day_active = Booking.objects.create(
-            customer=self.user,
-            worker=self.worker,
-            service=self.service,
-            date=now.date(),
-            time="3:00 PM - 3:30 PM",
-            status='PENDING'
-        )
-        Booking.objects.filter(id=b_same_day_active.id).update(
-            created_at=now - timedelta(minutes=19)
-        )
+        with patch('django.utils.timezone.localtime', return_value=fixed_now), \
+             patch('django.utils.timezone.now', return_value=fixed_now):
+            # Same-day booking created 19 minutes ago -> should NOT expire
+            b_same_day_active = Booking.objects.create(
+                customer=self.user,
+                worker=self.worker,
+                service=self.service,
+                date=fixed_now.date(),
+                time="3:00 PM - 3:30 PM",
+                status='PENDING'
+            )
+            Booking.objects.filter(id=b_same_day_active.id).update(
+                created_at=fixed_now - timedelta(minutes=19)
+            )
 
-        # Same-day booking created 21 minutes ago -> SHOULD expire
-        b_same_day_expired = Booking.objects.create(
-            customer=self.user,
-            worker=self.worker,
-            service=self.service,
-            date=now.date(),
-            time="4:00 PM - 4:30 PM",
-            status='PENDING'
-        )
-        Booking.objects.filter(id=b_same_day_expired.id).update(
-            created_at=now - timedelta(minutes=21)
-        )
+            # Same-day booking created 21 minutes ago -> SHOULD expire
+            b_same_day_expired = Booking.objects.create(
+                customer=self.user,
+                worker=self.worker,
+                service=self.service,
+                date=fixed_now.date(),
+                time="4:00 PM - 4:30 PM",
+                status='PENDING'
+            )
+            Booking.objects.filter(id=b_same_day_expired.id).update(
+                created_at=fixed_now - timedelta(minutes=21)
+            )
 
-        # Future-day booking created 55 minutes ago -> should NOT expire
-        b_future_active = Booking.objects.create(
-            customer=self.user,
-            worker=self.worker,
-            service=self.service,
-            date=now.date() + timedelta(days=2),
-            time="11:00 AM - 11:30 AM",
-            status='PENDING'
-        )
-        # Avoid night-time pause during test by pinning created_at to 2 PM
-        Booking.objects.filter(id=b_future_active.id).update(
-            created_at=now - timedelta(minutes=55)
-        )
+            # Future-day booking created 55 minutes ago -> should NOT expire
+            b_future_active = Booking.objects.create(
+                customer=self.user,
+                worker=self.worker,
+                service=self.service,
+                date=fixed_now.date() + timedelta(days=2),
+                time="11:00 AM - 11:30 AM",
+                status='PENDING'
+            )
+            Booking.objects.filter(id=b_future_active.id).update(
+                created_at=fixed_now - timedelta(minutes=55)
+            )
 
-        # Future-day booking created 65 minutes ago -> SHOULD expire
-        b_future_expired = Booking.objects.create(
-            customer=self.user,
-            worker=self.worker,
-            service=self.service,
-            date=now.date() + timedelta(days=2),
-            time="2:00 PM - 2:30 PM",
-            status='PENDING'
-        )
-        Booking.objects.filter(id=b_future_expired.id).update(
-            created_at=now - timedelta(minutes=65)
-        )
+            # Future-day booking created 65 minutes ago -> SHOULD expire
+            b_future_expired = Booking.objects.create(
+                customer=self.user,
+                worker=self.worker,
+                service=self.service,
+                date=fixed_now.date() + timedelta(days=2),
+                time="2:00 PM - 2:30 PM",
+                status='PENDING'
+            )
+            Booking.objects.filter(id=b_future_expired.id).update(
+                created_at=fixed_now - timedelta(minutes=65)
+            )
 
-        check_and_expire_pending_bookings()
+            check_and_expire_pending_bookings()
 
-        b_same_day_active.refresh_from_db()
-        self.assertEqual(b_same_day_active.status, 'PENDING')
+            b_same_day_active.refresh_from_db()
+            self.assertEqual(b_same_day_active.status, 'PENDING')
 
-        b_same_day_expired.refresh_from_db()
-        self.assertEqual(b_same_day_expired.status, 'EXPIRED')
-        self.assertIn('20-minute same-day', b_same_day_expired.cancellation_reason)
+            b_same_day_expired.refresh_from_db()
+            self.assertEqual(b_same_day_expired.status, 'EXPIRED')
+            self.assertIn('20-minute same-day', b_same_day_expired.cancellation_reason)
 
-        b_future_active.refresh_from_db()
-        self.assertEqual(b_future_active.status, 'PENDING')
+            b_future_active.refresh_from_db()
+            self.assertEqual(b_future_active.status, 'PENDING')
 
-        b_future_expired.refresh_from_db()
-        # If running during night-time hours (9 PM - 8 AM), night pause intentionally applies
-        now_local = timezone.localtime()
-        if now_local.hour >= 21 or now_local.hour < 8:
-            self.assertEqual(b_future_expired.status, 'PENDING')
-        else:
+            b_future_expired.refresh_from_db()
             self.assertEqual(b_future_expired.status, 'EXPIRED')
             self.assertIn('60-minute scheduled', b_future_expired.cancellation_reason)
 

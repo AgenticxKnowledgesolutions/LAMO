@@ -2068,7 +2068,7 @@ class OtpRateLimitTest(RateLimitBypassTests):
         self.addCleanup(setattr, mail, 'outbox', [])
         self.user.is_email_verified = False
         self.user.save(update_fields=['is_email_verified'])
-        self.user.generate_otp()
+        self.otp = self.user.generate_otp()
         self._enter_otp_flow()
 
     def _enter_otp_flow(self):
@@ -2104,7 +2104,7 @@ class OtpRateLimitTest(RateLimitBypassTests):
 
         # Even the correct code is now refused.
         self.user.refresh_from_db()
-        response = self._verify(self.user.email_verification_otp)
+        response = self._verify(self.otp)
         self.assertContains(response, 'Too many failed attempts')
 
     def test_otp_attempt_limit_survives_session_wipe(self):
@@ -2115,12 +2115,12 @@ class OtpRateLimitTest(RateLimitBypassTests):
         self._enter_otp_flow()
 
         self.user.refresh_from_db()
-        response = self._verify(self.user.email_verification_otp)
+        response = self._verify(self.otp)
         self.assertContains(response, 'Too many failed attempts')
 
     def test_correct_otp_still_works(self):
         self.user.refresh_from_db()
-        response = self._verify(self.user.email_verification_otp)
+        response = self._verify(self.otp)
         self.assertEqual(response.status_code, 302)
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_email_verified)
@@ -2166,12 +2166,16 @@ class OtpRateLimitTest(RateLimitBypassTests):
         response = self._resend()
         self.assertNotContains(response, secret)
         self.assertNotIn(secret, response.content.decode('utf-8', 'ignore'))
+        if getattr(self, 'otp', None):
+            self.assertNotContains(response, self.otp)
 
         # A failed verification must not reveal the code either.
         self.user.refresh_from_db()
         secret = self.user.email_verification_otp
         bad = self._verify('000000')
         self.assertNotContains(bad, secret)
+        if getattr(self, 'otp', None):
+            self.assertNotContains(bad, self.otp)
 
     def test_login_for_unverified_user_does_not_mail_bomb(self):
         from django.core import mail
@@ -4868,7 +4872,16 @@ class RegistrationNextFlowTest(TestCase):
         return client.post(reverse('register'), data)
 
     def _verify_and_login(self, client, username):
-        otp = CustomUser.objects.get(username=username).email_verification_otp
+        from django.core import mail
+        import re
+        otp = None
+        for msg in reversed(mail.outbox):
+            m = re.search(r'\b\d{6}\b', msg.body)
+            if m:
+                otp = m.group(0)
+                break
+        if not otp:
+            otp = CustomUser.objects.get(username=username).email_verification_otp
         return client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
 
     def test_safe_next_survives_registration_and_otp(self):
@@ -4918,8 +4931,7 @@ class RegistrationNextFlowTest(TestCase):
         self._register(client, 'nextonce', next_value=target)
 
         # Verify the email - auto-logs in and consumes stored target.
-        otp = CustomUser.objects.get(username='nextonce').email_verification_otp
-        first = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
+        first = self._verify_and_login(client, 'nextonce')
         self.assertEqual(first['Location'], target)
         self.assertIsNone(client.session.get('registration_next'))
 
@@ -4981,6 +4993,19 @@ class RegistrationNextTargetMatrixTest(TestCase):
         '  //evil.example/  ',
     ]
 
+    def _verify_and_login(self, client, username):
+        from django.core import mail
+        import re
+        otp = None
+        for msg in reversed(mail.outbox):
+            m = re.search(r'\b\d{6}\b', msg.body)
+            if m:
+                otp = m.group(0)
+                break
+        if not otp:
+            otp = CustomUser.objects.get(username=username).email_verification_otp
+        return client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
+
     def _full_flow(self, next_value, username):
         """register -> OTP -> login, returning the stored value and Location."""
         client = Client()
@@ -4998,8 +5023,7 @@ class RegistrationNextTargetMatrixTest(TestCase):
                 'role': 'USER',
             },
         )
-        otp = CustomUser.objects.get(username=username).email_verification_otp
-        response = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
+        response = self._verify_and_login(client, username)
         return stored, response['Location']
 
     def test_safe_internal_targets_are_preserved_end_to_end(self):
@@ -5096,8 +5120,7 @@ class RegistrationNextTargetMatrixTest(TestCase):
             CustomUser.objects.filter(username='wkrnext').exists(),
             'worker registration failed',
         )
-        otp = CustomUser.objects.get(username='wkrnext').email_verification_otp
-        resp_verify = client.post(reverse('verify_otp'), {'action': 'verify', 'otp': otp})
+        resp_verify = self._verify_and_login(client, 'wkrnext')
         self.assertEqual(resp_verify['Location'], reverse('worker_application_status'))
         self.assertEqual(client.session.get('registration_next'), target)
         self.assertEqual(CustomUser.objects.get(username='wkrnext').role, 'WORKER')

@@ -7518,15 +7518,15 @@ def login_view(request):
                 except WorkerProfile.DoesNotExist:
                     pass
 
-            if not user.email_verification_otp or user.email_verification_otp != otp:
+            if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=10):
+                return JsonResponse({'success': False, 'error': 'Verification code has expired. Please request a new code.'})
+
+            if not user.is_otp_valid(otp):
                 user.otp_failed_attempts = (user.otp_failed_attempts or 0) + 1
                 if user.otp_failed_attempts >= 5:
                     user.otp_locked_until = timezone.now() + timedelta(minutes=15)
                 user.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
                 return JsonResponse({'success': False, 'error': 'Invalid 6-digit verification code. Please try again.'})
-
-            if user.otp_created_at and timezone.now() > user.otp_created_at + timedelta(minutes=10):
-                return JsonResponse({'success': False, 'error': 'Verification code has expired. Please request a new code.'})
 
             user.otp_failed_attempts = 0
             user.otp_locked_until = None
@@ -12823,39 +12823,41 @@ def verify_doorstep_qr(request, token):
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if request.method == 'POST':
-        if booking.status != 'ACCEPTED':
-            if booking.status == 'IN_PROGRESS':
+        with transaction.atomic():
+            booking = Booking.objects.select_for_update().select_related('worker__user', 'service', 'customer').get(id=booking_id)
+            if booking.status != 'ACCEPTED':
+                if booking.status == 'IN_PROGRESS':
+                    if is_ajax:
+                        return JsonResponse({'success': True, 'already_active': True, 'message': 'Job is already in progress.'})
+                    return render(request, 'user/verify_doorstep_arrival.html', {
+                        'booking': booking,
+                        'already_active': True,
+                        'token': token
+                    })
+                error_msg = f'This booking cannot be verified at this stage (current status: {booking.status}).'
                 if is_ajax:
-                    return JsonResponse({'success': True, 'already_active': True, 'message': 'Job is already in progress.'})
+                    return JsonResponse({'success': False, 'message': error_msg})
                 return render(request, 'user/verify_doorstep_arrival.html', {
                     'booking': booking,
-                    'already_active': True,
+                    'error_message': error_msg,
                     'token': token
                 })
-            error_msg = f'This booking cannot be verified at this stage (current status: {booking.status}).'
-            if is_ajax:
-                return JsonResponse({'success': False, 'message': error_msg})
-            return render(request, 'user/verify_doorstep_arrival.html', {
-                'booking': booking,
-                'error_message': error_msg,
-                'token': token
-            })
 
-        # Check start eligibility (customer scanned QR, so early arrival is explicitly consented!)
-        can_start, not_allowed_reason = booking.check_can_start(is_qr_verified=True)
-        if not can_start:
-            if is_ajax:
-                return JsonResponse({'success': False, 'message': not_allowed_reason})
-            return render(request, 'user/verify_doorstep_arrival.html', {
-                'booking': booking,
-                'error_message': not_allowed_reason,
-                'token': token
-            })
+            # Check start eligibility (customer scanned QR, so early arrival is explicitly consented!)
+            can_start, not_allowed_reason = booking.check_can_start(is_qr_verified=True)
+            if not can_start:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': not_allowed_reason})
+                return render(request, 'user/verify_doorstep_arrival.html', {
+                    'booking': booking,
+                    'error_message': not_allowed_reason,
+                    'token': token
+                })
 
-        # Transition booking to IN_PROGRESS
-        booking.status = 'IN_PROGRESS'
-        booking.arrival_verified_at = timezone.now()
-        booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
+            # Transition booking to IN_PROGRESS
+            booking.status = 'IN_PROGRESS'
+            booking.arrival_verified_at = timezone.now()
+            booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
 
         # Create notifications
         worker_user = booking.worker.user if booking.worker else None
