@@ -1,6 +1,6 @@
 from decimal import Decimal
 import hashlib
-
+import hmac
 import secrets
 
 import string
@@ -126,11 +126,11 @@ class CustomUser(AbstractUser):
 
     @staticmethod
     def hash_otp(otp):
-        """Return the SHA-256 hex digest of the OTP combined with SECRET_KEY."""
+        """Return the HMAC-SHA256 hex digest of the OTP keyed by SECRET_KEY."""
         from django.conf import settings
-        secret = getattr(settings, 'SECRET_KEY', 'lamo-otp-salt')
-        digest = hashlib.sha256(f"{otp}:{secret}".encode('utf-8')).hexdigest()
-        return f"sha256:{digest}"
+        secret = getattr(settings, 'SECRET_KEY', 'lamo-otp-salt').encode('utf-8')
+        digest = hmac.new(secret, str(otp).encode('utf-8'), hashlib.sha256).hexdigest()
+        return f"hmac-sha256:{digest}"
 
     def generate_otp(self):
         # secrets (CSPRNG) instead of random - OTPs are an auth credential.
@@ -313,9 +313,16 @@ class CustomUser(AbstractUser):
         stored = str(self.email_verification_otp).strip()
 
         # Timing-safe comparison against hash
-        if stored.startswith('sha256:'):
+        if stored.startswith('hmac-sha256:'):
             computed = self.hash_otp(candidate)
             return secrets.compare_digest(stored, computed)
+
+        if stored.startswith('sha256:'):
+            # Backwards compatibility for previously issued SHA-256 hashes
+            from django.conf import settings
+            secret = getattr(settings, 'SECRET_KEY', 'lamo-otp-salt')
+            legacy_digest = f"sha256:{hashlib.sha256(f'{candidate}:{secret}'.encode('utf-8')).hexdigest()}"
+            return secrets.compare_digest(stored, legacy_digest)
 
         # Backward compatibility for legacy/mock plaintext OTPs
         return secrets.compare_digest(stored, candidate)

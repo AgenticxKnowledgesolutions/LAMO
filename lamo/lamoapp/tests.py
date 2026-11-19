@@ -7785,23 +7785,26 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
 
     def test_worker_cannot_start_job_more_than_30_mins_early(self):
         """Worker cannot start a scheduled job more than 30 minutes before slot start without customer consent."""
-        self.booking.status = 'ACCEPTED'
-        self.booking.date = date_type.today()
-        # Scheduled 2 hours in the future
-        self.booking.start_time = (timezone.localtime() + timedelta(hours=2)).time()
-        self.booking.save()
+        from unittest.mock import patch
+        fixed_now = timezone.datetime(2026, 10, 17, 10, 0, tzinfo=timezone.get_current_timezone())
+        with patch('django.utils.timezone.localtime', return_value=fixed_now):
+            self.booking.status = 'ACCEPTED'
+            self.booking.date = fixed_now.date()
+            # Scheduled 2 hours in the future (12:00 PM)
+            self.booking.start_time = (fixed_now + timedelta(hours=2)).time()
+            self.booking.save()
 
-        # Direct check_can_start without PIN is rejected
-        can_start, reason = self.booking.check_can_start()
-        self.assertFalse(can_start)
-        self.assertIn('scheduled', reason.lower())
+            # Direct check_can_start without PIN is rejected
+            can_start, reason = self.booking.check_can_start()
+            self.assertFalse(can_start)
+            self.assertIn('scheduled', reason.lower())
 
-        self.client.login(username="worker_p1", password="Password123!")
-        start_url = reverse('worker_start_job', args=[self.booking.id])
-        resp = self.client.post(start_url, {'arrival_otp': '0000'})
-        self.assertEqual(resp.status_code, 302)
-        self.booking.refresh_from_db()
-        self.assertEqual(self.booking.status, 'ACCEPTED')
+            self.client.login(username="worker_p1", password="Password123!")
+            start_url = reverse('worker_start_job', args=[self.booking.id])
+            resp = self.client.post(start_url, {'arrival_otp': '0000'})
+            self.assertEqual(resp.status_code, 302)
+            self.booking.refresh_from_db()
+            self.assertEqual(self.booking.status, 'ACCEPTED')
 
     def test_emergency_booking_can_start_immediately(self):
         """Emergency bookings can always start immediately regardless of date/time."""

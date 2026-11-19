@@ -1,4 +1,4 @@
-﻿{% extends 'admin/base_admin.html' %}
+{% extends 'admin/base_admin.html' %}
 {% load static %}
 
 
@@ -540,6 +540,10 @@ Monitor customer feedback and complaints.
                         </select>
 
                         {% if complaint.booking and complaint.booking.status == 'DISPUTED' %}
+                            <select name="dispute_action" aria-label="Dispute resolution action" style="font-size:12px;margin:0 4px;">
+                                <option value="COMPLETE">Resolve as Completed</option>
+                                <option value="CANCEL">Resolve as Cancelled</option>
+                            </select>
                             <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;margin:0 8px;">
                                 <input type="checkbox" name="payment_verified" value="1">
                                 Payment received &amp; verified (mark paid)

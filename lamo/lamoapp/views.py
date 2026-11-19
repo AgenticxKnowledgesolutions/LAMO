@@ -12613,33 +12613,37 @@ def dispute_booking(request, booking_id):
         messages.error(request, 'Only customers can dispute a booking.')
         return redirect('dashboard')
 
-    booking = get_object_or_404(
-        Booking.objects.select_related('customer', 'worker__user', 'service'),
-        id=booking_id,
-        customer=request.user
-    )
-
-    if booking.status != 'COMPLETION_REQUESTED':
-        messages.error(request, 'Disputes can only be raised when completion is requested.')
-        return redirect('my_bookings')
-
     dispute_reason = request.POST.get('dispute_reason', '').strip()
     if not dispute_reason:
         messages.error(request, 'Please provide a reason for disputing this booking.')
         return redirect('my_bookings')
 
-    booking.status = 'DISPUTED'
-    booking.dispute_reason = dispute_reason
-    booking.save(update_fields=['status', 'dispute_reason', 'updated_at'])
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().select_related(
+            'customer', 'worker__user', 'service'
+        ).filter(id=booking_id, customer=request.user).first()
 
-    # Create high-severity complaint for admin investigation
-    _get_or_create_complaint(
-        booking=booking,
-        customer=request.user,
-        subject=f"Dispute on Booking #{booking.id}: {booking.service.name}",
-        description=f"Customer disputed completion. Reason: {dispute_reason}",
-        severity='HIGH'
-    )
+        if not booking:
+            messages.error(request, 'Booking not found.')
+            return redirect('my_bookings')
+
+        # Row-locked check: dispute cannot overwrite a COMPLETED or CANCELLED booking
+        if booking.status != 'COMPLETION_REQUESTED':
+            messages.error(request, 'Disputes can only be raised when completion is requested.')
+            return redirect('my_bookings')
+
+        booking.status = 'DISPUTED'
+        booking.dispute_reason = dispute_reason
+        booking.save(update_fields=['status', 'dispute_reason', 'updated_at'])
+
+        # Create high-severity complaint for admin investigation
+        _get_or_create_complaint(
+            booking=booking,
+            customer=request.user,
+            subject=f"Dispute on Booking #{booking.id}: {booking.service.name}",
+            description=f"Customer disputed completion. Reason: {dispute_reason}",
+            severity='HIGH'
+        )
 
     if booking.worker and booking.worker.user:
         Notification.objects.create(
@@ -12753,7 +12757,8 @@ def worker_start_job(request, booking_id):
     booking.status = 'IN_PROGRESS'
     if not booking.arrival_verified_at:
         booking.arrival_verified_at = timezone.now()
-    booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
+    booking.arrival_otp = None
+    booking.save(update_fields=['status', 'arrival_verified_at', 'arrival_otp', 'updated_at'])
 
     # Notify customer that job has started
     Notification.objects.create(
@@ -12857,7 +12862,8 @@ def verify_doorstep_qr(request, token):
             # Transition booking to IN_PROGRESS
             booking.status = 'IN_PROGRESS'
             booking.arrival_verified_at = timezone.now()
-            booking.save(update_fields=['status', 'arrival_verified_at', 'updated_at'])
+            booking.arrival_otp = None
+            booking.save(update_fields=['status', 'arrival_verified_at', 'arrival_otp', 'updated_at'])
 
         # Create notifications
         worker_user = booking.worker.user if booking.worker else None
@@ -14451,43 +14457,41 @@ def update_complaint_status(request, complaint_id):
                         if pm_error:
                             messages.error(request, pm_error)
                             return redirect('admin_reviews_complaints')
-            complaint.status = status
-            complaint.admin_remark = admin_remark
-            complaint.save(update_fields=['status', 'admin_remark'])
+            with transaction.atomic():
+                complaint = Complaint.objects.select_for_update().get(id=complaint_id)
+                complaint.status = status
+                complaint.admin_remark = admin_remark
 
-            # Automatically resolve linked DISPUTED booking if complaint is resolved
-            booking = complaint.booking
-            if booking and booking.status == 'DISPUTED' and status == 'RESOLVED':
-                dispute_action = request.POST.get('dispute_action', '').strip().upper()
-                adjusted_amount_str = request.POST.get('adjusted_amount', '').strip()
+                # Automatically resolve linked DISPUTED booking atomically if complaint is resolved
+                booking = complaint.booking
+                if booking and booking.status == 'DISPUTED' and status == 'RESOLVED':
+                    locked_booking = Booking.objects.select_for_update().get(pk=booking.pk)
+                    dispute_action = request.POST.get('dispute_action', '').strip().upper()
 
-                is_cancel = (dispute_action == 'CANCEL') or (
-                    not dispute_action and admin_remark and admin_remark.strip().lower().startswith(('cancel', 'refund'))
-                )
+                    # Require explicit dispute_action, with fallback for backward compatibility
+                    if dispute_action:
+                        is_cancel = (dispute_action == 'CANCEL')
+                    else:
+                        is_cancel = bool(admin_remark and admin_remark.strip().lower().startswith(('cancel', 'refund')))
 
-                if is_cancel:
-                    booking.status = 'CANCELLED'
-                    booking.cancellation_reason = f"Dispute resolved by admin: {admin_remark}"
-                    booking.cancelled_by = 'ADMIN'
-                    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
-                    # Disputes follow completed work: commission is kept unless
-                    # the admin explicitly returns it.
-                    _handle_booking_cancellation_refund(
-                        booking,
-                        commission_refund=request.POST.get('refund_commission') in ('1', 'on', 'true'),
-                        refund_reason='Admin dispute resolution',
-                    )
-                else:
-                    # Completing a dispute is NOT a payment confirmation. The
-                    # booking becomes COMPLETED, but is marked paid only when the
-                    # admin explicitly states that the payment was received and
-                    # verified; that goes through the same settlement service as
-                    # a normal completion (single Payment row, no duplicate
-                    # commission). Row-locked and re-checked, so resolving the
-                    # same dispute twice does nothing the second time.
-                    with transaction.atomic():
-                        locked_booking = Booking.objects.select_for_update().get(pk=booking.pk)
-                        if locked_booking.status == 'DISPUTED':
+                    if locked_booking.status == 'DISPUTED':
+                        if is_cancel:
+                            locked_booking.status = 'CANCELLED'
+                            locked_booking.cancellation_reason = f"Dispute resolved by admin: {admin_remark}"
+                            locked_booking.cancelled_by = 'ADMIN'
+                            locked_booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'updated_at'])
+                            # Disputes follow completed work: commission is kept unless
+                            # the admin explicitly returns it.
+                            _handle_booking_cancellation_refund(
+                                locked_booking,
+                                commission_refund=request.POST.get('refund_commission') in ('1', 'on', 'true'),
+                                refund_reason='Admin dispute resolution',
+                            )
+                            complaint.admin_remark = (
+                                f"{admin_remark}\n[Resolution by admin #{request.user.id}: CANCELLED]"
+                            )[:4000]
+                            booking = locked_booking
+                        else:
                             if pre_adjusted is not None:
                                 locked_booking.final_amount = pre_adjusted
                             locked_booking.status = 'COMPLETED'
@@ -14516,8 +14520,9 @@ def update_complaint_status(request, complaint_id):
                                 f"{('amount set to Rs ' + str(pre_adjusted) + '; ') if pre_adjusted is not None else ''}"
                                 f"{paid_note}]"
                             )[:4000]
-                            complaint.save(update_fields=['admin_remark'])
                             booking = locked_booking
+
+                complaint.save(update_fields=['status', 'admin_remark'])
 
             messages.success(request, f"Complaint #{complaint.id} status updated to {status}.")
 

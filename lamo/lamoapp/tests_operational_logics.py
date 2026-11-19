@@ -55,32 +55,34 @@ class OperationalLogicsTests(TestCase):
 
     def test_early_arrival_with_arrival_pin_consent(self):
         """Worker can start early (>30 min before schedule) IF valid arrival PIN is supplied."""
-        now = timezone.localtime()
-        # Schedule for 2 hours in the future today
-        future_time = (now + timedelta(hours=2)).time()
-        booking = Booking.objects.create(
-            customer=self.user,
-            worker=self.worker,
-            service=self.service,
-            date=now.date(),
-            time=f"{future_time.strftime('%I:%M %p')}",
-            start_time=future_time,
-            status='ACCEPTED',
-            arrival_otp='4321'
-        )
+        from unittest.mock import patch
+        fixed_now = timezone.datetime(2026, 10, 17, 10, 0, tzinfo=timezone.get_current_timezone())
+        with patch('django.utils.timezone.localtime', return_value=fixed_now):
+            # Schedule for 2 hours in the future today (12:00 PM)
+            future_time = (fixed_now + timedelta(hours=2)).time()
+            booking = Booking.objects.create(
+                customer=self.user,
+                worker=self.worker,
+                service=self.service,
+                date=fixed_now.date(),
+                time=f"{future_time.strftime('%I:%M %p')}",
+                start_time=future_time,
+                status='ACCEPTED',
+                arrival_otp='4321'
+            )
 
-        # Without PIN -> blocked (>30 mins early)
-        can_start, reason = booking.check_can_start(arrival_otp='')
-        self.assertFalse(can_start)
-        self.assertIn('You can start up to 30 minutes early', reason)
+            # Without PIN -> blocked (>30 mins early)
+            can_start, reason = booking.check_can_start(arrival_otp='')
+            self.assertFalse(can_start)
+            self.assertIn('You can start up to 30 minutes early', reason)
 
-        # With wrong PIN -> blocked
-        can_start_wrong, _ = booking.check_can_start(arrival_otp='9999')
-        self.assertFalse(can_start_wrong)
+            # With wrong PIN -> blocked
+            can_start_wrong, _ = booking.check_can_start(arrival_otp='9999')
+            self.assertFalse(can_start_wrong)
 
-        # With correct PIN -> allowed! (Customer consent verified at doorstep)
-        can_start_ok, _ = booking.check_can_start(arrival_otp='4321')
-        self.assertTrue(can_start_ok)
+            # With correct PIN -> allowed! (Customer consent verified at doorstep)
+            can_start_ok, _ = booking.check_can_start(arrival_otp='4321')
+            self.assertTrue(can_start_ok)
 
     def test_kerala_taluk_district_fallback(self):
         """Locations within Kerala district coordinates correctly resolve even if OSM doesn't return district name."""
