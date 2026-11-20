@@ -48,6 +48,8 @@ logs/
 /lamo/lamo_project
 .pre_fix_backups/
 fetched.html
+*backup*.json
+lamo/*backup*.json
 _d.txt
 
 # Scratch / debug artifacts created during development and the
