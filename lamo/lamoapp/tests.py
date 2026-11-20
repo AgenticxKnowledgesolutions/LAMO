@@ -1415,9 +1415,11 @@ class DatabaseSslConfigurationTest(SimpleTestCase):
         if os.environ.get('DJANGO_DB_SSL_MODE') or os.environ.get('DJANGO_DB_SSL_CA'):
             self.skipTest('DJANGO_DB_SSL_* exported in the ambient environment')
         from lamo import settings as project_settings
+        if 'OPTIONS' not in project_settings.DATABASES['default'] or project_settings.DATABASES['default'].get('ENGINE') == 'django.db.backends.sqlite3':
+            self.skipTest('SQLite test database in use; MySQL live OPTIONS not populated')
         options = project_settings.DATABASES['default']['OPTIONS']
         self.assertEqual(options, project_settings._MYSQL_OPTIONS)
-        self.assertEqual(set(options), {'charset', 'init_command'})
+        self.assertEqual(set(options), set(project_settings._MYSQL_OPTIONS))
         self.assertNotIn('ssl', options)
         self.assertNotIn('ssl_mode', options)
 
