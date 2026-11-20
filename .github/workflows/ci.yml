@@ -49,6 +49,16 @@ jobs:
           set -o pipefail
           python manage.py test --settings=lamo.settings_test --verbosity 1 2>&1 | tee test_run.log
 
+      - name: Print and display failure summary
+        if: failure()
+        run: |
+          echo "### Test Suite Failure Traceback" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 150 lamo/test_run.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "=== FAILURE LOG TAIL ==="
+          tail -n 150 lamo/test_run.log
+
       - name: Upload test log on failure
         if: failure()
         uses: actions/upload-artifact@v4
