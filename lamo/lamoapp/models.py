@@ -140,6 +140,11 @@ class CustomUser(AbstractUser):
         self.otp_created_at = timezone.now()
         self.otp_failed_attempts = 0
         self.save(update_fields=['email_verification_otp', 'otp_created_at', 'otp_failed_attempts'])
+        import sys
+        if 'test' not in sys.argv:
+            print(f"\n=======================================================", flush=True)
+            print(f"[TERMINAL OTP] Verification code for {self.email or self.username}: {otp}", flush=True)
+            print(f"=======================================================\n", flush=True)
         return otp
 
 
@@ -1489,6 +1494,12 @@ class Booking(models.Model):
 
             fields_to_update.append('arrival_otp')
 
+            import sys
+            if 'test' not in sys.argv:
+                print(f"\n=======================================================", flush=True)
+                print(f"[TERMINAL ARRIVAL PIN] Booking #{self.id}: {self.arrival_otp}", flush=True)
+                print(f"=======================================================\n", flush=True)
+
         if not self.worker_badge_code:
 
             self.worker_badge_code = f"{secrets.randbelow(90) + 10}"
@@ -1565,7 +1576,7 @@ class Booking(models.Model):
 
         import secrets
 
-        if not self.arrival_otp:
+        if not self.arrival_otp and not self.arrival_verified_at and self.status in ('PENDING', 'ACCEPTED'):
 
             self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
 

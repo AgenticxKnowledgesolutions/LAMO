@@ -186,7 +186,7 @@ for _default_render_host in ('.onrender.com', 'lamo-39by.onrender.com'):
 
 if DEBUG:
     # Allow all local Wi-Fi devices (phones, laptops) and testserver in development
-    for _dev_host in ('*', '192.168.220.41', '192.168.68.51', 'testserver'):
+    for _dev_host in ('192.168.220.36', '*', '192.168.220.41', '192.168.68.51', 'testserver'):
         if _dev_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_dev_host)
 

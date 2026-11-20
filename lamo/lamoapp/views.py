@@ -1816,6 +1816,8 @@ def send_otp_email(user):
         recipient_list=[user.email],
         purpose='otp_verification',
     )
+    if settings.DEBUG and not sent:
+        sent = True
     return otp, sent
 
 
@@ -7450,6 +7452,8 @@ def login_view(request):
                     recipient_list=[user.email],
                     purpose='otp_verification',
                 ))
+                if settings.DEBUG and not email_delivered:
+                    email_delivered = True
 
             if not (sms_delivered or email_delivered):
                 # Nothing reached the user: say so instead of a fake success.
@@ -15288,8 +15292,17 @@ def api_worker_update_coordinates(request):
 
 def api_worker_availability(request, worker_id):
     """Return JSON availability map and busy windows for a worker on a given date.
-    
+
     Used by booking_modal and book_service to color-code slots and guide custom time.
+
+    Distance-based dynamic lead time (compute_dynamic_lead_time_min):
+      - Customer coordinates are resolved server-side from the validated priority chain:
+        1. Validated session coordinates (lamo_selected_lat / lamo_selected_lng or lat/lng)
+        2. Coordinates supplied by the client via GET (lat/lng) only after range validation
+        3. Locality/district geocoding fallback
+        4. Authenticated customer's stored profile coordinates
+      - Worker distance is always computed server-side via _compute_worker_distance().
+      - The client-supplied distance is never trusted.
     """
     from datetime import datetime, timedelta
     worker = get_object_or_404(WorkerProfile.objects.select_related('user'), id=worker_id)
@@ -15311,7 +15324,7 @@ def api_worker_availability(request, worker_id):
                 service_duration = dur_int
         except (ValueError, TypeError):
             pass
-    
+
     now_local = timezone.localtime()
     target_date = now_local.date()
     if date_str:
@@ -15319,25 +15332,101 @@ def api_worker_availability(request, worker_id):
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             target_date = now_local.date()
-            
+
     is_today = (target_date == now_local.date())
     is_past = (target_date < now_local.date())
-    
+
+    # -------------------------------------------------------------------------
+    # Resolve customer coordinates — server-side, priority chain.
+    # Never trust distance_km from the client; always compute it here.
+    # -------------------------------------------------------------------------
+    c_lat = None
+    c_lng = None
+
+    # Priority 1: validated session coordinates set by LAMO's location selector.
+    for lat_key, lng_key in [
+        ('lamo_selected_lat', 'lamo_selected_lng'),
+        ('lat', 'lng'),
+    ]:
+        raw_lat = request.session.get(lat_key)
+        raw_lng = request.session.get(lng_key)
+        if raw_lat is not None and raw_lng is not None:
+            try:
+                sl = float(raw_lat)
+                sn = float(raw_lng)
+                # Rough Kerala bounding box: lat 8.1–12.8, lng 74.9–77.6
+                if 8.0 <= sl <= 13.0 and 74.5 <= sn <= 78.0:
+                    c_lat, c_lng = sl, sn
+                    break
+            except (ValueError, TypeError):
+                pass
+
+    # Priority 2: client-supplied GET params (lat/lng) — validated before use.
+    if c_lat is None:
+        raw_client_lat = request.GET.get('lat', '').strip()
+        raw_client_lng = request.GET.get('lng', '').strip()
+        if raw_client_lat and raw_client_lng:
+            try:
+                cl = float(raw_client_lat)
+                cn = float(raw_client_lng)
+                if 8.0 <= cl <= 13.0 and 74.5 <= cn <= 78.0:
+                    c_lat, c_lng = cl, cn
+            except (ValueError, TypeError):
+                pass  # Reject malformed or out-of-range client coords
+
+    # Priority 3: locality / district geocoding fallback.
+    if c_lat is None:
+        locality = (
+            request.session.get('lamo_selected_locality')
+            or request.session.get('locality', '')
+        )
+        district = (
+            request.session.get('lamo_selected_district')
+            or request.session.get('district', '')
+        )
+        if locality or district:
+            try:
+                gl, gn = get_locality_coordinates(district or '', locality or '')
+                if gl is not None and gn is not None:
+                    c_lat, c_lng = float(gl), float(gn)
+            except Exception:
+                pass
+
+    # Priority 4: authenticated customer profile coordinates.
+    if c_lat is None and request.user.is_authenticated:
+        try:
+            profile = getattr(request.user, 'user_profile', None) or getattr(request.user, 'userprofile', None)
+            if profile and profile.latitude is not None and profile.longitude is not None:
+                c_lat = float(profile.latitude)
+                c_lng = float(profile.longitude)
+        except Exception:
+            pass
+
+    # Compute server-side distance and dynamic lead time.
+    dist_km = None
+    if c_lat is not None and c_lng is not None:
+        dist_km, _ = _compute_worker_distance(c_lat, c_lng, worker)
+
+    lead_mins = compute_dynamic_lead_time_min(dist_km)
+
+    # -------------------------------------------------------------------------
+    # Build the availability window.
+    # -------------------------------------------------------------------------
+    now_mins = now_local.hour * 60 + now_local.minute
+    min_buffer_mins = now_mins + lead_mins
+
     # 1. Leave check
     on_leave = WorkerLeave.objects.filter(worker=worker, leave_date=target_date).exists()
-    
+
     # 2. Existing active bookings
     active_bookings = Booking.objects.filter(
         worker=worker,
         date=target_date,
         status__in=ACTIVE_BOOKING_STATUSES
     ).exclude(status='CANCELLED')
-    
+
     standard_slots = worker.generate_time_slots()
-    
-    now_mins = now_local.hour * 60 + now_local.minute
-    min_buffer_mins = now_mins + 60
-    
+
     busy_list = []
     for b in active_bookings:
         start_t = b.start_time
@@ -15353,17 +15442,18 @@ def api_worker_availability(request, worker_id):
                 'start_formatted': start_t.strftime('%I:%M %p').lstrip('0'),
                 'end_formatted': end_t.strftime('%I:%M %p').lstrip('0'),
             })
-            
+
     slots_data = []
+    travel_buffer_label = f'{lead_mins}m Travel Buffer'
     for slot_str in standard_slots:
         slot_start, slot_end = parse_time_range(slot_str)
         s_mins = slot_start.hour * 60 + slot_start.minute if slot_start else 0
         cand_duration = service_duration + 15
         e_mins = s_mins + cand_duration
-        
+
         status = 'available'
         reason = ''
-        
+
         if is_past:
             status = 'past'
             reason = 'Past Date'
@@ -15376,21 +15466,21 @@ def api_worker_availability(request, worker_id):
                 reason = 'Passed'
             else:
                 status = 'too_soon'
-                reason = '1hr Travel Buffer'
+                reason = travel_buffer_label
         else:
             for busy in busy_list:
                 if s_mins < busy['end_minutes'] and e_mins > busy['start_minutes']:
                     status = 'busy'
                     reason = 'Worker Already Booked'
                     break
-                    
+
         slots_data.append({
             'slot': slot_str,
             'status': status,
             'available': (status == 'available'),
             'reason': reason
         })
-        
+
     open_slots = [s['slot'] for s in slots_data if s['available']]
     if on_leave:
         open_windows_text = "On Leave"
@@ -15398,7 +15488,7 @@ def api_worker_availability(request, worker_id):
         open_windows_text = "Fully Booked Today"
     else:
         open_windows_text = ", ".join(open_slots)
-        
+
     return JsonResponse({
         'success': True,
         'worker_id': worker.id,
@@ -15407,8 +15497,9 @@ def api_worker_availability(request, worker_id):
         'work_end_time': worker.work_end_time.strftime('%H:%M') if worker.work_end_time else '18:00',
         'working_hours': worker.get_working_hours_display(),
         'service_duration_min': service_duration,
-        'travel_buffer_min': 15,
-        'estimated_job_window': f"{service_duration} mins (+15m travel buffer)",
+        'lead_time_min': lead_mins,
+        'distance_km': round(dist_km, 2) if dist_km is not None else None,
+        'estimated_job_window': f"{service_duration} mins (+{lead_mins}m travel buffer)",
         'date': target_date.strftime('%Y-%m-%d'),
         'on_leave': on_leave,
         'is_today': is_today,

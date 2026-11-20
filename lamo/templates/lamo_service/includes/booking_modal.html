@@ -3174,6 +3174,9 @@ function parseTimeToMinutes(timeStr) {
     return hours * 60 + minutes;
 }
 
+// Sequence counter: prevents an older slow response from overwriting a newer one.
+let _modalAvailabilitySeq = 0;
+
 function updateModalTimeSlotAvailability() {
     const bookingDateInput = document.getElementById('modalBookingDate');
     const timeSlotSelect = document.getElementById('modalTimeSlot');
@@ -3187,35 +3190,48 @@ function updateModalTimeSlotAvailability() {
     const dateVal = (bookingDateInput && bookingDateInput.value) ? bookingDateInput.value : todayStr;
     const isToday = (dateVal === todayStr);
     const nowMinutes = today.getHours() * 60 + today.getMinutes();
-    const minBufferMinutes = nowMinutes + 60;
 
+    // Optimistic placeholder: mark past slots immediately; server response will
+    // apply the real dynamic lead time once it arrives.
     Array.from(timeSlotSelect.options).forEach(function(opt) {
         if (!opt.value) return;
         const parts = opt.value.split(/\s*-\s*/);
         const startMinutes = parseTimeToMinutes(parts[0]);
-        if (isToday && startMinutes !== null && startMinutes < minBufferMinutes) {
+        if (isToday && startMinutes !== null && startMinutes <= nowMinutes) {
             opt.disabled = true;
-            if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
-                if (startMinutes <= nowMinutes) {
-                    opt.text = opt.value + ' (Passed)';
-                } else {
-                    opt.text = opt.value + ' (Unavailable - 1hr Travel Notice)';
-                }
+            if (!opt.text.includes('(Passed)')) {
+                opt.text = opt.value + ' (Passed)';
             }
         } else {
             opt.disabled = false;
-            opt.text = opt.value;
+            // Restore plain slot text; server response will re-label unavailable ones.
+            if (!opt.text.includes('(Available') && !opt.text.includes('(Worker')) {
+                opt.text = opt.value;
+            }
         }
     });
 
-    // Fetch Live Worker Availability (Option 1: Duration + Buffer)
+    // Fetch Live Worker Availability — includes validated customer coordinates so
+    // the server can compute the real dynamic lead time.
     const workerId = workerIdInput ? workerIdInput.value : '';
     const serviceIdVal = (document.getElementById('modalServiceId') || {}).value || '';
     const durVal = (document.getElementById('modalDurationMinInput') || {}).value || '';
+
+    // Read the validated hidden coordinate inputs set by the existing location selector.
+    const latEl = document.getElementById('modalLatitudeInput');
+    const lngEl = document.getElementById('modalLongitudeInput');
+    const latVal = (latEl && latEl.value) ? encodeURIComponent(latEl.value) : '';
+    const lngVal = (lngEl && lngEl.value) ? encodeURIComponent(lngEl.value) : '';
+    const coordParams = (latVal && lngVal) ? `&lat=${latVal}&lng=${lngVal}` : '';
+
+    const mySeq = ++_modalAvailabilitySeq;
+
     if (workerId && dateVal) {
-        fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}&duration_min=${durVal}`)
+        fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}&duration_min=${durVal}${coordParams}`)
             .then(res => res.json())
             .then(data => {
+                // Discard stale responses superseded by a newer call.
+                if (mySeq !== _modalAvailabilitySeq) return;
                 if (data.success) {
                     const noticeEl = document.getElementById('modalWorkerAvailabilityNotice');
                     if (noticeEl) {

@@ -121,6 +121,10 @@ document.addEventListener("DOMContentLoaded", function () {
         lngInput.value = latlng.lng.toFixed(6);
         reverseGeocodeModal(latlng.lat, latlng.lng);
         validateDistrict(latlng.lat, latlng.lng);
+        // Recalculate available time slots with the updated customer location.
+        if (typeof updateModalTimeSlotAvailability === 'function') {
+            updateModalTimeSlotAvailability();
+        }
     });
 
     map.on("click", function (e) {
@@ -129,6 +133,10 @@ document.addEventListener("DOMContentLoaded", function () {
         lngInput.value = e.latlng.lng.toFixed(6);
         reverseGeocodeModal(e.latlng.lat, e.latlng.lng);
         validateDistrict(e.latlng.lat, e.latlng.lng);
+        // Recalculate available time slots with the updated customer location.
+        if (typeof updateModalTimeSlotAvailability === 'function') {
+            updateModalTimeSlotAvailability();
+        }
     });
 
     function reverseGeocodeModal(lat, lng) {
@@ -156,6 +164,10 @@ document.addEventListener("DOMContentLoaded", function () {
                         lngInput.value = lng.toFixed(6);
                         reverseGeocodeModal(lat, lng);
                         validateDistrict(lat, lng);
+                        // Recalculate available time slots with the new GPS location.
+                        if (typeof updateModalTimeSlotAvailability === 'function') {
+                            updateModalTimeSlotAvailability();
+                        }
                     },
                     function (error) {
                         alert("Unable to get your location. Please ensure location permission is granted.");

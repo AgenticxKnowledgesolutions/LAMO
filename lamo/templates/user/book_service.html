@@ -333,6 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const dateInput = document.getElementById('id_date');
+    let _bookServiceAvailabilitySeq = 0;
+
     function updateBookServiceTimeSlots() {
         if (!timeSlot) return;
         const now = new Date();
@@ -359,23 +361,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return h * 60 + mins;
         }
 
-        const minBufferMinutes = nowMinutes + 60;
+        // Optimistic placeholder: only mark already-passed slots; server response
+        // will apply the real dynamic lead time once it arrives.
         Array.from(timeSlot.options).forEach(function(opt) {
             if (!opt.value) return;
             const startPart = opt.value.split(/\s*-\s*/)[0];
             const startM = parseToMinutes(startPart);
-            if (isToday && startM !== null && startM < minBufferMinutes) {
+            if (isToday && startM !== null && startM <= nowMinutes) {
                 opt.disabled = true;
-                if (!opt.text.includes('(Passed)') && !opt.text.includes('(Unavailable)')) {
-                    if (startM <= nowMinutes) {
-                        opt.text = opt.value + ' (Passed)';
-                    } else {
-                        opt.text = opt.value + ' (Unavailable - 1hr Travel Notice)';
-                    }
+                if (!opt.text.includes('(Passed)')) {
+                    opt.text = opt.value + ' (Passed)';
                 }
             } else {
                 opt.disabled = false;
-                opt.text = opt.value;
+                if (!opt.text.includes('(Available') && !opt.text.includes('(Worker')) {
+                    opt.text = opt.value;
+                }
             }
         });
         if (timeSlot.selectedOptions.length && timeSlot.selectedOptions[0].disabled) {
@@ -383,15 +384,28 @@ document.addEventListener('DOMContentLoaded', function() {
             if (timeHidden) timeHidden.value = '';
         }
 
-        // Live Worker Availability (Option 1: Duration + Buffer)
+        // Live Worker Availability — passes validated customer coordinates so the
+        // server can compute the real dynamic lead time via compute_dynamic_lead_time_min().
         {% if worker %}
         const workerId = "{{ worker.id }}";
         const dateVal = dateInput ? dateInput.value : '';
         const serviceIdVal = "{{ service.id }}";
+
+        // Read the existing hidden coordinate inputs set by the Leaflet map / location selector.
+        const latInput = document.getElementById('id_latitude');
+        const lngInput = document.getElementById('id_longitude');
+        const latVal = (latInput && latInput.value) ? encodeURIComponent(latInput.value) : '';
+        const lngVal = (lngInput && lngInput.value) ? encodeURIComponent(lngInput.value) : '';
+        const coordParams = (latVal && lngVal) ? `&lat=${latVal}&lng=${lngVal}` : '';
+
+        const mySeq = ++_bookServiceAvailabilitySeq;
+
         if (workerId && dateVal) {
-            fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}`)
+            fetch(`/api/worker/${workerId}/availability/?date=${dateVal}&service_id=${serviceIdVal}${coordParams}`)
                 .then(res => res.json())
                 .then(data => {
+                    // Discard stale responses superseded by a newer call.
+                    if (mySeq !== _bookServiceAvailabilitySeq) return;
                     if (data.success) {
                         const noticeEl = document.getElementById('bookServiceWorkerNotice');
                         if (noticeEl) {
@@ -527,6 +541,8 @@ document.addEventListener('DOMContentLoaded', function() {
             lngInput.value = latlng.lng.toFixed(6);
             reverseGeocode(latlng.lat, latlng.lng);
             validateDistrict(latlng.lat, latlng.lng);
+            // Refresh available time slots for the new location distance.
+            updateBookServiceTimeSlots();
         });
 
         map.on('click', function(e) {
@@ -535,6 +551,8 @@ document.addEventListener('DOMContentLoaded', function() {
             lngInput.value = e.latlng.lng.toFixed(6);
             reverseGeocode(e.latlng.lat, e.latlng.lng);
             validateDistrict(e.latlng.lat, e.latlng.lng);
+            // Refresh available time slots for the new location distance.
+            updateBookServiceTimeSlots();
         });
 
         const currentLocationBtn = document.getElementById('bookingGetCurrentLocationBtn');
@@ -557,6 +575,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         reverseGeocode(lat, lng);
                         validateDistrict(lat, lng);
+                        // Refresh available time slots for the GPS-confirmed location.
+                        updateBookServiceTimeSlots();
                     },
                     function () {
                         alert('Unable to get your location. Please ensure location permission is granted.');
