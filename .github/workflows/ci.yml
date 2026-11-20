@@ -45,4 +45,13 @@ jobs:
         working-directory: lamo
         env:
           DJANGO_SECRET_KEY: ci-only-not-a-real-secret
-        run: python manage.py test --settings=lamo.settings_test --verbosity 2
+        run: |
+          set -o pipefail
+          python manage.py test --settings=lamo.settings_test --verbosity 1 2>&1 | tee test_run.log
+
+      - name: Upload test log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-run-log
+          path: lamo/test_run.log
