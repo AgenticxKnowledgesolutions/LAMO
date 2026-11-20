@@ -1578,7 +1578,7 @@ class Booking(models.Model):
 
         import secrets
 
-        if not self.arrival_otp and not self.arrival_verified_at and self.status in ('PENDING', 'ACCEPTED'):
+        if not self.arrival_otp and not self.arrival_verified_at and self.status == 'ACCEPTED':
 
             self.arrival_otp = f"{secrets.randbelow(9000) + 1000}"
 

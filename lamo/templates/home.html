@@ -4,7 +4,7 @@
 
 {% block title %}Our Services, Your Experts | LAMO{% endblock %}
 
-{% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, 4-digit arrival OTP security, and instant booking.{% endblock %}
+{% block meta_description %}LAMO connects you with verified professional service workers across Kerala. Browse services in your district with transparent pricing, verified doorstep QR security, and instant booking.{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/home.js' %}?v=2.7_sleek_search" defer></script>
@@ -56,7 +56,7 @@
                 </div>
                 <div class="mobile-badge-text">
                   <span class="mobile-badge-title">Local Experts</span>
-                  <span class="mobile-badge-sub">PIN-Secured Doorstep Assistance</span>
+                  <span class="mobile-badge-sub">QR-Verified Doorstep Assistance</span>
                 </div>
               </div>
             </div>
@@ -215,15 +215,8 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-      {% if active_booking.arrival_otp and active_booking.status == 'ACCEPTED' %}
-      <div style="background: rgba(255,255,255,0.12); border: 1px dashed rgba(255,255,255,0.3); border-radius: 10px; padding: 6px 14px; text-align: center;">
-        <span style="font-size: 10.5px; color: #a7f3d0; display: block; font-weight: 600;">Doorstep Security PIN</span>
-        <strong style="font-size: 17px; letter-spacing: 2px; color: #ffffff;">{{ active_booking.arrival_otp }}</strong>
-      </div>
-      {% endif %}
-
       <a href="{% url 'my_bookings' %}?booking_id={{ active_booking.id }}" style="padding: 10px 20px; border-radius: 10px; background: #34d399; color: #022c1e; font-weight: 800; font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.2);">
-        Track &amp; PIN <i class="bi bi-arrow-right"></i>
+        Track Booking <i class="bi bi-arrow-right"></i>
       </a>
     </div>
   </div>
@@ -873,7 +866,7 @@
               <i class="bi bi-check-circle-fill" style="color: #34d399;"></i> 0% Commission Launch Offer
             </div>
             <div style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: #ffffff;">
-              <i class="bi bi-check-circle-fill" style="color: #34d399;"></i> 4-Digit Arrival PIN Protection
+              <i class="bi bi-check-circle-fill" style="color: #34d399;"></i> Verified Doorstep QR Protection
             </div>
             <div style="display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: #ffffff;">
               <i class="bi bi-check-circle-fill" style="color: #34d399;"></i> Work in Your Own District
@@ -939,10 +932,10 @@
     },
     {
       "@type": "Question",
-      "name": "How does the 4-digit arrival OTP work?",
+      "name": "How does doorstep arrival verification work?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "When your booking is confirmed, a confidential 4-digit OTP is generated in your dashboard. When the worker arrives on site, they enter this secret code to officially begin the job."
+        "text": "When your service technician arrives on site, they present their official verification QR code for you to scan and confirm, ensuring a secure and verified handshake before work begins."
       }
     },
     {

@@ -225,7 +225,7 @@ class BookingModalWizardTests(TestCase):
         self.assertEqual(booking.customer, guest_user)
         self.assertEqual(booking.worker, self.worker)
         self.assertEqual(booking.status, "PENDING")
-        self.assertTrue(booking.arrival_otp)
+        self.assertFalse(booking.arrival_otp)
 
     @patch("lamoapp.views.send_email_safely")
     def test_existing_user_unified_flow_logs_in_without_duplicate_row(self, mock_send_email):

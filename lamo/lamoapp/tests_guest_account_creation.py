@@ -191,7 +191,7 @@ class GuestAccountCreationFlowTests(TestCase):
         self.assertEqual(booking.service, self.service)
         self.assertEqual(booking.phone, "9847112233")
         self.assertEqual(booking.location, "Beach Road, Kollam")
-        self.assertTrue(booking.arrival_otp)  # Arrival OTP generated
+        self.assertFalse(booking.arrival_otp)  # Arrival OTP is not generated at booking time
 
         # Session pending data cleared
         self.assertNotIn("pending_booking_data", self.client.session)

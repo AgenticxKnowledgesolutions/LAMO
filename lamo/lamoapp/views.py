@@ -3714,7 +3714,6 @@ def _create_booking_from_pending(request, user, pending_data):
                     series=series,
                     payment_method=payment_method,
                 )
-                b.generate_arrival_otp()
                 created_bookings.append(b)
 
             if created_bookings:
@@ -3821,7 +3820,6 @@ def _create_booking_from_pending(request, user, pending_data):
                 status='PENDING',
                 payment_method=payment_method,
             )
-            booking.generate_arrival_otp()
 
             Notification.objects.create(
                 recipient=worker.user,
@@ -4571,7 +4569,6 @@ def book_service(request):
                 estimated_cost=service.price, status='PENDING',
                 payment_method=payment_method
             )
-            booking.generate_arrival_otp()
 
             Notification.objects.create(
                 recipient=worker.user, booking=booking, notification_type='BOOKING',

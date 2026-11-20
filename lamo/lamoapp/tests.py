@@ -7573,15 +7573,16 @@ class P1BookingLifecycleAndCancellationTests(TestCase):
         self.assertEqual(response.context['prefill_data']['phone'], '9123456789')
 
     def test_arrival_otp_generation_and_start_job_verification(self):
-        # Booking has auto-generated OTP
-        self.assertTrue(bool(self.booking.arrival_otp))
-        self.assertEqual(len(self.booking.arrival_otp), 4)
+        # Booking starts PENDING and has no arrival OTP at booking time
+        self.assertFalse(bool(self.booking.arrival_otp))
 
-        # Transition to ACCEPTED on today's active window
+        # Transition to ACCEPTED generates the arrival OTP
         self.booking.status = 'ACCEPTED'
         self.booking.date = date_type.today()
         self.booking.start_time = (timezone.localtime() - timedelta(minutes=5)).time()
         self.booking.save()
+        self.assertTrue(bool(self.booking.arrival_otp))
+        self.assertEqual(len(self.booking.arrival_otp), 4)
 
         # Worker logs in
         self.client.login(username="worker_p1", password="Password123!")
