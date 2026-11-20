@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import timedelta
-from .test_upload_fixtures import VALID_PDF
+from .upload_test_fixtures import VALID_PDF
 from django.utils import timezone
 from django.test import TestCase, Client, RequestFactory
 from django.urls import reverse

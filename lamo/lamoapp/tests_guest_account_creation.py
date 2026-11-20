@@ -465,7 +465,7 @@ class GuestAccountCreationFlowTests(TestCase):
         self.assertEqual(resp_reg_get.status_code, 200)
 
         from django.core.files.uploadedfile import SimpleUploadedFile
-        from .test_upload_fixtures import VALID_PDF
+        from .upload_test_fixtures import VALID_PDF
         proof_doc = SimpleUploadedFile(
             "id_proof.pdf",
             VALID_PDF,

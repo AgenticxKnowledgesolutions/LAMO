@@ -30,7 +30,7 @@ from lamoapp.models import (
     Booking, BookingSeries, CustomUser, Notification, Payment, Service,
     UserProfile, WalletTransaction, WorkerProfile, WorkerWallet,
 )
-from lamoapp.test_upload_fixtures import VALID_PDF, make_jpeg, make_png, make_webp
+from lamoapp.upload_test_fixtures import VALID_PDF, make_jpeg, make_png, make_webp
 from lamoapp.upload_validation import validate_profile_photo, validate_proof_document
 
 

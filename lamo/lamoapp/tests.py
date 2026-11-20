@@ -5,7 +5,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from .test_upload_fixtures import VALID_PDF, make_jpeg, make_png, make_webp
+from .upload_test_fixtures import VALID_PDF, make_jpeg, make_png, make_webp
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ValidationError as DjangoValidationError
