@@ -8,10 +8,15 @@
 .doorstep-verify-page {
     background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
     min-height: calc(100vh - 120px);
-    padding: 30px 16px 60px;
+    padding: 100px 16px 60px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
+}
+@media (max-width: 768px) {
+    .doorstep-verify-page {
+        padding: 90px 12px 40px;
+    }
 }
 .doorstep-verify-container {
     width: 100%;

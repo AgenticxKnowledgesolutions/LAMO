@@ -140,8 +140,9 @@ class CustomUser(AbstractUser):
         self.otp_created_at = timezone.now()
         self.otp_failed_attempts = 0
         self.save(update_fields=['email_verification_otp', 'otp_created_at', 'otp_failed_attempts'])
-        import sys
-        if 'test' not in sys.argv:
+        import sys, os
+        from django.conf import settings
+        if getattr(settings, 'DEBUG', False) and 'test' not in sys.argv and 'settings_test' not in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
             print(f"\n=======================================================", flush=True)
             print(f"[TERMINAL OTP] Verification code for {self.email or self.username}: {otp}", flush=True)
             print(f"=======================================================\n", flush=True)
@@ -1494,8 +1495,9 @@ class Booking(models.Model):
 
             fields_to_update.append('arrival_otp')
 
-            import sys
-            if 'test' not in sys.argv:
+            import sys, os
+            from django.conf import settings
+            if getattr(settings, 'DEBUG', False) and 'test' not in sys.argv and 'settings_test' not in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
                 print(f"\n=======================================================", flush=True)
                 print(f"[TERMINAL ARRIVAL PIN] Booking #{self.id}: {self.arrival_otp}", flush=True)
                 print(f"=======================================================\n", flush=True)

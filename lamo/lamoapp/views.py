@@ -15460,19 +15460,20 @@ def api_worker_availability(request, worker_id):
         elif on_leave:
             status = 'on_leave'
             reason = 'Worker On Leave'
-        elif is_today and s_mins < min_buffer_mins:
-            if s_mins <= now_mins:
-                status = 'passed'
-                reason = 'Passed'
-            else:
-                status = 'too_soon'
-                reason = travel_buffer_label
+        elif is_today and s_mins <= now_mins:
+            status = 'passed'
+            reason = 'Passed'
         else:
+            is_busy = False
             for busy in busy_list:
                 if s_mins < busy['end_minutes'] and e_mins > busy['start_minutes']:
                     status = 'busy'
                     reason = 'Worker Already Booked'
+                    is_busy = True
                     break
+            if not is_busy and is_today and s_mins < min_buffer_mins:
+                status = 'too_soon'
+                reason = travel_buffer_label
 
         slots_data.append({
             'slot': slot_str,

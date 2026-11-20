@@ -414,10 +414,14 @@ class AvailabilityApiLeadTimeTest(TestCase):
         session['lamo_selected_lat'] = 8.888
         session['lamo_selected_lng'] = 76.600
         session.save()
-        response = self.client.get(self.url, {
-            'date': str(self.today),
-            'service_id': self.service.id,
-        })
+        fake_now = timezone.make_aware(
+            timezone.datetime(self.today.year, self.today.month, self.today.day, 9, 0)
+        )
+        with patch('lamoapp.views.timezone.localtime', return_value=fake_now):
+            response = self.client.get(self.url, {
+                'date': str(self.today),
+                'service_id': self.service.id,
+            })
         data = json.loads(response.content)
         self.assertTrue(data['success'])
         # 2:00 PM slot must be 'busy'
@@ -436,10 +440,14 @@ class AvailabilityApiLeadTimeTest(TestCase):
         session['lamo_selected_lat'] = 8.888
         session['lamo_selected_lng'] = 76.600
         session.save()
-        response = self.client.get(self.url, {
-            'date': str(self.today),
-            'service_id': self.service.id,
-        })
+        fake_now = timezone.make_aware(
+            timezone.datetime(self.today.year, self.today.month, self.today.day, 9, 0)
+        )
+        with patch('lamoapp.views.timezone.localtime', return_value=fake_now):
+            response = self.client.get(self.url, {
+                'date': str(self.today),
+                'service_id': self.service.id,
+            })
         data = json.loads(response.content)
         self.assertTrue(data['success'])
         self.assertIn('lead_time_min', data)
@@ -454,10 +462,14 @@ class AvailabilityApiLeadTimeTest(TestCase):
         session['lamo_selected_lat'] = 8.888
         session['lamo_selected_lng'] = 76.600
         session.save()
-        response = self.client.get(self.url, {
-            'date': str(self.today),
-            'service_id': self.service.id,
-        })
+        fake_now = timezone.make_aware(
+            timezone.datetime(self.today.year, self.today.month, self.today.day, 9, 0)
+        )
+        with patch('lamoapp.views.timezone.localtime', return_value=fake_now):
+            response = self.client.get(self.url, {
+                'date': str(self.today),
+                'service_id': self.service.id,
+            })
         data = json.loads(response.content)
         all_reasons = [s['reason'] for s in data['slots']]
         for reason in all_reasons:
