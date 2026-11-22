@@ -2262,6 +2262,7 @@
     </div>
 </div>
 
+<script src="{% static 'js/jsQR.min.js' %}"></script>
 <script>
 let _doorstepStream = null;
 let _doorstepScanInterval = null;
@@ -2274,13 +2275,40 @@ function triggerNativeCameraCapture() {
 
 function handleDoorstepQrFile(event) {
     const file = event.target.files && event.target.files[0];
-    if (file && _currentFallbackUrl) {
-        const statusMsg = document.getElementById('scannerStatusMessage');
-        if (statusMsg) statusMsg.textContent = "QR photo captured! Verifying arrival...";
-        setTimeout(function() {
-            window.location.href = _currentFallbackUrl;
-        }, 500);
-    }
+    if (!file) return;
+    const statusMsg = document.getElementById('scannerStatusMessage');
+    if (statusMsg) statusMsg.textContent = "Analyzing QR photo...";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                if (window.jsQR) {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code && code.data && (code.data.includes('doorstep-verify') || code.data.startsWith('http'))) {
+                        if (statusMsg) statusMsg.textContent = "QR Verified! Loading...";
+                        window.location.href = code.data;
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("jsQR decode error:", err);
+            }
+            if (_currentFallbackUrl) {
+                if (statusMsg) statusMsg.textContent = "Arrival verified! Loading...";
+                window.location.href = _currentFallbackUrl;
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 async function openDoorstepScanner(fallbackUrl) {
@@ -2296,55 +2324,54 @@ async function openDoorstepScanner(fallbackUrl) {
     if (fallbackBtn) fallbackBtn.href = fallbackUrl;
     modal.style.display = 'flex';
 
-    const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    const isSecureOrLocal = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let streamStarted = false;
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            _doorstepStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } }
+            });
+            if (video) {
+                video.srcObject = _doorstepStream;
+                video.style.display = 'block';
+                await video.play();
+                streamStarted = true;
+            }
+            if (focusBox) focusBox.style.display = 'block';
+            if (httpNotice) httpNotice.style.display = 'none';
+            if (statusMsg) statusMsg.textContent = "Point camera at pro's QR code";
 
-    if (!hasMediaDevices || !isSecureOrLocal) {
-        // Over local Wi-Fi HTTP, browsers restrict live stream getUserMedia
-        if (video) video.style.display = 'none';
-        if (focusBox) focusBox.style.display = 'none';
-        if (httpNotice) httpNotice.style.display = 'block';
-        if (statusMsg) statusMsg.textContent = "Tap 'Snap Photo' or '1-Tap Verify'";
-        return;
+            const scanCanvas = document.createElement('canvas');
+            const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+            _doorstepScanInterval = setInterval(() => {
+                if (!video || video.readyState < 2) return;
+                try {
+                    scanCanvas.width = video.videoWidth;
+                    scanCanvas.height = video.videoHeight;
+                    scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+                    const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                    if (window.jsQR) {
+                        const code = jsQR(imgData.data, imgData.width, imgData.height);
+                        if (code && code.data && (code.data.includes('doorstep-verify') || code.data.startsWith('http'))) {
+                            closeDoorstepScanner();
+                            window.location.href = code.data;
+                            return;
+                        }
+                    }
+                } catch (e) {}
+            }, 250);
+        } catch (err) {
+            console.warn('Live camera stream not permitted:', err);
+        }
     }
 
-    try {
-        if (video) video.style.display = 'block';
-        if (focusBox) focusBox.style.display = 'block';
-        if (httpNotice) httpNotice.style.display = 'none';
-
-        _doorstepStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        });
-        video.srcObject = _doorstepStream;
-        await video.play();
-
-        // Native BarcodeDetector if available in browser
-        if ('BarcodeDetector' in window) {
-            const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
-            _doorstepScanInterval = setInterval(async () => {
-                if (video.readyState >= 2) {
-                    try {
-                        const barcodes = await barcodeDetector.detect(video);
-                        if (barcodes.length > 0) {
-                            const rawValue = barcodes[0].rawValue;
-                            if (rawValue && (rawValue.includes('doorstep-verify') || rawValue.startsWith('http'))) {
-                                closeDoorstepScanner();
-                                window.location.href = rawValue;
-                            }
-                        }
-                    } catch (err) {}
-                }
-            }, 300);
-        } else {
-            if (statusMsg) statusMsg.textContent = "Point at pro's screen or tap buttons below";
-        }
-    } catch (err) {
-        console.warn('Camera scan access error:', err);
+    if (!streamStarted) {
         if (video) video.style.display = 'none';
         if (focusBox) focusBox.style.display = 'none';
         if (httpNotice) httpNotice.style.display = 'block';
-        if (statusMsg) statusMsg.textContent = "Camera restricted. Tap 'Snap Photo' or '1-Tap Verify'";
+        if (statusMsg) statusMsg.textContent = "Opening native camera...";
+        // Prompt phone native camera app immediately
+        setTimeout(triggerNativeCameraCapture, 300);
     }
 }
 
