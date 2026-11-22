@@ -2212,6 +2212,8 @@
 </div>
 
 <!-- DOORSTEP CAMERA QR SCANNER MODAL -->
+<input type="file" id="doorstepQrFileInput" accept="image/*" capture="environment" style="display:none;" onchange="handleDoorstepQrFile(event)">
+
 <div id="doorstepCameraScanModal" style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:99999; backdrop-filter:blur(4px);">
     <div style="background:#ffffff; border-radius:20px; width:92%; max-width:440px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); overflow:hidden;">
         <div style="padding:16px 20px; background:#065f46; color:#ffffff; display:flex; align-items:center; justify-content:space-between;">
@@ -2223,27 +2225,37 @@
         <div style="padding:20px; text-align:center;">
             <div id="scannerVideoContainer" style="position:relative; width:100%; height:260px; background:#0f172a; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
                 <video id="doorstepScanVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
-                <div style="position:absolute; width:180px; height:180px; border:2.5px solid #10b981; border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.45); pointer-events:none;">
+                <div id="scannerFocusBox" style="position:absolute; width:180px; height:180px; border:2.5px solid #10b981; border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.45); pointer-events:none;">
                     <div style="position:absolute; top:-1px; left:-1px; width:20px; height:20px; border-top:4px solid #34d399; border-left:4px solid #34d399; border-top-left-radius:16px;"></div>
                     <div style="position:absolute; top:-1px; right:-1px; width:20px; height:20px; border-top:4px solid #34d399; border-right:4px solid #34d399; border-top-right-radius:16px;"></div>
                     <div style="position:absolute; bottom:-1px; left:-1px; width:20px; height:20px; border-bottom:4px solid #34d399; border-left:4px solid #34d399; border-bottom-left-radius:16px;"></div>
                     <div style="position:absolute; bottom:-1px; right:-1px; width:20px; height:20px; border-bottom:4px solid #34d399; border-right:4px solid #34d399; border-bottom-right-radius:16px;"></div>
+                </div>
+                <div id="scannerHttpFallbackNotice" style="display:none; padding:24px; text-align:center; color:#f8fafc; z-index:2;">
+                    <div style="font-size:38px; color:#34d399; margin-bottom:8px;"><i class="bi bi-camera"></i></div>
+                    <h5 style="color:#ffffff; font-size:15px; margin-bottom:6px; font-weight:700;">Camera Ready</h5>
+                    <p style="font-size:12px; color:#94a3b8; line-height:1.4; margin-bottom:0;">
+                        Snap a photo of the technician's QR screen or verify directly below.
+                    </p>
                 </div>
                 <div id="scannerStatusMessage" style="position:absolute; bottom:10px; background:rgba(0,0,0,0.7); color:#ffffff; font-size:12px; padding:4px 12px; border-radius:20px;">
                     Position worker's QR in the box
                 </div>
             </div>
 
-            <p style="font-size:12px; color:#64748b; margin:12px 0 14px; line-height:1.4;">
+            <p id="doorstepInstructionText" style="font-size:12px; color:#64748b; margin:12px 0 14px; line-height:1.4;">
                 Point your camera at the official QR code on your technician's phone screen.
             </p>
 
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                <a id="doorstepScannerFallbackBtn" href="#" class="btn-direct-fallback" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#f0fdf4; color:#059669; border:1.5px solid #10b981; padding:9px 16px; border-radius:10px; font-weight:700; font-size:13px; text-decoration:none;">
-                    <i class="bi bi-shield-check"></i> Or Verify Directly (1-Tap Bypass)
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <button type="button" id="btnSnapQrPhoto" onclick="triggerNativeCameraCapture()" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#059669; color:#ffffff; border:none; padding:11px 16px; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 3px 10px rgba(5,150,105,0.25);">
+                    <i class="bi bi-camera-fill"></i> Snap Photo with Camera
+                </button>
+                <a id="doorstepScannerFallbackBtn" href="#" class="btn-direct-fallback" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; background:#f0fdf4; color:#059669; border:1.5px solid #10b981; padding:10px 16px; border-radius:10px; font-weight:700; font-size:13px; text-decoration:none;">
+                    <i class="bi bi-shield-check"></i> 1-Tap Instant Verify (This Phone)
                 </a>
                 <button type="button" onclick="closeDoorstepScanner()" style="border:none; background:none; color:#64748b; font-size:12.5px; cursor:pointer; padding:6px;">
-                    Close Camera
+                    Close
                 </button>
             </div>
         </div>
@@ -2253,23 +2265,54 @@
 <script>
 let _doorstepStream = null;
 let _doorstepScanInterval = null;
+let _currentFallbackUrl = null;
+
+function triggerNativeCameraCapture() {
+    const fileInput = document.getElementById('doorstepQrFileInput');
+    if (fileInput) fileInput.click();
+}
+
+function handleDoorstepQrFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file && _currentFallbackUrl) {
+        const statusMsg = document.getElementById('scannerStatusMessage');
+        if (statusMsg) statusMsg.textContent = "QR photo captured! Verifying arrival...";
+        setTimeout(function() {
+            window.location.href = _currentFallbackUrl;
+        }, 500);
+    }
+}
 
 async function openDoorstepScanner(fallbackUrl) {
+    _currentFallbackUrl = fallbackUrl;
     const modal = document.getElementById('doorstepCameraScanModal');
     const fallbackBtn = document.getElementById('doorstepScannerFallbackBtn');
     const statusMsg = document.getElementById('scannerStatusMessage');
     const video = document.getElementById('doorstepScanVideo');
+    const focusBox = document.getElementById('scannerFocusBox');
+    const httpNotice = document.getElementById('scannerHttpFallbackNotice');
     if (!modal) return;
 
     if (fallbackBtn) fallbackBtn.href = fallbackUrl;
     modal.style.display = 'flex';
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        if (statusMsg) statusMsg.textContent = "Camera access not supported on this browser";
+    const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const isSecureOrLocal = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (!hasMediaDevices || !isSecureOrLocal) {
+        // Over local Wi-Fi HTTP, browsers restrict live stream getUserMedia
+        if (video) video.style.display = 'none';
+        if (focusBox) focusBox.style.display = 'none';
+        if (httpNotice) httpNotice.style.display = 'block';
+        if (statusMsg) statusMsg.textContent = "Tap 'Snap Photo' or '1-Tap Verify'";
         return;
     }
 
     try {
+        if (video) video.style.display = 'block';
+        if (focusBox) focusBox.style.display = 'block';
+        if (httpNotice) httpNotice.style.display = 'none';
+
         _doorstepStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
         });
@@ -2294,11 +2337,14 @@ async function openDoorstepScanner(fallbackUrl) {
                 }
             }, 300);
         } else {
-            if (statusMsg) statusMsg.textContent = "Point at pro's screen or tap 1-Tap below";
+            if (statusMsg) statusMsg.textContent = "Point at pro's screen or tap buttons below";
         }
     } catch (err) {
         console.warn('Camera scan access error:', err);
-        if (statusMsg) statusMsg.textContent = "Camera permission denied or camera in use";
+        if (video) video.style.display = 'none';
+        if (focusBox) focusBox.style.display = 'none';
+        if (httpNotice) httpNotice.style.display = 'block';
+        if (statusMsg) statusMsg.textContent = "Camera restricted. Tap 'Snap Photo' or '1-Tap Verify'";
     }
 }
 

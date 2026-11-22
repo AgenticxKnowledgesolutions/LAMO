@@ -15564,7 +15564,7 @@ def api_worker_incoming_job_alert(request):
         return JsonResponse({'success': False, 'message': 'Worker profile not found'}, status=404)
 
     now = timezone.now()
-    cutoff = now - timedelta(minutes=30)
+    cutoff = now - timedelta(hours=24)
 
     incoming = Booking.objects.filter(
         worker=worker,
@@ -15597,7 +15597,7 @@ def api_worker_incoming_job_alert(request):
         estimated_earnings = 500.0
 
     seconds_elapsed = int((now - incoming.created_at).total_seconds()) if incoming.created_at else 0
-    seconds_remaining = max(0, 1800 - seconds_elapsed)
+    seconds_remaining = max(45, 1800 - seconds_elapsed)
 
     return JsonResponse({
         'has_incoming_job': True,

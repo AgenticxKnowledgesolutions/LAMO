@@ -3417,13 +3417,31 @@ function toggleVoiceDescription() {
     const statusText = document.getElementById('voiceStatusText');
     const textarea = document.getElementById('modalDescriptionTextarea');
 
+    function showVoiceNotice(html, autoHideMs = 6000) {
+        if (statusWrap) {
+            statusWrap.style.display = 'flex';
+            statusWrap.style.background = '#fef3c7';
+            statusWrap.style.color = '#92400e';
+            statusWrap.style.padding = '8px 12px';
+            statusWrap.style.borderRadius = '8px';
+            statusWrap.style.fontSize = '12px';
+        }
+        if (statusText) statusText.innerHTML = html;
+        if (textarea) textarea.focus();
+        if (autoHideMs) {
+            setTimeout(function() {
+                if (statusWrap && !_isRecordingVoice) statusWrap.style.display = 'none';
+            }, autoHideMs);
+        }
+    }
+
     if (!SpeechRecognition) {
-        alert("Voice recognition is supported in modern browsers like Chrome, Edge, and Safari. You can type directly into the description box.");
+        showVoiceNotice('<i class="bi bi-info-circle-fill me-1"></i> Voice API unsupported in this browser. <strong>Tap the box & use your keyboard microphone 🎙️</strong>');
         return;
     }
 
     if (_isRecordingVoice && _recognitionInstance) {
-        _recognitionInstance.stop();
+        try { _recognitionInstance.stop(); } catch (e) {}
         return;
     }
 
@@ -3437,8 +3455,15 @@ function toggleVoiceDescription() {
             _isRecordingVoice = true;
             if (btn) btn.classList.add('recording');
             if (btnText) btnText.textContent = 'Listening...';
-            if (statusWrap) statusWrap.style.display = 'flex';
-            if (statusText) statusText.textContent = 'Listening... Speak clearly into your mic';
+            if (statusWrap) {
+                statusWrap.style.display = 'flex';
+                statusWrap.style.background = '#ecfdf5';
+                statusWrap.style.color = '#065f46';
+                statusWrap.style.padding = '6px 10px';
+                statusWrap.style.borderRadius = '8px';
+                statusWrap.style.fontSize = '12px';
+            }
+            if (statusText) statusText.innerHTML = '<i class="bi bi-mic-fill me-1 text-danger"></i> Listening... Speak clearly into your microphone';
         };
 
         _recognitionInstance.onresult = function(event) {
@@ -3449,27 +3474,40 @@ function toggleVoiceDescription() {
             if (textarea && transcript.trim()) {
                 const currentText = textarea.value.trim();
                 textarea.value = currentText ? (currentText + ' ' + transcript) : transcript;
+                const counter = document.getElementById('descCharCount');
+                if (counter) counter.textContent = textarea.value.length;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         };
 
         _recognitionInstance.onerror = function(event) {
             console.warn("Speech recognition error:", event.error);
-            if (statusText) statusText.textContent = 'Could not catch voice. Please try speaking again.';
-            setTimeout(function() {
-                if (statusWrap) statusWrap.style.display = 'none';
-            }, 3000);
+            _isRecordingVoice = false;
+            if (btn) btn.classList.remove('recording');
+            if (btnText) btnText.textContent = 'Speak to Describe';
+
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                showVoiceNotice('<i class="bi bi-mic-mute-fill me-1 text-danger"></i> Browser restricted mic over HTTP. <strong>Tap into box & use keyboard mic 🎙️</strong>', 8000);
+            } else if (event.error === 'no-speech') {
+                showVoiceNotice('<i class="bi bi-info-circle me-1"></i> No voice heard. Please try again or type directly.', 4000);
+            } else {
+                showVoiceNotice('<i class="bi bi-info-circle me-1"></i> Voice tip: <strong>Tap box & use phone keyboard mic 🎙️</strong> for instant voice typing.', 6000);
+            }
         };
 
         _recognitionInstance.onend = function() {
             _isRecordingVoice = false;
             if (btn) btn.classList.remove('recording');
             if (btnText) btnText.textContent = 'Speak to Describe';
-            if (statusWrap) statusWrap.style.display = 'none';
+            setTimeout(function() {
+                if (statusWrap && !_isRecordingVoice) statusWrap.style.display = 'none';
+            }, 3000);
         };
 
         _recognitionInstance.start();
     } catch (err) {
-        console.error("Speech recognition error:", err);
+        console.error("Speech recognition start error:", err);
+        showVoiceNotice('<i class="bi bi-info-circle-fill me-1"></i> <strong>Tap into box & use phone keyboard mic 🎙️</strong> for instant voice typing.', 7000);
     }
 }
 
