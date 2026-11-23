@@ -143,9 +143,12 @@ class CustomUser(AbstractUser):
         import sys, os
         from django.conf import settings
         if getattr(settings, 'DEBUG', False) and 'test' not in sys.argv and 'settings_test' not in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
-            print(f"\n=======================================================", flush=True)
-            print(f"[TERMINAL OTP] Verification code for {self.email or self.username}: {otp}", flush=True)
-            print(f"=======================================================\n", flush=True)
+            try:
+                print(f"\n=======================================================", flush=True)
+                print(f"[TERMINAL OTP] Verification code for {self.email or self.username}: {otp}", flush=True)
+                print(f"=======================================================\n", flush=True)
+            except Exception:
+                pass
         return otp
 
 
@@ -1498,9 +1501,12 @@ class Booking(models.Model):
             import sys, os
             from django.conf import settings
             if getattr(settings, 'DEBUG', False) and 'test' not in sys.argv and 'settings_test' not in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
-                print(f"\n=======================================================", flush=True)
-                print(f"[TERMINAL ARRIVAL PIN] Booking #{self.id}: {self.arrival_otp}", flush=True)
-                print(f"=======================================================\n", flush=True)
+                try:
+                    print(f"\n=======================================================", flush=True)
+                    print(f"[TERMINAL ARRIVAL PIN] Booking #{self.id}: {self.arrival_otp}", flush=True)
+                    print(f"=======================================================\n", flush=True)
+                except Exception:
+                    pass
 
         if not self.worker_badge_code:
 
