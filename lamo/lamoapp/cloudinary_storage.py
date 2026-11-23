@@ -94,7 +94,11 @@ def _cloudinary_credentials():
 
 
 def is_cloudinary_configured():
-    """Return True only when all three Cloudinary credentials are set."""
+    """Return True only when all three Cloudinary credentials are set and SDK is installed."""
+    try:
+        import cloudinary
+    except ImportError:
+        return False
     cloud_name, api_key, api_secret = _cloudinary_credentials()
     return bool(cloud_name and api_key and api_secret)
 
