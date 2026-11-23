@@ -767,14 +767,19 @@ Worker Dashboard | LAMO
         {% csrf_token %}
         <div class="wallet-modal-body">
           <!-- UPI QR / ID box -->
-          <div class="wallet-upi-qr-box">
-            <div class="wallet-upi-qr-icon">
-              <i class="bi bi-qr-code"></i>
+          <div class="wallet-upi-qr-box" style="text-align: center; padding: 16px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; margin-bottom: 16px;">
+            <div style="margin-bottom: 10px;">
+              <img src="{% static 'img/payment_upi_qr.png' %}?v=1.0" alt="UPI QR Code" style="max-width: 220px; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 3px solid #ffffff;">
             </div>
-            <div class="wallet-upi-hint">Scan with GPay, PhonePe, Paytm, or BHIM</div>
-            <div class="wallet-upi-id-badge" id="copyUpiIdBtn" title="Click to copy UPI ID">
-              <span id="upiIdText">lamo.pay@upi</span>
-              <i class="bi bi-copy wallet-upi-copy-hint" id="copyUpiIcon"></i>
+            <div class="wallet-upi-hint" style="font-size: 0.82rem; color: #475569; font-weight: 600; margin-bottom: 8px;">Scan with GPay, PhonePe, Paytm, or BHIM</div>
+            <div class="wallet-upi-id-badge" id="copyUpiIdBtn" title="Click to copy UPI ID" style="display: inline-flex; align-items: center; gap: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 6px 14px; border-radius: 20px; cursor: pointer;">
+              <span id="upiIdText" style="font-weight: 700; color: #065f46; font-size: 0.9rem;">anjumurali2000-1@okaxis</span>
+              <i class="bi bi-copy wallet-upi-copy-hint" id="copyUpiIcon" style="color: #059669;"></i>
+            </div>
+            <div style="margin-top: 10px;">
+              <a id="directUpiPayLink" href="upi://pay?pa=anjumurali2000-1@okaxis&pn=LAMO%20Platform&cu=INR" class="btn btn-sm" style="background: #059669; color: #ffffff; font-weight: 700; font-size: 0.8rem; border-radius: 8px; padding: 6px 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                <i class="bi bi-phone-fill"></i> Pay via UPI App (Mobile)
+              </a>
             </div>
           </div>
 
@@ -1095,6 +1100,18 @@ function initWalletRechargeModal() {
         }
     });
 
+    function updateUpiPayLink() {
+        var upiLink = document.getElementById('directUpiPayLink');
+        if (!upiLink) return;
+        var amt = amtInput ? parseFloat(amtInput.value) : 0;
+        var upiId = 'anjumurali2000-1@okaxis';
+        var url = 'upi://pay?pa=' + encodeURIComponent(upiId) + '&pn=LAMO%20Platform&cu=INR';
+        if (amt && !isNaN(amt) && amt > 0) {
+            url += '&am=' + encodeURIComponent(amt.toFixed(2));
+        }
+        upiLink.href = url;
+    }
+
     // Quick Amount buttons
     quickBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -1103,14 +1120,16 @@ function initWalletRechargeModal() {
                 amtInput.value = parseFloat(val).toFixed(2);
                 quickBtns.forEach(function (b) { b.classList.remove('active'); });
                 btn.classList.add('active');
+                updateUpiPayLink();
             }
         });
     });
 
-    // Clear active state on manual typing
+    // Clear active state on manual typing & update link
     if (amtInput) {
         amtInput.addEventListener('input', function () {
             quickBtns.forEach(function (b) { b.classList.remove('active'); });
+            updateUpiPayLink();
         });
     }
 
@@ -1118,7 +1137,7 @@ function initWalletRechargeModal() {
     if (copyBtn) {
         copyBtn.addEventListener('click', function () {
             var upiId = document.getElementById('upiIdText');
-            var text = upiId ? upiId.innerText.trim() : 'lamo.pay@upi';
+            var text = upiId ? upiId.innerText.trim() : 'anjumurali2000-1@okaxis';
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(function () {
                     showCopiedFeedback();
