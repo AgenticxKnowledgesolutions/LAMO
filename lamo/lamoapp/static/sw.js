@@ -16,8 +16,8 @@ self.addEventListener('push', function (event) {
     const title = data.title || 'New Job Request | LAMO';
     const options = {
         body: data.body || 'You have received a new service booking request.',
-        icon: data.icon || '/static/images/logo.png',
-        badge: data.badge || '/static/images/logo.png',
+        icon: data.icon || '/static/img/lamo_icon_dark.png',
+        badge: data.badge || '/static/img/lamo_icon_dark.png',
         data: {
             url: data.url || '/worker-dashboard/'
         },

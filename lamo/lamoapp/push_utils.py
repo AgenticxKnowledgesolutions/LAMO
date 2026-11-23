@@ -41,8 +41,8 @@ def send_web_push(user, title, body, url="/worker-dashboard/"):
         "title": title,
         "body": body,
         "url": url or "/worker-dashboard/",
-        "icon": "/static/images/logo.png",
-        "badge": "/static/images/logo.png",
+        "icon": "/static/img/lamo_icon_dark.png",
+        "badge": "/static/img/lamo_icon_dark.png",
         "tag": f"lamo-job-{user.id}",
     })
 

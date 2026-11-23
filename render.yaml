@@ -98,6 +98,14 @@ services:
       # Must be URL-encoded if the password contains @ : /
       - key: DATABASE_URL
         sync: false
+      # TiDB Cloud (MySQL-compatible) notes - enter these in the dashboard, never here:
+      #   * DATABASE_URL = mysql://USER:PASSWORD@gateway01.<region>.prod.aws.tidbcloud.com:4000/DBNAME
+      #     (URL-encode the password). TLS is required by TiDB; settings.py turns on
+      #     VERIFY_IDENTITY automatically for *.tidbcloud.com hosts and verifies with the
+      #     operating system CA bundle. DJANGO_DB_SSL_CA only needs setting to override.
+      #   * DJANGO_DB_ISOLATION_LEVEL = read committed   <- set ONLY after the real-database
+      #     race test (lamoapp/tests_real_db_booking_race.py) has been run against TiDB.
+      #   * Give the cron service the SAME DATABASE_URL (it does not inherit variables).
       # Shared cache backing the login/OTP/password-reset/AI rate limits.
       # settings.py refuses to start production without it (per-process
       # LocMemCache would silently defeat the lockouts).

@@ -10302,6 +10302,44 @@ def service_workers(request, pk):
             customer_lat=customer_lat,
             customer_lng=customer_lng,
         )
+        # The recommender only knows verified + available workers. A worker who
+        # is paused for dues, or whose prepaid wallet cannot cover the
+        # acceptance commission, would be refused by book_service after the
+        # customer filled the whole form - so never recommend them (this is the
+        # same rule the main worker list already applies).
+        # Wallet balances: reuse the wallets the main list already loaded
+        # (select_related) and only query for recommended workers that are not
+        # in that list - at most one query, never one per worker.
+        _wallet_balances = {}
+        for _w in workers:
+            try:
+                _wallet_balances[_w.id] = _w.wallet.balance
+            except Exception:
+                _wallet_balances[_w.id] = None
+        _missing_ids = [
+            _r['worker'].id for _r in ai_recommendations
+            if isinstance(_r, dict) and _r.get('worker') is not None and _r['worker'].id not in _wallet_balances
+        ]
+        if _missing_ids:
+            for _wid, _bal in WorkerWallet.objects.filter(worker_id__in=_missing_ids).values_list('worker_id', 'balance'):
+                _wallet_balances[_wid] = _bal
+        _bookable_recs = []
+        for _rec in ai_recommendations:
+            _rec_worker = _rec.get('worker') if isinstance(_rec, dict) else None
+            if _rec_worker is None:
+                _bookable_recs.append(_rec)
+                continue
+            try:
+                _fee = estimate_worker_acceptance_fee(_rec_worker)
+                _balance = Decimal(str(_wallet_balances.get(_rec_worker.id) or '0.00'))
+                _locked_out = bool(getattr(_rec_worker, 'is_paused_for_dues', False)) or (
+                    _fee > Decimal('0.00') and _balance < _fee
+                )
+            except Exception:
+                _locked_out = False
+            if not _locked_out:
+                _bookable_recs.append(_rec)
+        ai_recommendations = _bookable_recs
 
     district_lat, district_lng = DISTRICT_COORDINATES.get(district, (9.9312, 76.2673))
 
@@ -15442,10 +15480,18 @@ def api_worker_availability(request, worker_id):
 
     slots_data = []
     travel_buffer_label = f'{lead_mins}m Travel Buffer'
+    # The travel buffer that is really locked after the job is NOT the same
+    # number as the same-day lead time above: it comes from
+    # compute_booking_window (15 min default, 30 / 45 min for distant customers).
+    # Ask that function so this endpoint, the booking modal and book_service
+    # can never disagree about how long the worker is blocked.
+    _jw_start, _jw_end, _jw_dur, job_buffer_mins = compute_booking_window(
+        '12:00 PM', service=target_service, duration_min=service_duration, distance_km=dist_km
+    )
     for slot_str in standard_slots:
         slot_start, slot_end = parse_time_range(slot_str)
         s_mins = slot_start.hour * 60 + slot_start.minute if slot_start else 0
-        cand_duration = service_duration + 15
+        cand_duration = service_duration + job_buffer_mins
         e_mins = s_mins + cand_duration
 
         status = 'available'
@@ -15497,7 +15543,8 @@ def api_worker_availability(request, worker_id):
         'service_duration_min': service_duration,
         'lead_time_min': lead_mins,
         'distance_km': round(dist_km, 2) if dist_km is not None else None,
-        'estimated_job_window': f"{service_duration} mins (+{lead_mins}m travel buffer)",
+        'travel_buffer_min': job_buffer_mins,
+        'estimated_job_window': f"{service_duration} mins (+{job_buffer_mins}m travel buffer)",
         'date': target_date.strftime('%Y-%m-%d'),
         'on_leave': on_leave,
         'is_today': is_today,
@@ -15592,7 +15639,7 @@ def api_worker_incoming_job_alert(request):
 
     try:
         pricing_amount = float(worker.pricing_amount or 250)
-        estimated_earnings = float(incoming.total_cost or (pricing_amount * 2))
+        estimated_earnings = float(incoming.estimated_cost or (pricing_amount * 2))
     except Exception:
         estimated_earnings = 500.0
 
@@ -15607,7 +15654,7 @@ def api_worker_incoming_job_alert(request):
             'customer_name': incoming.customer.get_full_name() or incoming.customer.username,
             'scheduled_date': incoming.date.strftime('%A, %d %b %Y') if incoming.date else 'Today',
             'scheduled_time': str(incoming.time or 'Scheduled Slot'),
-            'address': incoming.address or (incoming.district or 'Customer Address'),
+            'address': incoming.location or (incoming.district or 'Customer Address'),
             'distance_km': distance_km,
             'distance_label': distance_label,
             'customer_lat': c_lat,

@@ -2346,9 +2346,9 @@
                         <div class="timeline-step-body">
                             <div class="timeline-title-row">
                                 <h6>Worker Reviews &amp; Calls You</h6>
-                                <span class="timeline-tag tag-highlight"><i class="bi bi-lightning-charge-fill"></i> Within 30 mins</span>
+                                <span class="timeline-tag tag-highlight" id="sheetWorkerWindowTag"><i class="bi bi-lightning-charge-fill"></i> Within 20-60 mins</span>
                             </div>
-                            <p id="sheetWorkerCallText">The worker will accept your booking within <strong>30 minutes</strong> and call your registered number to reconfirm timing &amp; arrival.</p>
+                            <p id="sheetWorkerCallText">The worker will respond to your booking shortly and call your registered number to reconfirm timing &amp; arrival.</p>
                         </div>
                     </div>
 
@@ -4169,7 +4169,18 @@ function showBookingSuccessSheet(data) {
 
     // Worker call guarantee description (Idea 1)
     if (workerCallText) {
-        workerCallText.innerHTML = "<strong>" + workerName + "</strong> will accept your booking within <strong>30 minutes</strong> and call your registered number to reconfirm timing &amp; arrival.";
+        // Real acceptance windows (RESPONSE_WINDOW_* in views.py): same-day 20 min,
+        // any later date 60 min. Show the one that actually applies.
+        var _bd = document.getElementById("modalBookingDate");
+        var _bdVal = _bd ? _bd.value : "";
+        var _t = new Date();
+        var _todayStr = _t.getFullYear() + "-" + String(_t.getMonth() + 1).padStart(2, "0") + "-" + String(_t.getDate()).padStart(2, "0");
+        var _winMins = (_bdVal && _bdVal === _todayStr) ? 20 : 60;
+        workerCallText.innerHTML = "<strong>" + workerName + "</strong> will accept your booking within <strong>" + _winMins + " minutes</strong> and call your registered number to reconfirm timing &amp; arrival.";
+        var _winTag = document.getElementById("sheetWorkerWindowTag");
+        if (_winTag) {
+            _winTag.innerHTML = '<i class="bi bi-lightning-charge-fill"></i> Within ' + _winMins + ' mins';
+        }
     }
 
     // Doorstep QR Verification indicator (No PIN required)

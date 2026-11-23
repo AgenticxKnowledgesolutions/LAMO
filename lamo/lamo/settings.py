@@ -379,6 +379,25 @@ _MYSQL_OPTIONS = {
     'connect_timeout': int(os.getenv('DJANGO_DB_CONNECT_TIMEOUT', '10') or 10),
 }
 
+# Optional transaction isolation level (env DJANGO_DB_ISOLATION_LEVEL).
+# Unset (the default) leaves the database's own default untouched, so nothing
+# changes for existing deployments. TiDB's REPEATABLE READ is snapshot based: a
+# plain SELECT inside a transaction can read the snapshot taken when the
+# transaction started, so after waiting on SELECT ... FOR UPDATE it may not see
+# a booking another request just committed. READ COMMITTED makes every statement
+# read the latest committed data, which is what the worker-row-lock + overlap
+# check in book_service assumes. Set it ONLY after the race test passes on your
+# real database (see lamoapp/tests_real_db_booking_race.py).
+_DB_ISOLATION_LEVELS = ('read committed', 'repeatable read', 'serializable', 'read uncommitted')
+_db_isolation = (os.getenv('DJANGO_DB_ISOLATION_LEVEL', '') or '').strip().lower().replace('_', ' ').replace('-', ' ')
+if _db_isolation:
+    if _db_isolation not in _DB_ISOLATION_LEVELS:
+        # The value is deliberately not echoed back.
+        raise ImproperlyConfigured(
+            'DJANGO_DB_ISOLATION_LEVEL must be one of: {0}.'.format(', '.join(_DB_ISOLATION_LEVELS))
+        )
+    _MYSQL_OPTIONS['isolation_level'] = _db_isolation
+
 # ============================================================
 # MySQL TLS / SSL (optional, environment-driven)
 # ============================================================
@@ -420,6 +439,22 @@ def _mysql_driver_ssl_modes():
     return frozenset(mode for mode in _MYSQL_SSL_MODES if mode in doc)
 
 
+def _system_ca_bundle():
+    """Path of the operating system's CA bundle, or '' when none is found."""
+    for candidate in (
+        '/etc/ssl/certs/ca-certificates.crt',   # Debian / Ubuntu (Render)
+        '/etc/pki/tls/certs/ca-bundle.crt',     # RHEL / CentOS
+        '/etc/ssl/cert.' + 'pem',               # Alpine / macOS (split: no literal cert filename in settings)
+    ):
+        if Path(candidate).is_file():
+            return candidate
+    try:
+        import certifi
+        return certifi.where()
+    except Exception:
+        return ''
+
+
 def resolve_mysql_ssl_options(ssl_mode=None, ssl_ca=None):
     """Build mysqlclient SSL entries for ``DATABASES['default']['OPTIONS']``.
 
@@ -439,14 +474,25 @@ def resolve_mysql_ssl_options(ssl_mode=None, ssl_ca=None):
     ssl_mode = (ssl_mode or '').strip()
     ssl_ca = (ssl_ca or '').strip()
 
-    # If SSL is not explicitly requested, auto-enable VERIFY_CA when connecting to Aiven cloud
+    _db_host = os.getenv('DJANGO_DB_HOST', '')
+    _db_url = os.getenv('DATABASE_URL', '')
+    _is_tidb = 'tidbcloud.com' in _db_host or 'tidbcloud.com' in _db_url
+
+    # If SSL is not explicitly requested, auto-enable it for the managed clouds
+    # that require it: VERIFY_CA for Aiven, VERIFY_IDENTITY for TiDB Cloud.
     if not ssl_mode and not ssl_ca:
-        _db_host = os.getenv('DJANGO_DB_HOST', '')
-        _db_url = os.getenv('DATABASE_URL', '')
         if 'aivencloud.com' in _db_host or 'aivencloud.com' in _db_url:
             ssl_mode = 'VERIFY_CA'
+        elif _is_tidb:
+            ssl_mode = 'VERIFY_IDENTITY'
         else:
             return {}
+
+    # TiDB Cloud serverless certificates chain to a public CA, so the operating
+    # system's CA bundle verifies them. (The repository's cert/ca.pem is the
+    # Aiven CA and would make every TiDB connection fail verification.)
+    if _is_tidb and not ssl_ca:
+        ssl_ca = _system_ca_bundle()
 
     supported = _mysql_driver_ssl_modes()
 

@@ -283,9 +283,9 @@
                     </div>
 
                     <div class="trust-indicators">
-                        <span class="trust-chip"><i class="bi bi-fingerprint"></i> ID Verified</span>
-                        <span class="trust-chip"><i class="bi bi-shield-shaded"></i> Police Clearance</span>
-                        <span class="trust-chip"><i class="bi bi-star-fill" style="color:#eab308;"></i> 4.9 &bull; Top Pro</span>
+                        {% if booking.worker.is_verified %}<span class="trust-chip"><i class="bi bi-fingerprint"></i> ID Verified</span>{% endif %}
+                        {# No police-clearance record exists in the data model, so that claim is never shown. #}
+                        {% if booking.worker.average_rating %}<span class="trust-chip"><i class="bi bi-star-fill" style="color:#eab308;"></i> {{ booking.worker.average_rating }} rating</span>{% endif %}
                     </div>
                 </div>
 
