@@ -364,9 +364,48 @@ document.addEventListener("DOMContentLoaded", function() {
     const btn = document.getElementById("btnAdmitPro");
 
     if (form && btn) {
-        form.addEventListener("submit", function(e) {
+        form.addEventListener("submit", async function(e) {
+            e.preventDefault();
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying & Starting Service...';
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right:8px;"></span> Verifying &amp; Starting Service...';
+            
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const footer = document.querySelector(".verify-action-footer");
+                    if (footer) {
+                        footer.innerHTML = `
+                            <div class="status-badge-active" style="animation: fadeIn 0.35s ease;">
+                                <div style="font-size: 30px; color: #059669; margin-bottom: 8px;">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                </div>
+                                <h3 style="font-size: 18px; font-weight: 800; color: #065f46; margin: 0 0 6px;">Technician Admitted &amp; Work Started!</h3>
+                                <p style="font-size: 13px; color: #047857; margin: 0 0 14px;">
+                                    Verified at ${data.verified_at || 'just now'}. The technician's live timer is running.
+                                </p>
+                            </div>
+                            <a href="{% url 'my_bookings' %}?booking_id={{ booking.id }}" class="btn-back-dashboard">
+                                <i class="bi bi-speedometer2"></i> View Booking in My Dashboard
+                            </a>
+                        `;
+                    }
+                } else {
+                    alert(data.message || 'Verification could not be completed.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-shield-fill-check"></i> <span>Admit Technician &amp; Start Service</span>';
+                }
+            } catch (err) {
+                // If network/AJAX fails, fallback to normal full-page POST
+                form.submit();
+            }
         });
     }
 });
